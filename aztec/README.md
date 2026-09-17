@@ -72,6 +72,9 @@ about fifteen keyboard commands:
 - The drawing surface takes the shape of the box it is in rather than a fixed 320x192, so the
   extra room in full screen shows more tomb instead of black bars.
 - Buttons that name what they are about to do, so nothing on the pad is a guess.
+- A title screen rather than a menu on a black rectangle: a moonlit step pyramid with the
+  torches still burning, the jade idol glowing in the temple doorway and someone already on
+  the stair, drawn on the canvas and animated, with the menu sitting on it as a scrim.
 
 ## What remains approximate
 
