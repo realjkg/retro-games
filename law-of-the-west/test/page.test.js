@@ -194,6 +194,28 @@ test('8g. no AudioContext exists until a gesture, and nothing external is fetche
   assert.deepEqual(p.errors,[]);
 });
 
+test('8i. the day is launched in full screen unless that was turned off', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  assert.equal(p.ev('wantGameMode'),true,'full screen is not the launch default');
+  assert.equal(p.ev('gameMode'),false,'it should not enter before a gesture');
+  p.tap('[data-cmd="fire"]');                      // pinning on the badge is the gesture
+  assert.equal(p.ev('gameMode'),true,'the launch did not go full screen');
+  assert.equal(p.G().phase,'dialogue','and the day still started');
+  // turning it off is what gets remembered
+  p.tap('#full');
+  assert.equal(p.ev('gameMode'),false);
+  let stored=null;
+  try{stored=p.w.localStorage.getItem('lotw.gamemode');}catch(e){}
+  assert.equal(stored,'0','the choice to stay in the page was not remembered');
+  // and a page that opens with that stored reads it back (each jsdom window has
+  // its own storage, so the read path is exercised rather than a second load)
+  assert.equal(p.ev('readGameModePref()'),false,'the stored choice is not read back');
+  try{p.w.localStorage.setItem('lotw.gamemode','1');}catch(e){}
+  assert.equal(p.ev('readGameModePref()'),true);
+  try{p.w.localStorage.removeItem('lotw.gamemode');}catch(e){}
+  assert.equal(p.ev('readGameModePref()'),true,'the default with nothing stored is not full screen');
+});
+
 test('8h. full screen mode toggles from the control and the g key', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   assert.equal(p.ev('gameMode'),false);

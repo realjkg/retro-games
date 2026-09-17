@@ -72,7 +72,12 @@ slow one lets him fire first. Killing where a wound would have done costs
 standing, and shooting a man whose hand never moved is murder — violence is
 always available and always expensive.
 
-**Full screen.** `FULL`, the `g` key or `F11` hands the whole screen to the game:
+**Full screen.** The game launches in it: pinning on the badge is a user gesture,
+which is the only moment a browser will grant fullscreen, so that is when it is
+asked for. `EXIT`, the `g` key or `F11` stays in the page instead, and that
+choice is the one remembered. The page also carries the web-app meta tags, so
+adding it to a phone's Home Screen launches it with no browser chrome at all.
+`FULL`, `g` or `F11` hands the whole screen to the game:
 browser fullscreen where the API allows it, the page's own gestures stopped so a
 pinch or a long press cannot interrupt a held direction, and the screen kept
 awake. On a phone in portrait the scene takes the top and the words and controls

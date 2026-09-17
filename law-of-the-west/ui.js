@@ -134,7 +134,7 @@ function paint(){
     const written=ENCOUNTERS.filter(e=>Array.isArray(DIALOGUE[e.id])).length;
     lineEls[2].textContent=written+" of "+ENCOUNTERS.length+
       " encounters written. The rest are walked past for now."+
-      (gameMode?"":"  ·  FULL or g for full screen.");
+      (gameMode?"":"  ·  It opens full screen; EXIT or g stays in the page.");
     lineEls[2].className="choice dim";
     for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
@@ -190,8 +190,17 @@ function paintSummary(){
 const NAV=typeof navigator==="object"&&navigator?navigator:null;
 const bodyEl=document.body||{classList:{add(){},remove(){}}};
 const fullBtn=document.getElementById("full");
-let gameMode=false, wakeLock=null, wantGameMode=false;
-try{wantGameMode=localStorage.getItem("lotw.gamemode")==="1";}catch(e){}
+let gameMode=false, wakeLock=null;
+/* Full screen is how the game is meant to be launched, so it is the default:
+ * the first gesture - pinning on the badge - asks for it. EXIT or g turns it
+ * off and that choice is what gets remembered. */
+function readGameModePref(){
+  let want=true;                        // full screen unless told otherwise
+  try{const pref=localStorage.getItem("lotw.gamemode"); if(pref!==null)want=pref==="1";}
+  catch(e){}                            // private windows and blocked storage
+  return want;
+}
+let wantGameMode=readGameModePref();
 const fsElement=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
 function requestFS(){
   const el=document.documentElement; if(!el)return;
