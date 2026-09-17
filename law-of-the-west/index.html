@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Law of the West — Gold Gulch</title>
+<meta name="description" content="Law of the West: a browser recreation of the 1985 Commodore 64 western. Ten people come up the street of Gold Gulch and you wear the only badge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23120d09'/%3E%3Cpath d='M50 16l8 22h23l-18 14 7 22-20-14-20 14 7-22-18-14h23z' fill='%23d8a441'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
+  --gold:#d8a441; --line:#40311f; --npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#efe4d2; --panel:#fbf4e6; --panel2:#f3e8d4; --ink:#241a10; --dim:#6b5638;
+    --gold:#8a5a12; --line:#d2bc98; --npc:#7a4c06; --sel:#8a5a12; --selink:#fdf6e8;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
+  --gold:#d8a441; --line:#40311f; --npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+}
+:root[data-theme="light"]{
+  --bg:#efe4d2; --panel:#fbf4e6; --panel2:#f3e8d4; --ink:#241a10; --dim:#6b5638;
+  --gold:#8a5a12; --line:#d2bc98; --npc:#7a4c06; --sel:#8a5a12; --selink:#fdf6e8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+/* the two static zones: scene above, the matrix below */
+#top{position:relative;flex:1 1 50%;min-height:0;background:#000;overflow:hidden}
+#scene{width:100%;height:100%;display:block;image-rendering:pixelated}
+#bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;
+  gap:8px;padding:3px 6px;font-size:11px;color:var(--ink);background:rgba(10,7,4,.55);
+  pointer-events:none}
+#bottom{flex:1 1 50%;min-height:0;display:flex;flex-direction:column;gap:4px;padding:6px;
+  background:var(--panel);border-top:2px solid var(--line)}
+#panel{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0}
+.npc{color:var(--npc);font-size:14px;line-height:1.3;padding:4px 6px;min-height:2.6em;
+  border-bottom:1px solid var(--line)}
+.choice{font-size:13px;line-height:1.25;padding:5px 6px;border:1px solid transparent;
+  border-radius:6px;color:var(--ink);cursor:pointer}
+.choice.sel{background:var(--sel);color:var(--selink);font-weight:700;border-color:var(--sel)}
+.choice.dim{opacity:.45}
+#pads{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,34px);gap:3px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
+  font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  touch-action:none}
+.btn:active{background:var(--sel);color:var(--selink)}
+.abtn{width:58px;height:58px;border-radius:50%;font-size:12px;font-weight:700}
+.sbtn{padding:6px 9px;font-size:11px;min-height:32px}
+#meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <canvas id="scene" width="320" height="200" aria-label="Main street, Gold Gulch"></canvas>
+    <div id="bar"><span id="mode">TALKING — up to draw</span><span id="score">Standing 0</span></div>
+  </div>
+  <div id="bottom">
+    <div id="panel" role="group" aria-label="Dialogue">
+      <div id="line0" class="npc">LAW OF THE WEST — GOLD GULCH</div>
+      <div id="line1" class="choice sel" data-cmd="choose" data-index="0"></div>
+      <div id="line2" class="choice" data-cmd="choose" data-index="1"></div>
+      <div id="line3" class="choice" data-cmd="choose" data-index="2"></div>
+      <div id="line4" class="choice" data-cmd="choose" data-index="3"></div>
+    </div>
+    <div id="pads">
+      <div class="dpad">
+        <div></div><div class="btn" data-cmd="up">▲</div><div></div>
+        <div class="btn" data-cmd="left">◀</div><div class="btn sbtn" data-cmd="holster">HOL</div><div class="btn" data-cmd="right">▶</div>
+        <div></div><div class="btn" data-cmd="down">▼</div><div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+        <div class="btn abtn" data-cmd="fire">FIRE</div>
+        <button class="btn sbtn" id="mute" type="button" data-cmd="mute" aria-pressed="true">SOUND ON</button>
+      </div>
+    </div>
+    <div id="meta"><span>Up draws · down holsters · 1-4 or FIRE to speak · m mutes</span></div>
+  </div>
+</div>
+<script>
+"use strict";
+/* ===== sid-audio.js ===== */
+/* ============ audio — SID (MOS 6581) idiom ============ *
+ * Pulse oscillators with pulse-width modulation, a resonant multimode
+ * lowpass, ring modulation, 23-bit LFSR noise and 4-bit ADSR levels.
+ * Everything synthesised at run time. No samples, no files, nothing
+ * lifted from any commercial release. SOUNDS is plain data so the same
+ * definitions can be rendered offline to wav for auditioning.
+ *
+ * voice fields:
+ *   w    "pulse" | "saw" | "tri" | "noise"
+ *   f0   start frequency (Hz)        f1  end frequency (sweep, optional)
+ *   pw   pulse width 0..1            pw1 end width (PWM sweep, optional)
+ *   ring ring-modulator ratio against f0 (optional, tri/pulse only)
+ *   cut  filter cutoff (Hz)          cut1 end cutoff (sweep, optional)
+ *   res  filter resonance 0..15      dur seconds      vol 0..1
+ *   dly  start offset (seconds)
+ *   seq  [[semitoneOffset, startSec, durSec], ...] for melodic phrases   */
+const SID_CLK=985248, FRAME=1/50;          // PAL machine, 50 Hz play routine
+const sidF=f=>Math.round(f*16777216/SID_CLK)*SID_CLK/16777216;   // 16-bit register
+const sid4=v=>Math.round(Math.max(0,Math.min(1,v))*15)/15;       // 4-bit level
+const sidCut=c=>Math.round(Math.max(30,Math.min(12000,c))/12000*2047)/2047*12000;
+const SOUNDS={
+  step:    [{w:"noise",f0:1,dur:0.07,vol:0.16,cut:420,cut1:180,res:4}],
+  click:   [{w:"pulse",f0:1400,pw:0.5,dur:0.03,vol:0.13,cut:5000,res:2}],
+  select:  [{w:"pulse",f0:520,f1:1040,pw:0.3,pw1:0.6,dur:0.09,vol:0.2,cut:4200,res:5}],
+  deny:    [{w:"saw",f0:190,f1:96,dur:0.22,vol:0.22,cut:1400,cut1:380,res:9}],
+  creak:   [{w:"saw",f0:88,f1:150,dur:0.34,vol:0.15,cut:600,cut1:2600,res:12}],
+  door:    [{w:"saw",f0:70,f1:128,dur:0.45,vol:0.16,cut:520,cut1:2200,res:13},
+            {w:"noise",f0:1,dur:0.12,vol:0.2,cut:300,cut1:110,res:5,dly:0.44}],
+  tell:    [{w:"tri",f0:330,f1:520,ring:1.51,dur:0.5,vol:0.18,cut:3000,cut1:5200,res:10},
+            {w:"pulse",f0:82,pw:0.12,pw1:0.45,dur:0.55,vol:0.14,cut:900,res:8}],
+  gunshot: [{w:"noise",f0:1,dur:0.2,vol:0.3,cut:7000,cut1:260,res:6},
+            {w:"pulse",f0:150,f1:48,pw:0.5,dur:0.16,vol:0.26,cut:1600,cut1:300,res:4},
+            {w:"noise",f0:1,dur:0.5,vol:0.08,cut:1100,cut1:180,res:9,dly:0.06}],
+  ricochet:[{w:"pulse",f0:2400,f1:640,pw:0.08,pw1:0.5,dur:0.26,vol:0.16,
+             cut:6000,cut1:1500,res:12}],
+  hit:     [{w:"noise",f0:1,dur:0.11,vol:0.26,cut:2400,cut1:200,res:5},
+            {w:"tri",f0:120,f1:62,dur:0.18,vol:0.22,cut:900,res:3}],
+  wound:   [{w:"noise",f0:1,dur:0.14,vol:0.2,cut:900,cut1:180,res:7},
+            {w:"tri",f0:95,f1:58,dur:0.3,vol:0.2,cut:600,res:4}],
+  death:   [{w:"saw",f0:220,f1:44,dur:0.8,vol:0.26,cut:3200,cut1:180,res:11},
+            {w:"pulse",f0:110,f1:40,pw:0.2,pw1:0.5,dur:0.85,vol:0.18,cut:1200,cut1:200,res:8}],
+  holster: [{w:"noise",f0:1,dur:0.09,vol:0.12,cut:1800,cut1:700,res:8},
+            {w:"saw",f0:130,f1:96,dur:0.14,vol:0.1,cut:900,cut1:1800,res:11,dly:0.03}],
+  /* melodic cues — seq entries are [semitones from f0, start, length]     */
+  respect: [{w:"pulse",f0:261.63,pw:0.25,pw1:0.5,vol:0.19,cut:3400,res:7,
+             seq:[[0,0,0.12],[7,0.12,0.12],[12,0.24,0.12],[16,0.36,0.3]]},
+            {w:"tri",f0:130.81,vol:0.14,cut:1200,res:3,
+             seq:[[0,0,0.3],[-5,0.3,0.36]]}],
+  disgrace:[{w:"pulse",f0:196,pw:0.4,pw1:0.2,vol:0.19,cut:2200,cut1:700,res:9,
+             seq:[[0,0,0.16],[-1,0.16,0.16],[-3,0.32,0.4]]},
+            {w:"tri",f0:98,vol:0.15,cut:900,res:4,seq:[[0,0,0.5],[-2,0.5,0.4]]}],
+  title:   [{w:"pulse",f0:440,vol:0.15,cut:3000,pw:0.22,pw1:0.58,res:8,seq:[[0,0,0.53],[4,0.55,0.53],[7,1.1,0.53],[12,1.65,0.53],[9,2.2,0.805],[7,3.025,0.255],[4,3.3,1.08],[5,4.4,0.53],[9,4.95,0.53],[12,5.5,0.53],[16,6.05,0.53],[14,6.6,1.08],[12,7.7,1.08],[0,8.8,0.53],[4,9.35,0.53],[7,9.9,0.53],[10,10.45,0.53],[0,11,2.18]]},
+             {w:"tri",f0:110,vol:0.17,cut:1000,res:3,seq:[[0,0,1.08],[0,1.1,1.08],[-4,2.2,1.08],[-4,3.3,1.08],[3,4.4,1.08],[3,5.5,1.08],[-2,6.6,1.08],[-2,7.7,1.08],[0,8.8,1.08],[0,9.9,1.08],[0,11,2.18]]},
+             {w:"pulse",f0:880,vol:0.055,cut:4200,pw:0.5,res:6,seq:[[12,0,0.255],[16,0.275,0.255],[19,0.55,0.53],[0,1.1,1.08],[16,2.2,0.255],[19,2.475,0.255],[24,2.75,0.53],[0,3.3,1.08],[12,4.4,0.255],[16,4.675,0.255],[19,4.95,0.53],[0,5.5,1.08],[12,6.6,2.18]]}],
+  dusk:    [{w:"pulse",f0:220,pw:0.25,pw1:0.55,vol:0.15,cut:2800,res:7,
+             seq:[[0,0,0.3],[4,0.32,0.3],[7,0.64,0.3],[9,0.96,0.3],
+                  [7,1.28,0.3],[4,1.6,0.3],[2,1.92,0.3],[0,2.24,0.7]]},
+            {w:"tri",f0:110,vol:0.16,cut:1100,res:3,
+             seq:[[0,0,0.62],[5,0.64,0.62],[-5,1.28,0.62],[0,1.92,1.0]]},
+            {w:"pulse",f0:440,pw:0.5,vol:0.07,cut:4200,res:6,
+             seq:[[0,0.32,0.12],[7,0.64,0.12],[12,0.96,0.12],[7,1.28,0.12],
+                  [4,1.6,0.12],[0,1.92,0.12],[12,2.4,0.5]]}],
+
+  /* ---- the rest of the day: cues for the parts the first table did not cover.
+     Data only; the synthesis above is untouched. ---- */
+
+  /* dawn and dusk bracket the day. dawn answers dusk: same idiom, rising. */
+  dawn:    [{w:"pulse",f0:196,pw:0.3,pw1:0.52,vol:0.15,cut:2400,cut1:3600,res:7,
+             seq:[[0,0,0.34],[7,0.36,0.34],[12,0.72,0.34],[16,1.08,0.34],
+                  [19,1.44,0.34],[24,1.8,0.8]]},
+            {w:"tri",f0:98,vol:0.16,cut:1000,res:3,
+             seq:[[0,0,0.7],[7,0.72,0.7],[12,1.44,1.16]]},
+            {w:"pulse",f0:784,pw:0.5,vol:0.05,cut:4600,res:6,
+             seq:[[0,0.36,0.1],[7,0.72,0.1],[12,1.08,0.1],[19,1.8,0.6]]}],
+  /* the star going on, at the head of the day */
+  badge:   [{w:"pulse",f0:523.25,pw:0.22,pw1:0.48,vol:0.17,cut:4000,res:6,
+             seq:[[0,0,0.09],[4,0.09,0.09],[7,0.18,0.09],[12,0.27,0.34]]},
+            {w:"tri",f0:130.81,vol:0.12,cut:1100,res:3,seq:[[0,0,0.2],[7,0.2,0.42]]}],
+
+  /* arrivals. Who comes up the street is audible before it is visible. */
+  hooves:  [{w:"noise",f0:1,dur:0.06,vol:0.2,cut:300,cut1:120,res:6},
+            {w:"tri",f0:74,f1:52,dur:0.09,vol:0.2,cut:420,res:4},
+            {w:"noise",f0:1,dur:0.06,vol:0.19,cut:320,cut1:120,res:6,dly:0.17},
+            {w:"tri",f0:70,f1:50,dur:0.09,vol:0.19,cut:420,res:4,dly:0.17},
+            {w:"noise",f0:1,dur:0.06,vol:0.21,cut:340,cut1:130,res:6,dly:0.31},
+            {w:"tri",f0:78,f1:54,dur:0.09,vol:0.2,cut:440,res:4,dly:0.31},
+            {w:"noise",f0:1,dur:0.07,vol:0.22,cut:300,cut1:110,res:6,dly:0.46},
+            {w:"tri",f0:66,f1:46,dur:0.11,vol:0.21,cut:400,res:4,dly:0.46}],
+  wagon:   [{w:"noise",f0:1,dur:0.9,vol:0.13,cut:520,cut1:240,res:7},
+            {w:"saw",f0:52,f1:63,dur:0.9,vol:0.12,cut:420,cut1:900,res:11},
+            {w:"noise",f0:1,vol:0.1,cut:1600,cut1:600,res:9,
+             seq:[[0,0.1,0.04],[0,0.34,0.04],[0,0.58,0.04],[0,0.8,0.05]]}],
+  spurs:   [{w:"pulse",f0:2100,pw:0.12,pw1:0.4,ring:1.47,vol:0.1,cut:6200,res:11,
+             seq:[[0,0,0.05],[3,0.13,0.05],[-2,0.27,0.07]]}],
+  crowd:   [{w:"noise",f0:1,dur:0.85,vol:0.11,cut:380,cut1:240,res:5},
+            {w:"saw",f0:96,f1:112,dur:0.8,vol:0.06,cut:300,cut1:520,res:8}],
+  wind:    [{w:"noise",f0:1,dur:1.3,vol:0.13,cut:280,cut1:1100,res:4},
+            {w:"noise",f0:1,dur:0.9,vol:0.08,cut:1400,cut1:320,res:6,dly:0.5}],
+  /* Miss Rose's saloon, four bars of an upright that has seen things */
+  piano:   [{w:"pulse",f0:392,pw:0.3,pw1:0.18,vol:0.13,cut:3200,res:5,
+             seq:[[0,0,0.14],[4,0.16,0.14],[7,0.32,0.14],[4,0.48,0.14],
+                  [0,0.64,0.14],[-3,0.8,0.14],[0,0.96,0.3]]},
+            {w:"tri",f0:98,vol:0.13,cut:900,res:3,
+             seq:[[0,0,0.3],[7,0.32,0.3],[0,0.64,0.3],[-5,0.96,0.34]]}],
+  /* a killing has a bell after it */
+  churchbell:[{w:"tri",f0:220,ring:1.503,dur:1.6,vol:0.42,cut:4200,cut1:1400,res:9},
+            {w:"tri",f0:110,dur:1.7,vol:0.3,cut:1400,cut1:600,res:4},
+            {w:"tri",f0:219,ring:1.497,dur:1.2,vol:0.26,cut:3600,cut1:1200,res:9,dly:0.9}],
+  /* the day moving on between encounters */
+  clock:   [{w:"pulse",f0:1800,pw:0.2,dur:0.02,vol:0.1,cut:5200,res:3},
+            {w:"noise",f0:1,dur:0.03,vol:0.09,cut:2600,cut1:900,res:4,dly:0.02}],
+
+  /* what the player learns, and what it is worth */
+  clue:    [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
+            {w:"tri",f0:165,vol:0.11,cut:1200,res:3,seq:[[0,0.06,0.2]]}],
+  point:   [{w:"pulse",f0:880,f1:1320,pw:0.4,dur:0.05,vol:0.11,cut:5000,res:4}],
+  penalty: [{w:"pulse",f0:520,f1:330,pw:0.3,dur:0.09,vol:0.13,cut:2200,cut1:900,res:7}],
+  /* a robbery stopped, and a robbery not stopped */
+  thread:  [{w:"pulse",f0:392,pw:0.25,pw1:0.5,vol:0.18,cut:3600,res:7,
+             seq:[[0,0,0.11],[4,0.11,0.11],[7,0.22,0.11],[12,0.33,0.42]]},
+            {w:"tri",f0:98,vol:0.15,cut:1100,res:3,seq:[[0,0,0.33],[12,0.33,0.42]]}],
+  alarm:   [{w:"pulse",f0:990,pw:0.5,vol:0.18,cut:4800,res:8,
+             seq:[[0,0,0.14],[-5,0.16,0.14],[0,0.32,0.14],[-5,0.48,0.14],
+                  [0,0.64,0.14],[-5,0.8,0.18]]},
+            {w:"saw",f0:124,dur:1,vol:0.1,cut:600,cut1:1500,res:10}],
+  robbery: [{w:"saw",f0:260,f1:58,dur:1.1,vol:0.22,cut:2600,cut1:200,res:11},
+            {w:"pulse",f0:98,f1:44,pw:0.2,pw1:0.5,dur:1.2,vol:0.16,cut:1000,cut1:220,res:8},
+            {w:"noise",f0:1,vol:0.12,cut:2000,cut1:300,res:6,
+             seq:[[0,0.35,0.09],[0,0.62,0.09],[0,0.8,0.12]]}],
+  /* slot seven, if it goes that way */
+  romance: [{w:"tri",f0:261.63,vol:0.16,cut:1800,cut1:2600,res:4,
+             seq:[[0,0,0.36],[4,0.38,0.36],[9,0.76,0.36],[7,1.14,0.7]]},
+            {w:"pulse",f0:130.81,pw:0.24,pw1:0.44,vol:0.1,cut:1600,res:6,
+             seq:[[0,0,0.74],[5,0.76,0.74]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.04,cut:5000,res:5,
+             seq:[[0,0.38,0.12],[4,0.76,0.12],[0,1.14,0.4]]}],
+
+  /* the duel, either side of the tell */
+  tension: [{w:"tri",f0:58,f1:44,dur:0.2,vol:0.5,cut:520,cut1:220,res:6},
+            {w:"tri",f0:56,f1:42,dur:0.24,vol:0.44,cut:480,cut1:200,res:6,dly:0.36}],
+  cock:    [{w:"noise",f0:1,dur:0.025,vol:0.14,cut:3200,cut1:1400,res:7},
+            {w:"pulse",f0:1250,pw:0.15,dur:0.03,vol:0.12,cut:4800,res:5,dly:0.05},
+            {w:"noise",f0:1,dur:0.03,vol:0.11,cut:2400,cut1:900,res:6,dly:0.08}],
+  aim:     [{w:"pulse",f0:300,f1:620,pw:0.18,pw1:0.44,dur:0.11,vol:0.12,
+             cut:1400,cut1:3800,res:9}],
+  dryfire: [{w:"noise",f0:1,dur:0.03,vol:0.13,cut:2600,cut1:800,res:6},
+            {w:"saw",f0:180,f1:70,dur:0.13,vol:0.12,cut:900,cut1:300,res:9,dly:0.02}],
+  graze:   [{w:"pulse",f0:1800,f1:380,pw:0.1,pw1:0.5,dur:0.2,vol:0.14,
+             cut:5200,cut1:900,res:13},
+            {w:"noise",f0:1,dur:0.16,vol:0.1,cut:3000,cut1:600,res:8,dly:0.02}],
+  reload:  [{w:"noise",f0:1,vol:0.1,cut:2800,cut1:1200,res:7,
+             seq:[[0,0,0.025],[0,0.11,0.025],[0,0.22,0.025],[0,0.33,0.025],
+                  [0,0.44,0.03]]},
+            {w:"pulse",f0:900,pw:0.2,vol:0.07,cut:3600,res:5,
+             seq:[[0,0.06,0.02],[0,0.17,0.02],[0,0.28,0.02],[0,0.39,0.02],[0,0.5,0.04]]}],
+
+  /* the doctor: the bottle, or the patch-up */
+  bottle:  [{w:"tri",f0:1560,ring:1.49,dur:0.22,vol:0.13,cut:5600,cut1:2200,res:12},
+            {w:"noise",f0:1,dur:0.04,vol:0.14,cut:900,cut1:280,res:5,dly:0.24},
+            {w:"tri",f0:1480,ring:1.51,dur:0.18,vol:0.09,cut:5200,cut1:2000,res:12,dly:0.3}],
+  patch:   [{w:"tri",f0:329.63,vol:0.15,cut:2000,res:4,seq:[[0,0,0.22],[5,0.24,0.44]]},
+            {w:"pulse",f0:164.81,pw:0.3,pw1:0.5,vol:0.1,cut:1600,res:6,
+             seq:[[0,0,0.22],[5,0.24,0.44]]}]
+};
+const GATE={step:90,click:30,hit:60,ricochet:70};
+const SND=(function(){
+  const AC=window.AudioContext||window.webkitAudioContext;
+  let ac=null,bus=null,nz=null,on=true; const lastAt={};
+  function noiseBuf(c){                       // SID's 23-bit LFSR
+    const n=(c.sampleRate*2)|0, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+    let r=0x7ffff8, held=1, acc=0; const inc=(SID_CLK/256)/c.sampleRate;
+    for(let i=0;i<n;i++){ acc+=inc;
+      while(acc>=1){ acc-=1;
+        const fb=((r>>22)^(r>>17))&1; r=((r<<1)|fb)&0x7fffff; held=(r&0x100000)?1:-1; }
+      d[i]=held; }
+    return b;
+  }
+  function ctx(){
+    if(!AC)return null;
+    if(!ac){ ac=new AC(); bus=ac.createGain(); bus.gain.value=0.3;
+             bus.connect(ac.destination); nz=noiseBuf(ac); }
+    if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
+    return ac;
+  }
+  /* a pulse of variable width: saw minus the same saw delayed by width/f */
+  function pulseSource(c,v,t0,dur,steps){
+    const a=c.createOscillator(), b=c.createOscillator(), inv=c.createGain();
+    const dl=c.createDelay(0.05), out=c.createGain();
+    a.type="sawtooth"; b.type="sawtooth"; inv.gain.value=-1;
+    steps.forEach(({t,f,pw})=>{
+      a.frequency.setValueAtTime(f,t); b.frequency.setValueAtTime(f,t);
+      dl.delayTime.setValueAtTime(Math.min(0.049,Math.max(0.0001,pw/f)),t); });
+    a.connect(out); b.connect(inv); inv.connect(dl); dl.connect(out);
+    a.start(t0); b.start(t0); a.stop(t0+dur+0.05); b.stop(t0+dur+0.05);
+    return out;
+  }
+  function voice(v,t0base){
+    const c=ctx(); if(!c)return;
+    const notes=v.seq||[[0,0,v.dur]];
+    for(const [st,ns,nd] of notes){
+      const t0=t0base+(v.dly||0)+ns, dur=nd, mul=Math.pow(2,st/12);
+      const n=Math.max(2,Math.round(dur/FRAME));
+      const steps=[];
+      for(let k=0;k<=n;k++){ const u=k/n;
+        steps.push({ t:t0+u*dur,
+          f:sidF((v.f1?v.f0*Math.pow(v.f1/v.f0,u):v.f0)*mul),
+          pw:(v.pw==null?0.5:(v.pw1==null?v.pw:v.pw+(v.pw1-v.pw)*u)),
+          cut:sidCut(v.cut1?v.cut*Math.pow(v.cut1/v.cut,u):(v.cut||8000)),
+          g:sid4((v.vol==null?0.2:v.vol)*Math.pow(1-u,1.5)) }); }
+      let src;
+      if(v.w==="pulse") src=pulseSource(c,v,t0,dur,steps);
+      else if(v.w==="noise"){ const s=c.createBufferSource();
+        s.buffer=nz; s.loop=true; s.start(t0); s.stop(t0+dur+0.05); src=s; }
+      else { const o=c.createOscillator(); o.type=v.w==="saw"?"sawtooth":"triangle";
+        steps.forEach(s=>o.frequency.setValueAtTime(s.f,s.t));
+        o.start(t0); o.stop(t0+dur+0.05); src=o; }
+      let node=src;
+      if(v.ring){                              // ring modulation: multiply by a second voice
+        const rg=c.createGain(); rg.gain.value=0;
+        const m=c.createOscillator(); m.type="triangle";
+        steps.forEach(s=>m.frequency.setValueAtTime(sidF(s.f*v.ring),s.t));
+        m.connect(rg.gain); node.connect(rg); m.start(t0); m.stop(t0+dur+0.05);
+        node=rg;
+      }
+      const flt=c.createBiquadFilter();
+      flt.type="lowpass"; flt.Q.value=0.7+(v.res==null?4:v.res)*0.75;
+      steps.forEach(s=>flt.frequency.setValueAtTime(s.cut,s.t));
+      const env=c.createGain();
+      steps.forEach(s=>env.gain.setValueAtTime(s.g,s.t));
+      env.gain.setValueAtTime(0,t0+dur+0.002);
+      node.connect(flt); flt.connect(env); env.connect(bus);
+    }
+  }
+  function play(name){
+    if(!on)return; const list=SOUNDS[name]; if(!list)return;
+    const ms=GATE[name];
+    if(ms){const t=performance.now(); if(lastAt[name]&&t-lastAt[name]<ms)return; lastAt[name]=t;}
+    const c=ctx(); if(!c)return;
+    list.forEach(v=>voice(v,c.currentTime));
+  }
+  const API={unlock(){ctx();}, get on(){return on;},
+    toggle(){on=!on; if(on){ctx();play("select");} return on;}};
+  Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
+  return API;
+})();
+
+
+/* ===== content.js ===== */
+/* ============ content ============
+ * The cast, exactly as supplied: ten encounters over one day in Gold Gulch,
+ * plus the Sheriff, who is the camera. Names, roles and what each one knows
+ * are the only content settled so far; `beats` stays empty until the dialogue
+ * table arrives, and the engine reads lines from here and nowhere else.
+ *
+ * tone is the engine's handle on a response: each character reacts to the same
+ * tone differently, which is what makes a drifter read firmness as respect and
+ * a frightened child read it as a threat.
+ *   apologetic  submissive, giving him room
+ *   neutral     professional, the badge talking
+ *   cocky       sarcastic, turning it aside
+ *   aggressive  threatening, leaning on him
+ *   draw        the fifth option, always available, and never a menu line
+ */
+/* The attitude quad: every beat offers one of each, in the order the original
+ * put them on screen. */
+const TONES=["apologetic","neutral","cocky","aggressive"];
+const JOBS=["train","stage","bank"];
+
+const CAST=[
+ /* reacts: how this man reads each attitude, as [trust, agitation].
+    insults: attitudes he takes as an insult — the Doctor remembers them. */
+ {id:"dude",     name:"A Dude",            role:"Nervous newcomer who warns you about the James Gang",
+  armed:true,  nerve:1, resolves:["info","fight"],  fragment:"train", draws:6, hostile:0.16,
+  reacts:{apologetic:[+2,-2],neutral:[+2,-1],cocky:[-1,+1],aggressive:[-1,+3]}},
+ {id:"rose",     name:"Miss Rose",         role:"Saloon hostess who hints at stagecoach robberies",
+  armed:false, nerve:0, resolves:["info"],          fragment:"stage", draws:99, hostile:0.00,
+  reacts:{apologetic:[+1,-1],neutral:[+2,0],cocky:[+3,-1],aggressive:[-3,+2]}},
+ {id:"mexicali", name:"The Mexicali Kid",  role:"Trigger-happy fugitive with a price on his head",
+  armed:true,  nerve:3, resolves:["fight"],         fragment:null,    draws:3, hostile:0.55,
+  reacts:{apologetic:[-1,+2],neutral:[+1,0],cocky:[-2,+3],aggressive:[0,+3]}},
+ {id:"doctor",   name:"The Doctor",        role:"Cynical local who knows about bank-robbing rumours",
+  armed:false, nerve:0, resolves:["info","treat"],  fragment:"bank",  draws:99, hostile:0.00,
+  reacts:{apologetic:[+1,0],neutral:[+2,0],cocky:[+2,-1],aggressive:[-3,+2]},
+  insults:["aggressive"]},
+ {id:"newgun",   name:"Dude with new Gun", role:"Hostile gunslinger showing off a new shotgun",
+  armed:true,  nerve:2, resolves:["fight","nothing"], fragment:null,  draws:4, hostile:0.40,
+  reacts:{apologetic:[0,+2],neutral:[+2,-1],cocky:[-1,+2],aggressive:[-1,+3]}},
+ {id:"willy",    name:"Little Willy",      role:"Obnoxious local kid who holds a town secret",
+  armed:false, nerve:0, resolves:["info"],          fragment:"bank",  draws:99, hostile:0.00,
+  reacts:{apologetic:[+1,0],neutral:[0,+1],cocky:[+3,-1],aggressive:[-3,+3]}},
+ {id:"april",    name:"Miss April",        role:"Schoolteacher interested in romance and a picnic",
+  armed:false, nerve:0, resolves:["romance","info"], fragment:"train", draws:99, hostile:0.00,
+  reacts:{apologetic:[+2,-1],neutral:[+2,0],cocky:[+1,0],aggressive:[-3,+2]}, fragmentCosts:"romance"},
+ {id:"gambler",  name:"The Gambler",       role:"Shady card player quick to draw his weapon",
+  armed:true,  nerve:2, resolves:["fight","nothing"], fragment:null,  draws:5, hostile:0.34,
+  reacts:{apologetic:[-1,+1],neutral:[+2,-1],cocky:[+1,+2],aggressive:[-1,+3]}},
+ {id:"deputy",   name:"The Deputy",        role:"Unreliable helper who reports bank trouble",
+  armed:true,  nerve:0, resolves:["robbery"],       fragment:null,    draws:99, hostile:0.00,
+  reacts:{apologetic:[+1,0],neutral:[+2,0],cocky:[0,+1],aggressive:[-1,+1]}},
+ {id:"belle",    name:"Belle",             role:"Female cattle rustler",
+  armed:true,  nerve:2, resolves:["fight","alliance"], fragment:null, draws:5, hostile:0.38,
+  reacts:{apologetic:[0,+1],neutral:[+2,0],cocky:[+2,-1],aggressive:[-2,+3]}}
+];
+
+/* One geometry for the drawing and for the shooting, so what the crosshair is
+ * over is what the bullet finds. Everything is pixels in the 320x200 scene the
+ * page draws, and the figure constants are the ones ui.js draws him from. */
+const SCENE={w:320,h:200};
+const FIG={cx:147,ground:170,handX:109};
+const HITBOX={
+  lethal:{x:130,y:94,w:34,h:62},        // head and centre mass: a killing shot
+  weapon:{x:95,y:118,w:26,h:18},        // the gun at his hip, while it is holstered
+  weaponRaised:{x:95,y:90,w:26,h:30}    // and once his hand has come up with it
+};
+
+/* Dialogue lives here, keyed by character id and beat, so lines can be edited
+ * without touching the engine:
+ *   DIALOGUE.dude = [{ say, replies:[{tone, t, react}, x4] }, beat2, beat3]
+ * Empty until the supplied table is in hand. The engine treats a missing beat
+ * as "content pending" and never invents one.  */
+const DIALOGUE={};
+
+
+/* ===== engine.js ===== */
+/* ============ engine ============
+ * All rules, no DOM and no content. The state machine the UI drives:
+ *   intro -> approach -> dialogue -> tell -> duel -> resolve -> summary
+ * Everything random goes through G.rng so a test can seed it.               */
+"use strict";
+
+const RULES={
+  BEATS:3,
+  TELL_MIN:400, TELL_MAX:900,        // ms of tell before his hand moves
+  FIRE_MIN:260, FIRE_MAX:420,        // ms from his draw to his shot
+  REFLEX_MIN:1500, REFLEX_MAX:2600,  // how long a drawn gun is tolerated before he answers it
+  AIM_STEP:0.055,                    // crosshair travel per input step, in scene widths
+  AIM_FLOOR:120, AIM_CEIL:500,       // the latency window aim quality is read from
+  SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42, // shot spread, fast draw to steady draw
+  ZONE_TIGHT:0.30, ZONE_WIDE:0.62,   // < tight hits what you aimed at, < wide hits the other
+  TRUST_INFO:4, TRUST_ROMANCE:6, TRUST_ALLY:5,
+  TEMP:2.5,                          // how much of an outcome is left to chance
+  WOUND_HP:2,                        // wounds the sheriff survives untreated
+  POINTS:{crime:200, arrest:80, talked:60, disarm:70, kill:25, romance:60,
+          murder:-260, killed_needless:-90, wounded:-50, lost_fragment:-15}
+};
+
+const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
+const rnd=(g,a,b)=>a+(b-a)*g.rng();
+const pick=(g,list)=>list[Math.floor(g.rng()*list.length)];
+/* box-muller, folded: the size of a shot's error, never negative */
+function absNormal(g,sigma){
+  const u=Math.max(1e-9,g.rng()), v=g.rng();
+  return Math.abs(Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v))*sigma;
+}
+
+function newGame(opts){
+  const seed=opts&&opts.seed;
+  const G={
+    phase:"intro", slot:0, beat:0, rng:seed==null?Math.random:mulberry32(seed),
+    trust:0, agit:0, hp:RULES.WOUND_HP, wounded:false, doctorSpent:false, treated:false,
+    doctorFavour:0, metDoctor:false, aim:{x:0.5,y:0.5}, mode:"talk", reflex:null,
+    fragments:{train:0,stage:0,bank:0}, prevented:[], committed:[],
+    romance:false, allies:[], arrests:[], kills:[], disarms:[], murders:0,
+    needlessKills:0, shots:0, hits:0, talked:[], points:0, log:[], results:[],
+    duel:null, tell:null, outcome:null, over:null
+  };
+  return G;
+}
+const who=G=>CAST[G.slot]||null;
+const dialogueFor=(id,beat)=>(DIALOGUE[id]||[])[beat]||null;
+
+function award(G,key,note){
+  const p=RULES.POINTS[key]||0; G.points+=p;
+  G.log.push({slot:G.slot,who:who(G)?who(G).id:null,key,points:p,note:note||""});
+  return p;
+}
+
+/* ---- approach and dialogue ---- */
+function beginSlot(G){
+  const c=who(G);
+  if(!c){return finish(G,"dusk");}
+  G.phase="approach"; G.beat=0; G.trust=0; G.agit=0; G.outcome=null; G.duel=null;
+  // what mood he is in today: the same answers meet a slightly different man
+  G.mood=Math.floor(G.rng()*3)-1;
+  G.needInfo=RULES.TRUST_INFO+G.mood;
+  G.needWarm=RULES.TRUST_ROMANCE+G.mood;
+  return c;
+}
+function openDialogue(G){G.phase="dialogue";return dialogueFor(who(G).id,0);}
+
+/* A response moves trust and agitation by amounts specific to this character,
+ * with a point of jitter either way so the same path does not always land on
+ * the same side of a threshold. */
+function respond(G,index){
+  if(G.phase!=="dialogue")return null;
+  const c=who(G), beat=dialogueFor(c.id,G.beat);
+  if(!beat)return null;
+  const reply=beat.replies[index];
+  if(!reply)return null;
+  if(reply.tone==="draw")return playerDraws(G);
+  const [dt,da]=c.reacts[reply.tone]||[0,0];
+  const jitter=()=>Math.floor(G.rng()*3)-1;            // -1, 0 or +1, every beat
+  G.trust+=dt+jitter();
+  G.agit +=da+jitter();
+  if(c.id==="doctor"){
+    G.metDoctor=true;
+    if((c.insults||[]).includes(reply.tone))G.doctorFavour--;
+    else if(reply.tone==="apologetic"||reply.tone==="neutral")G.doctorFavour++;
+  }
+  if(G.agit>=c.draws&&c.armed)return theyDraw(G,"agitated");
+  G.beat++;
+  if(G.beat>=RULES.BEATS)return settle(G);
+  return {react:reply.react,next:dialogueFor(c.id,G.beat)};
+}
+
+/* ---- how an encounter lands when nobody has drawn ---- *
+ * Trust does not cross a line, it weighs the odds: a warm conversation makes
+ * disclosure likely and a cold one makes it unlikely, and neither is certain.
+ * That is what stops the same four answers always ending the same way.      */
+const odds=(G,margin)=>G.rng()<1/(1+Math.exp(-margin/RULES.TEMP));
+function settle(G){
+  const c=who(G);
+  // even a settled man can turn
+  if(c.armed&&G.rng()<c.hostile*(G.agit>0?1.5:0.7))return theyDraw(G,"turned");
+  if(c.id==="deputy")return robberyBreaks(G);
+  if(c.resolves.includes("romance")&&!G.pressedFragment&&odds(G,G.trust-G.needWarm)){
+    G.romance=true; award(G,"romance");
+    return resolve(G,"romance");
+  }
+  if(c.resolves.includes("alliance")&&odds(G,G.trust-(RULES.TRUST_ALLY+G.mood))){
+    G.allies.push(c.id); award(G,"talked","alliance");
+    return resolve(G,"alliance");
+  }
+  if(c.fragment&&odds(G,G.trust-G.needInfo)){
+    G.fragments[c.fragment]++; G.talked.push(c.id); award(G,"talked");
+    return resolve(G,"info");
+  }
+  if(c.id==="doctor"&&G.wounded)return doctorTreats(G);
+  if(c.fragment)award(G,"lost_fragment");
+  return resolve(G,"nothing");
+}
+/* Miss April is the deliberate trade: press her for the train job and the
+ * picnic is off. The UI marks that response; the engine only records it. */
+function pressForFragment(G){G.pressedFragment=true;}
+
+/* ---- the doctor ---- */
+function doctorTreats(G){
+  const c=who(G);
+  const drunk=G.rng()<(G.trust>=2?0.25:0.6);           // his bottle, and your manners
+  if(drunk||G.doctorSpent)return resolve(G,"refused");
+  G.doctorSpent=true; G.treated=true; G.wounded=false; G.hp=RULES.WOUND_HP;
+  return resolve(G,"treated");
+}
+
+/* ---- the robbery the deputy brings ---- */
+function robberyBreaks(G){
+  const job=JOBS.find(j=>G.fragments[j]===0)||"bank";   // whichever you are least ready for
+  if(G.fragments[job]>0||G.fragments.bank>0&&job==="bank"){
+    G.prevented.push(job); award(G,"crime",job);
+    return resolve(G,"prevented");
+  }
+  G.committed.push(job);
+  return resolve(G,"robbery");
+}
+
+/* ---- duels ---- */
+function theyDraw(G,why){
+  const c=who(G);
+  G.phase="tell";
+  G.tell={at:0,why,delay:Math.round(rnd(G,RULES.TELL_MIN,RULES.TELL_MAX))};
+  G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",
+    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-c.nerve*20),
+    latency:null,error:null,result:null};
+  return {tell:G.tell,duel:G.duel};
+}
+function playerDraws(G){
+  const c=who(G);
+  G.phase="duel";
+  G.duel={initiator:"you",drawn:true,fired:false,zone:"torso",
+    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-c.nerve*20),
+    latency:null,error:null,result:null,unprovoked:true};
+  return {duel:G.duel};
+}
+/* Pushing up draws: the dialogue lines stop taking input and a crosshair
+ * appears over the scene. Pulling down holsters again and hands the
+ * conversation back, which is how a sheriff talks his way out of one. */
+function drawGun(G,nowMs){
+  if(G.mode==="gun")return G.mode;
+  G.mode="gun"; G.aim={x:0.5,y:0.5};
+  if(G.phase==="dialogue")G.phase="aiming";
+  // he will not watch a drawn gun for ever
+  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
+  return G.mode;
+}
+function holster(G){
+  if(G.mode!=="gun")return G.mode;
+  G.mode="talk"; G.reflex=null;
+  if(G.phase==="aiming")G.phase="dialogue";
+  return G.mode;
+}
+function moveAim(G,dx,dy){
+  if(G.mode!=="gun")return null;
+  G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
+  G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
+  return G.aim;
+}
+/* Called every frame while the gun is out: his reflex timer, and the tell. */
+function tick(G,nowMs){
+  if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
+    const c=who(G);
+    G.reflex=null;
+    if(c&&c.armed)return takeHit(G,"reflex");     // he answers the gun in his face
+    return resolve(G,"nothing");                  // an unarmed man simply leaves
+  }
+  if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
+  // once his gun is up he fires on his own timer, whatever the sheriff is doing
+  if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
+    if(nowMs-(G.tell.at+G.tell.delay)>=G.duel.fireDelay){
+      G.duel.fired=true; G.duel.result="too_slow";
+      return takeHit(G,"outdrawn");
+    }
+  }
+  return null;
+}
+/* Which box the crosshair is over, if any. Aim is kept as a fraction of the
+ * scene; the boxes are scene pixels. His gun box follows his hand up. */
+const inBox=(px,py,b)=>px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;
+function weaponBox(G){
+  return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?HITBOX.weaponRaised:HITBOX.weapon;
+}
+function boxAt(G,x,y){
+  const px=x*SCENE.w, py=y*SCENE.h;
+  if(inBox(px,py,weaponBox(G)))return "weapon";
+  if(inBox(px,py,HITBOX.lethal))return "lethal";
+  return null;
+}
+const boxCentre=b=>({x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h});
+function aimAt(G,zone){                            // tests and the AI aim by name
+  G.aim=boxCentre(zone==="arm"?weaponBox(G):HITBOX.lethal);
+  if(G.duel)G.duel.zone=zone;
+  return zone;
+}
+/* Latency and aim are separate: a fast hand is a wide one, a slow hand is a
+ * shot hand. Everything below is measured from the tell. */
+function shoot(G,latencyMs){
+  let d=G.duel, c=who(G);
+  if(!d){playerDraws(G);d=G.duel;}                 // fired without being drawn on
+  if(!d||d.fired)return null;
+  d.fired=true; d.latency=latencyMs; G.shots++;
+  G.reflex=null;
+  const box=boxAt(G,G.aim.x,G.aim.y);              // where the crosshair actually is
+  d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
+  // Only a man who drew on you can beat you to the shot. Draw first and the
+  // danger is his reflex timer running out while you line it up, not his speed.
+  const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
+  if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
+  if(d.zone==="off"){d.result="miss";return theirReply(G);}
+  const q=Math.max(0,Math.min(1,(latencyMs-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
+  const sigma=RULES.SIGMA_WIDE-(RULES.SIGMA_WIDE-RULES.SIGMA_TIGHT)*q;
+  const err=absNormal(G,sigma); d.error=err;
+  const other=d.zone==="torso"?"arm":"torso";
+  const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
+  if(hit==="miss"){d.result="miss";return theirReply(G);}
+  G.hits++;
+  if(hit==="arm"){
+    G.disarms.push(c.id); award(G,"disarm"); G.arrests.push(c.id); award(G,"arrest");
+    d.result="disarm"; return resolve(G,"disarm");
+  }
+  G.kills.push(c.id); d.result="kill";
+  if(d.unprovoked&&!c.armed){G.murders++;award(G,"murder");return resolve(G,"murder");}
+  if(d.unprovoked){G.murders++;award(G,"murder");return resolve(G,"murder");}
+  award(G,"kill");
+  if(err<RULES.ZONE_TIGHT&&d.zone==="torso"&&c.nerve<=1){   // a wound would have done
+    G.needlessKills++; award(G,"killed_needless");
+  }
+  return resolve(G,"kill");
+}
+function theirReply(G){                     // he was always going to answer a miss
+  const d=G.duel;
+  if(d.initiator==="you"&&!who(G).armed)return resolve(G,"miss");
+  return takeHit(G,"answered");
+}
+/* Being shot is survivable exactly as far as the doctor is willing. Insult the
+ * only doctor in Gold Gulch and the first bullet is the end of the day; leave
+ * him civil and he patches you up once; after that a wound is just a wound,
+ * until there is one too many. */
+function takeHit(G,why){
+  G.wounded=true; award(G,"wounded");
+  if(G.doctorFavour<0)return finish(G,"killed",why||"the doctor would not come");
+  if(!G.doctorSpent){
+    G.doctorSpent=true; G.treated=true; G.hp=RULES.WOUND_HP;
+    return resolve(G,"rescued");
+  }
+  G.hp--;
+  if(G.hp<=0)return finish(G,"killed",why||"bled out");
+  return resolve(G,"wounded");
+}
+function resolve(G,outcome){
+  G.phase="resolve"; G.outcome=outcome;
+  // the encounter is over: the gun goes away and the next man is met talking
+  G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
+  G.results.push({slot:G.slot,who:who(G)?who(G).id:null,outcome,
+    duel:G.duel?G.duel.result:null});
+  return {outcome};
+}
+function nextSlot(G){
+  if(G.phase==="summary")return null;
+  G.slot++; G.pressedFragment=false;
+  if(G.slot>=CAST.length)return finish(G,"dusk");
+  return beginSlot(G);
+}
+/* The jobs nobody stopped happen at dusk. */
+function finish(G,why,how){
+  for(const job of JOBS){
+    if(G.prevented.includes(job)||G.committed.includes(job))continue;
+    if(G.fragments[job]>0){G.prevented.push(job);award(G,"crime",job);}
+    else G.committed.push(job);
+  }
+  const acc=G.shots?G.hits/G.shots:null;
+  const done=G.results.filter(r=>r.outcome!=="nothing").length;
+  const cats={
+    "crimes solved":        G.prevented.length,
+    "interactions":         done+"/"+CAST.length,
+    "pacifism":             clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
+    "marksmanship":         acc==null?null:Math.round(acc*100),
+    "lawfulness":           clamp(100-G.murders*70+G.arrests.length*12,0,100),
+    "judgement":            clamp(G.talked.length*13+G.allies.length*10-G.murders*30,0,100),
+    "romance":              G.romance?100:0
+  };
+  G.phase="summary";
+  G.over={why,how:how||null,categories:cats,points:G.points,rating:rating(G,why),
+    verdict:verdict(G,why,cats),prevented:[...G.prevented],committed:[...G.committed]};
+  return G.over;
+}
+/* One to twelve, the way the original graded a day. Duty and crime prevention
+ * carry it; romance is a point, not a career. */
+function rating(G,why){
+  if(why==="killed")return 1;
+  let r=2;
+  r+=Math.min(3,G.prevented.length);                  // up to 3
+  r+=Math.min(2,Math.floor(G.talked.length/2));       // up to 2
+  r+=Math.min(2,Math.floor(G.disarms.length/2));      // up to 2
+  r+=G.arrests.length>=3?1:0;
+  r+=G.romance?1:0;
+  r+=G.points>=600?1:0;
+  r-=G.murders*3;
+  r-=G.needlessKills;
+  return Math.max(1,Math.min(12,r));
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v)));
+function verdict(G,why,c){
+  if(why==="killed")return "buried";
+  if(G.murders>=2)return "run out of town";
+  if(G.points>=700&&G.prevented.length===3)return "marshal";
+  if(G.points>=450)return "sheriff of gold gulch";
+  if(G.points>=200)return "town constable";
+  if(G.points>=0)return "deputy on probation";
+  return "run out of town";
+}
+
+
+/* ===== ui.js ===== */
+/* ============ presentation and input ============
+ * Two static zones, as the original had them: the scene fills the top half,
+ * framed from behind the sheriff's holster, and the five-line dialogue matrix
+ * fills the bottom. One rAF loop, wrapped, drives both.                      */
+"use strict";
+const cv=document.getElementById("scene"), ctx=cv.getContext("2d");
+const panel=document.getElementById("panel");
+const lineEls=[0,1,2,3,4].map(i=>document.getElementById("line"+i));
+const scoreEl=document.getElementById("score");
+const modeEl=document.getElementById("mode");
+const muteBtn=document.getElementById("mute");
+
+let G=newGame({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
+let build={at:0,rows:0};            // the block-load cadence
+let flash=0, bodyFall=0, said="", react="";
+
+/* ---- layout: the canvas keeps the scene's proportions inside the top half ---- */
+function fit(){
+  const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2.5);
+  cv.width=Math.max(160,Math.round(r.width*d));
+  cv.height=Math.max(100,Math.round(r.height*d));
+}
+addEventListener("resize",fit);
+const sceneGeom=()=>{
+  const sc=Math.min(cv.width/SCENE.w,cv.height/SCENE.h);
+  return {sc,ox:(cv.width-SCENE.w*sc)/2,oy:(cv.height-SCENE.h*sc)/2};
+};
+
+/* ---- the town, drawn as flat blocks in the machine's own manner ---- */
+const PAL={sky:"#e8b46a",sky2:"#c9813f",dust:"#c49a63",road:"#a87f4e",
+  wood:"#6b4a2a",wood2:"#54381f",dark:"#2a1c10",glass:"#3b2a18",sign:"#e8cf6a",
+  skin:"#e0ac7a",steel:"#9aa0a8",cuff:"#4a5d80",ink:"#f2e6d2"};
+const PLACE={dude:"STREET",rose:"SALOON",mexicali:"STREET",doctor:"DOCTOR",
+  newgun:"STREET",willy:"STREET",april:"SCHOOL",gambler:"SALOON",
+  deputy:"JAIL",belle:"CORRAL"};
+const LOOK={
+  dude:{coat:"#7a6a4a",hat:"#5a4a2a"}, rose:{coat:"#9c4f6e",hat:"#d79ab4"},
+  mexicali:{coat:"#5c4a3a",hat:"#241a14"}, doctor:{coat:"#3f4a54",hat:"#23282e"},
+  newgun:{coat:"#6a5a3a",hat:"#3a2f1e"}, willy:{coat:"#9a7a4a",hat:"#7a5a30"},
+  april:{coat:"#5f7a8d",hat:"#b8c6d0"}, gambler:{coat:"#4a3a52",hat:"#1e1822"},
+  deputy:{coat:"#55607a",hat:"#2a2f3a"}, belle:{coat:"#8a5a4a",hat:"#3a2620"}};
+
+function facade(name){
+  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,26,SCENE.w,86);
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,26,SCENE.w,8);
+  for(let i=0;i<9;i++){ctx.fillStyle="rgba(0,0,0,.08)";ctx.fillRect(0,38+i*9,SCENE.w,2);}
+  ctx.fillStyle=PAL.glass; ctx.fillRect(28,52,54,44); ctx.fillRect(238,52,54,44);
+  ctx.fillStyle="rgba(232,207,106,.14)"; ctx.fillRect(30,54,50,40);
+  ctx.fillStyle=PAL.dark;  ctx.fillRect(140,48,42,64);
+  ctx.fillStyle=PAL.sign;  ctx.font="700 11px monospace";
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(name,SCENE.w/2,32);
+}
+/* The visitor, facing the camera. Hitboxes in content.js follow this drawing. */
+function visitor(c,armState){
+  const look=LOOK[c.id]||LOOK.dude, cx=FIG.cx, ground=FIG.ground;
+  ctx.fillStyle="rgba(60,40,22,.35)";
+  ctx.beginPath();ctx.ellipse(cx,ground+2,20,5,0,0,7);ctx.fill();
+  ctx.fillStyle=look.coat; ctx.fillRect(cx-17,ground-58,34,44);       // torso
+  ctx.fillRect(cx-15,ground-16,12,16); ctx.fillRect(cx+3,ground-16,12,16);
+  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-16,ground-4,13,5); ctx.fillRect(cx+3,ground-4,13,5);
+  ctx.fillStyle=PAL.skin; ctx.fillRect(cx-8,ground-76,16,19);         // face
+  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-5,ground-70,4,3); ctx.fillRect(cx+2,ground-70,4,3);
+  ctx.fillStyle=look.hat; ctx.fillRect(cx-19,ground-78,38,5); ctx.fillRect(cx-10,ground-88,20,11);
+  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-17,ground-22,34,5);         // gunbelt
+  const arm=armState||0;                                               // 0 hanging, 1 rising, 2 levelled
+  const hx=FIG.handX, hy=ground-(arm===0?46:arm===1?62:74);
+  ctx.fillStyle=look.coat; ctx.fillRect(cx-25,ground-56,9,arm===0?30:18);
+  ctx.fillStyle=PAL.skin;  ctx.fillRect(hx-5,hy,11,8);
+  if(c.armed){ctx.fillStyle=PAL.steel;ctx.fillRect(hx-13,hy+1,10,5);
+    ctx.fillStyle=PAL.dark;ctx.fillRect(hx-4,hy+5,5,5);}
+}
+/* Our own side of it: the sheriff's right arm and gun across the low corner. */
+function ownGun(out){
+  const y=SCENE.h-(out?118:88);          // the sheriff's own arm, inside the frame
+  ctx.fillStyle=PAL.cuff; ctx.fillRect(SCENE.w-104,y+22,64,30);
+  ctx.fillStyle=PAL.skin; ctx.fillRect(SCENE.w-118,y+16,30,18);
+  if(out){
+    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-150,y+8,42,9);
+    ctx.fillStyle=PAL.dark;  ctx.fillRect(SCENE.w-126,y+17,12,14);
+    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-134,y+4,14,6);
+  } else {
+    ctx.fillStyle=PAL.dark;  ctx.fillRect(SCENE.w-120,y+30,22,16);   // holstered
+    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-116,y+26,10,6);
+  }
+}
+function crosshair(){
+  const a=G.aim, x=a.x*SCENE.w, y=a.y*SCENE.h;   // the same mapping boxAt uses
+  ctx.strokeStyle=PAL.ink; ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.arc(x,y,9,0,7);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x-15,y);ctx.lineTo(x-4,y); ctx.moveTo(x+4,y);ctx.lineTo(x+15,y);
+  ctx.moveTo(x,y-15);ctx.lineTo(x,y-4); ctx.moveTo(x,y+4);ctx.lineTo(x,y+15);
+  ctx.stroke();
+}
+function drawScene(now){
+  const g=sceneGeom();
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
+  const c=who(G);
+  const sky=["#f2c988","#e8b46a","#dda059","#c9813f"];
+  for(let i=0;i<4;i++){ctx.fillStyle=sky[i];ctx.fillRect(0,i*7,SCENE.w,7);}
+  ctx.fillStyle=PAL.dust; ctx.fillRect(0,26,SCENE.w,SCENE.h-26);
+  if(c)facade(PLACE[c.id]||"STREET");
+  ctx.fillStyle=PAL.road; ctx.fillRect(0,112,SCENE.w,SCENE.h-112);
+  if(c&&build.rows>=6){
+    const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
+    if(G.outcome==="kill"||G.outcome==="murder"){
+      ctx.save();ctx.translate(SCENE.w*0.46,170);ctx.rotate(Math.min(1.4,bodyFall));
+      ctx.translate(-SCENE.w*0.46,-170);visitor(c,0);ctx.restore();
+    } else visitor(c,arm);
+  }
+  ownGun(G.mode==="gun");
+  if(G.mode==="gun"&&build.rows>=6)crosshair();
+  if(flash>0){ctx.fillStyle="rgba(255,242,192,"+Math.min(1,flash*6)+")";
+    ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  // the block-load cadence: the scene arrives in rows before anything is live
+  if(build.rows<10){
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
+  }
+  ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-12,SCENE.w,12);
+  ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
+  ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.fillText((c?c.name.toUpperCase():"GOLD GULCH")+"   "+(G.slot+1)+" OF "+CAST.length,5,SCENE.h-6);
+  ctx.textAlign="right";
+  ctx.fillText(G.wounded?"WOUNDED":"UNHURT",SCENE.w-5,SCENE.h-6);
+  ctx.restore();
+}
+
+/* ---- the five-line matrix ---- */
+function beat(){const c=who(G);return c?dialogueFor(c.id,G.beat):null;}
+function paint(){
+  const b=beat(), live=build.rows>=10;
+  if(G.phase==="summary"){return paintSummary();}
+  if(G.phase==="intro"){
+    lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
+    lineEls[0].className="npc";
+    lineEls[1].textContent="Press FIRE or Enter to pin on the badge";
+    lineEls[1].className="choice sel";
+    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    return;
+  }
+  lineEls[0].className="npc";
+  lineEls[0].textContent=!b?"[dialogue for this beat is not written yet]"
+    :(react||said||b.say);
+  const replies=b?b.replies.filter(r=>r.tone!=="draw"):[];
+  for(let i=0;i<4;i++){
+    const r=replies[i];
+    lineEls[i+1].textContent=r?(i+1)+". "+r.t:"";
+    lineEls[i+1].className="choice"+(live&&G.mode==="talk"&&cursor===i?" sel":"")+
+      (G.mode==="gun"?" dim":"");
+  }
+  modeEl.textContent=G.mode==="gun"?"GUN DRAWN — down to holster":"TALKING — up to draw";
+  scoreEl.textContent="Standing "+G.points+"   crimes stopped "+G.prevented.length;
+}
+function paintSummary(){
+  const o=G.over;
+  lineEls[0].className="npc";
+  lineEls[0].textContent="RATING "+o.rating+" OF 12 — "+o.verdict.toUpperCase();
+  const cats=Object.entries(o.categories);
+  lineEls[1].className="choice"; lineEls[1].textContent=cats.slice(0,3).map(([k,v])=>k+" "+v).join("   ");
+  lineEls[2].className="choice"; lineEls[2].textContent=cats.slice(3,5).map(([k,v])=>k+" "+v).join("   ");
+  lineEls[3].className="choice"; lineEls[3].textContent=cats.slice(5).map(([k,v])=>k+" "+v).join("   ");
+  lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
+  scoreEl.textContent="Standing "+o.points;
+  modeEl.textContent="SUNDOWN";
+}
+
+/* ---- input, one control set for the pad and the keyboard ---- */
+function startDay(){
+  SND.unlock(); started=true;
+  G=newGame({}); cursor=0; said=""; react="";
+  beginSlot(G); openDialogue(G); newScene();
+  SND.badge();
+}
+function newScene(){
+  build={at:performance.now(),rows:0};
+  said=""; react=""; cursor=0;
+  SND.door(); setTimeout(()=>SND.step(),260);
+}
+function up(){
+  if(G.phase==="intro")return;
+  if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
+    drawGun(G,performance.now()); drawnAt=performance.now(); SND.holster(); paint(); return;
+  }
+  if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
+}
+function down(){
+  if(G.mode==="gun"){
+    // down walks the crosshair down the scene; pulled past the bottom it
+    // holsters, which is the way out of a stand-off. HOL and Escape do it at once.
+    if(G.aim.y>=0.995){holster(G);SND.holster();paint();return;}
+    moveAim(G,0,1); SND.click(); return;
+  }
+  if(G.phase==="dialogue"&&build.rows>=10){cursor=(cursor+1)%4;SND.click();paint();}
+}
+function left(){if(G.mode==="gun"){moveAim(G,-1,0);SND.click();}
+  else if(G.phase==="dialogue"){cursor=(cursor+3)%4;SND.click();paint();}}
+function right(){if(G.mode==="gun"){moveAim(G,1,0);SND.click();}
+  else if(G.phase==="dialogue"){cursor=(cursor+1)%4;SND.click();paint();}}
+function fire(){
+  if(G.phase==="intro"){startDay();paint();return;}
+  if(G.phase==="summary"){startDay();paint();return;}
+  if(G.phase==="resolve"){advance();return;}
+  if(G.mode==="gun"){
+    const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
+    SND.gunshot(); flash=0.16;
+    const before=G.outcome;
+    shoot(G,Math.max(60,lat));
+    afterShot(before);
+    return;
+  }
+  if(G.phase!=="dialogue"||build.rows<10)return;
+  const b=beat(); if(!b){SND.deny();return;}
+  const replies=b.replies.filter(r=>r.tone!=="draw");
+  const chosen=replies[cursor]; if(!chosen){SND.deny();return;}
+  SND.select();
+  const r=respond(G,b.replies.indexOf(chosen));
+  react=r&&r.react?r.react:"";
+  if(G.phase==="tell"){G.tell.at=performance.now();SND.tell();SND.tension();}
+  if(G.phase==="resolve")settleSound();
+  paint();
+}
+function choose(i){                       // the 1-4 keys and the tapped lines
+  if(G.phase!=="dialogue"||G.mode!=="talk")return;
+  cursor=Math.max(0,Math.min(3,i)); fire();
+}
+function afterShot(before){
+  const d=G.duel;
+  if(!d)return;
+  if(d.result==="disarm"){SND.ricochet();SND.wound();}
+  else if(d.result==="kill"){SND.hit();bodyFall=0.01;SND.death();}
+  else if(d.result==="miss"){SND.ricochet();}
+  else if(d.result==="too_slow"){SND.gunshot();SND.hit();}
+  if(G.outcome==="rescued")SND.patch();
+  if(G.phase==="summary")endSound();
+  paint();
+}
+function settleSound(){
+  if(G.outcome==="info"){SND.clue();SND.point();}
+  else if(G.outcome==="romance")SND.romance();
+  else if(G.outcome==="alliance")SND.respect();
+  else if(G.outcome==="prevented"){SND.thread();}
+  else if(G.outcome==="robbery"){SND.alarm();SND.robbery();}
+  else if(G.outcome==="treated")SND.patch();
+  else if(G.outcome==="refused")SND.bottle();
+  else if(G.outcome==="murder")SND.disgrace();
+  else if(G.outcome==="nothing")SND.penalty();
+  else if(G.outcome==="wounded"){SND.gunshot();SND.hit();}
+  else if(G.outcome==="rescued"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
+  if(G.phase==="summary")endSound();
+}
+function endSound(){
+  SND.dusk();
+  setTimeout(()=>{(G.over&&G.over.rating>=7)?SND.respect():SND.disgrace();},700);
+}
+function advance(){
+  if(G.phase==="summary")return;
+  const r=nextSlot(G);
+  if(G.phase==="summary"){endSound();paint();return;}
+  openDialogue(G); newScene(); SND.clock(); paint();
+}
+const CONTROL={up,down,left,right,fire,
+  holster:()=>{holster(G);paint();},
+  mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+    muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
+/* Every on-screen control carries data-cmd; the same names are the key map, so
+ * a control can never exist that no handler covers. */
+document.querySelectorAll("[data-cmd]").forEach(el=>{
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault(); SND.unlock();
+    const cmd=el.dataset.cmd;
+    if(cmd==="choose")choose(+el.dataset.index);
+    else if(CONTROL[cmd])CONTROL[cmd]();
+    else SND.deny();
+    paint();
+  });
+});
+const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
+  Enter:"fire"," ":"fire",Escape:"holster",m:"mute"};
+addEventListener("keydown",e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  SND.unlock();
+  if(/^[1-4]$/.test(e.key)){e.preventDefault();choose(+e.key-1);paint();return;}
+  const cmd=KEYS[e.key]||KEYS[(e.key||"").toLowerCase()];
+  if(!cmd)return;
+  e.preventDefault();
+  CONTROL[cmd]();
+  paint();
+});
+
+/* ---- the loop ----
+ * One rAF loop, wrapped. Where there is no rAF - a headless harness - the
+ * frame function is exposed instead so a test can step time itself. */
+const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
+function frame(now){
+  try{
+    if(build.rows<10&&now-build.at>60*build.rows){
+      build.rows++;
+      if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
+    }
+    if(flash>0)flash-=1/60;
+    if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
+    if(G.phase!=="intro"&&G.phase!=="summary"){
+      const before=G.phase;
+      const ev=tick(G,now);
+      if(ev&&G.phase==="resolve"){settleSound();paint();}
+      if(before==="tell"&&G.phase==="duel"){SND.holster();}
+    }
+    drawScene(now);
+  }catch(err){console.error(err);}
+  if(RAF)RAF(frame);
+}
+globalThis.__frame=frame;
+fit(); paint(); if(RAF)RAF(frame);
+
+</script>
+</body>
+</html>

@@ -8,6 +8,8 @@ const RULES={
   BEATS:3,
   TELL_MIN:400, TELL_MAX:900,        // ms of tell before his hand moves
   FIRE_MIN:260, FIRE_MAX:420,        // ms from his draw to his shot
+  REFLEX_MIN:1500, REFLEX_MAX:2600,  // how long a drawn gun is tolerated before he answers it
+  AIM_STEP:0.055,                    // crosshair travel per input step, in scene widths
   AIM_FLOOR:120, AIM_CEIL:500,       // the latency window aim quality is read from
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42, // shot spread, fast draw to steady draw
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,   // < tight hits what you aimed at, < wide hits the other
@@ -33,6 +35,7 @@ function newGame(opts){
   const G={
     phase:"intro", slot:0, beat:0, rng:seed==null?Math.random:mulberry32(seed),
     trust:0, agit:0, hp:RULES.WOUND_HP, wounded:false, doctorSpent:false, treated:false,
+    doctorFavour:0, metDoctor:false, aim:{x:0.5,y:0.5}, mode:"talk", reflex:null,
     fragments:{train:0,stage:0,bank:0}, prevented:[], committed:[],
     romance:false, allies:[], arrests:[], kills:[], disarms:[], murders:0,
     needlessKills:0, shots:0, hits:0, talked:[], points:0, log:[], results:[],
@@ -76,6 +79,11 @@ function respond(G,index){
   const jitter=()=>Math.floor(G.rng()*3)-1;            // -1, 0 or +1, every beat
   G.trust+=dt+jitter();
   G.agit +=da+jitter();
+  if(c.id==="doctor"){
+    G.metDoctor=true;
+    if((c.insults||[]).includes(reply.tone))G.doctorFavour--;
+    else if(reply.tone==="apologetic"||reply.tone==="neutral")G.doctorFavour++;
+  }
   if(G.agit>=c.draws&&c.armed)return theyDraw(G,"agitated");
   G.beat++;
   if(G.beat>=RULES.BEATS)return settle(G);
@@ -150,14 +158,80 @@ function playerDraws(G){
     latency:null,error:null,result:null,unprovoked:true};
   return {duel:G.duel};
 }
-function aimAt(G,zone){if(G.duel)G.duel.zone=zone;return zone;}
+/* Pushing up draws: the dialogue lines stop taking input and a crosshair
+ * appears over the scene. Pulling down holsters again and hands the
+ * conversation back, which is how a sheriff talks his way out of one. */
+function drawGun(G,nowMs){
+  if(G.mode==="gun")return G.mode;
+  G.mode="gun"; G.aim={x:0.5,y:0.5};
+  if(G.phase==="dialogue")G.phase="aiming";
+  // he will not watch a drawn gun for ever
+  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
+  return G.mode;
+}
+function holster(G){
+  if(G.mode!=="gun")return G.mode;
+  G.mode="talk"; G.reflex=null;
+  if(G.phase==="aiming")G.phase="dialogue";
+  return G.mode;
+}
+function moveAim(G,dx,dy){
+  if(G.mode!=="gun")return null;
+  G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
+  G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
+  return G.aim;
+}
+/* Called every frame while the gun is out: his reflex timer, and the tell. */
+function tick(G,nowMs){
+  if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
+    const c=who(G);
+    G.reflex=null;
+    if(c&&c.armed)return takeHit(G,"reflex");     // he answers the gun in his face
+    return resolve(G,"nothing");                  // an unarmed man simply leaves
+  }
+  if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
+  // once his gun is up he fires on his own timer, whatever the sheriff is doing
+  if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
+    if(nowMs-(G.tell.at+G.tell.delay)>=G.duel.fireDelay){
+      G.duel.fired=true; G.duel.result="too_slow";
+      return takeHit(G,"outdrawn");
+    }
+  }
+  return null;
+}
+/* Which box the crosshair is over, if any. Aim is kept as a fraction of the
+ * scene; the boxes are scene pixels. His gun box follows his hand up. */
+const inBox=(px,py,b)=>px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;
+function weaponBox(G){
+  return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?HITBOX.weaponRaised:HITBOX.weapon;
+}
+function boxAt(G,x,y){
+  const px=x*SCENE.w, py=y*SCENE.h;
+  if(inBox(px,py,weaponBox(G)))return "weapon";
+  if(inBox(px,py,HITBOX.lethal))return "lethal";
+  return null;
+}
+const boxCentre=b=>({x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h});
+function aimAt(G,zone){                            // tests and the AI aim by name
+  G.aim=boxCentre(zone==="arm"?weaponBox(G):HITBOX.lethal);
+  if(G.duel)G.duel.zone=zone;
+  return zone;
+}
 /* Latency and aim are separate: a fast hand is a wide one, a slow hand is a
  * shot hand. Everything below is measured from the tell. */
 function shoot(G,latencyMs){
-  const d=G.duel, c=who(G); if(!d||d.fired)return null;
+  let d=G.duel, c=who(G);
+  if(!d){playerDraws(G);d=G.duel;}                 // fired without being drawn on
+  if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.shots++;
-  const theirShot=(d.initiator==="them")?G.tell.delay+d.fireDelay:d.fireDelay*2;
-  if(latencyMs>theirShot){d.result="too_slow";return takeHit(G);}
+  G.reflex=null;
+  const box=boxAt(G,G.aim.x,G.aim.y);              // where the crosshair actually is
+  d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
+  // Only a man who drew on you can beat you to the shot. Draw first and the
+  // danger is his reflex timer running out while you line it up, not his speed.
+  const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
+  if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
+  if(d.zone==="off"){d.result="miss";return theirReply(G);}
   const q=Math.max(0,Math.min(1,(latencyMs-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
   const sigma=RULES.SIGMA_WIDE-(RULES.SIGMA_WIDE-RULES.SIGMA_TIGHT)*q;
   const err=absNormal(G,sigma); d.error=err;
@@ -181,17 +255,27 @@ function shoot(G,latencyMs){
 function theirReply(G){                     // he was always going to answer a miss
   const d=G.duel;
   if(d.initiator==="you"&&!who(G).armed)return resolve(G,"miss");
-  return takeHit(G);
+  return takeHit(G,"answered");
 }
-function takeHit(G){
-  G.hp--; G.wounded=true; award(G,"wounded");
-  if(G.hp<=0)return finish(G,"killed");
+/* Being shot is survivable exactly as far as the doctor is willing. Insult the
+ * only doctor in Gold Gulch and the first bullet is the end of the day; leave
+ * him civil and he patches you up once; after that a wound is just a wound,
+ * until there is one too many. */
+function takeHit(G,why){
+  G.wounded=true; award(G,"wounded");
+  if(G.doctorFavour<0)return finish(G,"killed",why||"the doctor would not come");
+  if(!G.doctorSpent){
+    G.doctorSpent=true; G.treated=true; G.hp=RULES.WOUND_HP;
+    return resolve(G,"rescued");
+  }
+  G.hp--;
+  if(G.hp<=0)return finish(G,"killed",why||"bled out");
   return resolve(G,"wounded");
 }
-
-/* ---- resolution and the day's end ---- */
 function resolve(G,outcome){
   G.phase="resolve"; G.outcome=outcome;
+  // the encounter is over: the gun goes away and the next man is met talking
+  G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.results.push({slot:G.slot,who:who(G)?who(G).id:null,outcome,
     duel:G.duel?G.duel.result:null});
   return {outcome};
@@ -203,25 +287,42 @@ function nextSlot(G){
   return beginSlot(G);
 }
 /* The jobs nobody stopped happen at dusk. */
-function finish(G,why){
+function finish(G,why,how){
   for(const job of JOBS){
     if(G.prevented.includes(job)||G.committed.includes(job))continue;
     if(G.fragments[job]>0){G.prevented.push(job);award(G,"crime",job);}
     else G.committed.push(job);
   }
   const acc=G.shots?G.hits/G.shots:null;
+  const done=G.results.filter(r=>r.outcome!=="nothing").length;
   const cats={
-    lawfulness: clamp(100-G.murders*70+G.arrests.length*12,0,100),
-    judgement:  clamp(G.talked.length*13+G.allies.length*10-G.murders*30,0,100),
-    marksmanship: acc==null?null:Math.round(acc*100),
-    restraint:  clamp(100-G.kills.length*18-G.needlessKills*22+G.disarms.length*10,0,100),
-    romance:    G.romance?100:0,
-    prevented:  G.prevented.length
+    "crimes solved":        G.prevented.length,
+    "interactions":         done+"/"+CAST.length,
+    "pacifism":             clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
+    "marksmanship":         acc==null?null:Math.round(acc*100),
+    "lawfulness":           clamp(100-G.murders*70+G.arrests.length*12,0,100),
+    "judgement":            clamp(G.talked.length*13+G.allies.length*10-G.murders*30,0,100),
+    "romance":              G.romance?100:0
   };
   G.phase="summary";
-  G.over={why,categories:cats,points:G.points,
+  G.over={why,how:how||null,categories:cats,points:G.points,rating:rating(G,why),
     verdict:verdict(G,why,cats),prevented:[...G.prevented],committed:[...G.committed]};
   return G.over;
+}
+/* One to twelve, the way the original graded a day. Duty and crime prevention
+ * carry it; romance is a point, not a career. */
+function rating(G,why){
+  if(why==="killed")return 1;
+  let r=2;
+  r+=Math.min(3,G.prevented.length);                  // up to 3
+  r+=Math.min(2,Math.floor(G.talked.length/2));       // up to 2
+  r+=Math.min(2,Math.floor(G.disarms.length/2));      // up to 2
+  r+=G.arrests.length>=3?1:0;
+  r+=G.romance?1:0;
+  r+=G.points>=600?1:0;
+  r-=G.murders*3;
+  r-=G.needlessKills;
+  return Math.max(1,Math.min(12,r));
 }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v)));
 function verdict(G,why,c){

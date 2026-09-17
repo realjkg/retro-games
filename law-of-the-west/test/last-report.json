@@ -1,303 +1,295 @@
 {
   "days: draws too": {
     "verdicts": {
-      "buried": 223,
-      "deputy on probation": 17,
-      "run out of town": 156,
-      "sheriff of gold gulch": 62,
-      "town constable": 38,
-      "marshal": 4
+      "sheriff of gold gulch": 92,
+      "run out of town": 217,
+      "town constable": 62,
+      "deputy on probation": 25,
+      "buried": 102,
+      "marshal": 2
     },
     "outcomes": {
-      "info": 386,
-      "disarm": 994,
-      "kill": 923,
-      "nothing": 852,
-      "miss": 624,
-      "too_slow": 72,
-      "treated": 38,
-      "alliance": 26,
-      "robbery": 178,
-      "refused": 34,
-      "romance": 38,
+      "info": 370,
+      "disarm": 1166,
+      "kill": 1104,
+      "nothing": 888,
+      "miss": 797,
+      "robbery": 210,
+      "refused": 78,
+      "alliance": 38,
+      "romance": 67,
       "prevented": 4
     },
     "prevented": {
-      "0": 211,
-      "1": 219,
-      "2": 62,
-      "3": 8
+      "0": 233,
+      "1": 193,
+      "2": 67,
+      "3": 7
     },
     "meanCategories": {
-      "lawfulness": 48.5,
-      "judgement": 3.7,
-      "marksmanship": 63.1,
-      "restraint": 81.3,
-      "romance": 7.6,
-      "prevented": 0.7
+      "crimes solved": 0.7,
+      "pacifism": 33.6,
+      "marksmanship": 70.7,
+      "lawfulness": 41.4,
+      "judgement": 2.4,
+      "romance": 13.4
     }
   },
   "days: talks only": {
     "verdicts": {
-      "sheriff of gold gulch": 215,
-      "buried": 91,
-      "marshal": 50,
-      "deputy on probation": 29,
-      "town constable": 105,
-      "run out of town": 10
+      "town constable": 111,
+      "sheriff of gold gulch": 211,
+      "marshal": 41,
+      "buried": 84,
+      "deputy on probation": 44,
+      "run out of town": 9
     },
     "outcomes": {
-      "info": 838,
-      "nothing": 1753,
-      "kill": 528,
-      "disarm": 508,
-      "robbery": 380,
-      "miss": 348,
-      "treated": 59,
-      "prevented": 55,
-      "alliance": 69,
-      "romance": 86,
-      "refused": 43
+      "info": 742,
+      "nothing": 1756,
+      "disarm": 569,
+      "miss": 392,
+      "robbery": 398,
+      "alliance": 76,
+      "refused": 102,
+      "kill": 538,
+      "prevented": 41,
+      "romance": 96
     },
     "prevented": {
-      "0": 56,
-      "1": 201,
-      "2": 184,
-      "3": 59
+      "0": 95,
+      "1": 192,
+      "2": 171,
+      "3": 42
     },
     "meanCategories": {
+      "crimes solved": 1.3,
+      "pacifism": 89,
+      "marksmanship": 68.9,
       "lawfulness": 100,
-      "judgement": 23.2,
-      "marksmanship": 68,
-      "restraint": 86.2,
-      "romance": 17.2,
-      "prevented": 1.5
+      "judgement": 20.8,
+      "romance": 19.2
     }
   },
   "variance": {
     "dude": {
-      "firm": {
+      "apologetic": {
         "top": 50,
         "counts": {
           "info": 50,
           "nothing": 39,
           "kill": 4,
-          "wounded": 6,
+          "rescued": 6,
           "disarm": 1
         }
       },
-      "kind": {
-        "top": 61,
+      "neutral": {
+        "top": 68,
         "counts": {
           "kill": 2,
-          "nothing": 61,
-          "info": 33,
-          "wounded": 2,
+          "info": 68,
+          "nothing": 26,
+          "rescued": 2,
           "disarm": 2
         }
       },
-      "joke": {
+      "cocky": {
         "top": 78,
         "counts": {
           "nothing": 78,
           "info": 4,
           "kill": 7,
-          "wounded": 4,
+          "rescued": 4,
           "disarm": 7
         }
       },
-      "probe": {
-        "top": 29,
+      "aggressive": {
+        "top": 40,
         "counts": {
-          "wounded": 29,
-          "disarm": 19,
-          "kill": 26,
-          "nothing": 14,
-          "info": 12
+          "rescued": 31,
+          "disarm": 29,
+          "kill": 40
         }
       }
     },
     "rose": {
-      "firm": {
-        "top": 94,
+      "apologetic": {
+        "top": 72,
         "counts": {
-          "nothing": 94,
-          "info": 6
+          "nothing": 72,
+          "info": 28
         }
       },
-      "kind": {
+      "neutral": {
         "top": 73,
         "counts": {
           "nothing": 27,
           "info": 73
         }
       },
-      "joke": {
-        "top": 63,
+      "cocky": {
+        "top": 84,
         "counts": {
-          "info": 63,
-          "nothing": 37
+          "info": 84,
+          "nothing": 16
         }
       },
-      "probe": {
-        "top": 59,
-        "counts": {
-          "info": 41,
-          "nothing": 59
-        }
-      }
-    },
-    "mexicali": {
-      "firm": {
-        "top": 42,
-        "counts": {
-          "disarm": 26,
-          "kill": 32,
-          "wounded": 42
-        }
-      },
-      "kind": {
-        "top": 36,
-        "counts": {
-          "wounded": 29,
-          "kill": 27,
-          "disarm": 36,
-          "nothing": 8
-        }
-      },
-      "joke": {
-        "top": 39,
-        "counts": {
-          "kill": 39,
-          "wounded": 24,
-          "disarm": 37
-        }
-      },
-      "probe": {
-        "top": 41,
-        "counts": {
-          "wounded": 30,
-          "kill": 41,
-          "disarm": 29
-        }
-      }
-    },
-    "doctor": {
-      "firm": {
+      "aggressive": {
         "top": 99,
         "counts": {
           "nothing": 99,
           "info": 1
         }
+      }
+    },
+    "mexicali": {
+      "apologetic": {
+        "top": 42,
+        "counts": {
+          "disarm": 26,
+          "kill": 32,
+          "rescued": 42
+        }
       },
-      "kind": {
+      "neutral": {
+        "top": 48,
+        "counts": {
+          "kill": 14,
+          "rescued": 25,
+          "nothing": 48,
+          "disarm": 13
+        }
+      },
+      "cocky": {
+        "top": 39,
+        "counts": {
+          "kill": 39,
+          "rescued": 24,
+          "disarm": 37
+        }
+      },
+      "aggressive": {
+        "top": 39,
+        "counts": {
+          "rescued": 34,
+          "disarm": 27,
+          "kill": 39
+        }
+      }
+    },
+    "doctor": {
+      "apologetic": {
+        "top": 54,
+        "counts": {
+          "info": 54,
+          "nothing": 46
+        }
+      },
+      "neutral": {
         "top": 74,
         "counts": {
           "info": 74,
           "nothing": 26
         }
       },
-      "joke": {
-        "top": 55,
+      "cocky": {
+        "top": 74,
         "counts": {
-          "info": 45,
-          "nothing": 55
+          "info": 74,
+          "nothing": 26
         }
       },
-      "probe": {
-        "top": 59,
+      "aggressive": {
+        "top": 100,
         "counts": {
-          "nothing": 59,
-          "info": 41
+          "nothing": 100
         }
       }
     },
     "newgun": {
-      "firm": {
+      "apologetic": {
         "top": 40,
         "counts": {
-          "wounded": 40,
+          "rescued": 40,
           "kill": 33,
           "disarm": 26,
           "nothing": 1
         }
       },
-      "kind": {
-        "top": 51,
+      "neutral": {
+        "top": 65,
         "counts": {
-          "nothing": 51,
-          "kill": 18,
-          "disarm": 18,
-          "wounded": 13
+          "nothing": 65,
+          "kill": 13,
+          "disarm": 13,
+          "rescued": 9
         }
       },
-      "joke": {
+      "cocky": {
         "top": 38,
         "counts": {
           "kill": 32,
           "disarm": 29,
-          "wounded": 38,
+          "rescued": 38,
           "nothing": 1
         }
       },
-      "probe": {
-        "top": 35,
+      "aggressive": {
+        "top": 43,
         "counts": {
-          "nothing": 19,
-          "wounded": 35,
           "disarm": 20,
-          "kill": 26
+          "rescued": 37,
+          "kill": 43
         }
       }
     },
     "willy": {
-      "firm": {
-        "top": 97,
+      "apologetic": {
+        "top": 54,
         "counts": {
-          "nothing": 97,
-          "info": 3
+          "nothing": 46,
+          "info": 54
         }
       },
-      "kind": {
-        "top": 64,
+      "neutral": {
+        "top": 89,
         "counts": {
-          "info": 64,
-          "nothing": 36
+          "nothing": 89,
+          "info": 11
         }
       },
-      "joke": {
+      "cocky": {
         "top": 90,
         "counts": {
           "info": 90,
           "nothing": 10
         }
       },
-      "probe": {
-        "top": 94,
+      "aggressive": {
+        "top": 100,
         "counts": {
-          "nothing": 94,
-          "info": 6
+          "nothing": 100
         }
       }
     },
     "april": {
-      "firm": {
-        "top": 87,
+      "apologetic": {
+        "top": 56,
         "counts": {
-          "nothing": 87,
-          "info": 8,
-          "romance": 5
+          "nothing": 21,
+          "romance": 56,
+          "info": 23
         }
       },
-      "kind": {
-        "top": 74,
+      "neutral": {
+        "top": 48,
         "counts": {
-          "romance": 74,
-          "info": 22,
-          "nothing": 4
+          "info": 30,
+          "romance": 48,
+          "nothing": 22
         }
       },
-      "joke": {
+      "cocky": {
         "top": 44,
         "counts": {
           "info": 38,
@@ -305,72 +297,71 @@
           "romance": 18
         }
       },
-      "probe": {
-        "top": 87,
+      "aggressive": {
+        "top": 99,
         "counts": {
-          "nothing": 87,
-          "romance": 3,
-          "info": 10
+          "nothing": 99,
+          "info": 1
         }
       }
     },
     "gambler": {
-      "firm": {
+      "apologetic": {
         "top": 39,
         "counts": {
-          "wounded": 16,
+          "rescued": 16,
           "nothing": 39,
           "kill": 29,
           "disarm": 16
         }
       },
-      "kind": {
+      "neutral": {
         "top": 76,
         "counts": {
           "nothing": 76,
           "disarm": 14,
-          "wounded": 6,
+          "rescued": 6,
           "kill": 4
         }
       },
-      "joke": {
-        "top": 77,
+      "cocky": {
+        "top": 33,
         "counts": {
-          "nothing": 77,
-          "disarm": 7,
-          "kill": 6,
-          "wounded": 10
+          "rescued": 33,
+          "kill": 20,
+          "disarm": 32,
+          "nothing": 15
         }
       },
-      "probe": {
+      "aggressive": {
         "top": 36,
         "counts": {
           "kill": 36,
-          "wounded": 34,
+          "rescued": 34,
           "disarm": 30
         }
       }
     },
     "deputy": {
-      "firm": {
+      "apologetic": {
         "top": 100,
         "counts": {
           "robbery": 100
         }
       },
-      "kind": {
+      "neutral": {
         "top": 100,
         "counts": {
           "robbery": 100
         }
       },
-      "joke": {
+      "cocky": {
         "top": 100,
         "counts": {
           "robbery": 100
         }
       },
-      "probe": {
+      "aggressive": {
         "top": 100,
         "counts": {
           "robbery": 100
@@ -378,59 +369,58 @@
       }
     },
     "belle": {
-      "firm": {
-        "top": 35,
+      "apologetic": {
+        "top": 41,
         "counts": {
-          "disarm": 29,
-          "kill": 30,
-          "wounded": 35,
-          "nothing": 6
+          "kill": 23,
+          "disarm": 10,
+          "nothing": 41,
+          "rescued": 22,
+          "alliance": 4
         }
       },
-      "kind": {
+      "neutral": {
         "top": 37,
         "counts": {
           "kill": 18,
           "alliance": 37,
-          "wounded": 16,
+          "rescued": 16,
           "disarm": 11,
           "nothing": 18
         }
       },
-      "joke": {
+      "cocky": {
         "top": 38,
         "counts": {
-          "wounded": 13,
+          "rescued": 13,
           "nothing": 34,
           "alliance": 38,
           "disarm": 10,
           "kill": 5
         }
       },
-      "probe": {
-        "top": 35,
+      "aggressive": {
+        "top": 41,
         "counts": {
-          "disarm": 35,
-          "wounded": 35,
-          "nothing": 6,
-          "kill": 23,
-          "alliance": 1
+          "rescued": 41,
+          "kill": 31,
+          "disarm": 28
         }
       }
     }
   },
   "deterministicPaths": [
-    "rose/firm 94% nothing|info",
-    "doctor/firm 99% nothing|info",
-    "willy/firm 97% nothing|info",
-    "willy/joke 90% info|nothing",
-    "willy/probe 94% nothing|info",
-    "april/firm 87% nothing|info|romance",
-    "april/probe 87% nothing|romance|info",
-    "deputy/firm 100% robbery",
-    "deputy/kind 100% robbery",
-    "deputy/joke 100% robbery",
-    "deputy/probe 100% robbery"
+    "rose/cocky 84% info|nothing",
+    "rose/aggressive 99% nothing|info",
+    "doctor/aggressive 100% nothing",
+    "willy/neutral 89% nothing|info",
+    "willy/cocky 90% info|nothing",
+    "willy/aggressive 100% nothing",
+    "april/aggressive 99% nothing|info",
+    "deputy/apologetic 100% robbery",
+    "deputy/neutral 100% robbery",
+    "deputy/cocky 100% robbery",
+    "deputy/aggressive 100% robbery"
   ],
   "duel": {
     "100ms": {

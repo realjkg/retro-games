@@ -215,3 +215,34 @@ test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n===== numbers =====\n'+JSON.stringify(report,null,2));
 });
+
+test('9. what the crosshair is over is what the bullet finds', ()=>{
+  const {run}=load();
+  const g=JSON.parse(run(`(()=>{
+    const G=newGame({seed:7}); G.slot=2; beginSlot(G);
+    const out={holstered:{},raised:{}};
+    for(const zone of ["arm","torso"]){
+      aimAt(G,zone);
+      out.holstered[zone]={aim:G.aim,box:boxAt(G,G.aim.x,G.aim.y)};
+    }
+    theyDraw(G,"test"); G.duel.drawn=true;
+    for(const zone of ["arm","torso"]){
+      aimAt(G,zone);
+      out.raised[zone]={aim:G.aim,box:boxAt(G,G.aim.x,G.aim.y)};
+    }
+    out.offTarget=boxAt(G,0.02,0.02);
+    out.scene=SCENE; out.boxes=HITBOX;
+    return JSON.stringify(out);
+  })()`));
+  assert.equal(g.holstered.arm.box,'weapon','aiming at his hand missed the gun box');
+  assert.equal(g.holstered.torso.box,'lethal','aiming at centre mass missed the lethal box');
+  assert.equal(g.raised.arm.box,'weapon','the gun box did not follow his hand up');
+  assert.notDeepEqual(g.raised.arm.aim,g.holstered.arm.aim,'the raised gun box is in the same place');
+  assert.equal(g.offTarget,null,'the top corner of the scene is somehow a hitbox');
+  // the boxes must not overlap, or one shot would be both outcomes
+  const b=g.boxes, over=(p,q)=>p.x<q.x+q.w&&q.x<p.x+p.w&&p.y<q.y+q.h&&q.y<p.y+p.h;
+  assert.ok(!over(b.weapon,b.lethal),'the gun box overlaps centre mass');
+  assert.ok(!over(b.weaponRaised,b.lethal),'the raised gun box overlaps centre mass');
+  for(const [k,r] of Object.entries(b))
+    assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=g.scene.w&&r.y+r.h<=g.scene.h,k+' is off the scene');
+});
