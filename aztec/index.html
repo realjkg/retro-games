@@ -13,6 +13,11 @@
 }
 :root[data-theme="dark"]{--bg:#120e09;--panel:#1d1710;--panel2:#2a2117;--ink:#f1e6d2;--dim:#a8967a;--line:#3b2f21}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise the selection handles or the callout menu. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,#fs,.soundrow,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   overscroll-behavior:none;touch-action:manipulation}
@@ -23,14 +28,14 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
 #stage{position:relative;width:100%;aspect-ratio:5/3;background:#000;border:1px solid var(--line);
-  border-radius:12px;overflow:hidden}
+  border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:1px;user-select:none;cursor:pointer;touch-action:none;text-align:center}
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
 .btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
 .btn:active,.btn.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
 .btn:active small,.btn.on small{opacity:.8}
@@ -606,13 +611,22 @@ document.addEventListener("visibilitychange",()=>{
  if(document.hidden){clearKeys();if(G.phase==="play"){G.phase="paused";pauseMenu();}
   if(SOUND.master)SOUND.master.gain.value=0;}
  else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+const held=new Map();                       // pointer id -> the release for that button
 function bindKey(el,k){
- const dn=e=>{e.preventDefault();el.setPointerCapture&&el.setPointerCapture(e.pointerId);
-  el.classList.add("on");keys[k]=true;press(k);};
- const up=e=>{if(e)e.preventDefault();el.classList.remove("on");keys[k]=false;};
+ const dn=e=>{e.preventDefault();
+  // capture can throw if the pointer is already gone; the press still counts
+  try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}
+  el.classList.add("on");keys[k]=true;held.set(e.pointerId,up);press(k);};
+ const up=e=>{if(e&&e.preventDefault)e.preventDefault();
+  if(e&&e.pointerId!==undefined)held.delete(e.pointerId);
+  el.classList.remove("on");keys[k]=false;};
  el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
  el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
 }
+// A finger that slides off a button, or a gesture the browser swallows, must still
+// let go of it — otherwise the explorer keeps walking after you have stopped.
+for(const ev of ["pointerup","pointercancel"])
+ document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
 document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
 document.getElementById("sound").addEventListener("click",()=>{
  SOUND.enabled=!SOUND.enabled;unlockAudio();
@@ -621,6 +635,11 @@ document.getElementById("sound").addEventListener("click",()=>{
  b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
  audioLabel();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
+// A held button is an input, not a text selection — refuse both gestures outright.
+const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
+document.addEventListener("contextmenu",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("selectstart",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("dragstart",e=>{if(inUI(e))e.preventDefault();});
 
 /* ============ full screen ============ */
 // iPhone Safari has no element fullscreen, so the layout class does the isolating

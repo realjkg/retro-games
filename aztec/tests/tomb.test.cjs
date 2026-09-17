@@ -23,17 +23,18 @@ function runtime(diff=3,seed=7){
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
     resume(){return Promise.resolve();}
   }
-  const cls=new Set();
+  const cls=new Set(),docEvents=[];
   const body={classList:{toggle(n,on){on?cls.add(n):cls.delete(n);},add(n){cls.add(n)},
     remove(n){cls.delete(n)},contains:n=>cls.has(n)}};
   const box={console,setTimeout(){},
-    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},addEventListener(){}},
+    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},
+      addEventListener(type){docEvents.push(type)}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
   vm.createContext(box);vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run(`newGame(${diff},${seed});`);
-  return {run,notes,el,cls};
+  return {run,notes,el,cls,docEvents};
 }
 // Drop the explorer onto an empty stretch of floor with nothing else alive nearby.
 function clearRoom(r,floor=2){
@@ -263,4 +264,17 @@ test('The view takes the shape of the screen it is drawn on',()=>{
   r.run('fit();');
   assert.ok(r.run('VW')<=520&&r.run('VH')<=300);
   r.run('render();');                          // a view larger than the map still draws
+});
+
+test('A held button is an input, never a text selection',()=>{
+  const r=runtime();
+  for(const ev of ['contextmenu','selectstart','dragstart'])
+    assert.ok(r.docEvents.includes(ev),ev+' is refused inside the UI');
+  // iOS Safari reads only the prefixed properties, so they have to be in the sheet.
+  const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8')
+    .split('<style>')[1].split('</style>')[0];
+  assert.match(css,/-webkit-user-select:none/);
+  assert.match(css,/-webkit-touch-callout:none/);
+  for(const sel of ['.btn','.menuitem','canvas'])
+    assert.ok(css.includes(sel),sel+' is covered by the no-select rule');
 });
