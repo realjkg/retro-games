@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Aztec — Tomb of Quetzalcoatl</title>
+<meta name="description" content="Aztec: a browser remake of the 1982 Datamost action-adventure. Dig, crawl and fight your way down a randomly generated tomb for the jade idol — playable on phones.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%BF%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#120e09;--panel:#1d1710;--panel2:#2a2117;--ink:#f1e6d2;--dim:#a8967a;--gold:#e0b357;--line:#3b2f21}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#efe7d8;--panel:#fff;--panel2:#f6f0e4;--ink:#241a10;--dim:#6b5b45;--line:#ddd2bd}
+}
+:root[data-theme="dark"]{--bg:#120e09;--panel:#1d1710;--panel2:#2a2117;--ink:#f1e6d2;--dim:#a8967a;--line:#3b2f21}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:5/3;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:17px;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer;
+  touch-action:none}
+.btn:active,.btn.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+.acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
+.abtn{width:64px;height:64px;border-radius:50%;font-size:13px;font-weight:700;letter-spacing:.04em}
+.sbtn{width:64px;height:38px;border-radius:10px;font-size:12px;font-weight:700}
+#overlay{position:absolute;inset:0;background:rgba(10,7,4,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:360px;line-height:1.45}
+.menuitem{width:min(300px,86%);padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#1a1205;font-weight:700}
+.diffgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(340px,94%)}
+.diffgrid .menuitem{width:auto;padding:10px 4px;font-size:14px}
+small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
+button{font:inherit;cursor:pointer}
+.soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
+#sound{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;min-height:40px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status" role="status">Loading…</div>
+  <div id="stage"><canvas id="cv" width="320" height="192"></canvas><div id="overlay"></div></div>
+  <div id="pads">
+    <div class="padrow">
+      <div class="dpad">
+        <div></div><div class="btn" data-k="U">▲</div><div></div>
+        <div class="btn" data-k="L">◀</div><div class="btn" data-k="RUN">RUN</div><div class="btn" data-k="R">▶</div>
+        <div></div><div class="btn" data-k="D">▼</div><div></div>
+      </div>
+      <div class="acts">
+        <div class="btn abtn" data-k="FIRE">FIRE</div>
+        <div class="btn abtn" data-k="USE">USE</div>
+        <div class="btn sbtn" data-k="WEAP">WEAPON</div>
+        <div class="btn sbtn" data-k="MENU">MENU</div>
+      </div>
+    </div>
+  </div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><span id="audio-status">Tap a control to enable audio</span></div>
+</div>
+<script>
+"use strict";
+/* ============ tomb geometry ============ */
+const TS=16, MAPW=56, FLOORH=6, FLOORS=3, MAPH=FLOORH*FLOORS, VW=320, VH=192;
+const AIR=0, ROCK=1, DIRT=2, STAIR=3, DOWN=4, UP=5, SPIKE=6, WATER=7;
+const bandTop=f=>f*FLOORH, bandFloor=f=>f*FLOORH+FLOORH-1;
+const solidT=t=>t===ROCK||t===DIRT;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+// Deterministic generator: one seed reproduces a whole tomb, which the tests rely on.
+function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math.imul(s^s>>>15,1|s);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ============ contents of the tomb ============ */
+const FOE={
+ spider :{n:"cave spider",  hp:8, sp:44, dmg:7,  w:12,h:10,pts:60, ai:"chase"},
+ snake  :{n:"serpent",      hp:6, sp:26, dmg:9,  w:14,h:6, pts:70, ai:"patrol"},
+ jaguar :{n:"jaguar",       hp:16,sp:80, dmg:16, w:20,h:12,pts:150,ai:"chase"},
+ warrior:{n:"Aztec guard",  hp:14,sp:38, dmg:12, w:12,h:20,pts:180,ai:"thrower"},
+ gator  :{n:"alligator",    hp:20,sp:36, dmg:18, w:24,h:9, pts:200,ai:"swim"},
+ dino   :{n:"tomb saurian", hp:46,sp:50, dmg:24, w:28,h:22,pts:500,ai:"chase"}
+};
+// Chests and debris piles hold what the 1982 game hid in them.
+const LOOT=[["bullets",26],["dynamite",15],["potion",16],["machete",8],["pistol",8],["bones",6],["nothing",21]];
+const ITEM_NAME={bullets:"a handful of bullets",dynamite:"two sticks of dynamite",potion:"a healing potion",
+ machete:"a machete",pistol:"a pistol",bones:"the remains of Professor Von Forster",idol:"THE JADE IDOL",
+ nothing:"nothing but dust"};
+function rollLoot(rand){let r=rand()*LOOT.reduce((a,b)=>a+b[1],0);
+ for(const [k,w] of LOOT){if((r-=w)<0)return k;} return "nothing";}
+
+function genLevel(depth,diff,rand,last){
+ const ri=n=>Math.floor(rand()*n);
+ const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(ROCK));
+ for(let f=0;f<FLOORS;f++)for(let x=1;x<MAPW-1;x++)
+   for(let y=bandTop(f)+1;y<bandFloor(f);y++)map[x][y]=AIR;
+ const L={depth,map,chests:[],enemies:[],shots:[],bombs:[],fx:[],crushers:[],up:null,down:null};
+ // Steps joining the three floors of this level (manual: three floors, steps between them).
+ for(let f=0;f<FLOORS-1;f++){
+   const x=6+ri(MAPW-14);
+   for(let y=bandTop(f)+1;y<bandFloor(f+1);y++)map[x][y]=STAIR;
+ }
+ const upX=2+ri(3); map[upX][bandFloor(0)-1]=UP; L.up={x:upX*TS+2,f:0};
+ let dnX=-1;
+ if(!last){dnX=MAPW-5-ri(3); map[dnX][bandFloor(FLOORS-1)-1]=DOWN; L.down={x:dnX*TS+2,f:FLOORS-1};}
+ // You always land on safe ground: no traps within three tiles of a level's own stairs.
+ const safe=(f,x)=>(f===0&&Math.abs(x-upX)<=3)||(f===FLOORS-1&&dnX>=0&&Math.abs(x-dnX)<=3);
+ // Dirt walls: dig through them, blow them up, or crawl under when the gap is there.
+ for(let i=0,n=3+Math.floor(diff/2);i<n;i++){
+   const f=ri(FLOORS), x=4+ri(MAPW-8);
+   if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
+   for(let y=bandTop(f)+1;y<bandFloor(f);y++)map[x][y]=DIRT;
+   if(rand()<.5)map[x][bandFloor(f)-1]=AIR;
+ }
+ for(let i=0,n=2+Math.floor(diff/2);i<n;i++){        // spiked pits in the floor
+   const f=ri(FLOORS), x=5+ri(MAPW-10), w=1+ri(2);
+   for(let k=0;k<w;k++)if(map[x+k]&&map[x+k][bandFloor(f)-1]===AIR&&!safe(f,x+k))map[x+k][bandFloor(f)]=SPIKE;
+ }
+ if(depth>0&&rand()<.85){                             // a flooded room on the lowest floor
+   const f=FLOORS-1, x0=6+ri(MAPW-22), len=6+ri(9), deep=depth>=2&&rand()<.7;
+   for(let x=x0;x<x0+len&&x<MAPW-1;x++){
+     if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
+     map[x][bandFloor(f)-1]=WATER;
+     if(deep){map[x][bandFloor(f)]=WATER;map[x][bandFloor(f)-2]=WATER;}
+   }
+ }
+ for(let i=0,n=Math.floor(diff/3);i<n;i++){           // compacting walls
+   const f=ri(FLOORS), x=6+ri(MAPW-12);
+   if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
+   L.crushers.push({x:x*TS,top:(bandTop(f)+1)*TS,drop:(FLOORH-2)*TS,t:rand()*3,period:3.2});
+ }
+ for(let i=0,n=5+ri(3)+Math.floor(diff/2);i<n;i++){
+   const f=ri(FLOORS), x=3+ri(MAPW-6);
+   if(map[x][bandFloor(f)-1]!==AIR||!solidT(map[x][bandFloor(f)]))continue;
+   L.chests.push({x:x*TS+1,y:bandFloor(f)*TS-12,w:14,h:12,open:false,
+     item:rollLoot(rand),kind:rand()<.5?"chest":"debris"});
+ }
+ const pool=depth===0?["spider","snake"]:depth===1?["spider","snake","jaguar"]:
+   depth===2?["snake","jaguar","warrior"]:["jaguar","warrior","spider"];
+ for(let i=0,n=4+depth+Math.round(diff*1.3);i<n;i++)
+   spawnFoe(L,pool[ri(pool.length)],rand,diff);
+ if(hasWater(L))for(let i=0,n=1+Math.floor(diff/3);i<n;i++)spawnFoe(L,"gator",rand,diff);
+ if(last){                                            // the idol, and what guards it
+   spawnFoe(L,"dino",rand,diff);
+   if(!L.chests.length)L.chests.push({x:20*TS,y:bandFloor(FLOORS-1)*TS-12,w:14,h:12,open:false,
+     item:"nothing",kind:"chest"});
+   const deep=L.chests.filter(c=>c.y>bandTop(FLOORS-1)*TS);
+   const pick=(deep.length?deep:L.chests)[Math.floor(rand()*(deep.length||L.chests.length))];
+   pick.item="idol";
+ }
+ return L;
+}
+function hasWater(L){for(let x=0;x<MAPW;x++)for(let y=0;y<MAPH;y++)if(L.map[x][y]===WATER)return true;return false;}
+function spawnFoe(L,k,rand,diff){
+ const F=FOE[k], ri=n=>Math.floor(rand()*n);
+ for(let tries=0;tries<50;tries++){
+  const f=ri(FLOORS), x=3+ri(MAPW-6);
+  if(k==="swim"||k==="gator"){ if(L.map[x][bandFloor(f)-1]!==WATER)continue; }
+  else if(L.map[x][bandFloor(f)-1]!==AIR)continue;
+  L.enemies.push(mkFoe(k,x*TS,bandFloor(f)*TS-F.h,diff,rand()<.5?-1:1));
+  return true;
+ }
+ return false;
+}
+function mkFoe(k,x,y,diff,dir){const F=FOE[k];
+ return{k,x,y,w:F.w,h:F.h,vx:0,vy:0,dir:dir||1,cool:0,
+  hp:Math.round(F.hp*(1+diff*.09)),sp:F.sp*(1+diff*.035),dmg:F.dmg,range:110+diff*24,dead:false};}
+
+/* ============ audio ============ */
+const SOUND={ctx:null,master:null,enabled:true,last:-1};
+function audioLabel(){
+ const s=document.getElementById("audio-status");
+ s.textContent=!SOUND.enabled?"Muted":SOUND.ctx?"Audio on":"Tap a control to enable audio";
+}
+function unlockAudio(){
+ if(!SOUND.ctx){const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+  SOUND.ctx=new AC(); SOUND.master=SOUND.ctx.createGain();
+  SOUND.master.gain.value=SOUND.enabled?.18:0; SOUND.master.connect(SOUND.ctx.destination);}
+ if(SOUND.ctx.state==="suspended")SOUND.ctx.resume();
+ audioLabel();
+}
+function tone(hz,endHz,seconds,type="square",level=.3){
+ if(!SOUND.enabled||!SOUND.ctx)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain();
+ o.type=type;o.frequency.setValueAtTime(hz,c.currentTime);
+ if(endHz&&endHz!==hz)o.frequency.exponentialRampToValueAtTime(Math.max(20,endHz),c.currentTime+seconds);
+ g.gain.setValueAtTime(level,c.currentTime);
+ g.gain.exponentialRampToValueAtTime(.0008,c.currentTime+seconds);
+ o.connect(g);g.connect(SOUND.master);o.start();o.stop(c.currentTime+seconds);
+}
+const swingSound=()=>tone(300,120,.1,"triangle",.4);
+const shotSound =()=>tone(900,140,.12,"square",.42);
+const hitSound  =()=>tone(150,60,.09,"sawtooth",.4);
+const hurtSound =()=>tone(220,70,.25,"sawtooth",.5);
+const boomSound =()=>{tone(90,28,.5,"sawtooth",.6);tone(260,40,.35,"square",.3);};
+const pickSound =()=>tone(760,1240,.14,"triangle",.45);
+const idolSound =()=>{tone(660,990,.2,"triangle",.5);tone(990,1480,.3,"triangle",.4);};
+const doorSound =()=>tone(180,90,.22,"square",.35);
+const digSound  =()=>tone(120,80,.07,"sawtooth",.25);
+const winSound  =()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,f,.22,"triangle",.45),i*140));};
+const dieSound  =()=>tone(300,40,.9,"sawtooth",.55);
+function buzz(ms){if(typeof navigator!=="undefined"&&navigator.vibrate)try{navigator.vibrate(ms);}catch(e){}}
+
+/* ============ state ============ */
+const G={phase:"menu",diff:3,seed:1,levels:[],depth:0,L:null,hero:null,time:0,score:0,
+ msg:"",msgT:0,menu:null,dig:null,shake:0,cam:{x:0,y:0},flash:0};
+const keys={};
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+const statusEl=document.getElementById("status"), ov=document.getElementById("overlay");
+
+function newGame(diff,seed){
+ G.diff=clamp(diff|0,1,8);
+ G.seed=seed===undefined?(Date.now()^Math.floor(Math.random()*1e9))>>>0:seed>>>0;
+ const rand=rngFrom(G.seed), count=3+Math.ceil(G.diff/2);
+ G.levels=[];
+ for(let d=0;d<count;d++)G.levels.push(genLevel(d,G.diff,rand,d===count-1));
+ G.depth=0;G.L=G.levels[0];G.time=0;G.score=0;G.dig=null;G.shake=0;G.flash=0;
+ G.hero={x:G.L.up.x,y:bandFloor(0)*TS-22,w:10,h:22,vx:0,vy:0,face:1,onGround:true,crawl:false,
+  climb:false,running:false,hp:100,maxhp:100,bullets:6,dynamite:3,machete:false,pistol:true,
+  idol:false,weapon:"pistol",cool:0,swing:0,inv:0,hurtT:0,hazT:0};
+ G.phase="play";
+ say("The Tomb of Quetzalcoatl. Find the jade idol and climb back out.");
+ hideOverlay();
+ return G;
+}
+function say(m){G.msg=m;G.msgT=4;}
+
+/* ============ collision ============ */
+function tile(tx,ty){if(tx<0||ty<0||tx>=MAPW||ty>=MAPH)return ROCK;return G.L.map[tx][ty];}
+function tileAt(px,py){return tile(Math.floor(px/TS),Math.floor(py/TS));}
+function hits(b){
+ const x0=Math.floor(b.x/TS),x1=Math.floor((b.x+b.w-.01)/TS),
+       y0=Math.floor(b.y/TS),y1=Math.floor((b.y+b.h-.01)/TS);
+ for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)if(solidT(tile(x,y)))return true;
+ return false;
+}
+function moveBody(b,dx,dy){
+ let bx=false,by=false;
+ const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))));
+ for(let i=0;i<steps;i++){
+  b.x+=dx/steps; if(hits(b)){b.x-=dx/steps;bx=true;}
+  b.y+=dy/steps; if(hits(b)){b.y-=dy/steps;by=true;}
+ }
+ return{bx,by};
+}
+const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+function tilesIn(b,t){
+ const x0=Math.floor(b.x/TS),x1=Math.floor((b.x+b.w-.01)/TS),
+       y0=Math.floor(b.y/TS),y1=Math.floor((b.y+b.h-.01)/TS);
+ for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)if(tile(x,y)===t)return true;
+ return false;
+}
+const onStair=h=>tilesIn(h,STAIR);
+
+/* ============ the explorer ============ */
+function canStand(h){return !hits({x:h.x,y:h.y+h.h-22,w:h.w,h:22});}
+function setStance(h,crawl){
+ if(crawl===h.crawl)return;
+ if(!crawl){const bottom=h.y+h.h; if(hits({x:h.x,y:bottom-22,w:h.w,h:22}))return;
+  h.y=bottom-22;h.h=22;h.crawl=false;}
+ else{const bottom=h.y+h.h;h.y=bottom-10;h.h=10;h.crawl=true;}
+}
+function hurtHero(d,src){
+ const h=G.hero; if(h.inv>0||G.phase!=="play")return;
+ h.hp-=d;h.inv=.7;h.hurtT=.25;G.shake=6;hurtSound();buzz(40);
+ if(src)say("Hurt by "+src+"!");
+ if(h.hp<=0)die(src);
+}
+// Spikes, water and crushers grind away on their own clock, so standing in them is
+// steadily punishing without the per-frame damage an invulnerability reset would allow.
+function hazardHurt(d,src){
+ const h=G.hero; if(h.hazT>0||G.phase!=="play")return;
+ h.hazT=.3;h.hp-=d;h.hurtT=.2;G.shake=4;hurtSound();buzz(30);say("Hurt by "+src+"!");
+ if(h.hp<=0)die(src);
+}
+function die(src){
+ if(G.phase!=="play")return;
+ G.phase="dead";dieSound();buzz([60,60,120]);
+ showMenu("You die in the dark",(src?"Killed by "+src+". ":"")+"Depth "+(G.depth+1)+
+  " · score "+G.score,[{label:"Try another tomb",fn:()=>newGame(G.diff)},
+  {label:"Back to the entrance",fn:mainMenu}]);
+}
+function weapons(){const h=G.hero,l=[];
+ if(h.machete)l.push("machete"); if(h.pistol)l.push("pistol"); if(h.dynamite>0)l.push("dynamite");
+ return l.length?l:["fists"];}
+function cycleWeapon(){
+ const w=weapons(), i=w.indexOf(G.hero.weapon);
+ G.hero.weapon=w[(i+1)%w.length];say("Ready: "+G.hero.weapon);
+}
+function attack(){
+ const h=G.hero; if(h.cool>0)return;
+ if(h.weapon==="pistol"&&h.pistol){
+  if(h.bullets<=0){say("Out of bullets.");h.cool=.3;return;}
+  h.bullets--;h.cool=.42;shotSound();
+  G.L.shots.push({x:h.x+(h.face>0?h.w:-4),y:h.y+(h.crawl?3:13),w:4,h:2,vx:250*h.face,dmg:14,foe:false});
+ }else if(h.weapon==="dynamite"&&h.dynamite>0){
+  h.dynamite--;h.cool=.6;
+  G.L.bombs.push({x:h.x+h.face*6,y:h.y+h.h-6,w:6,h:6,vy:0,fuse:2.2});
+  say("Fuse lit — get clear!");
+  if(!h.dynamite&&weapons().indexOf("dynamite")<0)h.weapon=weapons()[0];
+ }else{
+  h.cool=h.machete?.34:.45;h.swing=.18;swingSound();
+ }
+}
+// The machete reaches where the explorer is pointing it: a standing swing passes
+// clean over a serpent, which is why the original taught you to stab at the ground.
+function swingBox(h){
+ return{x:h.face>0?h.x+h.w:h.x-13,y:h.crawl?h.y+1:h.y+5,w:13,h:h.crawl?9:11};
+}
+function meleeStep(){
+ const h=G.hero, box=swingBox(h), dmg=h.machete?11:4;
+ for(const e of G.L.enemies)if(!e.dead&&overlap(box,e)){damageFoe(e,dmg);e.vx=90*h.face;}
+}
+function damageFoe(e,d){
+ e.hp-=d;hitSound();
+ if(e.hp<=0&&!e.dead){e.dead=true;G.score+=FOE[e.k].pts;say("The "+FOE[e.k].n+" falls.");}
+}
+function nearChest(){
+ const h=G.hero, reach={x:h.x-7,y:h.y-2,w:h.w+14,h:h.h+4};
+ return G.L.chests.find(c=>!c.open&&overlap(reach,c))||null;
+}
+function openChest(c){
+ c.open=true;
+ const h=G.hero, it=c.item;
+ if(it==="bullets"){h.bullets+=6;h.pistol=true;}
+ else if(it==="dynamite")h.dynamite+=2;
+ else if(it==="potion")h.hp=Math.min(h.maxhp,h.hp+35);
+ else if(it==="machete")h.machete=true;
+ else if(it==="pistol"){h.pistol=true;h.bullets+=3;}
+ else if(it==="bones")G.score+=250;
+ else if(it==="idol"){h.idol=true;G.score+=250*G.diff;idolSound();buzz([40,40,40]);}
+ if(it!=="nothing"&&it!=="idol")pickSound();
+ say((c.kind==="chest"?"The chest holds ":"The debris hides ")+ITEM_NAME[it]+".");
+ if(it==="idol")say("THE JADE IDOL! Now climb back to the surface.");
+ return it;
+}
+function digTarget(){
+ const h=G.hero, tx=Math.floor((h.face>0?h.x+h.w+2:h.x-2)/TS), ty=Math.floor((h.y+h.h*.5)/TS);
+ return tile(tx,ty)===DIRT?{x:tx,y:ty}:null;
+}
+function markerAt(){
+ const h=G.hero;
+ if(tilesIn(h,DOWN))return DOWN;
+ if(tilesIn(h,UP))return UP;
+ return 0;
+}
+function enterLevel(d,at){
+ G.depth=d;G.L=G.levels[d];
+ const m=at==="down"?G.L.down:G.L.up, f=m?m.f:0;
+ const h=G.hero;
+ setStance(h,false);
+ h.x=m?m.x:TS*2;h.y=bandFloor(f)*TS-h.h;h.vx=0;h.vy=0;h.climb=false;
+ G.dig=null;doorSound();
+}
+function useAction(){
+ const h=G.hero, c=nearChest();
+ if(c){openChest(c);return "chest";}
+ const m=markerAt();
+ if(m===DOWN&&G.depth+1<G.levels.length){enterLevel(G.depth+1,"up");say("Deeper into the tomb.");return "down";}
+ if(m===UP){
+  if(G.depth>0){enterLevel(G.depth-1,"down");say("Back up one level.");return "up";}
+  return escape();
+ }
+ if(digTarget())return "dig";
+ return null;
+}
+function escape(){
+ if(!G.hero.idol){say("You will not leave without the idol.");return "blocked";}
+ G.phase="won";
+ const timeBonus=Math.max(0,4000-Math.floor(G.time*6));
+ G.score+=1000*G.diff+timeBonus;
+ winSound();buzz([60,40,60,40,120]);
+ showMenu("Out alive, idol and all","Difficulty "+G.diff+" · "+fmtTime(G.time)+
+  " · time bonus "+timeBonus+" · final score "+G.score,
+  [{label:"Raid another tomb",fn:()=>newGame(G.diff)},{label:"Entrance",fn:mainMenu}]);
+ return "won";
+}
+
+/* ============ world step ============ */
+function explode(b){
+ const L=G.L, cx=b.x+b.w/2, cy=b.y+b.h/2, R=38;
+ boomSound();G.shake=12;G.flash=.25;buzz(90);
+ for(let tx=Math.floor((cx-R)/TS);tx<=Math.floor((cx+R)/TS);tx++)
+  for(let ty=Math.floor((cy-R)/TS);ty<=Math.floor((cy+R)/TS);ty++){
+   const dx=(tx+.5)*TS-cx, dy=(ty+.5)*TS-cy;
+   if(dx*dx+dy*dy>R*R)continue;
+   if(tile(tx,ty)===DIRT)L.map[tx][ty]=AIR;
+  }
+ for(const e of L.enemies){if(e.dead)continue;
+  const dx=e.x+e.w/2-cx, dy=e.y+e.h/2-cy, d=Math.hypot(dx,dy);
+  if(d<R)damageFoe(e,Math.round(70*(1-d/R)));}
+ const h=G.hero, hd=Math.hypot(h.x+h.w/2-cx,h.y+h.h/2-cy);
+ if(hd<R){h.inv=0;hurtHero(Math.round(55*(1-hd/R)),"your own dynamite");}
+ L.fx.push({x:cx,y:cy,t:0,life:.4,r:R});
+}
+function foeStep(e,dt){
+ const h=G.hero, F=FOE[e.k];
+ const dx=h.x+h.w/2-(e.x+e.w/2), dy=(h.y+h.h/2)-(e.y+e.h/2);
+ e.cool=Math.max(0,e.cool-dt);
+ if(F.ai==="swim"){
+  const inWater=tilesIn(e,WATER);
+  if(Math.abs(dx)<e.range&&Math.abs(dy)<40){e.dir=Math.sign(dx)||e.dir;e.vx=e.sp*e.dir;}
+  else e.vx=e.sp*.4*e.dir;
+  const nxt={x:e.x+Math.sign(e.vx)*4,y:e.y,w:e.w,h:e.h};
+  if(!tilesIn(nxt,WATER)&&inWater){e.dir*=-1;e.vx=e.sp*.4*e.dir;}
+  e.vy=0;
+ }else if(F.ai==="patrol"){
+  e.vx=e.sp*e.dir;e.vy+=620*dt;
+  const ahead={x:e.x+(e.dir>0?e.w+2:-3),y:e.y+e.h,w:2,h:3};
+  if(!hits(ahead)||hits({x:e.x+e.dir*2,y:e.y,w:e.w,h:e.h}))e.dir*=-1;
+ }else if(F.ai==="thrower"){
+  e.vy+=620*dt;
+  if(Math.abs(dx)<e.range&&Math.abs(dy)<26){
+   e.dir=Math.sign(dx)||e.dir;
+   e.vx=Math.abs(dx)>60?e.sp*e.dir:0;
+   if(e.cool<=0){e.cool=1.6;
+    G.L.shots.push({x:e.x+(e.dir>0?e.w:-5),y:e.y+6,w:5,h:2,vx:150*e.dir,dmg:e.dmg,foe:true});}
+  }else e.vx=0;
+ }else{
+  e.vy+=620*dt;
+  if(Math.abs(dx)<e.range&&Math.abs(dy)<30){e.dir=Math.sign(dx)||e.dir;e.vx=e.sp*e.dir;}
+  else e.vx=e.sp*.35*e.dir;
+  if(hits({x:e.x+e.dir*2,y:e.y,w:e.w,h:e.h}))e.dir*=-1;
+ }
+ if(tilesIn(e,WATER)&&F.ai!=="swim"){e.vx*=.55;e.vy*=.5;}
+ const r=moveBody(e,e.vx*dt,e.vy*dt);
+ if(r.by)e.vy=0;
+ if(r.bx&&F.ai!=="swim")e.dir*=-1;
+ if(overlap(e,h)&&e.cool<=0){hurtHero(e.dmg,"a "+F.n);e.cool=.8;}
+}
+function stepGame(dt){
+ const h=G.hero, L=G.L;
+ G.time+=dt;G.msgT=Math.max(0,G.msgT-dt);G.shake=Math.max(0,G.shake-dt*30);
+ G.flash=Math.max(0,G.flash-dt);
+ h.inv=Math.max(0,h.inv-dt);h.cool=Math.max(0,h.cool-dt);h.hurtT=Math.max(0,h.hurtT-dt);
+ h.hazT=Math.max(0,h.hazT-dt);
+ if(h.swing>0){meleeStep();h.swing-=dt;}
+
+ // stance, ladders, walking
+ setStance(h,!!keys.D&&!onStair(h));
+ const inWater=tilesIn(h,WATER), sp=(h.crawl?28:h.running?106:60)*(inWater?.6:1);
+ let mx=0; if(keys.L)mx--; if(keys.R)mx++;
+ if(mx)h.face=mx;
+ h.vx=mx*sp;
+ const stair=onStair(h);
+ h.climb=stair&&(keys.U||keys.D||h.climb&&!h.onGround);
+ if(stair&&(keys.U||keys.D)){h.vy=(keys.U?-1:1)*54;h.climb=true;}
+ else if(h.climb&&stair)h.vy=0;
+ else{
+  h.climb=false;
+  if(inWater)h.vy=Math.min(h.vy+180*dt,60); else h.vy+=620*dt;
+  if(h.vy>340)h.vy=340;
+  if(keys.U&&h.onGround&&!h.crawl){h.vy=-218;h.onGround=false;}
+  else if(keys.U&&inWater)h.vy=-46;
+ }
+ const before=h.vy;
+ const r=moveBody(h,h.vx*dt,h.vy*dt);
+ h.onGround=r.by&&before>=0;
+ if(r.by)h.vy=0;
+
+ // hazards
+ if(tilesIn(h,SPIKE))hazardHurt(6,"spikes");
+ if(tileAt(h.x+h.w/2,h.y+3)===WATER)hazardHurt(4,"drowning");
+ for(const c of L.crushers){
+  c.t=(c.t+dt)%c.period;
+  const k=c.t<c.period*.5?c.t/(c.period*.5):1-(c.t-c.period*.5)/(c.period*.5);
+  c.y=c.top+c.drop*Math.max(0,k*2-1);
+  const box={x:c.x,y:c.top,w:TS,h:c.y-c.top+6};
+  if(k>.6&&overlap(box,h))hazardHurt(9,"a compacting wall");
+ }
+
+ // digging (hold USE facing a dirt wall)
+ if(keys.USE){
+  const t=digTarget();
+  if(t){ if(!G.dig||G.dig.x!==t.x||G.dig.y!==t.y)G.dig={x:t.x,y:t.y,p:0};
+   G.dig.p+=dt; if(Math.floor(G.dig.p*8)!==Math.floor((G.dig.p-dt)*8))digSound();
+   if(G.dig.p>=1.1){L.map[t.x][t.y]=AIR;
+    // standing, you clear head room too, so one dig opens a passage you can walk through
+    if(!h.crawl&&tile(t.x,t.y-1)===DIRT)L.map[t.x][t.y-1]=AIR;
+    G.dig=null;say("You dig through the rubble.");}
+  }else G.dig=null;
+ }else G.dig=null;
+ if(keys.FIRE)attack();
+
+ for(const s of L.shots){
+  const st=moveBody(s,s.vx*dt,0);
+  if(st.bx){s.gone=true;continue;}
+  if(s.foe){ if(overlap(s,h)){hurtHero(s.dmg,"a hurled spear");s.gone=true;} }
+  else for(const e of L.enemies)if(!e.dead&&overlap(s,e)){damageFoe(e,s.dmg);s.gone=true;break;}
+  if(s.x<0||s.x>MAPW*TS)s.gone=true;
+ }
+ L.shots=L.shots.filter(s=>!s.gone);
+ for(const b of L.bombs){
+  b.vy+=620*dt;const br=moveBody(b,0,b.vy*dt);if(br.by)b.vy=0;
+  b.fuse-=dt; if(b.fuse<=0){b.gone=true;explode(b);}
+ }
+ L.bombs=L.bombs.filter(b=>!b.gone);
+ for(const e of L.enemies)if(!e.dead)foeStep(e,dt);
+ for(const f of L.fx){f.t+=dt;if(f.t>f.life)f.gone=true;}
+ L.fx=L.fx.filter(f=>!f.gone);
+ if(h.y>MAPH*TS+40)hurtHero(999,"the abyss");
+}
+
+/* ============ input ============ */
+function press(k){
+ unlockAudio();
+ if(k==="MENU"){toggleMenu();return;}
+ if(G.menu){
+  if(k==="U"||k==="L")moveMenu(-1);
+  else if(k==="D"||k==="R")moveMenu(1);
+  else if(k==="FIRE"||k==="USE")chooseMenu();
+  return;
+ }
+ if(G.phase!=="play")return;
+ if(k==="USE")useAction();
+ else if(k==="WEAP")cycleWeapon();
+ else if(k==="RUN"){G.hero.running=!G.hero.running;say(G.hero.running?"Running.":"Walking.");}
+ else if(k==="FIRE")attack();
+}
+function toggleMenu(){
+ if(G.menu&&G.phase==="paused"){G.phase="play";G.menu=null;hideOverlay();return;}
+ if(G.phase==="play"){G.phase="paused";pauseMenu();}
+ else if(G.phase==="menu")return;
+}
+const KMAP={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R",w:"U",s:"D",a:"L",d:"R",
+ " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"USE",e:"USE",q:"WEAP",c:"WEAP",Shift:"RUN",Escape:"MENU",p:"MENU"};
+function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}
+addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
+ if(!keys[k])press(k);
+ keys[k]=true;});
+addEventListener("keyup",e=>{const k=keyOf(e);if(k)keys[k]=false;});
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+ document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+addEventListener("blur",clearKeys);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){clearKeys();if(G.phase==="play"){G.phase="paused";pauseMenu();}
+  if(SOUND.master)SOUND.master.gain.value=0;}
+ else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+function bindKey(el,k){
+ const dn=e=>{e.preventDefault();el.setPointerCapture&&el.setPointerCapture(e.pointerId);
+  el.classList.add("on");keys[k]=true;press(k);};
+ const up=e=>{if(e)e.preventDefault();el.classList.remove("on");keys[k]=false;};
+ el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
+ el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+}
+document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
+document.getElementById("sound").addEventListener("click",()=>{
+ SOUND.enabled=!SOUND.enabled;unlockAudio();
+ if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
+ const b=document.getElementById("sound");
+ b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
+ audioLabel();});
+document.addEventListener("pointerdown",unlockAudio,{capture:true});
+
+/* ============ menus ============ */
+function showMenu(title,sub,items,tip,grid){
+ G.menu={items,sel:0};
+ ov.innerHTML=`<h1>${title}</h1><p class="sub">${sub}</p>`+
+  (grid?`<div class="diffgrid">`:"")+
+  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
+  (grid?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
+ ov.classList.remove("hidden");
+}
+function hideOverlay(){ov.classList.add("hidden");G.menu=null;}
+function moveMenu(d){
+ const m=G.menu;m.sel=(m.sel+d+m.items.length)%m.items.length;
+ ov.querySelectorAll(".menuitem").forEach((el,i)=>el.classList.toggle("sel",i===m.sel));
+}
+function chooseMenu(){const m=G.menu;if(m&&m.items[m.sel])m.items[m.sel].fn();}
+ov.addEventListener("click",e=>{
+ const b=e.target.closest?e.target.closest(".menuitem"):null;
+ if(!b||!G.menu)return;
+ G.menu.sel=+b.dataset.i;chooseMenu();});
+function mainMenu(){
+ G.phase="menu";
+ showMenu("AZTEC","Tomb of Quetzalcoatl — recover the jade idol and climb back out.",
+  [{label:"Enter the tomb",fn:diffMenu},{label:"How to play",fn:helpMenu}],
+  "A remake of the 1982 Datamost action-adventure, rebuilt for touch screens.");
+}
+function diffMenu(){
+ const items=[];
+ for(let i=1;i<=8;i++)items.push({label:String(i),fn:()=>newGame(i)});
+ showMenu("Choose your difficulty","1 is a quiet tomb, 8 is a crowded one. Deeper tombs and a "+
+  "bigger idol bounty come with the harder settings.",items,
+  "The tomb is generated fresh every game.",true);
+}
+function helpMenu(){
+ showMenu("How to play",
+  "Move with the pad or arrow keys. UP jumps, and climbs steps when you are on them. "+
+  "DOWN crawls — crawl to slip under half-blocked walls.",
+  [{label:"Back",fn:mainMenu}],
+  "FIRE swings the machete, fires the pistol or lights dynamite — WEAPON cycles them. "+
+  "USE opens chests and debris, takes the stairs down or up, and held against a dirt wall it digs. "+
+  "A standing machete swing passes over a serpent; crawl and stab low. "+
+  "Find the idol on the lowest level, then climb back to the entrance and out.");
+}
+function pauseMenu(){
+ showMenu("Paused","Depth "+(G.depth+1)+" of "+G.levels.length+" · "+fmtTime(G.time)+" · score "+G.score,
+  [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
+   {label:"Abandon the tomb",fn:mainMenu}]);
+}
+
+/* ============ drawing ============ */
+function fmtTime(t){const s=Math.floor(t);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
+function px(v){return Math.round(v);}
+function drawTiles(){
+ const c=ctx, cam=G.cam;
+ const x0=Math.floor(cam.x/TS), x1=Math.ceil((cam.x+VW)/TS), y0=Math.floor(cam.y/TS), y1=Math.ceil((cam.y+VH)/TS);
+ for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
+  const t=tile(x,y), sx=px(x*TS-cam.x), sy=px(y*TS-cam.y);
+  if(t===AIR)continue;
+  if(t===ROCK){c.fillStyle=(x+y)%2?"#4a3f29":"#413622";c.fillRect(sx,sy,TS,TS);
+   c.fillStyle="#2a2216";c.fillRect(sx,sy+TS-2,TS,2);c.fillRect(sx+TS-2,sy,2,TS);}
+  else if(t===DIRT){c.fillStyle="#6b4a26";c.fillRect(sx,sy,TS,TS);
+   c.fillStyle="#835c31";c.fillRect(sx+2,sy+3,4,3);c.fillRect(sx+9,sy+8,5,4);
+   c.fillStyle="#553a1d";c.fillRect(sx,sy+TS-2,TS,2);}
+  else if(t===STAIR){c.fillStyle="#5a4a2c";c.fillRect(sx+2,sy,TS-4,TS);
+   c.fillStyle="#c6a35c";for(let i=0;i<4;i++)c.fillRect(sx+2,sy+i*4,TS-4,2);}
+  else if(t===SPIKE){c.fillStyle="#1a1409";c.fillRect(sx,sy,TS,TS);
+   c.fillStyle="#b9b2a0";for(let i=0;i<3;i++){c.beginPath();c.moveTo(sx+2+i*5,sy+TS);
+    c.lineTo(sx+4.5+i*5,sy+3);c.lineTo(sx+7+i*5,sy+TS);c.closePath();c.fill();}}
+  else if(t===WATER){c.fillStyle="rgba(46,112,140,.72)";c.fillRect(sx,sy,TS,TS);
+   c.fillStyle="rgba(150,214,232,.45)";c.fillRect(sx,sy+2+((Math.floor(G.time*4)+x)%3),TS,1);}
+  else if(t===DOWN||t===UP){c.fillStyle="#120d06";c.fillRect(sx+3,sy,TS-6,TS);
+   c.fillStyle="#e0b357";c.beginPath();
+   if(t===DOWN){c.moveTo(sx+4,sy+5);c.lineTo(sx+12,sy+5);c.lineTo(sx+8,sy+13);}
+   else{c.moveTo(sx+4,sy+11);c.lineTo(sx+12,sy+11);c.lineTo(sx+8,sy+3);}
+   c.closePath();c.fill();}
+ }
+}
+function drawChest(c0){
+ const c=ctx, sx=px(c0.x-G.cam.x), sy=px(c0.y-G.cam.y);
+ if(c0.kind==="debris"){c.fillStyle=c0.open?"#4a3a22":"#6d5630";
+  c.fillRect(sx,sy+6,14,6);c.fillRect(sx+3,sy+2,8,5);}
+ else{c.fillStyle=c0.open?"#5a4526":"#8a5f2a";c.fillRect(sx,sy+2,14,10);
+  c.fillStyle="#d8b45a";c.fillRect(sx,sy+(c0.open?1:6),14,2);}
+}
+function drawFoe(e){
+ const c=ctx, sx=px(e.x-G.cam.x), sy=px(e.y-G.cam.y), d=e.dir;
+ if(e.k==="spider"){c.fillStyle="#2b2b33";c.fillRect(sx+2,sy+2,8,6);
+  c.strokeStyle="#2b2b33";c.lineWidth=1;
+  for(let i=0;i<3;i++){c.beginPath();c.moveTo(sx+3,sy+5);c.lineTo(sx-1,sy+3+i*3);c.stroke();
+   c.beginPath();c.moveTo(sx+9,sy+5);c.lineTo(sx+13,sy+3+i*3);c.stroke();}
+  c.fillStyle="#d64b4b";c.fillRect(sx+4,sy+3,1,1);c.fillRect(sx+7,sy+3,1,1);}
+ else if(e.k==="snake"){c.fillStyle="#3f8a3a";c.fillRect(sx,sy+2,14,4);
+  c.fillRect(sx+(d>0?11:0),sy,3,3);c.fillStyle="#d8d84a";c.fillRect(sx+(d>0?13:0),sy+1,1,1);}
+ else if(e.k==="jaguar"){c.fillStyle="#c58a33";c.fillRect(sx+1,sy+2,18,7);
+  c.fillRect(sx+(d>0?15:0),sy,5,4);c.fillRect(sx+2,sy+9,3,3);c.fillRect(sx+14,sy+9,3,3);
+  c.fillStyle="#3a2408";for(let i=0;i<4;i++)c.fillRect(sx+3+i*4,sy+3,2,2);}
+ else if(e.k==="warrior"){c.fillStyle="#8d4a2a";c.fillRect(sx+2,sy+6,8,10);
+  c.fillStyle="#e8c88a";c.fillRect(sx+3,sy,6,6);
+  c.fillStyle="#3fa08a";c.fillRect(sx+1,sy-2,10,3);
+  c.fillStyle="#d8d0b0";c.fillRect(sx+(d>0?10:0),sy+8,3,1);}
+ else if(e.k==="gator"){c.fillStyle="#3c5a34";c.fillRect(sx,sy+3,24,5);
+  c.fillRect(sx+(d>0?18:0),sy+1,6,3);
+  c.fillStyle="#26381f";for(let i=0;i<6;i++)c.fillRect(sx+2+i*4,sy+1,2,2);}
+ else{c.fillStyle="#6a5a8a";c.fillRect(sx+2,sy+6,24,14);
+  c.fillRect(sx+(d>0?20:0),sy,9,8);c.fillStyle="#4a3f66";c.fillRect(sx+4,sy+18,5,4);c.fillRect(sx+16,sy+18,5,4);
+  c.fillStyle="#e8e85a";c.fillRect(sx+(d>0?25:2),sy+3,2,2);}
+}
+function drawHero(){
+ const h=G.hero, c=ctx, sx=px(h.x-G.cam.x), sy=px(h.y-G.cam.y), d=h.face;
+ if(h.inv>0&&Math.floor(h.inv*20)%2)return;
+ const skin="#e8c08a", coat="#8a5a2c", hat="#5b3a1a";
+ if(h.crawl){
+  c.fillStyle=coat;c.fillRect(sx,sy+4,10,6);
+  c.fillStyle=skin;c.fillRect(sx+(d>0?8:0),sy+3,4,4);
+  c.fillStyle=hat;c.fillRect(sx+(d>0?7:-1),sy+1,6,2);
+ }else{
+  c.fillStyle=coat;c.fillRect(sx+1,sy+8,8,9);
+  c.fillStyle="#4a3a24";c.fillRect(sx+1,sy+17,3,5);c.fillRect(sx+6,sy+17,3,5);
+  c.fillStyle=skin;c.fillRect(sx+2,sy+2,6,6);
+  c.fillStyle=hat;c.fillRect(sx,sy,10,3);c.fillRect(sx+2,sy-2,6,2);
+  c.fillStyle=skin;c.fillRect(sx+(d>0?8:0),sy+9,2,5);
+ }
+ if(h.swing>0){c.fillStyle=h.machete?"#dfe3ea":"#e8c08a";
+  const b=swingBox(h);c.fillRect(px(b.x-G.cam.x),px(b.y-G.cam.y+b.h/2-1),b.w,2);}
+ if(h.idol){c.fillStyle="#4fd39a";c.fillRect(sx+(d>0?-3:10),sy+(h.crawl?4:9),4,5);}
+}
+function drawHUD(){
+ const c=ctx, h=G.hero;
+ c.fillStyle="rgba(10,8,4,.72)";c.fillRect(0,0,VW,14);
+ c.fillStyle="#5a2020";c.fillRect(4,4,60,6);
+ c.fillStyle=h.hp>35?"#6cc06c":"#d05050";c.fillRect(4,4,Math.max(0,60*h.hp/h.maxhp),6);
+ c.fillStyle="#f1e6d2";c.font="8px monospace";c.textBaseline="top";
+ c.fillText(h.weapon.toUpperCase()+"  "+h.bullets+"B "+h.dynamite+"D",70,4);
+ c.fillText("DEPTH "+(G.depth+1)+"/"+G.levels.length,170,4);
+ c.fillText(fmtTime(G.time),238,4);
+ c.fillText(String(G.score),282,4);
+ if(h.idol){c.fillStyle="#4fd39a";c.fillRect(160,4,6,6);}
+ if(G.dig){c.fillStyle="#e0b357";c.fillRect(VW/2-20,VH-12,40*clamp(G.dig.p/1.1,0,1),3);}
+ if(G.msgT>0){c.fillStyle="rgba(10,8,4,.72)";c.fillRect(0,VH-13,VW,13);
+  c.fillStyle="#e0b357";c.fillText(G.msg,4,VH-11);}
+}
+function render(){
+ const c=ctx;
+ if(G.phase==="menu"||!G.L||!G.hero){c.fillStyle="#0c0904";c.fillRect(0,0,VW,VH);return;}
+ const h=G.hero;
+ G.cam.x=clamp(h.x+h.w/2-VW/2,0,MAPW*TS-VW);
+ G.cam.y=clamp(h.y+h.h/2-VH/2,0,MAPH*TS-VH);
+ if(G.shake>0){G.cam.x+=(Math.random()-.5)*G.shake;G.cam.y+=(Math.random()-.5)*G.shake;}
+ c.fillStyle="#150f08";c.fillRect(0,0,VW,VH);
+ drawTiles();
+ for(const ch of G.L.chests)drawChest(ch);
+ for(const cr of G.L.crushers){
+  c.fillStyle="#463824";c.fillRect(px(cr.x-G.cam.x),px(cr.top-G.cam.y),TS,px(cr.y-cr.top));
+  c.fillStyle="#6b5636";c.fillRect(px(cr.x-G.cam.x),px(cr.y-G.cam.y),TS,6);}
+ for(const e of G.L.enemies)if(!e.dead)drawFoe(e);
+ for(const s of G.L.shots){c.fillStyle=s.foe?"#d8c07a":"#ffe9a8";
+  c.fillRect(px(s.x-G.cam.x),px(s.y-G.cam.y),s.w,s.h);}
+ for(const b of G.L.bombs){c.fillStyle=Math.floor(b.fuse*8)%2?"#d04a2a":"#f0e0b0";
+  c.fillRect(px(b.x-G.cam.x),px(b.y-G.cam.y),6,6);}
+ drawHero();
+ for(const f of G.L.fx){const k=f.t/f.life;
+  c.fillStyle="rgba(255,190,80,"+(1-k).toFixed(2)+")";
+  c.beginPath();c.arc(px(f.x-G.cam.x),px(f.y-G.cam.y),f.r*(.4+k),0,7);c.fill();}
+ // torchlight: the tomb is only as bright as what you carry into it
+ const g=c.createRadialGradient(px(h.x-G.cam.x),px(h.y-G.cam.y),16,px(h.x-G.cam.x),px(h.y-G.cam.y),172);
+ g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.45)");
+ c.fillStyle=g;c.fillRect(0,0,VW,VH);
+ if(G.flash>0){c.fillStyle="rgba(255,230,180,"+(G.flash*1.6).toFixed(2)+")";c.fillRect(0,0,VW,VH);}
+ if(G.hero.hurtT>0){c.fillStyle="rgba(180,30,30,.3)";c.fillRect(0,0,VW,VH);}
+ drawHUD();
+}
+function updateStatus(){
+ if(G.phase==="menu"||!G.hero){statusEl.innerHTML="<b>AZTEC</b> — choose a difficulty and enter the tomb.";return;}
+ const h=G.hero;
+ statusEl.innerHTML="<b>Depth "+(G.depth+1)+"/"+G.levels.length+"</b> · "+Math.max(0,Math.round(h.hp))+
+  " hp · "+h.weapon+" · "+h.bullets+" bullets · "+h.dynamite+" dynamite"+(h.idol?" · <b>idol</b>":"")+
+  " · "+fmtTime(G.time)+" · "+G.score+(G.msgT>0?" — "+G.msg:"");
+}
+
+/* ============ loop ============ */
+let last=0;
+function loop(now){
+ const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+ if(G.phase==="play")stepGame(dt);
+ render();updateStatus();
+ requestAnimationFrame(loop);
+}
+mainMenu();audioLabel();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
