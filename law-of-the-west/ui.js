@@ -131,13 +131,18 @@ function paint(){
     lineEls[0].className="npc";
     lineEls[1].textContent="Press FIRE or Enter to pin on the badge";
     lineEls[1].className="choice sel";
-    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    const written=ENCOUNTERS.filter(e=>Array.isArray(DIALOGUE[e.id])).length;
+    lineEls[2].textContent=written+" of "+ENCOUNTERS.length+
+      " encounters written. The rest are walked past for now.";
+    lineEls[2].className="choice dim";
+    for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
     return;
   }
   lineEls[0].className="npc";
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
-    lineEls[1].textContent="1. Walk on down the street";
+    lineEls[1].textContent=(G.slot>=ENCOUNTERS.length-1)?"1. End the day":"1. Walk on down the street";
     lineEls[1].className="choice sel";
     for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
     scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;

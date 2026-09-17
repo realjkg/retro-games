@@ -9,7 +9,10 @@
 'use strict';
 const {test}=require('node:test'), assert=require('node:assert/strict');
 const fs=require('fs'), path=require('path');
-const {JSDOM}=require('jsdom');
+/* jsdom is the only dependency in the project and it is a dev one: a fresh
+ * clone can run every other test without installing anything. */
+let JSDOM=null, jsdomMissing=false;
+try{ JSDOM=require('jsdom').JSDOM; }catch(e){ jsdomMissing=true; }
 const {fillUnwritten}=require('./fixture-content.js');
 const ROOT=path.join(__dirname,'..');
 const HTML=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
@@ -17,6 +20,7 @@ const open_pages=[];
 process.on('exit',()=>open_pages.forEach(d=>{try{d.window.close();}catch(e){}}));
 
 function openPage(){
+  if(jsdomMissing)throw new Error('jsdom is not installed');
   // no pretendToBeVisual: the page's loop must not keep the harness alive
   const dom=new JSDOM(HTML,{runScripts:"dangerously",
     url:"https://example.invalid/law-of-the-west/"});
@@ -47,7 +51,7 @@ function openPage(){
     frame:ms=>{w.performance.now=()=>ms; ev('__frame')(ms);}};
 }
 
-test('8a. the page loads, builds its state and wires every control', ()=>{
+test('8a. the page loads, builds its state and wires every control', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   assert.equal(p.G().phase,'intro');
   // every data-cmd in the markup must be a command the handler knows
@@ -63,7 +67,7 @@ test('8a. the page loads, builds its state and wires every control', ()=>{
   assert.deepEqual(p.errors,[]);
 });
 
-test('8b. FIRE starts the day and each of the four lines is selectable and speakable', ()=>{
+test('8b. FIRE starts the day and each of the four lines is selectable and speakable', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE did not start the day');
@@ -94,7 +98,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   }
 });
 
-test('8c. up draws, the crosshair moves, down holsters, fire shoots', ()=>{
+test('8c. up draws, the crosshair moves, down holsters, fire shoots', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]'); p.ready();
   assert.equal(p.G().mode,'talk');
@@ -122,7 +126,7 @@ test('8c. up draws, the crosshair moves, down holsters, fire shoots', ()=>{
   assert.deepEqual(p.errors,[]);
 });
 
-test('8d. down walks the crosshair down, and holsters only at the bottom', ()=>{
+test('8d. down walks the crosshair down, and holsters only at the bottom', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]'); p.ready();
   p.tap('[data-cmd="up"]');
@@ -140,7 +144,7 @@ test('8d. down walks the crosshair down, and holsters only at the bottom', ()=>{
   assert.equal(p.G().mode,'talk','Escape did not holster');
 });
 
-test('8e. the mute control and the m key both toggle and show it', ()=>{
+test('8e. the mute control and the m key both toggle and show it', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   const before=p.snd().on;
   p.tap('#mute');
@@ -151,7 +155,7 @@ test('8e. the mute control and the m key both toggle and show it', ()=>{
   assert.equal(p.snd().on,before,'the m key did not toggle it back');
 });
 
-test('8f. a whole day can be played through to the summary and restarted', ()=>{
+test('8f. a whole day can be played through to the summary and restarted', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   let guard=0;
@@ -177,7 +181,7 @@ test('8f. a whole day can be played through to the summary and restarted', ()=>{
   assert.deepEqual(p.errors,[]);
 });
 
-test('8g. no AudioContext exists until a gesture, and nothing external is fetched', ()=>{
+test('8g. no AudioContext exists until a gesture, and nothing external is fetched', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const raw=HTML.replace(/<!--[\s\S]*?-->/g,'');
   assert.ok(!/<script[^>]+\bsrc=/.test(raw),'the page loads an external script');
   assert.ok(!/<link[^>]+href="https?:/.test(raw),'the page loads an external stylesheet');

@@ -1,18 +1,20 @@
 {
   "name": "law-of-the-west",
-  "version": "1.0.0",
-  "description": "Staging for the Law of the West sub-repository. It lives here only because `realjkg/law-of-the-west` does not exist yet; when it does, these files move to that repository's root and this directory goes away. Nothing here is wired into the collection or served by Pages.",
+  "version": "0.1.0",
+  "description": "Law of the West — an original encounter anthology in the SID idiom",
   "main": "content.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js",
+    "build": "node tools/assemble.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "jsdom": "^30.1.0"
-  }
+  },
+  "private": "true"
 }

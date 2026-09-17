@@ -23,6 +23,13 @@ jobs:
         with:
           node-version: '20'
       - run: node --test archon/tests/combat.test.cjs
+      - name: Install the Law of the West dev dependency
+        run: npm --prefix law-of-the-west ci
+      - run: node --test law-of-the-west/test/*.test.js
+      - name: The committed page must match its sources
+        run: |
+          node law-of-the-west/tools/assemble.js
+          git diff --exit-code law-of-the-west/index.html
 
   deploy:
     needs: test

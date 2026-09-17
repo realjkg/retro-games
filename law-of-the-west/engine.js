@@ -58,7 +58,14 @@ function beginSlot(G){
   G.mood=Math.floor(G.rng()*3)-1;          // what mood he is in today
   return e;
 }
-function openDialogue(G){G.phase="dialogue";return turnFor(who(G).id,0);}
+/* An encounter with no authored dialogue is walked past rather than allowed to
+ * dead-end the day: it settles as "unwritten" and the street moves on. */
+function openDialogue(G){
+  const e=who(G);
+  if(!e)return finish(G,"dusk");
+  if(!authored(e.id))return resolve(G,"unwritten");
+  G.phase="dialogue"; return turnFor(e.id,0);
+}
 
 /* A reply moves the state by what the writing says it moves, plus a point of
  * temper either way on the draw risk, so the same four answers do not always
