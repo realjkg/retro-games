@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: '20'
       - run: node --test archon/tests/combat.test.cjs
+      - run: node --test aztec/tests/tomb.test.cjs
 
   deploy:
     needs: test
