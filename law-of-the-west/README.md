@@ -42,99 +42,119 @@ the camera, the building behind him. The five-line matrix fills the bottom: the
 visitor's line in its own colour, then four responses. The scene block-loads in
 rows before anything is live, and the choices do not take input until it has.
 
-**The attitude quad.** Every beat offers one of each: apologetic, neutral, cocky,
-aggressive. Each character reads them his own way — a nervous newcomer takes
-aggression badly, Little Willy warms to cheek, the Mexicali Kid reads an apology
-as weakness. Three beats, then the encounter settles.
+**The four intents.** Every turn offers one of each, and the writing says what
+each one does to the state: *conciliate* lowers tension and invites being
+handled, *probe* buys information at the cost of insult or suspicion, *command*
+asserts the badge and provokes proud men, *threaten* ends a scene fast at a
+price in reputation and draw risk. Three turns, then the encounter settles on the
+first ending whose conditions hold.
+
+**State, not scripting.** Each encounter carries respect, fear, suspicion,
+evidence and draw risk; the town carries safety, the clues collected and the
+sheriff's standing. Endings are authored with conditions over those variables —
+`[["evidence",">=",2]]` — so an encounter can settle peacefully, leave a clue
+that matters later, create a consequence, or become a duel, without a line of
+one-off branching code. Draw risk crossing a man's patience is what starts a
+gunfight; a point of temper either way each turn means the same four answers do
+not always land on the same side of it.
 
 **Two modes, one pad.** Up draws: the gun hand comes up, a crosshair appears over
-the scene and the dialogue lines go dim. The pad then moves the crosshair; down
-walks it back down and, pulled past the bottom, holsters — as do HOL and Escape,
-which hand the conversation back. Drawn guns are not tolerated for long: a hidden
-reflex timer of 1.5 to 2.6 seconds runs while yours is out, and an armed man
-answers it.
+the scene and the dialogue lines go dim. The pad moves the crosshair; down walks
+it back and, pulled past the bottom, holsters — as do HOL and Escape, which hand
+the conversation back. Drawn guns are not tolerated for long: a hidden reflex
+timer of 1.5 to 2.6 seconds runs while yours is out, and an armed man answers it.
 
-**The shooting.** His gun box and centre mass are separate, and his gun box
+**The shooting.** His gun box and centre mass are separate, and the gun box
 follows his hand as it rises. Shooting the gun out of his hand disarms and
-arrests him; centre mass kills. Draw latency and aim spread are tracked apart:
-a fast shot is a wide one, so rushing turns a killing shot into a wounding one,
-and a slow one lets him fire first. A killing where a wound would have done costs
-standing, and shooting a man whose hand never moved is murder.
+arrests; centre mass kills. Draw latency and aim spread are tracked apart: a fast
+shot is a wide one, so rushing turns a killing shot into a wounding one, and a
+slow one lets him fire first. Killing where a wound would have done costs
+standing, and shooting a man whose hand never moved is murder — violence is
+always available and always expensive.
 
-**Being shot.** Exactly as far as the doctor is willing: insult the only doctor
-in Gold Gulch and the first bullet ends the day; leave him civil and he patches
-you up once; after that a wound is a wound until there is one too many.
-
-**Threads.** Three robberies — train, stage, bank. Fragments come from A Dude,
-Miss Rose, the Doctor, Little Willy and Miss April, and Miss April's costs the
-romance. What nobody stopped happens at dusk.
+**Wounds.** A wound is carried, not cured: the day goes on until there is one too
+many. A favour banked with somebody in town buys one of them back.
 
 **Sundown.** Seven categories — crimes solved, interactions, pacifism,
 marksmanship, lawfulness, judgement, romance — and a rating from 1 to 12 with a
 verdict in words. Standing is on screen all day, not just at the end.
 
+## The anthology
+
+Six original encounters on the design grammar of the 1985 game — a visitor with
+a public pretext and a concealed motive, four sharply distinct attitudes, state
+that moves, and violence that is possible but costly. None of the original's
+characters, plot or dialogue is used.
+
+| Encounter | Surface | Hidden | Core | Dialogue |
+| --- | --- | --- | --- | --- |
+| The Brass-Button Deputy | Demands custody of a prisoner | His warrant may be fabricated | authority | **written** |
+| The Rainmaker | Wants permission to hold a revival | Collecting for someone dangerous | trust | pending |
+| The Quiet Surveyor | Requests town records | Scouting for a railroad takeover | suspicion | pending |
+| The Widow's Ledger | Says her husband's debt was forged | Her own books hold a secret | evidence | pending |
+| The Piano Tuner | Says his instrument case was stolen | The case holds coded messages | perception | pending |
+| The Boy With the Locket | Asks the sheriff to find a missing parent | The missing person may be fleeing | mercy | pending |
+
+The Deputy was written first because one scene exercises everything: evidence,
+authority, a hidden identity, a peaceful resolution, a consequential wrong
+choice, and a draw that can be justified or not. Its four endings are the
+forgery exposed, the prisoner escorted out on paper, a stand-off nobody wins,
+and the handover that costs the town its payroll.
+
 ## Decisions taken, so they are not buried in code
 
-- **Ten encounters.** The supplied cast is ten characters plus the Sheriff. The
-  technical brief says eleven; the cast list is what ships, so the day ends on
-  Belle. Name an eleventh and it slots straight in.
-- **Disclosure is weighed, not gated.** `P = 1/(1+e^-((trust-need)/2.5))`. Hard
-  thresholds made the same answers always end the same way.
-- **A settled man can still turn**, on a per-character chance that rises once he
-  is riled.
-- **One geometry.** The figure constants, the hitboxes and the crosshair share
-  `SCENE`, `FIG` and `HITBOX` in `content.js`, and a test asserts that what the
-  crosshair is over is what the bullet finds.
+- **Endings are data.** Conditions are `[variable, operator, value]` triples with
+  a fallback last, validated by a test, so writing an encounter never means
+  touching a rule.
+- **Evidence is what probing buys.** Conciliating built evidence as well in the
+  first draft, so the calm path exposed the forgery in 91% of runs; now
+  conciliation earns respect and an escort, and probing earns the forgery.
+- **One geometry.** Figure, hitboxes and crosshair share `SCENE`, `FIG` and
+  `HITBOX`, with a test asserting that what the crosshair is over is what the
+  bullet finds.
 - **Drawing first cannot lose a race.** Only a man who drew on you can outshoot
   you; drawing first risks the reflex timer, not his speed.
-- **Fragments** (open): one fragment stops a job. The Deputy's slot triggers
-  whichever job you hold nothing for, preferring the bank he reports.
-- **Belle's alliance** (open): counts towards judgement and standing, with no
-  fourth crime attached.
+- **No physician in the anthology**, so the original's doctor rescue became a
+  banked favour: whoever owes the sheriff one gets him off the street. Nothing
+  grants a favour yet — an encounter should, and that is an open question.
 
 ## Numbers
 
-From `node --test test/*.test.js`, with the fixture dialogue standing in:
+From `node --test test/*.test.js`, with fixture turns standing in for the five
+unwritten encounters:
 
-- **500 days, choices at random, twice over.** An agent that also draws on people
-  at random: run out of town 198, buried 121, sheriff 92, constable 63,
-  probation 24, marshal 2. An agent that only talks: sheriff 211, constable 111,
-  buried 84, probation 44, marshal 41, run out of town 9. Every ending occurs and
-  none exceeds 60%. Robberies stopped per day, talking agent: none 95, one 192,
-  two 171, all three 42.
-- **2000 duels, 140–1400 ms.** Hit rate 59% at 200 ms, 66% at 300, 79% at 400,
-  81% at 600, then falling away as he gets there first: beaten to the shot 3% at
-  600 ms, 32% at 800, 71% at 1000, 99% at 1200. Arm, centre mass and miss all
-  occur throughout. Winnable at human speed, and rushing costs accuracy.
-- **Doctor.** Treated 146, refused 54 of 200. Wounded with him already spent:
-  died 24, lived 176.
-- **Audio.** 42 cues, 2164 nodes, 36,083 scheduled values, nothing non-finite,
-  negative or out of range.
-- **The page.** Loaded in jsdom with real `pointerdown` and `keydown` events at
-  every control: the day starts, all four lines select and speak by tap and by
-  number key, up draws, the crosshair moves, down and Escape holster, fire
-  shoots, a full day reaches sundown with a 1-to-12 rating and seven categories,
-  and FIRE restarts. Every `data-cmd` in the markup has a handler and every
-  handler is reachable — asserted, because a delegated selector that covers some
-  attributes and not others is how a whole path goes dead while headless
-  simulations pass clean.
-
-Where the brief is not met: its variance rule asks that no single choice path
-repeat an outcome more than 80% of the time. 11 of 40 character-and-tone paths
-still do. The Deputy's four are structural — whether the bank job is stopped
-depends on the fragments in hand — and the rest are decisively cold or hot paths
-on unarmed characters, where trust deciding the outcome is the point. Every
-character has at least one path that varies; the matrix is in the report.
-Raising `RULES.TEMP` satisfies the rule and makes choices matter less.
+- **The written encounter, 500 runs with the intent picked at random.** All four
+  authored endings reached: forgery 142, escorted 92, handover 19, stand-off 16,
+  and 231 runs that became gunfights (wounded 84, killed him 77, disarmed 70).
+  Nothing over 60%.
+- **One intent held all three turns.** Conciliate settles as an escort 91 times
+  in 100; probe exposes the forgery 84; command splits four ways with no outcome
+  over 29%; threaten always ends in gunsmoke, split 38/34/28 between being hit,
+  disarming him and killing him. The characteristic outcome of an attitude is
+  supposed to be characteristic — but it is never certain, because his temper
+  and his patience are not.
+- **2000 duels, 140–1400 ms.** Hit 59% at 200 ms, 66% at 300, 79% at 400, 82% at
+  600, then falling as he gets there first: beaten to the shot 2% at 600 ms, 27%
+  at 800, 66% at 1000. Arm, centre mass and miss all occur throughout.
+- **Wounds.** One carries; a banked favour patches it; the second is fatal and
+  rates the day at 1.
+- **Audio.** 42 cues, nothing non-finite, negative or out of range. Title 8.05 s,
+  dusk 4.50 s, dawn 3.77 s, romance 2.91 s, saloon 1.46 s, respect 1.13 s,
+  disgrace 1.15 s; peaks 0.12 to 0.29.
+- **The page.** Real `pointerdown` and `keydown` events at every control in
+  jsdom: the day starts, all four lines select and speak by tap and by number
+  key, up draws, the crosshair moves, down and Escape holster, fire shoots, a
+  full day reaches sundown with a 1-to-12 rating over seven categories, and FIRE
+  restarts. Every `data-cmd` has a handler and every handler is reachable.
 
 ## What the game still needs
 
-- **The dialogue table.** Ten characters, three beats: the line, four written
-  responses on the attitude quad, and a reaction to each. `DIALOGUE` in
-  `content.js` is where it goes, keyed by character and beat.
-- **Four answers**: the gang's name (the James Gang, per the cast list, or the
-  Daltons), whether an eleventh encounter exists, what counts as enough
-  fragments, and whether Belle's alliance carries a crime.
+- **Five encounters' dialogue**: the Rainmaker, the Surveyor, the Widow, the
+  Tuner and the Boy, each three turns of four intents with a reaction and an
+  effect per reply, and two to four endings. `DIALOGUE` and `endings` in
+  `content.js` are where they go; the Deputy is the worked example to follow.
+- **A favour source** — which encounter can leave somebody owing the sheriff
+  enough to get him off the street when he is shot.
 
 ## Credit
 
@@ -148,12 +168,22 @@ dialogue, audiovisual assets, or musical compositions.
 ## The music
 
 Original material in the SID idiom, not a transcription and not a reworking of
-the original score. The identity aimed at is dusty frontier and saloon tension:
-Dorian colour with a flat seventh, open-fifth drones under a lead that calls and
-answers, and a swung honky-tonk figure with a flattened third for the saloon.
-The title cue runs 11.4 s over three voices at a walking pace; dawn and dusk are
-the same intervals opening upward and closing downward; the saloon figure swings
-long-short over an oom-pah bass.
+the original score. The identity aimed at is dusty frontier and saloon tension,
+and one rule carries it: the lead sits an octave below a bright arcade SID lead,
+with the high register kept for short glints, draw stings and saloon accents.
+
+- **title** — an identity sting rather than a melody: a three-note motif answered
+  twice over an open-fifth drone, 8.05 s.
+- **dawn** — the bass an octave down, slower movement, open fifths.
+- **dusk** — the same intervals closing downward, a chromatic descent into the
+  cadence, and the filter shutting over the final note.
+- **romance** — a suspended fourth taking its time falling to the third, a sixth
+  underneath, no triad arpeggio.
+- **piano** — off-beats pushed late and played lighter, a flattened third leaning
+  on the major, oom-pah bass.
+- **respect** — low octaves and fifths in a dotted figure: authority, not a
+  positive stinger.
+- **disgrace** — a narrow pulse with a pitch fall and the resonance brought up.
 
 The sound effects — the gunshot, the tell, the bells, the doctor's bottle — are
 unchanged from the supplied table, and the synthesis itself has never been

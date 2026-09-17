@@ -10,7 +10,7 @@
 const {test}=require('node:test'), assert=require('node:assert/strict');
 const fs=require('fs'), path=require('path');
 const {JSDOM}=require('jsdom');
-const {fixtureDialogue}=require('./fixture-content.js');
+const {fillUnwritten}=require('./fixture-content.js');
 const ROOT=path.join(__dirname,'..');
 const HTML=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
 const open_pages=[];
@@ -32,7 +32,8 @@ function openPage(){
   // window properties, so the page's scope is reached through its own eval
   const ev=code=>w.eval(code);
   assert.ok(ev('typeof SND')==='object','the page did not build SND');
-  Object.assign(ev('DIALOGUE'),fixtureDialogue(ev('CAST'),ev('TONES'),ev('RULES').BEATS));
+  // the written encounter plays as authored; the rest get fixture turns
+  fillUnwritten(ev('ENCOUNTERS'),ev('DIALOGUE'),ev('INTENTS'),ev('RULES').TURNS);
   return {dom,w,errors,ev,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
     ready(){ev('build').rows=10;ev('paint()');},
@@ -66,7 +67,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE did not start the day');
-  assert.equal(p.ev('CAST')[p.G().slot].id,'dude');
+  assert.equal(p.ev('ENCOUNTERS')[p.G().slot].id,'deputy');
   p.ready();                                           // skip the block-load cadence
 
   const texts=[1,2,3,4].map(i=>p.el('line'+i).textContent);
@@ -79,15 +80,15 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   for(let i=0;i<4;i++){
     const q=openPage();
     q.tap('[data-cmd="fire"]'); q.ready();
-    const beat0=q.G().beat, trust0=q.G().trust;
+    const turn0=q.G().turn, risk0=q.G().S.drawRisk;
     q.tap('#line'+(i+1));
-    assert.ok(q.G().beat>beat0||q.G().phase!=='dialogue'||q.G().trust!==trust0,
+    assert.ok(q.G().turn>turn0||q.G().phase!=='dialogue'||q.G().S.drawRisk!==risk0,
       'tapping choice '+(i+1)+' changed nothing');
     const r=openPage();
     r.tap('[data-cmd="fire"]'); r.ready();
-    const b0=r.G().beat;
+    const b0=r.G().turn;
     r.press(String(i+1));
-    assert.ok(r.G().beat>b0||r.G().phase!=='dialogue',
+    assert.ok(r.G().turn>b0||r.G().phase!=='dialogue',
       'key '+(i+1)+' changed nothing');
     assert.deepEqual(r.errors,[]);
   }

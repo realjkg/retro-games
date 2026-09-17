@@ -1,426 +1,224 @@
 {
-  "days: draws too": {
-    "verdicts": {
-      "sheriff of gold gulch": 92,
-      "run out of town": 217,
-      "town constable": 62,
-      "deputy on probation": 25,
-      "buried": 102,
-      "marshal": 2
+  "authored": [
+    "deputy written",
+    "rainmaker pending",
+    "surveyor pending",
+    "widow pending",
+    "tuner pending",
+    "locket pending"
+  ],
+  "deputy": {
+    "endings": {
+      "escorted": 92,
+      "forgery": 142,
+      "duel:wounded": 84,
+      "duel:killed_him": 77,
+      "duel:disarmed": 70,
+      "handover": 19,
+      "standoff": 16
     },
     "outcomes": {
-      "info": 370,
-      "disarm": 1166,
-      "kill": 1104,
-      "nothing": 888,
-      "miss": 797,
-      "robbery": 210,
-      "refused": 78,
-      "alliance": 38,
-      "romance": 67,
-      "prevented": 4
-    },
-    "prevented": {
-      "0": 233,
-      "1": 193,
-      "2": 67,
-      "3": 7
-    },
-    "meanCategories": {
-      "crimes solved": 0.7,
-      "pacifism": 33.6,
-      "marksmanship": 70.7,
-      "lawfulness": 41.4,
-      "judgement": 2.4,
-      "romance": 13.4
-    }
-  },
-  "days: talks only": {
-    "verdicts": {
-      "town constable": 111,
-      "sheriff of gold gulch": 211,
-      "marshal": 41,
-      "buried": 84,
-      "deputy on probation": 44,
-      "run out of town": 9
-    },
-    "outcomes": {
-      "info": 742,
-      "nothing": 1756,
-      "disarm": 569,
-      "miss": 392,
-      "robbery": 398,
-      "alliance": 76,
-      "refused": 102,
-      "kill": 538,
-      "prevented": 41,
-      "romance": 96
-    },
-    "prevented": {
-      "0": 95,
-      "1": 192,
-      "2": 171,
-      "3": 42
-    },
-    "meanCategories": {
-      "crimes solved": 1.3,
-      "pacifism": 89,
-      "marksmanship": 68.9,
-      "lawfulness": 100,
-      "judgement": 20.8,
-      "romance": 19.2
+      "escorted": 92,
+      "forgery": 142,
+      "wounded": 84,
+      "killed_him": 77,
+      "disarmed": 70,
+      "handover": 19,
+      "standoff": 16
     }
   },
   "variance": {
-    "dude": {
-      "apologetic": {
-        "top": 50,
+    "deputy": {
+      "conciliate": {
+        "top": 91,
         "counts": {
-          "info": 50,
-          "nothing": 39,
-          "kill": 4,
-          "rescued": 6,
-          "disarm": 1
+          "escorted": 91,
+          "duel:wounded": 2,
+          "duel:disarmed": 4,
+          "duel:killed_him": 3
         }
       },
-      "neutral": {
-        "top": 68,
-        "counts": {
-          "kill": 2,
-          "info": 68,
-          "nothing": 26,
-          "rescued": 2,
-          "disarm": 2
-        }
-      },
-      "cocky": {
-        "top": 78,
-        "counts": {
-          "nothing": 78,
-          "info": 4,
-          "kill": 7,
-          "rescued": 4,
-          "disarm": 7
-        }
-      },
-      "aggressive": {
-        "top": 40,
-        "counts": {
-          "rescued": 31,
-          "disarm": 29,
-          "kill": 40
-        }
-      }
-    },
-    "rose": {
-      "apologetic": {
-        "top": 72,
-        "counts": {
-          "nothing": 72,
-          "info": 28
-        }
-      },
-      "neutral": {
-        "top": 73,
-        "counts": {
-          "nothing": 27,
-          "info": 73
-        }
-      },
-      "cocky": {
+      "probe": {
         "top": 84,
         "counts": {
-          "info": 84,
-          "nothing": 16
+          "duel:wounded": 6,
+          "forgery": 84,
+          "duel:disarmed": 5,
+          "duel:killed_him": 5
         }
       },
-      "aggressive": {
-        "top": 99,
+      "command": {
+        "top": 29,
         "counts": {
-          "nothing": 99,
-          "info": 1
-        }
-      }
-    },
-    "mexicali": {
-      "apologetic": {
-        "top": 42,
-        "counts": {
-          "disarm": 26,
-          "kill": 32,
-          "rescued": 42
+          "escorted": 29,
+          "duel:disarmed": 26,
+          "duel:wounded": 20,
+          "duel:killed_him": 25
         }
       },
-      "neutral": {
-        "top": 48,
-        "counts": {
-          "kill": 14,
-          "rescued": 25,
-          "nothing": 48,
-          "disarm": 13
-        }
-      },
-      "cocky": {
-        "top": 39,
-        "counts": {
-          "kill": 39,
-          "rescued": 24,
-          "disarm": 37
-        }
-      },
-      "aggressive": {
-        "top": 39,
-        "counts": {
-          "rescued": 34,
-          "disarm": 27,
-          "kill": 39
-        }
-      }
-    },
-    "doctor": {
-      "apologetic": {
-        "top": 54,
-        "counts": {
-          "info": 54,
-          "nothing": 46
-        }
-      },
-      "neutral": {
-        "top": 74,
-        "counts": {
-          "info": 74,
-          "nothing": 26
-        }
-      },
-      "cocky": {
-        "top": 74,
-        "counts": {
-          "info": 74,
-          "nothing": 26
-        }
-      },
-      "aggressive": {
-        "top": 100,
-        "counts": {
-          "nothing": 100
-        }
-      }
-    },
-    "newgun": {
-      "apologetic": {
-        "top": 40,
-        "counts": {
-          "rescued": 40,
-          "kill": 33,
-          "disarm": 26,
-          "nothing": 1
-        }
-      },
-      "neutral": {
-        "top": 65,
-        "counts": {
-          "nothing": 65,
-          "kill": 13,
-          "disarm": 13,
-          "rescued": 9
-        }
-      },
-      "cocky": {
+      "threaten": {
         "top": 38,
         "counts": {
-          "kill": 32,
-          "disarm": 29,
-          "rescued": 38,
-          "nothing": 1
-        }
-      },
-      "aggressive": {
-        "top": 43,
-        "counts": {
-          "disarm": 20,
-          "rescued": 37,
-          "kill": 43
+          "duel:wounded": 38,
+          "duel:disarmed": 34,
+          "duel:killed_him": 28
         }
       }
     },
-    "willy": {
-      "apologetic": {
-        "top": 54,
-        "counts": {
-          "nothing": 46,
-          "info": 54
-        }
-      },
-      "neutral": {
-        "top": 89,
-        "counts": {
-          "nothing": 89,
-          "info": 11
-        }
-      },
-      "cocky": {
-        "top": 90,
-        "counts": {
-          "info": 90,
-          "nothing": 10
-        }
-      },
-      "aggressive": {
+    "rainmaker": {
+      "conciliate": {
         "top": 100,
         "counts": {
-          "nothing": 100
+          "fixture_settled": 100
+        }
+      },
+      "probe": {
+        "top": 100,
+        "counts": {
+          "fixture_settled": 100
+        }
+      },
+      "command": {
+        "top": 100,
+        "counts": {
+          "fixture_settled": 100
+        }
+      },
+      "threaten": {
+        "top": 100,
+        "counts": {
+          "fixture_settled": 100
         }
       }
     },
-    "april": {
-      "apologetic": {
-        "top": 56,
+    "surveyor": {
+      "conciliate": {
+        "top": 100,
         "counts": {
-          "nothing": 21,
-          "romance": 56,
-          "info": 23
+          "fixture_settled": 100
         }
       },
-      "neutral": {
-        "top": 48,
+      "probe": {
+        "top": 100,
         "counts": {
-          "info": 30,
-          "romance": 48,
-          "nothing": 22
+          "fixture_settled": 100
         }
       },
-      "cocky": {
-        "top": 44,
+      "command": {
+        "top": 100,
         "counts": {
-          "info": 38,
-          "nothing": 44,
-          "romance": 18
+          "fixture_settled": 100
         }
       },
-      "aggressive": {
-        "top": 99,
+      "threaten": {
+        "top": 100,
         "counts": {
-          "nothing": 99,
-          "info": 1
+          "fixture_settled": 100
         }
       }
     },
-    "gambler": {
-      "apologetic": {
-        "top": 39,
+    "widow": {
+      "conciliate": {
+        "top": 100,
         "counts": {
-          "rescued": 16,
-          "nothing": 39,
-          "kill": 29,
-          "disarm": 16
+          "fixture_settled": 100
         }
       },
-      "neutral": {
-        "top": 76,
+      "probe": {
+        "top": 100,
         "counts": {
-          "nothing": 76,
-          "disarm": 14,
-          "rescued": 6,
-          "kill": 4
+          "fixture_settled": 100
         }
       },
-      "cocky": {
-        "top": 33,
+      "command": {
+        "top": 100,
         "counts": {
-          "rescued": 33,
-          "kill": 20,
-          "disarm": 32,
-          "nothing": 15
+          "fixture_settled": 100
         }
       },
-      "aggressive": {
-        "top": 36,
+      "threaten": {
+        "top": 100,
         "counts": {
-          "kill": 36,
-          "rescued": 34,
-          "disarm": 30
+          "fixture_settled": 100
         }
       }
     },
-    "deputy": {
-      "apologetic": {
+    "tuner": {
+      "conciliate": {
         "top": 100,
         "counts": {
-          "robbery": 100
+          "fixture_settled": 100
         }
       },
-      "neutral": {
+      "probe": {
         "top": 100,
         "counts": {
-          "robbery": 100
+          "fixture_settled": 100
         }
       },
-      "cocky": {
+      "command": {
         "top": 100,
         "counts": {
-          "robbery": 100
+          "fixture_settled": 100
         }
       },
-      "aggressive": {
+      "threaten": {
         "top": 100,
         "counts": {
-          "robbery": 100
+          "fixture_settled": 100
         }
       }
     },
-    "belle": {
-      "apologetic": {
-        "top": 41,
+    "locket": {
+      "conciliate": {
+        "top": 100,
         "counts": {
-          "kill": 23,
-          "disarm": 10,
-          "nothing": 41,
-          "rescued": 22,
-          "alliance": 4
+          "fixture_settled": 100
         }
       },
-      "neutral": {
-        "top": 37,
+      "probe": {
+        "top": 100,
         "counts": {
-          "kill": 18,
-          "alliance": 37,
-          "rescued": 16,
-          "disarm": 11,
-          "nothing": 18
+          "fixture_settled": 100
         }
       },
-      "cocky": {
-        "top": 38,
+      "command": {
+        "top": 100,
         "counts": {
-          "rescued": 13,
-          "nothing": 34,
-          "alliance": 38,
-          "disarm": 10,
-          "kill": 5
+          "fixture_settled": 100
         }
       },
-      "aggressive": {
-        "top": 41,
+      "threaten": {
+        "top": 100,
         "counts": {
-          "rescued": 41,
-          "kill": 31,
-          "disarm": 28
+          "fixture_settled": 100
         }
       }
     }
   },
-  "deterministicPaths": [
-    "rose/cocky 84% info|nothing",
-    "rose/aggressive 99% nothing|info",
-    "doctor/aggressive 100% nothing",
-    "willy/neutral 89% nothing|info",
-    "willy/cocky 90% info|nothing",
-    "willy/aggressive 100% nothing",
-    "april/aggressive 99% nothing|info",
-    "deputy/apologetic 100% robbery",
-    "deputy/neutral 100% robbery",
-    "deputy/cocky 100% robbery",
-    "deputy/aggressive 100% robbery"
+  "rigidPaths": [
+    "deputy/conciliate 91%",
+    "deputy/probe 84%",
+    "rainmaker/conciliate 100%",
+    "rainmaker/probe 100%",
+    "rainmaker/command 100%",
+    "rainmaker/threaten 100%",
+    "surveyor/conciliate 100%",
+    "surveyor/probe 100%",
+    "surveyor/command 100%",
+    "surveyor/threaten 100%",
+    "widow/conciliate 100%",
+    "widow/probe 100%",
+    "widow/command 100%",
+    "widow/threaten 100%",
+    "tuner/conciliate 100%",
+    "tuner/probe 100%",
+    "tuner/command 100%",
+    "tuner/threaten 100%",
+    "locket/conciliate 100%",
+    "locket/probe 100%",
+    "locket/command 100%",
+    "locket/threaten 100%"
   ],
   "duel": {
     "100ms": {
@@ -464,59 +262,59 @@
       "n": 155
     },
     "600ms": {
-      "hit": 81,
+      "hit": 82,
       "kill": 52,
-      "disarm": 28,
+      "disarm": 30,
       "miss": 16,
-      "slow": 3,
+      "slow": 2,
       "n": 155
     },
     "700ms": {
-      "hit": 74,
-      "kill": 41,
-      "disarm": 32,
+      "hit": 75,
+      "kill": 42,
+      "disarm": 33,
       "miss": 13,
-      "slow": 14,
+      "slow": 12,
       "n": 155
     },
     "800ms": {
-      "hit": 59,
-      "kill": 31,
-      "disarm": 28,
-      "miss": 9,
-      "slow": 32,
+      "hit": 63,
+      "kill": 32,
+      "disarm": 30,
+      "miss": 10,
+      "slow": 27,
       "n": 155
     },
     "900ms": {
-      "hit": 45,
-      "kill": 24,
-      "disarm": 21,
+      "hit": 47,
+      "kill": 25,
+      "disarm": 22,
       "miss": 7,
-      "slow": 48,
+      "slow": 46,
       "n": 155
     },
     "1000ms": {
-      "hit": 25,
-      "kill": 10,
-      "disarm": 14,
+      "hit": 30,
+      "kill": 12,
+      "disarm": 17,
       "miss": 5,
-      "slow": 71,
+      "slow": 66,
       "n": 155
     },
     "1100ms": {
-      "hit": 8,
-      "kill": 5,
-      "disarm": 4,
+      "hit": 10,
+      "kill": 6,
+      "disarm": 5,
       "miss": 1,
-      "slow": 91,
+      "slow": 88,
       "n": 155
     },
     "1200ms": {
-      "hit": 1,
-      "kill": 0,
+      "hit": 2,
+      "kill": 1,
       "disarm": 1,
       "miss": 0,
-      "slow": 99,
+      "slow": 98,
       "n": 155
     },
     "1300ms": {
@@ -536,13 +334,5 @@
       "n": 31
     }
   },
-  "doctor": {
-    "treated": 146,
-    "refused": 54
-  },
-  "woundedSpent": {
-    "died": 24,
-    "lived": 176
-  },
-  "audio": "cues            42 · values set      31665"
+  "wounds": "one wound carries, a banked favour patches it, the second kills"
 }

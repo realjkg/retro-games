@@ -1,9 +1,9 @@
-/* Loads content.js + engine.js into one sandbox with the fixture dialogue and
- * canvas/AudioContext/rAF stubbed, and hands back the live scope. The same
- * harness will load the assembled index.html once it exists. */
+/* Loads content.js + engine.js into one sandbox with canvas, AudioContext and
+ * rAF stubbed. `fill` adds fixture turns for encounters whose dialogue is not
+ * authored yet; without it, only the authored ones can be played. */
 'use strict';
 const fs=require('fs'), path=require('path'), vm=require('node:vm');
-const {fixtureDialogue}=require('./fixture-content.js');
+const {fillUnwritten}=require('./fixture-content.js');
 const ROOT=path.join(__dirname,'..');
 
 function stubs(){
@@ -25,11 +25,12 @@ function load(opts){
   vm.createContext(box);
   for(const f of ['content.js','engine.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT,f),'utf8'),box,{filename:f});
-  // the fixture stands in for the supplied dialogue table
-  box.__fixture=fixtureDialogue;
-  vm.runInContext('Object.assign(DIALOGUE,__fixture(CAST,TONES,RULES.BEATS));',box);
+  if(!opts||opts.fill!==false)
+    fillUnwritten(box.ENCOUNTERS||vm.runInContext('ENCOUNTERS',box),
+      vm.runInContext('DIALOGUE',box),
+      vm.runInContext('INTENTS',box),
+      vm.runInContext('RULES',box).TURNS);
   const run=code=>vm.runInContext(code,box);
-  return {run,box,
-    game:seed=>run(`(()=>{globalThis.G=newGame({seed:${seed}});return G.phase;})()`)};
+  return {run,box,slotOf:id=>run(`ENCOUNTERS.findIndex(e=>e.id==="${id}")`)};
 }
 module.exports={load};
