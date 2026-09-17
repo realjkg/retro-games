@@ -797,6 +797,7 @@ const NAV=typeof navigator==="object"&&navigator?navigator:null;
 const bodyEl=document.body||{classList:{add(){},remove(){}}};
 const stageEl=document.getElementById("stage"), fullBtn=document.getElementById("full");
 let gameMode=false, wakeLock=null, wantGameMode=false;
+const SAFE={top:0,right:0,bottom:0,left:0};   // CSS px of canvas reserved for chrome and pads
 const BAR=26;   // height of the game-mode status strip, matching the stylesheet
 try{wantGameMode=localStorage.getItem("archon.gamemode")==="1";}catch(e){}
 
@@ -834,7 +835,10 @@ function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);r
 function layout(){
   const st=stageEl;
   if(!st?.style){fit();return;}
-  if(!gameMode){st.style.width=st.style.height=st.style.left=st.style.top="";fit();return;}
+  if(!gameMode){
+    st.style.width=st.style.height=st.style.left=st.style.top="";
+    SAFE.top=SAFE.right=SAFE.bottom=SAFE.left=0; fit(); return;
+  }
   const vw=typeof innerWidth==="number"?innerWidth:0, vh=typeof innerHeight==="number"?innerHeight:0;
   if(!vw||!vh){fit();return;}
   const landscape=vw>vh;
@@ -851,12 +855,11 @@ function layout(){
   const bottom=landscape?0:Math.round(h(pad1))+10;
   const band=Math.max(120,vh-top-bottom);
   const avail=Math.max(160,vw-2*cols);
-  const ratio=(G.phase==="combat"&&G.combat)?(AW+22)/(AH+40):1;   // arena is wide, board is square
-  let w=Math.min(avail,band*ratio), hgt=w/ratio;
-  w=Math.max(160,Math.round(w)); hgt=Math.max(120,Math.round(hgt));
-  st.style.width=w+"px"; st.style.height=hgt+"px";
-  st.style.left=Math.round((vw-w)/2)+"px";
-  st.style.top=Math.round(top+(band-hgt)/2)+"px";
+  // The canvas takes the entire screen; SAFE is the part of it the play area may use,
+  // and the drawing code centres the board or the arena inside that.
+  st.style.left="0px"; st.style.top="0px";
+  st.style.width=vw+"px"; st.style.height=vh+"px";
+  SAFE.top=top; SAFE.bottom=bottom; SAFE.left=cols; SAFE.right=cols;
   fit();
 }
 document.addEventListener?.("fullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
@@ -922,8 +925,8 @@ addEventListener("keydown",e=>{
 addEventListener("keyup",e=>{const k=mapKey(e); if(k)keys[k]=false;});
 cv.addEventListener("pointerdown",e=>{
   if(G.phase!=="play"||G.turnPhase!=="select"||!G.human[G.turn])return;
-  const r=cv.getBoundingClientRect(), s=r.width/N;
-  const x=Math.floor((e.clientX-r.left)/s), y=Math.floor((e.clientY-r.top)/s);
+  const r=cv.getBoundingClientRect(), g=boardGeom(), d=r.width?cv.width/r.width:1;
+  const x=Math.floor(((e.clientX-r.left)*d-g.ox)/g.s), y=Math.floor(((e.clientY-r.top)*d-g.oy)/g.s);
   if(x<0||y<0||x>=N||y>=N)return;
   G.cursor={x,y}; press("1A");
 });
@@ -975,6 +978,18 @@ function mainMenu(){
 /* ============ rendering ============ */
 function fit(){const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2.5);
   cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d);}
+/* The playable rectangle in canvas pixels: the whole canvas, less the status strip
+   and the pads in game mode. */
+function safeRect(){
+  const r=cv.getBoundingClientRect?.(), d=(r&&r.width)?cv.width/r.width:1;
+  const x=SAFE.left*d, y=SAFE.top*d;
+  return {x,y,w:Math.max(40,cv.width-x-SAFE.right*d),h:Math.max(40,cv.height-y-SAFE.bottom*d)};
+}
+/* The 9x9 board is square, so it is the largest square that fits the safe rectangle. */
+function boardGeom(){
+  const a=safeRect(), S=Math.min(a.w,a.h);
+  return {S,s:S/N,ox:a.x+(a.w-S)/2,oy:a.y+(a.h-S)/2,area:a};
+}
 addEventListener("resize",()=>layout());
 addEventListener("orientationchange",()=>layout());
 function sqColour(x,y){const k=KIND[x][y];return k==="L"?"#ffffff":k==="D"?"#000000":C64_CYCLE[G.lum];}
@@ -982,8 +997,15 @@ const DISC={L:"#000000",D:"#ffffff"},INK={L:"#d5df7c",D:"#8878d8"};
 function drawPiece(p,cx,cy,s){drawIcon(ctx,p.t,cx,cy,s*.85,INK[p.side],DISC[p.side]);}
 
 function drawBoard(){
-  const W=cv.width, s=W/N;
+  const g=boardGeom(), W=g.S, s=g.s;
   ctx.clearRect(0,0,cv.width,cv.height);
+  if(gameMode){
+    ctx.fillStyle="#07080c"; ctx.fillRect(0,0,cv.width,cv.height);
+    drawMargins(g);
+    ctx.strokeStyle="rgba(216,180,90,.45)"; ctx.lineWidth=Math.max(1,s*.03);
+    ctx.strokeRect(g.ox-ctx.lineWidth,g.oy-ctx.lineWidth,W+ctx.lineWidth*2,W+ctx.lineWidth*2);
+  }
+  ctx.save(); ctx.translate(g.ox,g.oy);
   for(let x=0;x<N;x++)for(let y=0;y<N;y++){
     ctx.fillStyle=sqColour(x,y); ctx.fillRect(x*s,y*s,s+.6,s+.6);
     if(isPower(x,y)){ctx.strokeStyle=Math.floor(performance.now()/350)%2?"#b84141":"#ffffff";ctx.lineWidth=s*.07;
@@ -1015,7 +1037,7 @@ function drawBoard(){
     ctx.strokeRect(x*s+s*.04,y*s+s*.04,s*.92,s*.92);
   }
   if(G.phase==="play"){                       // side-to-move ribbon
-    const h=cv.height*0.045;
+    const h=W*0.045;
     ctx.fillStyle=G.turn==="L"?"rgba(246,241,222,.92)":"rgba(29,23,51,.92)";
     ctx.fillRect(0,0,W,h);
     ctx.fillStyle=G.turn==="L"?"#2b2417":"#cdbdff";
@@ -1027,17 +1049,69 @@ function drawBoard(){
     const a=Math.max(0,Math.min(1,(G.banner.until-performance.now())/300));
     ctx.globalAlpha=Math.min(1,a+0.25);
     ctx.fillStyle=G.banner.side==="L"?"rgba(246,241,222,.94)":"rgba(29,23,51,.94)";
-    ctx.fillRect(0,cv.height*0.42,W,cv.height*0.16);
+    ctx.fillRect(0,W*0.42,W,W*0.16);
     ctx.fillStyle=G.banner.side==="L"?"#2b2417":"#cdbdff";
-    ctx.font=`800 ${cv.height*0.055}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(G.banner.text,W/2,cv.height*0.50);
+    ctx.font=`800 ${W*0.055}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(G.banner.text,W/2,W*0.50);
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+/* Full screen means the screen is used: the space beside a square board carries each
+   side's fallen icons instead of sitting empty. */
+/* Portrait leaves a band over and under the board rather than beside it. */
+function drawBands(g){
+  const rows=[{side:"L",y:g.oy-1,dir:-1,h:g.oy},{side:"D",y:g.oy+g.S+1,dir:1,h:cv.height-g.oy-g.S}];
+  for(const r of rows){
+    if(r.h<g.s*.9)continue;
+    const pad=Math.max(6,g.s*.1), label=r.y+r.dir*pad;
+    ctx.fillStyle=INK[r.side];
+    ctx.font=`700 ${Math.round(g.s*.22)}px sans-serif`;
+    ctx.textAlign="left"; ctx.textBaseline=r.dir<0?"bottom":"top";
+    const alive=G.grid.flat().filter(p=>p&&p.side===r.side).length;
+    ctx.fillText((r.side==="L"?"LIGHT":"DARK")+" · "+alive+" icons",g.ox+pad,label);
+    const fallen=G.dead[r.side]||[]; if(!fallen.length)continue;
+    const size=Math.min(g.s*.55,(g.S-pad*2)/Math.max(6,fallen.length));
+    const cy=label+r.dir*(g.s*.3+size/2);
+    if(cy-size/2<0||cy+size/2>cv.height)continue;
+    ctx.globalAlpha=.42;
+    fallen.forEach((t,i)=>drawIcon(ctx,t,g.ox+g.S-pad-size/2-i*size,cy,size*.8,INK[r.side],"rgba(0,0,0,0)"));
     ctx.globalAlpha=1;
   }
 }
+function drawMargins(g){
+  if(!G.grid)return;
+  const pad=Math.max(8,g.s*.12);
+  const cols=[{side:"L",x:0,w:g.ox},{side:"D",x:g.ox+g.S,w:cv.width-g.ox-g.S}];
+  if(cols[0].w<g.s*1.4){drawBands(g);return;}      // portrait: the room is above and below
+  for(const c of cols){
+    if(c.w<g.s*1.4)continue;                       // too narrow to read
+    const cx=c.x+c.w/2, top=g.oy+pad;
+    ctx.fillStyle=INK[c.side];
+    ctx.font=`700 ${Math.round(g.s*.24)}px sans-serif`;
+    ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText(c.side==="L"?"LIGHT":"DARK",cx,top);
+    const alive=G.grid.flat().filter(p=>p&&p.side===c.side).length;
+    ctx.fillStyle="rgba(151,161,184,.9)";
+    ctx.font=`${Math.round(g.s*.2)}px sans-serif`;
+    ctx.fillText(alive+" icons",cx,top+g.s*.3);
+    const fallen=G.dead[c.side]||[], size=Math.min(g.s*.6,c.w/2.4);
+    const per=Math.max(1,Math.floor((c.w-pad*2)/size));
+    fallen.forEach((t,i)=>{
+      const row=Math.floor(i/per), col=i%per;
+      const x=cx+(col-(Math.min(per,fallen.length-row*per)-1)/2)*size;
+      const y=top+g.s*.75+size/2+row*size;
+      if(y+size/2>g.oy+g.S)return;
+      ctx.globalAlpha=.42;
+      drawIcon(ctx,t,x,y,size*.8,INK[c.side],"rgba(0,0,0,0)");
+      ctx.globalAlpha=1;
+    });
+  }
+}
 function drawArena(){
-  const c=G.combat,W=cv.width,H=cv.height;
-  const sc=Math.min(W/(AW+22),H/(AH+40)),ox=(W-AW*sc)/2,oy=(H-AH*sc)/2;
-  ctx.fillStyle="#000000";ctx.fillRect(0,0,W,H);
+  const c=G.combat,a=safeRect();
+  const sc=Math.min(a.w/(AW+22),a.h/(AH+40)),ox=a.x+(a.w-AW*sc)/2,oy=a.y+(a.h-AH*sc)/2;
+  ctx.fillStyle="#000000";ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);
   ctx.fillStyle=C64_CYCLE[c.lum];ctx.fillRect(0,0,AW,AH);
   for(const b of c.barriers){

@@ -24,9 +24,10 @@ fullscreen only inside a user gesture and a gamepad button is not one — and ei
 page stops behaving like a page — no scrolling, pinch zoom, double-tap zoom or long-press menu to interrupt a held
 direction, and the screen is kept awake while a game is running.
 
-The play area is then laid out for the device rather than for a document. In landscape the
-board fills the height and the pads sit in the letterbox either side of it, thumbs already
-resting on them; in portrait the board sits between the pads. Combat gives the stage the
+The canvas then *is* the screen, not a panel on a page: the board is drawn as large as the
+screen allows and the space a 9x9 square cannot use carries each side's surviving count and
+fallen icons — beside the board in landscape, above and below it in portrait. The pads sit
+in that same space, thumbs already resting on them. Combat gives the stage the
 arena's own 320×192 shape instead of the board's square, so a duel on a landscape phone is
 drawn around 40% larger than the square layout allowed. The choice is remembered, so later games
 start in full game mode.
