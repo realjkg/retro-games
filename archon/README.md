@@ -1,5 +1,7 @@
 # Archon — The Light and the Dark
 
+Part of [retro-games](../README.md).
+
 [Play the browser game](https://realjkg.github.io/retro-games/archon/).
 
 A self-contained browser recreation, with the **Commodore 64 release** as the reference. GitHub Pages publishes this directory's `index.html` from `main` at `/archon/`. No packages, external assets, accounts, or build step are required.
