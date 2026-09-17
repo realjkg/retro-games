@@ -76,6 +76,7 @@ function respond(G,index){
   if(!t)return null;
   const reply=t.replies[index];
   if(!reply)return null;
+  if(!available(G,reply))return {denied:reply.needs};
   for(const [k,v] of Object.entries(reply.fx||{})){
     if(k in G.S)G.S[k]+=v; else if(k==="safety")G.safety+=v;
   }
@@ -102,7 +103,15 @@ function value(G,name){
   if(name==="safety")return G.safety;
   if(name==="favours")return G.favours;
   if(name==="wounds")return G.wounds;
+  if(name==="clues")return G.clues.length;
+  if(name.startsWith("clue:"))return G.clues.includes(name.slice(5))?1:0;
   return 0;
+}
+/* A reply may need something the sheriff can only have learned earlier. An
+ * unmet line is still shown - knowing what you could have said if you had
+ * asked the right person is the point - but it cannot be spoken. */
+function available(G,reply){
+  return (reply.needs||[]).every(n=>value(G,n)>0);
 }
 const holds=(G,when)=>(when||[]).every(([n,op,v])=>(CMP[op]||CMP["=="])(value(G,n),v));
 function settle(G){

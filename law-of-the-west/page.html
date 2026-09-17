@@ -51,6 +51,8 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
   border-radius:6px;color:var(--ink);cursor:pointer}
 .choice.sel{background:var(--sel);color:var(--selink);font-weight:700;border-color:var(--sel)}
 .choice.dim{opacity:.45}
+.choice.locked{opacity:.5;font-style:italic}
+.choice.locked.sel{background:var(--panel2);color:var(--dim);border-color:var(--line);font-weight:400}
 #pads{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,34px);gap:3px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);

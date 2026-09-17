@@ -22,6 +22,7 @@ const ENCOUNTERS=[
   surface:"A territorial deputy demands custody of a prisoner",
   hidden:"His warrant may be fabricated",
   core:"authority", armed:true, nerve:2, drawAt:6, hostile:0.12,
+  arrive:["hooves","spurs"],
   /* First match wins, so the specific outcomes sit above the fallback. */
   endings:[
    {id:"forgery",   when:[["evidence",">=",2]], chance:0.85,
@@ -35,7 +36,7 @@ const ENCOUNTERS=[
     fx:{}, award:null, points:40},
    {id:"handover",  when:[],
     text:"You hand the prisoner over to a warrant you did not read closely. By evening the deputy and the prisoner are both gone, and so is the payroll box.",
-    fx:{safety:-1}, award:"lost", points:-60}
+    fx:{safety:-1}, award:"lost", points:-60, sound:"robbery"}
   ]},
  /* The rest of the anthology, written to the same grammar. Metadata stands;
   * their dialogue is not authored yet, and the engine says so rather than
@@ -43,25 +44,49 @@ const ENCOUNTERS=[
  {id:"rainmaker", title:"The Rainmaker", place:"STREET",
   surface:"A travelling preacher wants permission to hold a revival",
   hidden:"He is collecting money for someone dangerous",
-  core:"trust", armed:false, nerve:0, drawAt:99, hostile:0.00, endings:[]},
+  core:"trust", armed:false, nerve:0, drawAt:99, hostile:0.00,
+  arrive:["wagon","crowd"],
+  endings:[
+   /* Cross-scene: the hand on the forged warrant and the name on his
+    * subscription book belong to the same outfit. */
+   {id:"collection_named", when:[["clue:warrant",">=",1],["suspicion",">=",2]],
+    text:"He gives up the name in the subscription book rather than the name in the sermon, and it is the one off the warrant. The revival goes ahead. The collection goes into the safe at the jail.",
+    fx:{safety:+1,clue:"collection"}, award:"talked", points:190, sound:"thread"},
+   {id:"revival_watched", when:[["respect",">=",2],["suspicion",">=",1]], chance:0.82,
+    text:"He may have the lot behind the livery, on the condition that you stand at the back with your hat off and your eyes open. He agrees a shade too easily.",
+    fx:{clue:"revival"}, award:"talked", points:130},
+   {id:"run_off", when:[["fear",">=",3]],
+    text:"The wagon is turned around before the canvas is out of it. Whoever the money was for will send somebody less nervous next time.",
+    fx:{}, award:null, points:40},
+   {id:"revival_free", when:[],
+    text:"Three nights of singing, a full collection plate, and a wagon gone by Sunday. Nobody in Gold Gulch can say where the money went, least of all the sheriff.",
+    fx:{safety:-1}, award:"lost", points:-30, sound:"penalty"}
+  ]},
  {id:"surveyor", title:"The Quiet Surveyor", place:"RECORDS",
   surface:"A polite land agent requests town records",
   hidden:"He is scouting properties for a railroad takeover",
-  core:"suspicion", armed:false, nerve:0, drawAt:99, hostile:0.00, endings:[]},
+  core:"suspicion", armed:false, nerve:0, drawAt:99, hostile:0.00,
+  arrive:["crowd"], endings:[]},
  {id:"widow", title:"The Widow's Ledger", place:"RANCH",
   surface:"A ranch widow says her husband's debt was forged",
   hidden:"Her own books contain a damaging secret",
   core:"evidence", armed:false, nerve:0, drawAt:99, hostile:0.00,
+  arrive:["wagon"],
   endings:[
    /* The one durable favour in the anthology. Shown her the courtesy and read
     * the ledger properly and she owes the sheriff something worth having; make
     * her afraid and she owes him nothing. */
+   /* Cross-scene: whoever forged the deputy's warrant forged this too, and a
+    * sheriff who has seen the one recognises the other. */
+   {id:"same_hand", when:[["clue:warrant",">=",1],["evidence",">=",2],["fear","<=",1]], chance:0.7,
+    text:"You have seen that downstroke before, on a warrant a man in brass buttons was carrying. The same hand wrote them both, and now there is a pattern instead of a grievance.",
+    fx:{safety:+1,clue:"same_hand",favour:1}, award:"arrest", points:210, sound:"thread"},
    {id:"widow_favour", when:[["evidence",">=",2],["respect",">=",1],["fear","<=",1]], chance:0.78,
     text:"Mrs. Vale closes the ledger, then presses the sheriff's hand. \u201cIf this town ever leaves you in the dust, send word to my place.\u201d",
     fx:{favour:1,safety:+1,clue:"ledger"}, award:"talked", points:160},
    {id:"secret_exposed", when:[["suspicion",">=",4]], chance:0.8,
     text:"You read far enough to find what she was hiding: four years of quiet payments to a name she will not say aloud. The debt was forged, and so was her good standing.",
-    fx:{safety:+1,clue:"payments"}, award:"clue", points:-20},
+    fx:{safety:+1,clue:"payments"}, award:"clue", points:-20, sound:"penalty"},
    {id:"debt_voided", when:[["evidence",">=",2]],
     text:"Two hands wrote that signature and neither of them was her husband's. The debt is void, and the man who drew it up has a week's head start.",
     fx:{clue:"ledger"}, award:"talked", points:110},
@@ -72,11 +97,13 @@ const ENCOUNTERS=[
  {id:"tuner", title:"The Piano Tuner", place:"SALOON",
   surface:"A musician says someone stole his instrument case",
   hidden:"The case holds coded messages, not tools",
-  core:"perception", armed:false, nerve:1, drawAt:99, hostile:0.00, endings:[]},
+  core:"perception", armed:false, nerve:1, drawAt:99, hostile:0.00,
+  arrive:["piano","bottle"], endings:[]},
  {id:"locket", title:"The Boy With the Locket", place:"STREET",
   surface:"A teenager asks the sheriff to find a missing parent",
   hidden:"The missing person may be fleeing a crime",
-  core:"mercy", armed:false, nerve:0, drawAt:99, hostile:0.00, endings:[]}
+  core:"mercy", armed:false, nerve:0, drawAt:99, hostile:0.00,
+  arrive:["crowd"], endings:[]}
 ];
 
 /* One geometry for the drawing and for the shooting, so what the crosshair is
@@ -95,6 +122,64 @@ const HITBOX={
  * what the reply does to the state.
  */
 const DIALOGUE={
+ rainmaker:[
+  {say:"Sheriff. Brother Amos Teague, of no fixed pulpit. Three nights on the lot behind the livery, a tent, and a hymn or two. The town keeps the peace and heaven keeps the accounts.",
+   replies:[
+    {intent:"conciliate",
+     t:"\"Three nights, and I'll keep the drunks off your canvas myself.\"",
+     react:"\"A man who offers before he is asked.\" He writes something small in a book he does not offer to show you.",
+     fx:{respect:+2,fear:-1}},
+    {intent:"probe",
+     t:"\"Whose accounts, Brother? Heaven's, or the ones in that book?\"",
+     react:"The book shuts. \"A subscription list. Names of the faithful, and what the faithful can spare.\"",
+     fx:{suspicion:+2,respect:-1}},
+    {intent:"command",
+     t:"\"You'll hold it on the lot, off the street, and be quiet by ten.\"",
+     react:"\"Ten o'clock.\" He inclines his head. \"The Lord has kept worse hours.\"",
+     fx:{respect:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"I've run four of your trade out of this town. Give me a reason not to make it five.\"",
+     react:"He smiles as though you had complimented the tent. \"Four. And did any of them leave poorer than they came?\"",
+     fx:{fear:+2,suspicion:+1,respect:-1}}]},
+
+  {say:"\"The collection is for the mission at Sand Fork. Orphans, mostly. I carry it in myself, which is why I travel light and sleep badly.\"",
+   replies:[
+    {intent:"conciliate",
+     t:"\"Then sleep in a cell with the door open. It's the safest room in town for a man carrying money.\"",
+     react:"\"In a cell.\" He laughs, and then stops laughing, and then considers it seriously. \"You are a strange sort of lawman.\"",
+     fx:{respect:+2,fear:-1}},
+    {intent:"probe",
+     t:"\"Sand Fork burned out two summers ago. Who is taking delivery?\"",
+     react:"There is a pause of exactly the wrong length. \"The mission moved. Missions do.\"",
+     fx:{suspicion:+2}},
+    {intent:"command",
+     t:"\"You'll count it in front of me before you leave, and I'll write the figure down.\"",
+     react:"\"Count it.\" His hand goes flat on the book, which is answer enough about where the figure would differ.",
+     fx:{respect:+1,suspicion:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"If one cent of that plate ends up with the men I think it ends up with, I'll take the tent down with you inside it.\"",
+     react:"\"With me inside it.\" He looks up the street, at nothing, for a good while. \"You have somebody in mind. That is a comfort and a worry both.\"",
+     fx:{fear:+3,suspicion:+1,respect:-2}}]},
+
+  {say:"\"So. Do I put up the canvas, or do I drive on and let the next town have the singing?\"",
+   replies:[
+    {intent:"conciliate",
+     t:"\"Put it up. I'll be at the back on the first night, and I'll pass the plate myself.\"",
+     react:"\"You will pass it.\" He hesitates over the book. \"…Then it had better be an honest plate.\"",
+     fx:{respect:+2,suspicion:+1}},
+    {intent:"probe", needs:["clue:warrant"],
+     t:"\"Open the subscription book to the back page. I took a forged warrant off a man this morning and I want to compare a name.\"",
+     react:"He opens it to the back page himself, slowly, the way a man does when he has decided which side to be on. \"Then you already know who I am collecting for.\"",
+     fx:{suspicion:+2,respect:+1}},
+    {intent:"command",
+     t:"\"Canvas up, plate counted, and you'll be gone by Monday.\"",
+     react:"\"Monday.\" He writes that down too, in the same small hand.",
+     fx:{respect:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"Drive on, Brother. Tonight, while the road is still light.\"",
+     react:"\"Tonight.\" He does not argue, which is the first thing all morning that has not sounded rehearsed.",
+     fx:{fear:+3,respect:-1}}]}],
+
  widow:[
   {say:"Sheriff. My husband is eight weeks in the ground and a man from the bank says he signed for four hundred dollars the month he was too sick to hold a cup. I have the ledger. I want somebody to look at it.",
    replies:[
@@ -121,10 +206,10 @@ const DIALOGUE={
      t:"\"Then we'll write to the county they left for, and until it answers, nobody touches your fences.\"",
      react:"\"You would put that in writing?\" \u2014 and for the first time she opens the ledger the rest of the way.",
      fx:{respect:+2,evidence:+1,fear:-1}},
-    {intent:"probe",
-     t:"\"Show me the page you turned past. The narrow column, the one in pencil.\"",
-     react:"\"That is household.\" She says it too quickly, and does not cover the page, which is worse.",
-     fx:{evidence:+2,suspicion:+2}},
+    {intent:"probe", needs:["clue:warrant"],
+     t:"\"Hold it to the light. I took a forged warrant off a man this morning \u2014 I want to see whether the same hand wrote your husband's name.\"",
+     react:"She holds the page up herself, and her hands are steadier than they have been since she walked in. \"Then it is not only me.\"",
+     fx:{evidence:+2,respect:+1}},
     {intent:"command",
      t:"\"Names, dates, and what you paid out. All of it, Mrs. Vale, or the bank's story is the only one I have.\"",
      react:"\"All of it.\" She reads the room, then the ledger, then the room again.",

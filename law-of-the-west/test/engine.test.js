@@ -16,7 +16,8 @@ test('2. the anthology and every authored encounter are sound', ()=>{
   const {run}=load({fill:false});
   const problems=JSON.parse(run(`(()=>{
     const bad=[],ids=new Set(),ops=[">=","<=",">","<","==","!="];
-    const known=["respect","fear","suspicion","evidence","drawRisk","safety","favours","wounds"];
+    const known=["respect","fear","suspicion","evidence","drawRisk","safety","favours","wounds","clues"];
+    const isVar=n=>known.includes(n)||/^clue:[a-z_]+$/.test(n);
     for(const e of ENCOUNTERS){
       if(ids.has(e.id))bad.push(e.id+": duplicate id"); ids.add(e.id);
       for(const f of ["title","surface","hidden","core","place"])
@@ -38,7 +39,9 @@ test('2. the anthology and every authored encounter are sound', ()=>{
           if(!r.react)bad.push(where+" ("+r.intent+"): no reaction");
           const fx=Object.keys(r.fx||{});
           if(!fx.length)bad.push(where+" ("+r.intent+"): changes no state");
-          for(const k of fx)if(!known.includes(k))bad.push(where+": unknown variable "+k);
+          for(const k of fx)if(!known.includes(k)&&k!=="clue")bad.push(where+": unknown variable "+k);
+          for(const n of (r.needs||[]))
+            if(!isVar(n))bad.push(where+" ("+r.intent+"): needs unknown "+n);
         });
       });
       // endings: two or more, conditions on known variables, a fallback last
@@ -47,7 +50,7 @@ test('2. the anthology and every authored encounter are sound', ()=>{
         if(!x.id)bad.push(e.id+" ending "+i+": no id");
         if(!x.text)bad.push(e.id+" ending "+x.id+": no text");
         for(const [n,op] of (x.when||[])){
-          if(!known.includes(n))bad.push(e.id+"/"+x.id+": unknown variable "+n);
+          if(!isVar(n))bad.push(e.id+"/"+x.id+": unknown variable "+n);
           if(!ops.includes(op))bad.push(e.id+"/"+x.id+": unknown operator "+op);
         }
         if(x.chance!=null&&!(x.chance>0&&x.chance<=1))
@@ -65,16 +68,25 @@ test('2. the anthology and every authored encounter are sound', ()=>{
 });
 
 /* Play one encounter with a chooser over the four intents. */
-function playEncounter(id,seed,chooser,fireLatency){
+function playEncounter(id,seed,chooser,fireLatency,clues){
   const h=load(); const {run,box}=h;
   box.__choose=chooser;
+  box.__clues=clues||[];
   return JSON.parse(run(`(()=>{
     const G=newGame({seed:${seed}}); globalThis.G=G;
     G.slot=ENCOUNTERS.findIndex(e=>e.id==="${id}");
+    G.clues.push(...__clues);                         // what earlier scenes taught him
     beginSlot(G); openDialogue(G);
     let guard=0;
     while(G.phase!=="resolve"&&G.phase!=="summary"&&guard++<40){
-      if(G.phase==="dialogue")respond(G,__choose(G.turn,G.rng()));
+      if(G.phase==="dialogue"){
+        // a line he could not have known to say is skipped, as a player would
+        const t=turnFor(ENCOUNTERS[G.slot].id,G.turn);
+        let i=__choose(G.turn,G.rng()), tries=0;
+        while(t.replies[i]&&!available(G,t.replies[i])&&tries++<t.replies.length)
+          i=(i+1)%t.replies.length;
+        respond(G,i);
+      }
       else if(G.phase==="tell"){G.phase="duel";G.duel.drawn=true;}
       else if(G.phase==="duel"||G.phase==="aiming"){aimAt(G,G.rng()<0.5?"arm":"torso");
         shoot(G,${fireLatency||320});}
@@ -88,7 +100,11 @@ function playEncounter(id,seed,chooser,fireLatency){
 
 test('3. five hundred runs of every written encounter reach every ending', ()=>{
   const {run}=load({fill:false});
-  const written=JSON.parse(run('JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>({id:e.id,endings:e.endings.map(x=>x.id)})))'));
+  const written=JSON.parse(run(`JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>({
+    id:e.id,
+    endings:e.endings.map(x=>({id:x.id,
+      needsClues:(x.when||[]).filter(c=>String(c[0]).startsWith("clue:")).map(c=>c[0].slice(5))}))
+  })))`));
   report.runs={};
   for(const enc of written){
     const endings={};
@@ -103,7 +119,22 @@ test('3. five hundred runs of every written encounter reach every ending', ()=>{
     }
     assert.equal(exceptions,0,enc.id+' threw '+exceptions+' times');
     report.runs[enc.id]=endings;
-    const missing=enc.endings.filter(id=>!endings[id]);
+    // an ending that needs an earlier scene's clue is proved with it in hand
+    for(const x of enc.endings.filter(e=>e.needsClues.length)){
+      const seen={};
+      for(let i=0;i<200;i++){
+        const r=playEncounter(enc.id,9000+i,(turn,x2)=>Math.floor(x2*4),320,x.needsClues);
+        const key=r.ending||('duel:'+r.outcome);
+        seen[key]=(seen[key]||0)+1;
+      }
+      report.runs[enc.id+' with '+x.needsClues.join('+')]=seen;
+      assert.ok(seen[x.id],enc.id+'/'+x.id+' unreachable even holding '+x.needsClues.join('+')
+        +': '+JSON.stringify(seen));
+      // and it must not be reachable without the clue
+      assert.ok(!endings[x.id],enc.id+'/'+x.id+' fired without the clue it needs');
+    }
+    const local=enc.endings.filter(e=>!e.needsClues.length).map(e=>e.id);
+    const missing=local.filter(id=>!endings[id]);
     assert.deepEqual(missing,[],enc.id+': endings never reached: '+missing.join(', '));
     const total=Object.values(endings).reduce((a,b)=>a+b,0);
     const top=Math.max(...Object.values(endings))/total;
@@ -262,6 +293,31 @@ test('9. what the crosshair is over is what the bullet finds', ()=>{
   assert.ok(!over(b.weapon,b.lethal)&&!over(b.weaponRaised,b.lethal),'the boxes overlap');
   for(const [k,r] of Object.entries(b))
     assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=g.scene.w&&r.y+r.h<=g.scene.h,k+' is off the scene');
+});
+
+
+/* Cues that exist but are never played are half-built presentation, so the
+ * table and the page are held against each other. */
+test('10. every sound cue is either played by the page or explicitly reserved', ()=>{
+  const ui=fs.readFileSync(path.join(ROOT,'ui.js'),'utf8');
+  const {run}=load({fill:false});
+  // the cue table lives in sid-audio.js, which the rules harness does not load
+  const vm=require('node:vm');
+  const audio=fs.readFileSync(path.join(ROOT,'sid-audio.js'),'utf8');
+  const abox={};vm.createContext(abox);
+  vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
+  const cues=Object.keys(abox.S);
+  const arrivals=new Set(JSON.parse(run('JSON.stringify(ENCOUNTERS.flatMap(e=>e.arrive||[]))')));
+  const endingSounds=new Set(JSON.parse(run('JSON.stringify(ENCOUNTERS.flatMap(e=>(e.endings||[]).map(x=>x.sound).filter(Boolean)))')));
+  const RESERVED=['romance'];        // no romance in the anthology yet
+  const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)
+    &&!endingSounds.has(c)&&!RESERVED.includes(c));
+  assert.deepEqual(idle,[],'cues nothing ever plays: '+idle.join(', '));
+  // and nothing is asked for that the table does not have
+  const named=[...arrivals,...endingSounds];
+  const unknown=named.filter(c=>!cues.includes(c));
+  assert.deepEqual(unknown,[],'content asks for cues that do not exist: '+unknown.join(', '));
+  report.audioCoverage=(cues.length-RESERVED.length)+' of '+cues.length+' cues played; reserved: '+RESERVED.join(', ');
 });
 
 test('report', ()=>{

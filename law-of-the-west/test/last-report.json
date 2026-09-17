@@ -1,7 +1,7 @@
 {
   "authored": [
     "deputy written",
-    "rainmaker pending",
+    "rainmaker written",
     "surveyor pending",
     "widow written",
     "tuner pending",
@@ -17,11 +17,29 @@
       "standoff": 27,
       "handover": 45
     },
+    "rainmaker": {
+      "revival_watched": 146,
+      "run_off": 209,
+      "revival_free": 145
+    },
+    "rainmaker with warrant": {
+      "collection_named": 135,
+      "revival_watched": 22,
+      "run_off": 24,
+      "revival_free": 19
+    },
     "widow": {
-      "widow_favour": 153,
+      "widow_favour": 152,
+      "closed_book": 138,
       "debt_voided": 200,
-      "closed_book": 111,
-      "secret_exposed": 36
+      "secret_exposed": 10
+    },
+    "widow with warrant": {
+      "debt_voided": 65,
+      "same_hand": 56,
+      "closed_book": 54,
+      "widow_favour": 19,
+      "secret_exposed": 6
     }
   },
   "variance": {
@@ -67,27 +85,31 @@
     },
     "rainmaker": {
       "conciliate": {
-        "top": 100,
+        "top": 72,
         "counts": {
-          "fixture_settled": 100
+          "revival_watched": 72,
+          "revival_free": 28
         }
       },
       "probe": {
-        "top": 100,
+        "top": 99,
         "counts": {
-          "fixture_settled": 100
+          "revival_free": 99,
+          "revival_watched": 1
         }
       },
       "command": {
-        "top": 100,
+        "top": 68,
         "counts": {
-          "fixture_settled": 100
+          "revival_watched": 68,
+          "run_off": 24,
+          "revival_free": 8
         }
       },
       "threaten": {
         "top": 100,
         "counts": {
-          "fixture_settled": 100
+          "run_off": 100
         }
       }
     },
@@ -126,10 +148,11 @@
         }
       },
       "probe": {
-        "top": 65,
+        "top": 50,
         "counts": {
-          "secret_exposed": 65,
-          "debt_voided": 35
+          "widow_favour": 50,
+          "debt_voided": 38,
+          "secret_exposed": 12
         }
       },
       "command": {
@@ -200,9 +223,7 @@
     }
   },
   "rigidPaths": [
-    "rainmaker/conciliate 100%",
-    "rainmaker/probe 100%",
-    "rainmaker/command 100%",
+    "rainmaker/probe 99%",
     "rainmaker/threaten 100%",
     "surveyor/conciliate 100%",
     "surveyor/probe 100%",
@@ -333,5 +354,6 @@
       "n": 31
     }
   },
-  "wounds": "one wound carries, a banked favour patches it, the second kills"
+  "wounds": "one wound carries, a banked favour patches it, the second kills",
+  "audioCoverage": "41 of 42 cues played; reserved: romance"
 }

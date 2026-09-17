@@ -155,9 +155,10 @@ function paint(){
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
     const r=replies[i];
-    lineEls[i+1].textContent=r?(i+1)+". "+r.t:"";
+    const locked=r&&!available(G,r);
+    lineEls[i+1].textContent=r?(i+1)+". "+r.t+(locked?"   (you would have to know)":""):"";
     lineEls[i+1].className="choice"+(live&&G.mode==="talk"&&cursor===i?" sel":"")+
-      (G.mode==="gun"?" dim":"");
+      (G.mode==="gun"?" dim":"")+(locked?" locked":"");
   }
   modeEl.textContent=G.mode==="gun"?"GUN DRAWN — down to holster":"TALKING — up to draw";
   scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;
@@ -237,21 +238,36 @@ document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
 document.addEventListener?.("visibilitychange",()=>{if(!document.hidden&&gameMode)keepAwake();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
+/* The theme belongs to the title screen, and it needs a gesture before the
+ * audio context exists at all, so the first tap or key is where it starts. */
+let themePlayed=false;
+function firstGesture(){
+  if(themePlayed||G.phase!=="intro")return;
+  themePlayed=true; SND.title();
+}
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
+  SND.dawn();
   G=newGame({}); cursor=0; said=""; react="";
   beginSlot(G); openDialogue(G); newScene();
   SND.badge();
 }
+/* Each visitor is audible before he is visible: his own arrival over the door
+ * and the boardwalk. */
 function newScene(){
   build={at:performance.now(),rows:0};
   said=""; react=""; cursor=0;
   SND.door(); setTimeout(()=>SND.step(),260);
+  const e=who(G);
+  (e&&e.arrive||[]).forEach((cue,i)=>{
+    if(typeof SND[cue]==="function")setTimeout(()=>SND[cue](),420+i*520);
+  });
 }
 function up(){
   if(G.phase==="intro")return;
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
-    drawGun(G,performance.now()); drawnAt=performance.now(); SND.holster(); paint(); return;
+    drawGun(G,performance.now()); drawnAt=performance.now();
+    SND.holster(); SND.cock(); setTimeout(()=>SND.aim(),140); paint(); return;
   }
   if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
 }
@@ -273,6 +289,7 @@ function fire(){
   if(G.phase==="summary"){startDay();paint();return;}
   if(G.phase==="resolve"){advance();return;}
   if(G.mode==="gun"){
+    if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
     SND.gunshot(); flash=0.16;
     const before=G.outcome;
@@ -284,6 +301,7 @@ function fire(){
   const b=beat(); if(!b){SND.deny();return;}
   const replies=b.replies.filter(r=>r.tone!=="draw");
   const chosen=replies[cursor]; if(!chosen){SND.deny();return;}
+  if(!available(G,chosen)){SND.deny();return;}          // you would have to know
   SND.select();
   const r=respond(G,b.replies.indexOf(chosen));
   react=r&&r.react?r.react:"";
@@ -305,6 +323,7 @@ function afterShot(before){
 function settleSound(){
   const o=G.outcome;
   if(G.ending){                                   // an authored ending
+    if(G.ending.sound&&typeof SND[G.ending.sound]==="function")SND[G.ending.sound]();
     if(G.ending.award==="arrest"){SND.thread();SND.respect();}
     else if(G.ending.award==="talked"){SND.clue();SND.point();}
     else if(G.ending.points<0){SND.alarm();SND.penalty();}
@@ -314,11 +333,13 @@ function settleSound(){
   else if(o==="disarmed"){SND.ricochet();SND.wound();}
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
   else if(o==="murder"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
-  else if(o==="missed_him")SND.ricochet();
+  else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
   else if(o==="wound_consequence"){SND.gunshot();SND.hit();}
   else if(o==="rescued_from_street"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
   else if(o==="walked_away")SND.step();
   else SND.clock();
+  if(o==="killed_him"||o==="murder")setTimeout(()=>SND.churchbell(),900);
+  if(G.duel&&G.duel.fired)setTimeout(()=>SND.reload(),1200);
   if(G.phase==="summary")endSound();
 }
 function endSound(){
@@ -329,7 +350,7 @@ function advance(){
   if(G.phase==="summary")return;
   const r=nextSlot(G);
   if(G.phase==="summary"){endSound();paint();return;}
-  openDialogue(G); newScene(); SND.clock(); paint();
+  openDialogue(G); newScene(); SND.clock(); SND.wind(); paint();
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,
@@ -340,7 +361,7 @@ const CONTROL={up,down,left,right,fire,
  * a control can never exist that no handler covers. */
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
-    e.preventDefault(); SND.unlock();
+    e.preventDefault(); SND.unlock(); firstGesture();
     const cmd=el.dataset.cmd;
     if(cmd==="choose")choose(+el.dataset.index);
     else if(CONTROL[cmd])CONTROL[cmd]();
@@ -352,7 +373,7 @@ const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
   Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
-  SND.unlock();
+  SND.unlock(); firstGesture();
   if(/^[1-4]$/.test(e.key)){e.preventDefault();choose(+e.key-1);paint();return;}
   const cmd=KEYS[e.key]||KEYS[(e.key||"").toLowerCase()];
   if(!cmd)return;
