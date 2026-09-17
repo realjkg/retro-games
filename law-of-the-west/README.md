@@ -136,6 +136,29 @@ Raising `RULES.TEMP` satisfies the rule and makes choices matter less.
   Daltons), whether an eleventh encounter exists, what counts as enough
   fragments, and whether Belle's alliance carries a crime.
 
+## Credit
+
+Inspired by Law of the West (Accolade, 1985), designed by Alan Miller. Original
+game music and sound effects by Ed Bogas.
+
+This project is an independent, unofficial reinterpretation. Its code, writing,
+artwork, and audio are newly created and do not reproduce the original game's
+dialogue, audiovisual assets, or musical compositions.
+
+## The music
+
+Original material in the SID idiom, not a transcription and not a reworking of
+the original score. The identity aimed at is dusty frontier and saloon tension:
+Dorian colour with a flat seventh, open-fifth drones under a lead that calls and
+answers, and a swung honky-tonk figure with a flattened third for the saloon.
+The title cue runs 11.4 s over three voices at a walking pace; dawn and dusk are
+the same intervals opening upward and closing downward; the saloon figure swings
+long-short over an oom-pah bass.
+
+The sound effects — the gunshot, the tell, the bells, the doctor's bottle — are
+unchanged from the supplied table, and the synthesis itself has never been
+touched. `node tools/render-sounds.js` renders any of it to wav for auditioning.
+
 ## What is faithful, and what is not
 
 Not an emulator, a port, or a copy of the original's content. The structure is
