@@ -352,7 +352,8 @@ document.addEventListener?.("fullscreenchange",()=>{if(!fsElement()&&gameMode)se
 document.addEventListener?.("webkitfullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
 for(const t of ["gesturestart","gesturechange","gestureend"])
   document.addEventListener?.(t,e=>{e.preventDefault?.();});
-document.addEventListener?.("contextmenu",e=>{if(gameMode||e.target?.closest?.("[data-cmd]"))e.preventDefault?.();});
+const inUI=e=>!!e.target?.closest?.("#app");
+document.addEventListener?.("contextmenu",e=>{if(gameMode||inUI(e))e.preventDefault?.();});
 document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
 document.addEventListener?.("visibilitychange",()=>{if(!document.hidden&&gameMode)keepAwake();});
 
@@ -501,7 +502,8 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
     e.preventDefault(); SND.unlock(); firstGesture();
     const cmd=el.dataset.cmd;
-    el.setPointerCapture?.(e.pointerId);
+    // capture can throw if the pointer has already gone; the press still counts
+    try{el.setPointerCapture?.(e.pointerId);}catch(err){}
     runCmd(cmd,el);
     if(REPEATS.has(cmd))held={cmd,el,next:performance.now()+REPEAT_DELAY};
   });
