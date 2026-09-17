@@ -72,6 +72,16 @@ slow one lets him fire first. Killing where a wound would have done costs
 standing, and shooting a man whose hand never moved is murder — violence is
 always available and always expensive.
 
+**Full screen.** `FULL`, the `g` key or `F11` hands the whole screen to the game:
+browser fullscreen where the API allows it, the page's own gestures stopped so a
+pinch or a long press cannot interrupt a held direction, and the screen kept
+awake. On a phone in portrait the scene takes the top and the words and controls
+the bottom; turn it to landscape and the scene moves to one side with the words
+and the pad on the other, so a thumb never crosses the street. The choice is
+remembered, so the next day starts in it. iPhone Safari allows no element
+fullscreen; the layout still applies, and adding the page to the Home Screen
+removes the browser's chrome.
+
 **Wounds.** A wound is carried, not cured: the day goes on until there is one too
 many. A favour banked with somebody in town buys one of them back.
 

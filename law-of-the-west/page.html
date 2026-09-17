@@ -55,6 +55,31 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 .abtn{width:58px;height:58px;border-radius:50%;font-size:12px;font-weight:700}
 .sbtn{padding:6px 9px;font-size:11px;min-height:32px}
 #meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dim)}
+
+/* ---- full game mode ---- *
+ * The page is already one screenful; game mode takes the browser's chrome with
+ * it, stops every page gesture that could interrupt a held direction, and in
+ * landscape puts the scene on one side and the words and controls on the other,
+ * so a thumb never crosses the street. */
+body.gamemode{background:#000;touch-action:none}
+body.gamemode #app{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.gamemode #top{flex:1 1 46%}
+body.gamemode #bottom{flex:1 1 54%;border-top-width:3px}
+body.gamemode #meta{display:none}
+body.gamemode .npc{font-size:15px}
+body.gamemode .choice{font-size:14px;padding:7px 8px}
+body.gamemode .dpad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,42px)}
+body.gamemode .abtn{width:68px;height:68px}
+@media (orientation:landscape){
+  body.gamemode #app{flex-direction:row}
+  body.gamemode #top{flex:1 1 50%;height:100%}
+  body.gamemode #bottom{flex:1 1 50%;height:100%;border-top:0;border-left:3px solid var(--line)}
+  body.gamemode #pads{margin-top:auto}
+  body.gamemode .npc{font-size:13px}
+  body.gamemode .choice{font-size:12px;padding:5px 7px}
+  body.gamemode .dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,34px)}
+  body.gamemode .abtn{width:56px;height:56px}
+}
 </style>
 </head>
 <body>
@@ -79,10 +104,13 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
         <div class="btn abtn" data-cmd="fire">FIRE</div>
-        <button class="btn sbtn" id="mute" type="button" data-cmd="mute" aria-pressed="true">SOUND ON</button>
+        <div style="display:flex;gap:5px">
+          <button class="btn sbtn" id="mute" type="button" data-cmd="mute" aria-pressed="true">SOUND ON</button>
+          <button class="btn sbtn" id="full" type="button" data-cmd="full" aria-pressed="false">FULL</button>
+        </div>
       </div>
     </div>
-    <div id="meta"><span>Up draws · down holsters · 1-4 or FIRE to speak · m mutes</span></div>
+    <div id="meta"><span>Up draws · down holsters · 1-4 or FIRE to speak · m mutes · g full screen</span></div>
   </div>
 </div>
 <script>

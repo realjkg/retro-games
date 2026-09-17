@@ -193,3 +193,25 @@ test('8g. no AudioContext exists until a gesture, and nothing external is fetche
   assert.equal(p.ev('SOUNDS')&&p.ev('typeof performance'),'object');
   assert.deepEqual(p.errors,[]);
 });
+
+test('8h. full screen mode toggles from the control and the g key', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  assert.equal(p.ev('gameMode'),false);
+  assert.equal(p.el('full').getAttribute('aria-pressed'),'false');
+  p.tap('#full');
+  assert.equal(p.ev('gameMode'),true,'the FULL control did nothing');
+  assert.ok(p.w.document.body.classList.contains('gamemode'),'the page did not enter game mode');
+  assert.equal(p.el('full').textContent,'EXIT');
+  assert.equal(p.el('full').getAttribute('aria-pressed'),'true');
+  p.press('g');
+  assert.equal(p.ev('gameMode'),false,'the g key did not leave game mode');
+  assert.ok(!p.w.document.body.classList.contains('gamemode'));
+  assert.equal(p.el('full').textContent,'FULL');
+  // it survives a missing Fullscreen API, which is what jsdom and iPhone Safari have
+  assert.deepEqual(p.errors,[]);
+  // and the preference is remembered for the next day started
+  p.tap('#full');
+  p.tap('[data-cmd="fire"]');
+  assert.equal(p.ev('gameMode'),true,'starting the day dropped game mode');
+  assert.equal(p.G().phase,'dialogue');
+});

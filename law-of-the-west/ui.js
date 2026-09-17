@@ -133,7 +133,8 @@ function paint(){
     lineEls[1].className="choice sel";
     const written=ENCOUNTERS.filter(e=>Array.isArray(DIALOGUE[e.id])).length;
     lineEls[2].textContent=written+" of "+ENCOUNTERS.length+
-      " encounters written. The rest are walked past for now.";
+      " encounters written. The rest are walked past for now."+
+      (gameMode?"":"  ·  FULL or g for full screen.");
     lineEls[2].className="choice dim";
     for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
@@ -185,9 +186,50 @@ function paintSummary(){
   modeEl.textContent="SUNDOWN";
 }
 
+/* ---- full game mode ---- */
+const NAV=typeof navigator==="object"&&navigator?navigator:null;
+const bodyEl=document.body||{classList:{add(){},remove(){}}};
+const fullBtn=document.getElementById("full");
+let gameMode=false, wakeLock=null, wantGameMode=false;
+try{wantGameMode=localStorage.getItem("lotw.gamemode")==="1";}catch(e){}
+const fsElement=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+function requestFS(){
+  const el=document.documentElement; if(!el)return;
+  try{const r=el.requestFullscreen?.({navigationUI:"hide"})??el.webkitRequestFullscreen?.();
+    if(r&&r.catch)r.catch(()=>{});}catch(e){}
+}
+function exitFS(){try{const r=document.exitFullscreen?.()??document.webkitExitFullscreen?.();
+  if(r&&r.catch)r.catch(()=>{});}catch(e){}}
+function keepAwake(){if(!NAV?.wakeLock?.request)return;
+  try{NAV.wakeLock.request("screen").then(l=>{wakeLock=l;}).catch(()=>{});}catch(e){}}
+function releaseAwake(){try{wakeLock?.release?.();}catch(e){}wakeLock=null;}
+function setGameMode(on){
+  gameMode=!!on; wantGameMode=gameMode;
+  bodyEl.classList?.[gameMode?"add":"remove"]("gamemode");
+  fullBtn?.setAttribute?.("aria-pressed",gameMode?"true":"false");
+  if(fullBtn)fullBtn.textContent=gameMode?"EXIT":"FULL";
+  try{localStorage.setItem("lotw.gamemode",gameMode?"1":"0");}catch(e){}
+  if(gameMode)keepAwake(); else releaseAwake();
+  fit(); paint();
+}
+/* Fullscreen is only granted inside a user gesture, so every caller is a tap
+ * or a key. Where the API is missing - iPhone Safari - the layout still goes. */
+function toggleGameMode(){
+  if(gameMode){exitFS();setGameMode(false);}
+  else{setGameMode(true);requestFS();}
+}
+function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);requestFS();}}
+document.addEventListener?.("fullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+document.addEventListener?.("webkitfullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+for(const t of ["gesturestart","gesturechange","gestureend"])
+  document.addEventListener?.(t,e=>{e.preventDefault?.();});
+document.addEventListener?.("contextmenu",e=>{if(gameMode||e.target?.closest?.("[data-cmd]"))e.preventDefault?.();});
+document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
+document.addEventListener?.("visibilitychange",()=>{if(!document.hidden&&gameMode)keepAwake();});
+
 /* ---- input, one control set for the pad and the keyboard ---- */
 function startDay(){
-  SND.unlock(); started=true;
+  SND.unlock(); started=true; enterGameModeIfWanted();
   G=newGame({}); cursor=0; said=""; react="";
   beginSlot(G); openDialogue(G); newScene();
   SND.badge();
@@ -281,6 +323,7 @@ function advance(){
   openDialogue(G); newScene(); SND.clock(); paint();
 }
 const CONTROL={up,down,left,right,fire,
+  full:toggleGameMode,
   holster:()=>{holster(G);paint();},
   mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
     muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
@@ -297,7 +340,7 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
   });
 });
 const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
-  Enter:"fire"," ":"fire",Escape:"holster",m:"mute"};
+  Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   SND.unlock();
