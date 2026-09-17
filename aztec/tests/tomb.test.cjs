@@ -13,7 +13,7 @@ function runtime(diff=3,seed=7){
   function el(id){if(!els.has(id))els.set(id,{id,style:{},dataset:{},
     classList:{add(){},remove(){},toggle(){}},textContent:'',innerHTML:'',
     setAttribute(){},addEventListener(){},setPointerCapture(){},
-    querySelectorAll(){return[]},getBoundingClientRect(){return{width:320,height:192}},
+    querySelectorAll(){return[]},rect:{width:320,height:192},getBoundingClientRect(){return this.rect},
     getContext(){return drawing}});return els.get(id);}
   class AudioContext{
     constructor(){this.state='running';this.currentTime=0;this.destination={};}
@@ -215,11 +215,52 @@ test('Full screen isolates the controls, and the layout drops when fullscreen en
   assert.equal(r.cls.has('fs'),false);
   r.run('toggleFullscreen();');
   assert.equal(r.cls.has('fs'),true,'the focus layout is applied');
-  assert.equal(r.el('fs').textContent,'EXIT FULL SCREEN');
+  assert.match(r.el('fs').textContent,/EXIT FULL SCREEN/);
   r.run('toggleFullscreen();');
   assert.equal(r.cls.has('fs'),false);
   assert.equal(r.el('fs').textContent,'FULL SCREEN');
   // Escape or the system gesture leaves native fullscreen; the layout follows it out.
   r.run('toggleFullscreen();setFocus(false);');
   assert.equal(r.cls.has('fs'),false);
+});
+
+test('The buttons name the weapon in hand and the action underfoot',()=>{
+  const r=runtime(2,3);clearRoom(r);
+  r.run('G.hero.weapon="pistol";G.hero.pistol=true;G.hero.bullets=4;updatePads();');
+  assert.equal(r.el('firebtn').dataset.lbl,'SHOOT 4');
+  r.run('G.hero.machete=true;G.hero.weapon="machete";updatePads();');
+  assert.equal(r.el('firebtn').dataset.lbl,'MACHETE');
+  r.run('G.hero.weapon="dynamite";G.hero.dynamite=2;updatePads();');
+  assert.equal(r.el('firebtn').dataset.lbl,'LIGHT 2');
+  assert.equal(r.run('actionLabel()'),'USE');
+  r.run('G.L.chests=[{x:G.hero.x,y:G.hero.y,w:14,h:12,open:false,item:"potion",kind:"chest"}];');
+  assert.equal(r.run('actionLabel()'),'OPEN');
+  r.run('G.L.chests=[];G.L.map[Math.floor((G.hero.x+G.hero.w+2)/TS)][Math.floor((G.hero.y+G.hero.h*.5)/TS)]=DIRT;G.hero.face=1;');
+  assert.equal(r.run('actionLabel()'),'DIG');
+  const r2=runtime(3,21);
+  r2.run('G.hero.x=G.L.down.x;G.hero.y=bandFloor(FLOORS-1)*TS-G.hero.h;G.L.chests=[];');
+  assert.equal(r2.run('actionLabel()'),'GO DOWN');
+  r2.run('G.hero.x=G.L.up.x;G.hero.y=bandFloor(0)*TS-G.hero.h;');
+  assert.equal(r2.run('actionLabel()'),'NEED IDOL');
+  r2.run('G.hero.idol=true;');
+  assert.equal(r2.run('actionLabel()'),'ESCAPE');
+  r2.run('updatePads();');
+  assert.equal(r2.el('usebtn').dataset.lbl,'ESCAPE');
+});
+
+test('The view takes the shape of the screen it is drawn on',()=>{
+  const r=runtime(2,3);
+  r.run('fit();');
+  const w0=r.run('VW'), h0=r.run('VH');
+  assert.equal(w0,320);assert.equal(h0,192);
+  r.el('cv').rect={width:720,height:540};      // a taller box in full screen
+  r.run('fit();');
+  assert.equal(r.run('VW'),360);
+  assert.equal(r.run('VH'),270,'more tomb is visible, not more letterbox');
+  assert.equal(r.el('cv').width,360);
+  assert.equal(r.el('cv').height,270);
+  r.el('cv').rect={width:2000,height:1400};    // clamped so the pixels stay chunky
+  r.run('fit();');
+  assert.ok(r.run('VW')<=520&&r.run('VH')<=300);
+  r.run('render();');                          // a view larger than the map still draws
 });
