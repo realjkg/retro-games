@@ -48,8 +48,40 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
-#sound{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
   padding:9px 12px;min-height:40px}
+/* Full screen: the tomb and the controls, nothing else. The canvas keeps its
+   aspect ratio while the pads take the room the page furniture gives back. */
+body.fs{padding:0;height:100dvh;overflow:hidden}
+body.fs #wrap{max-width:none;height:100dvh;gap:4px;
+  padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
+body.fs #status{display:none}
+/* The screen takes as much room as its own shape allows and no more, so the
+   space the page chrome gave back goes to the pads instead of to black bars. */
+body.fs #stage{width:min(100%,calc(56dvh * 5 / 3));max-width:100%;margin:0 auto;border-radius:0}
+body.fs canvas{object-fit:contain;background:#000}
+/* Controls grow with the screen but never past the edge of a narrow phone. */
+body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
+  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
+body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
+body.fs .soundrow{margin:2px 0 0;gap:8px}
+body.fs #audio-status{display:none}
+@media (orientation:landscape) and (max-height:560px){
+  /* Held sideways there is no room below the screen, so the pads flank it
+     the way a handheld does: pad under the left thumb, buttons under the right. */
+  body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
+    gap:6px;padding:4px 8px}
+  body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
+  body.fs #stage{order:2;width:min(58vw,calc((100dvh - 12px) * 5 / 3));max-width:58vw;margin:0}
+  body.fs .acts{order:3}
+  body.fs .abtn{width:66px;height:66px}
+  body.fs .sbtn{width:66px;height:38px}
+  body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
+    margin:0;z-index:5;font-size:10px}
+  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -71,7 +103,7 @@ button{font:inherit;cursor:pointer}
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
@@ -564,6 +596,30 @@ document.getElementById("sound").addEventListener("click",()=>{
  b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
  audioLabel();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
+
+/* ============ full screen ============ */
+// iPhone Safari has no element fullscreen, so the layout class does the isolating
+// work on its own and the API call is a best-effort extra where it is supported.
+const fsBtn=document.getElementById("fs");
+const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function setFocus(on){
+ document.body.classList.toggle("fs",on);
+ fsBtn.textContent=on?"EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.setAttribute("aria-pressed",String(on));
+}
+function toggleFullscreen(){
+ const on=!document.body.classList.contains("fs"), el=document.documentElement;
+ if(on){const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req)try{Promise.resolve(req.call(el)).catch(()=>{});}catch(e){}}
+ else{const ex=document.exitFullscreen||document.webkitExitFullscreen;
+  if(ex&&nativeFS())try{Promise.resolve(ex.call(document)).catch(()=>{});}catch(e){}}
+ setFocus(on);
+ clearKeys();
+}
+fsBtn.addEventListener("click",toggleFullscreen);
+// Leaving fullscreen by Esc or the system gesture drops the layout with it.
+for(const ev of ["fullscreenchange","webkitfullscreenchange"])
+ document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
 
 /* ============ menus ============ */
 function showMenu(title,sub,items,tip,grid){

@@ -23,14 +23,17 @@ function runtime(diff=3,seed=7){
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
     resume(){return Promise.resolve();}
   }
+  const cls=new Set();
+  const body={classList:{toggle(n,on){on?cls.add(n):cls.delete(n);},add(n){cls.add(n)},
+    remove(n){cls.delete(n)},contains:n=>cls.has(n)}};
   const box={console,setTimeout(){},
-    document:{hidden:false,getElementById:el,querySelectorAll(){return[]},addEventListener(){}},
+    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},addEventListener(){}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
   vm.createContext(box);vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run(`newGame(${diff},${seed});`);
-  return {run,notes};
+  return {run,notes,el,cls};
 }
 // Drop the explorer onto an empty stretch of floor with nothing else alive nearby.
 function clearRoom(r,floor=2){
@@ -205,4 +208,18 @@ test('A frame renders and the status line reports the descent',()=>{
   const r=runtime(2,3);
   r.run('render();updateStatus();');
   assert.match(r.run('document.getElementById("status").innerHTML'),/Depth 1\/\d+/);
+});
+
+test('Full screen isolates the controls, and the layout drops when fullscreen ends',()=>{
+  const r=runtime();
+  assert.equal(r.cls.has('fs'),false);
+  r.run('toggleFullscreen();');
+  assert.equal(r.cls.has('fs'),true,'the focus layout is applied');
+  assert.equal(r.el('fs').textContent,'EXIT FULL SCREEN');
+  r.run('toggleFullscreen();');
+  assert.equal(r.cls.has('fs'),false);
+  assert.equal(r.el('fs').textContent,'FULL SCREEN');
+  // Escape or the system gesture leaves native fullscreen; the layout follows it out.
+  r.run('toggleFullscreen();setFocus(false);');
+  assert.equal(r.cls.has('fs'),false);
 });

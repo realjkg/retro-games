@@ -24,6 +24,9 @@ generated fresh for every game, so no two raids are the same.
   digs through it.
 - **RUN** toggles between walking and running. **MENU** (Esc/P) pauses.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- **FULL SCREEN** hides the page around the game: the screen and the controls are all
+  that is left, the pads grow to fit the phone, and held sideways they move to either
+  side of the screen like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
 
 ## What the original is, and what this keeps
 
@@ -59,6 +62,9 @@ about fifteen keyboard commands:
   dynamite, depth, timer and score, plus a text status line above the screen for small displays.
 - The game pauses itself when the tab goes to the background, and short haptic taps (where the
   browser supports them) mark hits, blasts and the idol.
+- A full-screen mode that isolates the game and its controls. It asks for real fullscreen
+  where the browser has it and falls back to the same stripped layout where it does not,
+  which is what iPhone Safari needs, and it reshapes itself for a phone held sideways.
 
 ## What remains approximate
 
@@ -84,6 +90,6 @@ Run `node --test aztec/tests/tomb.test.cjs` from the repository root (or
 `node --test tests/tomb.test.cjs` from `aztec/`) with Node.js. The tests execute the game's own
 script with minimal DOM/audio stubs and cover tomb generation (seed determinism, one idol on the
 lowest level, difficulty scaling), crawling under walls, digging, dynamite, the low-versus-high
-weapon rule, ammunition, hazards, level transitions and the escape condition. They verify audio
+weapon rule, ammunition, hazards, level transitions, the escape condition and the full-screen toggle. They verify audio
 events and mute, not subjective sound authenticity. Browser smoke testing separately verifies
 menus, touch controls, rendering and audio activation.
