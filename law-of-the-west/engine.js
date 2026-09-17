@@ -282,7 +282,7 @@ function finish(G,why,how){
     "crimes solved":  G.clues.length+Math.max(0,G.safety),
     "interactions":   done+"/"+ENCOUNTERS.length,
     "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
-    "marksmanship":   acc==null?null:Math.round(acc*100),
+    "marksmanship":   acc==null?null:Math.round(acc*100),   // null when no shot was fired
     "authority":      clamp(50+G.arrests.length*14+G.settled.length*8-G.murders*40,0,100),
     "mercy":          clamp(100-G.kills.length*22-G.murders*50+G.disarms.length*8,0,100),
     "evidence":       G.clues.length

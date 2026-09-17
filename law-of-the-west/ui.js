@@ -218,7 +218,9 @@ function drawScene(now){
   ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-CELL*3,SCENE.w,CELL*3);
   ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
   ctx.textAlign="left"; ctx.textBaseline="middle";
-  ctx.fillText((enc?enc.title.toUpperCase():"GOLD GULCH")+"   "+(G.slot+1)+" OF "+ENCOUNTERS.length,
+  const counted=Math.min(G.slot+1,ENCOUNTERS.length);
+  ctx.fillText(G.phase==="summary"?"GOLD GULCH   SUNDOWN"
+    :((enc?enc.title.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+ENCOUNTERS.length),
     CELL,SCENE.h-CELL*1.5);
   ctx.textAlign="right";
   ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-CELL,SCENE.h-CELL*1.5);
@@ -296,10 +298,12 @@ function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
   lineEls[0].textContent="RATING "+o.rating+" OF 12 — "+o.verdict.toUpperCase();
-  const cats=Object.entries(o.categories);
-  lineEls[1].className="choice"; lineEls[1].textContent=cats.slice(0,3).map(([k,v])=>k+" "+v).join("   ");
-  lineEls[2].className="choice"; lineEls[2].textContent=cats.slice(3,5).map(([k,v])=>k+" "+v).join("   ");
-  lineEls[3].className="choice"; lineEls[3].textContent=cats.slice(5).map(([k,v])=>k+" "+v).join("   ");
+  const show=v=>v==null?"—":v;                    // a category nobody earned, not "null"
+  const cats=Object.entries(o.categories).map(([k,v])=>k+" · "+show(v));
+  lineEls[1].className="choice dim"; lineEls[1].textContent=cats.slice(0,3).join("     ");
+  lineEls[2].className="choice dim"; lineEls[2].textContent=cats.slice(3,5).join("     ");
+  lineEls[3].className="choice dim"; lineEls[3].textContent=cats.slice(5).join("     ")+
+    (o.clues.length?"     learned · "+o.clues.map(c=>c.replace(/_/g," ")).join(", "):"");
   lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
   scoreEl.textContent="Standing "+o.points;
   modeEl.textContent="SUNDOWN";
