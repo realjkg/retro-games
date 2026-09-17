@@ -39,8 +39,21 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
 .sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
 #overlay{position:absolute;inset:0;background:rgba(10,7,4,.94);display:flex;flex-direction:column;
+  justify-content:flex-end;
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
+/* Over the title art the overlay is only a scrim, so the tomb shows through. */
+#overlay.splash{background:linear-gradient(rgba(6,5,12,0) 0%,rgba(6,5,12,0) 46%,rgba(6,5,12,.9) 68%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:15px;margin-bottom:2px;text-shadow:0 1px 3px #000}
+#overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(30,22,14,.92);
+  border-color:#6b5533;color:#f1e6d2}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#1a1205}
+#overlay.splash .diffgrid .menuitem{width:auto}
+#overlay.splash .sub,#overlay.splash small.tip{color:#d9c9a8;text-shadow:0 1px 2px #000}
+#overlay.splash small.tip{font-size:10px}
+#overlay.splash.card{background:linear-gradient(rgba(6,5,12,.62),rgba(6,5,12,.9) 58%);
+  justify-content:center}
 h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
 .sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:360px;line-height:1.45}
 .menuitem{width:min(300px,86%);padding:11px;border:1px solid var(--line);border-radius:10px;
@@ -258,7 +271,7 @@ const dieSound  =()=>tone(300,40,.9,"sawtooth",.55);
 function buzz(ms){if(typeof navigator!=="undefined"&&navigator.vibrate)try{navigator.vibrate(ms);}catch(e){}}
 
 /* ============ state ============ */
-const G={phase:"menu",diff:3,seed:1,levels:[],depth:0,L:null,hero:null,time:0,score:0,
+const G={phase:"menu",diff:3,seed:1,levels:[],depth:0,L:null,hero:null,time:0,score:0,uiT:0,menuTitle:"",
  msg:"",msgT:0,menu:null,dig:null,shake:0,cam:{x:0,y:0},flash:0};
 const keys={};
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
@@ -671,9 +684,12 @@ function updatePads(){
 }
 
 /* ============ menus ============ */
-function showMenu(title,sub,items,tip,grid){
+function showMenu(title,sub,items,tip,grid,splash){
  G.menu={items,sel:0};
- ov.innerHTML=`<h1>${title}</h1><p class="sub">${sub}</p>`+
+ ov.classList.toggle("splash",!!splash);
+ ov.classList.toggle("card",!!(splash&&title));
+ G.menuTitle=title||"";
+ ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
   (grid?`<div class="diffgrid">`:"")+
   items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
   (grid?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
@@ -690,17 +706,17 @@ ov.addEventListener("click",e=>{
  if(!b||!G.menu)return;
  G.menu.sel=+b.dataset.i;chooseMenu();});
 function mainMenu(){
- G.phase="menu";
- showMenu("AZTEC","Tomb of Quetzalcoatl — recover the jade idol and climb back out.",
+ G.phase="menu";                       // the canvas draws the title, so the card carries none
+ showMenu("","",
   [{label:"Enter the tomb",fn:diffMenu},{label:"How to play",fn:helpMenu}],
-  "A remake of the 1982 Datamost action-adventure, rebuilt for touch screens.");
+  "After Aztec, Paul Stephenson / Datamost, 1982. Rebuilt for touch screens.",false,true);
 }
 function diffMenu(){
  const items=[];
  for(let i=1;i<=8;i++)items.push({label:String(i),fn:()=>newGame(i)});
  showMenu("Choose your difficulty","1 is a quiet tomb, 8 is a crowded one. Deeper tombs and a "+
   "bigger idol bounty come with the harder settings.",items,
-  "The tomb is generated fresh every game.",true);
+  "The tomb is generated fresh every game.",true,true);
 }
 function helpMenu(back){
  showMenu("The controls",
@@ -859,9 +875,68 @@ function drawHUD(){
  if(G.msgT>0){c.fillStyle="rgba(10,8,4,.8)";c.fillRect(0,VH-13,W,13);
   c.fillStyle="#e0b357";c.fillText(G.msg,4,VH-11);}
 }
+// Title card: a moonlit step pyramid with the torches still burning, the idol
+// waiting at the top of the stair, and someone at the foot of it in a hat.
+function drawTitle(){
+ const c=ctx, W=VW, H=VH, t=G.uiT;
+ const sky=c.createLinearGradient(0,0,0,H);
+ sky.addColorStop(0,"#080814");sky.addColorStop(.5,"#1a1026");sky.addColorStop(1,"#30190a");
+ c.fillStyle=sky;c.fillRect(0,0,W,H);
+ for(let i=0;i<46;i++){                                   // stars, faintly breathing
+  const x=(i*79)%W, y=(i*37)%Math.round(H*.52);
+  c.fillStyle="rgba(255,242,206,"+(.2+.45*(.5+.5*Math.sin(t*1.7+i))).toFixed(2)+")";
+  c.fillRect(x,y,1,1);
+ }
+ c.fillStyle="#efe3bb";c.beginPath();c.arc(W-42,28,9,0,7);c.fill();   // moon
+ c.fillStyle="#1b1226";c.beginPath();c.arc(W-38,25,9,0,7);c.fill();
+ const base=Math.round(H*.72), top=Math.round(H*.34), cx=Math.round(W/2), half=Math.round(W*.3);
+ c.fillStyle="#120d1c";                                    // jungle line behind the ruin
+ for(let x=0;x<W;x+=9)c.fillRect(x,base-22-((x*7)%9),9,26);
+ const steps=7, sh=(base-top)/steps;
+ for(let i=0;i<steps;i++){                                 // the pyramid, step by step
+  const y=base-sh*(i+1), hw=Math.round(half*(1-i/steps*.68));
+  c.fillStyle=i%2?"#4b3924":"#43321f";c.fillRect(cx-hw,y,hw*2,Math.ceil(sh));
+  c.fillStyle="rgba(0,0,0,.3)";c.fillRect(cx-hw,y+Math.ceil(sh)-2,hw*2,2);
+  c.fillStyle="rgba(255,220,160,.06)";c.fillRect(cx-hw,y,hw*2,1);
+ }
+ c.fillStyle="#5c452b";c.fillRect(cx-13,top,26,base-top);  // the great stair
+ for(let y=top;y<base;y+=4){c.fillStyle="rgba(0,0,0,.32)";c.fillRect(cx-13,y,26,1);}
+ c.fillStyle="#3b2c1b";c.fillRect(cx-20,top-14,40,15);     // temple at the summit
+ c.fillStyle="#0b0a12";c.fillRect(cx-6,top-11,12,12);      // its black doorway
+ const pulse=.55+.45*Math.sin(t*2.2);                      // the idol, waiting in it
+ c.fillStyle="rgba(79,211,154,"+(.18*pulse).toFixed(2)+")";c.fillRect(cx-12,top-17,24,20);
+ c.fillStyle="#4fd39a";c.fillRect(cx-2,top-8,4,6);c.fillRect(cx-3,top-10,6,2);
+ const ty=Math.round(H*.5);                                // torches flanking the stair
+ for(const tx of [cx-30,cx+28]){
+  const f=Math.sin(t*9+tx)*.5+Math.sin(t*13+tx)*.5;
+  c.fillStyle="#3a2a18";c.fillRect(tx,ty,2,14);
+  c.fillStyle="rgba(255,168,64,"+(.17+.07*f).toFixed(2)+")";
+  c.beginPath();c.arc(tx+1,ty-2,12+f,0,7);c.fill();
+  c.fillStyle="#ffc24a";c.fillRect(tx-1,ty-6-Math.round(f),4,5);
+  c.fillStyle="#fff0b0";c.fillRect(tx,ty-5-Math.round(f),2,2);
+ }
+ const hx=cx-6, hy=Math.round(H*.55);                      // and someone already climbing
+ c.fillStyle="#2f2318";c.fillRect(hx,hy-18,10,18);
+ c.fillStyle="#241a12";c.fillRect(hx-3,hy-20,16,2);c.fillRect(hx+2,hy-24,7,4);
+ c.fillStyle="rgba(255,196,110,.55)";                       // torchlight down one side
+ c.fillRect(hx-3,hy-20,16,1);c.fillRect(hx+9,hy-17,1,16);c.fillRect(hx+10,hy-10,3,2);
+ if(G.menuTitle){c.textAlign="left";return;}   // a menu with its own headline keeps the art bare
+ c.fillStyle="rgba(10,8,16,.4)";c.fillRect(0,0,W,Math.round(H*.3));    // sky behind the title
+ const big=Math.max(22,Math.round(W/11)), letters="AZTEC", gap=big*.82;
+ c.textBaseline="top";c.textAlign="center";
+ c.font="bold "+big+"px ui-rounded,Helvetica,Arial,sans-serif";
+ letters.split("").forEach((ch,i)=>{
+  const x=cx+(i-(letters.length-1)/2)*gap, y=Math.round(H*.07);
+  c.fillStyle="#1d1206";c.fillText(ch,x+2,y+2);
+  c.fillStyle="#e0b357";c.fillText(ch,x,y);
+ });
+ if(!G.menuTitle){c.font="8px monospace";c.fillStyle="#cdb98d";
+  c.fillText("TOMB OF QUETZALCOATL",cx,Math.round(H*.07)+big+3);}
+ c.textAlign="left";
+}
 function render(){
  const c=ctx;
- if(G.phase==="menu"||!G.L||!G.hero){c.fillStyle="#0c0904";c.fillRect(0,0,VW,VH);return;}
+ if(G.phase==="menu"||!G.L||!G.hero){drawTitle();return;}
  const h=G.hero;
  G.cam.x=clamp(h.x+h.w/2-VW/2,0,Math.max(0,MAPW*TS-VW));
  G.cam.y=clamp(h.y+h.h/2-VH/2,0,Math.max(0,MAPH*TS-VH));
@@ -914,6 +989,7 @@ let last=0,frame=0;
 function loop(now){
  const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
  if(!(frame++%20))fit();
+ G.uiT+=dt;
  if(G.phase==="play")stepGame(dt);
  render();updateStatus();updatePads();
  requestAnimationFrame(loop);
