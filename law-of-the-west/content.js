@@ -106,14 +106,25 @@ const ENCOUNTERS=[
   arrive:["crowd"], endings:[]}
 ];
 
-/* One geometry for the drawing and for the shooting, so what the crosshair is
- * over is what the bullet finds. Pixels in the 320x200 scene the page draws. */
+/* ============ the pixel grid ============
+ * Everything in the scene is built out of blocks on one coarse grid, the way
+ * the machine did it: a 4-pixel cell inside a 320x200 screen, every figure a
+ * 12x21 grid of those cells, nothing drawn at a fraction of one. The hitboxes
+ * below are read off the same grid, so what the crosshair is over is what the
+ * bullet finds.
+ */
 const SCENE={w:320,h:200};
-const FIG={cx:147,ground:170,handX:109};
+const CELL=4;                            // one "pixel" of the machine
+const SPR={w:16,h:26};                   // a figure, in cells
+const FIG={cx:148,ground:172};           // where he stands, snapped to the grid
+const SPRX=FIG.cx-(SPR.w/2)*CELL;        // 124: his left edge
+const SPRY=FIG.ground-SPR.h*CELL;        // 86: the top of his hat
+const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
+  w:(c1-c0+1)*CELL,h:(r1-r0+1)*CELL});
 const HITBOX={
-  lethal:{x:130,y:94,w:34,h:62},        // head and centre mass: a killing shot
-  weapon:{x:95,y:118,w:26,h:18},        // the gun at his hip, while it is holstered
-  weaponRaised:{x:95,y:90,w:26,h:30}    // and once his hand has come up with it
+  lethal:      cellsBox(4,5,11,18),      // head and centre mass: a killing shot
+  weapon:      cellsBox(0,17,3,20),      // the gun at his hip while it is holstered
+  weaponRaised:cellsBox(0,11,3,14)       // and once his hand has come up with it
 };
 
 /* ============ dialogue ============

@@ -487,14 +487,25 @@ const ENCOUNTERS=[
   arrive:["crowd"], endings:[]}
 ];
 
-/* One geometry for the drawing and for the shooting, so what the crosshair is
- * over is what the bullet finds. Pixels in the 320x200 scene the page draws. */
+/* ============ the pixel grid ============
+ * Everything in the scene is built out of blocks on one coarse grid, the way
+ * the machine did it: a 4-pixel cell inside a 320x200 screen, every figure a
+ * 12x21 grid of those cells, nothing drawn at a fraction of one. The hitboxes
+ * below are read off the same grid, so what the crosshair is over is what the
+ * bullet finds.
+ */
 const SCENE={w:320,h:200};
-const FIG={cx:147,ground:170,handX:109};
+const CELL=4;                            // one "pixel" of the machine
+const SPR={w:16,h:26};                   // a figure, in cells
+const FIG={cx:148,ground:172};           // where he stands, snapped to the grid
+const SPRX=FIG.cx-(SPR.w/2)*CELL;        // 124: his left edge
+const SPRY=FIG.ground-SPR.h*CELL;        // 86: the top of his hat
+const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
+  w:(c1-c0+1)*CELL,h:(r1-r0+1)*CELL});
 const HITBOX={
-  lethal:{x:130,y:94,w:34,h:62},        // head and centre mass: a killing shot
-  weapon:{x:95,y:118,w:26,h:18},        // the gun at his hip, while it is holstered
-  weaponRaised:{x:95,y:90,w:26,h:30}    // and once his hand has come up with it
+  lethal:      cellsBox(4,5,11,18),      // head and centre mass: a killing shot
+  weapon:      cellsBox(0,17,3,20),      // the gun at his hip while it is holstered
+  weaponRaised:cellsBox(0,11,3,14)       // and once his hand has come up with it
 };
 
 /* ============ dialogue ============
@@ -1029,98 +1040,202 @@ const sceneGeom=()=>{
   return {sc,ox:(cv.width-SCENE.w*sc)/2,oy:(cv.height-SCENE.h*sc)/2};
 };
 
-/* ---- the town, drawn as flat blocks in the machine's own manner ---- */
-const PAL={sky:"#e8b46a",sky2:"#c9813f",dust:"#c49a63",road:"#a87f4e",
-  wood:"#6b4a2a",wood2:"#54381f",dark:"#2a1c10",glass:"#3b2a18",sign:"#e8cf6a",
-  skin:"#e0ac7a",steel:"#9aa0a8",cuff:"#4a5d80",ink:"#f2e6d2"};
+/* ---- the town and the people, built out of blocks ---- *
+ * Every figure is a 12x21 grid of 4-pixel cells, written out as rows of
+ * characters and painted cell by cell. Nothing is drawn at a fraction of a
+ * cell, so the edges stay hard the way a sprite's do. The hitboxes in
+ * content.js are read off this same grid.
+ *   . nothing   H hat   F face   B dark (eyes, belt, boots)   C coat
+ *   K coat shadow   L legs   A skin   G gunmetal   S star   W linen        */
+const BODY=[
+  "......HHHH......",
+  ".....HHHHHH.....",
+  "....HHHHHHHH....",
+  "...HHHHHHHHHH...",
+  "..HHHHHHHHHHHH..",
+  "....FFFFFFFF....",
+  "....FFFFFFFF....",
+  "....FBFFFFBF....",
+  "....FFFFFFFF....",
+  ".....FFFFFF.....",
+  "...CCCCCCCCCC...",
+  "..CCCCCCCCCCCC..",
+  "..CCCCCKKCCCCC..",
+  "..CCCCCKKCCCCC..",
+  "..CCCCCCCCCCCC..",
+  "..CCCCCCCCCCCC..",
+  "..CCCCCCCCCCCC..",
+  "..CCCCCCCCCCCC..",
+  "..BBBBBBBBBBBB..",
+  "...CCCCCCCCCC...",
+  "....LLL..LLL....",
+  "....LLL..LLL....",
+  "....LLL..LLL....",
+  "....LLL..LLL....",
+  "....LLL..LLL....",
+  "...BBBB.BBBB...."];
+/* The gun arm is its own overlay so the weapon hitbox can follow it up. */
+const ARM={
+  0:{10:"..C.............",11:"..C.............",12:"..C.............",
+     13:"..C.............",14:"..C.............",15:"..C.............",
+     16:"..A.............",17:".AA.............",18:"GGA.............",
+     19:"GG..............",20:"GG..............",21:"..B............."},
+  1:{10:"..C.............",11:".AA.............",12:"GGA.............",
+     13:"GG..............",14:".AA.............",15:"..C............."},
+  2:{11:"..A.............",12:"GGGA............",13:"GGGA............",
+     14:"..C.............",15:"..C............."}};
+/* What makes one visitor look unlike another, on the same frame. */
+const VARIANT={
+  skirt:{19:"...CCCCCCCCCC...",20:"..LLLLLLLLLLLL..",21:"..LLLLLLLLLLLL..",
+         22:".LLLLLLLLLLLLLL.",23:".LLLLLLLLLLLLLL.",24:".LLLLLLLLLLLLLL.",
+         25:"...BBB....BBB...",
+         0:"......HHHH......",1:".....HHHHHH.....",2:".....HHHHHH.....",
+         3:"....HHHHHHHH....",4:"...HHHHHHHHHH..."},
+  collar:{10:"...CCCWWWWCCC...",4:"..HHHHHHHHHHHH.."},
+  cap:{0:"................",1:"................",2:"......HHHH......",
+       3:".....HHHHHH.....",4:"....HHHHHHHH...."},
+  flathat:{0:"................",1:"....HHHHHHHH....",2:"...HHHHHHHHHH...",
+           3:"..HHHHHHHHHHHH..",4:".HHHHHHHHHHHHHH."}};
 const LOOK={
-  deputy:{coat:"#3f4a60",hat:"#22293a"}, rainmaker:{coat:"#2e2a2c",hat:"#191718"},
-  surveyor:{coat:"#5a6a5a",hat:"#e8dcc0"}, widow:{coat:"#4a3a44",hat:"#2a2028"},
-  tuner:{coat:"#6a5a3a",hat:"#3a2f1e"},   locket:{coat:"#9a7a4a",hat:"#7a5a30"}};
-function facade(name){
-  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,26,SCENE.w,86);
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,26,SCENE.w,8);
-  for(let i=0;i<9;i++){ctx.fillStyle="rgba(0,0,0,.08)";ctx.fillRect(0,38+i*9,SCENE.w,2);}
-  ctx.fillStyle=PAL.glass; ctx.fillRect(28,52,54,44); ctx.fillRect(238,52,54,44);
-  ctx.fillStyle="rgba(232,207,106,.14)"; ctx.fillRect(30,54,50,40);
-  ctx.fillStyle=PAL.dark;  ctx.fillRect(140,48,42,64);
-  ctx.fillStyle=PAL.sign;  ctx.font="700 11px monospace";
-  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(name,SCENE.w/2,32);
-}
-/* The visitor, facing the camera. Hitboxes in content.js follow this drawing. */
-function visitor(c,armState){
-  const look=LOOK[c.id]||LOOK.deputy, cx=FIG.cx, ground=FIG.ground;
-  ctx.fillStyle="rgba(60,40,22,.35)";
-  ctx.beginPath();ctx.ellipse(cx,ground+2,20,5,0,0,7);ctx.fill();
-  ctx.fillStyle=look.coat; ctx.fillRect(cx-17,ground-58,34,44);       // torso
-  ctx.fillRect(cx-15,ground-16,12,16); ctx.fillRect(cx+3,ground-16,12,16);
-  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-16,ground-4,13,5); ctx.fillRect(cx+3,ground-4,13,5);
-  ctx.fillStyle=PAL.skin; ctx.fillRect(cx-8,ground-76,16,19);         // face
-  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-5,ground-70,4,3); ctx.fillRect(cx+2,ground-70,4,3);
-  ctx.fillStyle=look.hat; ctx.fillRect(cx-19,ground-78,38,5); ctx.fillRect(cx-10,ground-88,20,11);
-  ctx.fillStyle=PAL.dark; ctx.fillRect(cx-17,ground-22,34,5);         // gunbelt
-  const arm=armState||0;                                               // 0 hanging, 1 rising, 2 levelled
-  const hx=FIG.handX, hy=ground-(arm===0?46:arm===1?62:74);
-  ctx.fillStyle=look.coat; ctx.fillRect(cx-25,ground-56,9,arm===0?30:18);
-  ctx.fillStyle=PAL.skin;  ctx.fillRect(hx-5,hy,11,8);
-  if(c.armed){ctx.fillStyle=PAL.steel;ctx.fillRect(hx-13,hy+1,10,5);
-    ctx.fillStyle=PAL.dark;ctx.fillRect(hx-4,hy+5,5,5);}
-}
-/* Our own side of it: the sheriff's right arm and gun across the low corner. */
-function ownGun(out){
-  const y=SCENE.h-(out?118:88);          // the sheriff's own arm, inside the frame
-  ctx.fillStyle=PAL.cuff; ctx.fillRect(SCENE.w-104,y+22,64,30);
-  ctx.fillStyle=PAL.skin; ctx.fillRect(SCENE.w-118,y+16,30,18);
-  if(out){
-    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-150,y+8,42,9);
-    ctx.fillStyle=PAL.dark;  ctx.fillRect(SCENE.w-126,y+17,12,14);
-    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-134,y+4,14,6);
-  } else {
-    ctx.fillStyle=PAL.dark;  ctx.fillRect(SCENE.w-120,y+30,22,16);   // holstered
-    ctx.fillStyle=PAL.steel; ctx.fillRect(SCENE.w-116,y+26,10,6);
+  deputy:  {C:"#41506b",K:"#33405a",H:"#20283a",L:"#2b3448",S:true},
+  rainmaker:{C:"#241f22",K:"#19161a",H:"#141215",L:"#1d1a1d",variant:"collar"},
+  surveyor:{C:"#55654f",K:"#44513f",H:"#d8cfb4",L:"#3f4a3c",variant:"flathat"},
+  widow:   {C:"#4a3a44",K:"#3a2c34",H:"#2a2028",L:"#33262e",variant:"skirt"},
+  tuner:   {C:"#6a5a3a",K:"#544628",H:"#3a2f1e",L:"#4a3f28",variant:"flathat"},
+  locket:  {C:"#9a7a4a",K:"#7d6138",H:"#7a5a30",L:"#5f4c2e",variant:"cap"}};
+const PAL={sky:["#f2c988","#e8b46a","#dda059","#c9813f"],hill:"#9c6a3c",hill2:"#8a5c33",
+  dust:"#c49a63",road:"#a87f4e",rut:"#9a713f",wood:"#6b4a2a",wood2:"#54381f",
+  dark:"#2a1c10",glass:"#3b2a18",lit:"#e8cf6a",sign:"#e8cf6a",
+  skin:"#e0ac7a",steel:"#9aa0a8",ink:"#f2e6d2",cuff:"#41506b",star:"#e8cf6a",linen:"#e8e0cc"};
+function cellColour(ch,look){
+  switch(ch){
+    case "H":return look.H; case "C":return look.C; case "K":return look.K||look.C;
+    case "L":return look.L||look.C; case "F":return PAL.skin; case "A":return PAL.skin;
+    case "B":return PAL.dark;  case "G":return PAL.steel;
+    case "S":return PAL.star;  case "W":return PAL.linen;
+    default:return null;
   }
 }
+/* Paint a grid of rows at a cell origin. Rows may be sparse (an overlay). */
+function blocks(rows,x0,y0,look){
+  for(const key of Object.keys(rows)){
+    const r=+key, line=rows[r];
+    for(let c=0;c<line.length;c++){
+      const col=cellColour(line[c],look);
+      if(!col)continue;
+      ctx.fillStyle=col;
+      ctx.fillRect(x0+c*CELL,y0+r*CELL,CELL,CELL);
+    }
+  }
+}
+function visitor(enc,armState){
+  const look=LOOK[enc.id]||LOOK.deputy;
+  ctx.fillStyle="rgba(60,40,22,.30)";                     // his shadow, also in cells
+  for(let c=3;c<13;c++)ctx.fillRect(SPRX+c*CELL,SPRY+SPR.h*CELL,CELL,CELL);
+  const body=Object.fromEntries(BODY.map((line,i)=>[i,line]));
+  if(look.variant)Object.assign(body,VARIANT[look.variant]);
+  blocks(body,SPRX,SPRY,look);
+  blocks(ARM[armState]||ARM[0],SPRX,SPRY,look);
+  if(look.S)blocks({14:"....S..........."},SPRX,SPRY,look);   // a star, on the one who wears one
+}
+/* The sheriff's own hand and gun, across the low corner, on the same grid. */
+/* The sheriff's own forearm and revolver across the low right corner: his hand
+ * is the only part of him the player ever sees. 16 cells wide, 10 tall. */
+const OWN={
+  holstered:["..............CC",
+             ".............CCC",
+             "..........CCCCCC",
+             ".......CCCAAAACC",
+             "....CCCCAAAAAACC",
+             "...CCCCAAAAAAACC",
+             "...BBBGGGAAAACCC",
+             "...BBGGGGGBBBBBB",
+             "....BBBBBBBBBB..",
+             ".....BBBBBBBB..."],
+  drawn:    ["BBBB............",
+             "GGGGBB..........",
+             "GGGGGGBB........",
+             "BGGGGGGGBB......",
+             ".BBBGGGGGBB.....",
+             "...BAAAGGGGB....",
+             "..BAAAAAAGGB....",
+             "..BCCAAAAAAAB...",
+             "...BCCCCAAAAAB..",
+             "....BCCCCCCCCCB."]};
+function ownGun(out){
+  const rows=Object.fromEntries((out?OWN.drawn:OWN.holstered).map((l,i)=>[i,l]));
+  const x0=SCENE.w-16*CELL, y0=SCENE.h-(out?14:13)*CELL;
+  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff});
+}
+/* A reticle of blocks, with a dark cell behind every light one so it reads
+ * over a white shirt or a black doorway alike. */
+const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
 function crosshair(){
-  const a=G.aim, x=a.x*SCENE.w, y=a.y*SCENE.h;   // the same mapping boxAt uses
-  ctx.strokeStyle=PAL.ink; ctx.lineWidth=1.4;
-  ctx.beginPath();ctx.arc(x,y,9,0,7);ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x-15,y);ctx.lineTo(x-4,y); ctx.moveTo(x+4,y);ctx.lineTo(x+15,y);
-  ctx.moveTo(x,y-15);ctx.lineTo(x,y-4); ctx.moveTo(x,y+4);ctx.lineTo(x,y+15);
-  ctx.stroke();
+  const a=G.aim;
+  const x=Math.round(a.x*SCENE.w/CELL)*CELL, y=Math.round(a.y*SCENE.h/CELL)*CELL;
+  ctx.fillStyle="rgba(20,14,8,.85)";
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL+1,y+dy*CELL+1,CELL,CELL);
+  ctx.fillStyle=G.duel&&G.duel.drawn?"#ffe9a8":PAL.ink;
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL,y+dy*CELL,CELL,CELL);
+}
+const grid=v=>Math.round(v/CELL)*CELL;                     // nothing lands off the grid
+function facade(name){
+  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(28),SCENE.w,grid(84));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(28),SCENE.w,CELL*2);
+  for(let y=grid(40);y<grid(112);y+=CELL*3){
+    ctx.fillStyle="rgba(0,0,0,.10)"; ctx.fillRect(0,y,SCENE.w,CELL);
+  }
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(52),grid(48),grid(44));
+  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(56),grid(40),grid(36));
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(52),grid(48),grid(32));
+  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(48),grid(40),grid(64));
+  ctx.fillStyle=PAL.sign;  ctx.font="700 12px monospace";
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(name,SCENE.w/2,grid(34));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(112),SCENE.w,CELL*2);   // boardwalk
+  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(56),CELL,grid(56));}
 }
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
-  const c=who(G);
-  const sky=["#f2c988","#e8b46a","#dda059","#c9813f"];
-  for(let i=0;i<4;i++){ctx.fillStyle=sky[i];ctx.fillRect(0,i*7,SCENE.w,7);}
-  ctx.fillStyle=PAL.dust; ctx.fillRect(0,26,SCENE.w,SCENE.h-26);
-  if(c)facade(c.place||"STREET");
-  ctx.fillStyle=PAL.road; ctx.fillRect(0,112,SCENE.w,SCENE.h-112);
-  if(c&&build.rows>=6){
+  for(let i=0;i<4;i++){ctx.fillStyle=PAL.sky[i];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
+  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(32),SCENE.w,grid(12));
+  for(let i=0;i<6;i++){                                    // hills, stepped in cells
+    ctx.fillStyle=PAL.hill2;
+    for(let k=0;k<4;k++)
+      ctx.fillRect(grid(i*56+k*CELL*2),grid(44)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
+  }
+  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(44),SCENE.w,SCENE.h-grid(44));
+  const enc=who(G);
+  if(enc)facade(enc.place||"STREET");
+  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(116),SCENE.w,SCENE.h-grid(116));
+  for(let i=0;i<26;i++){                                   // ruts, one cell each
+    ctx.fillStyle=i%3?PAL.rut:"#cdaa7a";
+    ctx.fillRect(grid((i*47)%SCENE.w),grid(124+((i*37)%56)),CELL,CELL);
+  }
+  if(enc&&build.rows>=6){
     const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
     if(G.outcome==="killed_him"||G.outcome==="murder"){
-      ctx.save();ctx.translate(SCENE.w*0.46,170);ctx.rotate(Math.min(1.4,bodyFall));
-      ctx.translate(-SCENE.w*0.46,-170);visitor(c,0);ctx.restore();
-    } else visitor(c,arm);
+      ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(Math.min(1.4,bodyFall));
+      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,0);ctx.restore();
+    } else visitor(enc,arm);
   }
   ownGun(G.mode==="gun");
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,242,192,"+Math.min(1,flash*6)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
-  // the block-load cadence: the scene arrives in rows before anything is live
-  if(build.rows<10){
+  if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
-  ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-12,SCENE.w,12);
+  ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-CELL*3,SCENE.w,CELL*3);
   ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
   ctx.textAlign="left"; ctx.textBaseline="middle";
-  ctx.fillText((c?c.title.toUpperCase():"GOLD GULCH")+"   "+(G.slot+1)+" OF "+ENCOUNTERS.length,5,SCENE.h-6);
+  ctx.fillText((enc?enc.title.toUpperCase():"GOLD GULCH")+"   "+(G.slot+1)+" OF "+ENCOUNTERS.length,
+    CELL,SCENE.h-CELL*1.5);
   ctx.textAlign="right";
-  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-5,SCENE.h-6);
+  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-CELL,SCENE.h-CELL*1.5);
   ctx.restore();
 }
 
