@@ -237,3 +237,22 @@ test('8h. full screen mode toggles from the control and the g key', {skip:jsdomM
   assert.equal(p.ev('gameMode'),true,'starting the day dropped game mode');
   assert.equal(p.G().phase,'dialogue');
 });
+
+test('8j. nothing a character says can be clipped or hidden behind a scroll', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const css=HTML.slice(HTML.indexOf('<style>'),HTML.indexOf('</style>'));
+  // the words wrap, the box can scroll as a last resort, and the type is scalable
+  assert.match(css,/overflow-wrap:break-word/,'the dialogue does not wrap long words');
+  assert.match(css,/#panel\{[^}]*overflow-y:auto/,'the panel cannot scroll as a fallback');
+  assert.match(css,/--dlg:1/,'there is no dialogue scale to fit with');
+  assert.match(css,/\.npc\{[^}]*font-size:calc\(14px \* var\(--dlg\)\)/,'the NPC line ignores the scale');
+  assert.match(css,/\.choice\{[^}]*font-size:calc\(13px \* var\(--dlg\)\)/,'the choices ignore the scale');
+  assert.ok(!/\.npc\{[^}]*min-height/.test(css),'the NPC line still has a fixed height to clip against');
+  // and the fitter runs on every repaint without throwing where there is no layout
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  assert.equal(typeof p.ev('fitText'),'function','there is no text fitter');
+  p.ev('fitText()');
+  const scale=p.el('panel').style.getPropertyValue('--dlg');
+  assert.ok(scale===''||(+scale>=0.7&&+scale<=1),'the dialogue scale went out of range: '+scale);
+  assert.deepEqual(p.errors,[]);
+});

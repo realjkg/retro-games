@@ -20,7 +20,7 @@ function fit(){
   cv.width=Math.max(160,Math.round(r.width*d));
   cv.height=Math.max(100,Math.round(r.height*d));
 }
-addEventListener("resize",fit);
+addEventListener("resize",()=>{fit();paint();});
 const sceneGeom=()=>{
   const sc=Math.min(cv.width/SCENE.w,cv.height/SCENE.h);
   return {sc,ox:(cv.width-SCENE.w*sc)/2,oy:(cv.height-SCENE.h*sc)/2};
@@ -225,7 +225,20 @@ function drawScene(now){
   ctx.restore();
 }
 
-/* ---- the five-line matrix ---- */
+/* ---- the five-line matrix ---- *
+ * Nothing a character says may be cut off or hidden behind a scroll, so after
+ * every repaint the dialogue type is stepped down until all five lines fit the
+ * box they are in. The floor is 70%: below that the panel scrolls rather than
+ * becoming unreadable. */
+const DLG_STEPS=[1,0.95,0.9,0.85,0.8,0.75,0.7];
+function fitText(){
+  if(!panel||!panel.style||typeof panel.scrollHeight!=="number")return;
+  for(const scale of DLG_STEPS){
+    panel.style.setProperty("--dlg",String(scale));
+    if(panel.scrollHeight<=panel.clientHeight+1)return;
+  }
+}
+
 function beat(){const e=who(G);return e?turnFor(e.id,G.turn):null;}
 function paint(){
   const b=beat(), live=build.rows>=10;
@@ -242,7 +255,7 @@ function paint(){
     lineEls[2].className="choice dim";
     for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
-    return;
+    fitText(); return;
   }
   lineEls[0].className="npc";
   if(G.phase==="resolve"){
@@ -252,7 +265,7 @@ function paint(){
     for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
     scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;
     modeEl.textContent=who(G)?who(G).title.toUpperCase():"";
-    return;
+    fitText(); return;
   }
   lineEls[0].textContent=!b?"["+(who(G)?who(G).title:"this encounter")+" is not written yet]"
     :(react||said||b.say);
@@ -266,6 +279,7 @@ function paint(){
   }
   modeEl.textContent=G.mode==="gun"?"GUN DRAWN — down to holster":"TALKING — up to draw";
   scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;
+  fitText();
 }
 const OUTCOME_LINES={
   disarmed:"His gun is in the dust and his wrists are in irons.",
@@ -289,6 +303,7 @@ function paintSummary(){
   lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
   scoreEl.textContent="Standing "+o.points;
   modeEl.textContent="SUNDOWN";
+  fitText();
 }
 
 /* ---- full game mode ---- */

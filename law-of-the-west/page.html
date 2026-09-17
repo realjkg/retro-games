@@ -15,6 +15,7 @@
 :root{
   --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
   --gold:#d8a441; --line:#40311f; --npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+  --dlg:1;
 }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
@@ -44,11 +45,15 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
   pointer-events:none}
 #bottom{flex:1 1 50%;min-height:0;display:flex;flex-direction:column;gap:4px;padding:6px;
   background:var(--panel);border-top:2px solid var(--line)}
-#panel{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0}
-.npc{color:var(--npc);font-size:14px;line-height:1.3;padding:4px 6px;min-height:2.6em;
+/* The words must never be cut off: every line sizes to its own content, and the
+   panel scrolls as a last resort rather than clipping what a character said. */
+#panel{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.npc,.choice{overflow-wrap:break-word;word-break:normal;hyphens:auto}
+.npc{color:var(--npc);font-size:calc(14px * var(--dlg));line-height:1.35;padding:4px 6px;flex:0 0 auto;
   border-bottom:1px solid var(--line)}
-.choice{font-size:13px;line-height:1.25;padding:5px 6px;border:1px solid transparent;
-  border-radius:6px;color:var(--ink);cursor:pointer}
+.choice{font-size:calc(13px * var(--dlg));line-height:1.3;padding:5px 6px;border:1px solid transparent;
+  border-radius:6px;color:var(--ink);cursor:pointer;flex:0 0 auto}
 .choice.sel{background:var(--sel);color:var(--selink);font-weight:700;border-color:var(--sel)}
 .choice.dim{opacity:.45}
 .choice.locked{opacity:.5;font-style:italic}
@@ -62,6 +67,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 .abtn{width:58px;height:58px;border-radius:50%;font-size:12px;font-weight:700}
 .sbtn{padding:6px 9px;font-size:11px;min-height:32px}
 #meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dim)}
+@media (max-height:700px){ #meta{display:none} }
 
 /* ---- full game mode ---- *
  * The page is already one screenful; game mode takes the browser's chrome with
@@ -73,8 +79,9 @@ body.gamemode #app{padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 body.gamemode #top{flex:1 1 46%}
 body.gamemode #bottom{flex:1 1 54%;border-top-width:3px}
 body.gamemode #meta{display:none}
-body.gamemode .npc{font-size:15px}
-body.gamemode .choice{font-size:14px;padding:7px 8px}
+body.gamemode .npc{font-size:calc(15px * var(--dlg))}
+body.gamemode .choice{font-size:calc(14px * var(--dlg));padding:7px 8px}
+
 body.gamemode .dpad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,42px)}
 body.gamemode .abtn{width:68px;height:68px}
 @media (orientation:landscape){
