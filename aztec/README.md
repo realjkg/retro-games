@@ -72,6 +72,9 @@ about fifteen keyboard commands:
 - The drawing surface takes the shape of the box it is in rather than a fixed 320x192, so the
   extra room in full screen shows more tomb instead of black bars.
 - Buttons that name what they are about to do, so nothing on the pad is a guess.
+- Nothing on the page is selectable text: holding a control holds the control, rather than
+  raising iOS Safari's selection handles and Copy / Look Up callout over the pad. A button
+  also lets go when the finger slides off it or the browser swallows the release.
 - A title screen rather than a menu on a black rectangle: a moonlit step pyramid with the
   torches still burning, the jade idol glowing in the temple doorway and someone already on
   the stair, drawn on the canvas and animated, with the menu sitting on it as a scrim.
@@ -101,6 +104,7 @@ Run `node --test aztec/tests/tomb.test.cjs` from the repository root (or
 script with minimal DOM/audio stubs and cover tomb generation (seed determinism, one idol on the
 lowest level, difficulty scaling), crawling under walls, digging, dynamite, the low-versus-high
 weapon rule, ammunition, hazards, level transitions, the escape condition, the full-screen toggle, the button
-labels and the way the view is sized to its box. They verify audio
+labels, the way the view is sized to its box, and the rules that stop a held control
+turning into a text selection. They verify audio
 events and mute, not subjective sound authenticity. Browser smoke testing separately verifies
 menus, touch controls, rendering and audio activation.
