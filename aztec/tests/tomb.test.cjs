@@ -278,3 +278,46 @@ test('A held button is an input, never a text selection',()=>{
   for(const sel of ['.btn','.menuitem','canvas'])
     assert.ok(css.includes(sel),sel+' is covered by the no-select rule');
 });
+
+// The stub clock does not run on its own, so the tests wind it forward by hand.
+const play=(r,seconds)=>r.run(`SOUND.ctx.currentTime+=${seconds};musicTick();`);
+
+test('The score plays, follows the game, and answers the mute',()=>{
+  const r=runtime();
+  r.run('mainMenu();unlockAudio();musicForState();');   // the title screen has a theme
+  assert.equal(r.run('MUSIC.name'),'title');
+  const before=r.notes.length;
+  play(r,1);
+  assert.ok(r.notes.length>before,'notes are scheduled ahead of the clock');
+  const first=r.run('SONGS.title.lead.find(n=>n)');
+  assert.ok(r.notes.some(hz=>Math.abs(hz-r.run(`nf(${first})`))<.01),'the melody is the written one');
+  r.run('newGame(2,5);musicForState();');           // in the tomb
+  assert.equal(r.run('MUSIC.name'),'delve');
+  r.run('G.hero.idol=true;musicForState();');       // and once the idol is yours
+  assert.equal(r.run('MUSIC.name'),'flight');
+  assert.ok(r.run('SONGS.flight.bpm')>r.run('SONGS.delve.bpm'),'the chase is quicker');
+  r.run('G.phase="paused";musicForState();');
+  assert.equal(r.run('MUSIC.name'),null,'a paused game is a silent one');
+  const quiet=r.notes.length;
+  play(r,1);
+  assert.equal(r.notes.length,quiet);
+  r.run('G.phase="play";musicForState();SOUND.enabled=false;');
+  play(r,1);
+  assert.equal(r.notes.length,quiet,'mute silences the music too');
+  r.run('SOUND.enabled=true;setMusic(false);musicForState();');
+  play(r,1);
+  assert.equal(r.notes.length,quiet,'and so does turning the music off on its own');
+  r.run('setMusic(true);musicForState();');
+  play(r,1);
+  assert.ok(r.notes.length>quiet,'turning it back on resumes it');
+});
+
+test('Deeper levels press the tempo',()=>{
+  const r=runtime(3,21);
+  const top=r.run('SONGS.delve.bpm');
+  r.run('G.hero.x=G.L.down.x;G.hero.y=bandFloor(FLOORS-1)*TS-G.hero.h;G.L.chests=[];useAction();');
+  assert.equal(r.run('G.depth'),1);
+  assert.ok(r.run('SONGS.delve.bpm')>top,'one level down beats faster');
+  r.run('newGame(3,21);');
+  assert.equal(r.run('SONGS.delve.bpm'),top,'and a new tomb starts from the top again');
+});
