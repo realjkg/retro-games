@@ -23,17 +23,18 @@ function runtime(diff=3,seed=7){
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
     resume(){return Promise.resolve();}
   }
-  const cls=new Set();
+  const cls=new Set(),docEvents=[];
   const body={classList:{toggle(n,on){on?cls.add(n):cls.delete(n);},add(n){cls.add(n)},
     remove(n){cls.delete(n)},contains:n=>cls.has(n)}};
   const box={console,setTimeout(){},
-    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},addEventListener(){}},
+    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},
+      addEventListener(type){docEvents.push(type)}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
   vm.createContext(box);vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run(`newGame(${diff},${seed});`);
-  return {run,notes,el,cls};
+  return {run,notes,el,cls,docEvents};
 }
 // Drop the explorer onto an empty stretch of floor with nothing else alive nearby.
 function clearRoom(r,floor=2){
@@ -263,4 +264,60 @@ test('The view takes the shape of the screen it is drawn on',()=>{
   r.run('fit();');
   assert.ok(r.run('VW')<=520&&r.run('VH')<=300);
   r.run('render();');                          // a view larger than the map still draws
+});
+
+test('A held button is an input, never a text selection',()=>{
+  const r=runtime();
+  for(const ev of ['contextmenu','selectstart','dragstart'])
+    assert.ok(r.docEvents.includes(ev),ev+' is refused inside the UI');
+  // iOS Safari reads only the prefixed properties, so they have to be in the sheet.
+  const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8')
+    .split('<style>')[1].split('</style>')[0];
+  assert.match(css,/-webkit-user-select:none/);
+  assert.match(css,/-webkit-touch-callout:none/);
+  for(const sel of ['.btn','.menuitem','canvas'])
+    assert.ok(css.includes(sel),sel+' is covered by the no-select rule');
+});
+
+// The stub clock does not run on its own, so the tests wind it forward by hand.
+const play=(r,seconds)=>r.run(`SOUND.ctx.currentTime+=${seconds};musicTick();`);
+
+test('The score plays, follows the game, and answers the mute',()=>{
+  const r=runtime();
+  r.run('mainMenu();unlockAudio();musicForState();');   // the title screen has a theme
+  assert.equal(r.run('MUSIC.name'),'title');
+  const before=r.notes.length;
+  play(r,1);
+  assert.ok(r.notes.length>before,'notes are scheduled ahead of the clock');
+  const first=r.run('SONGS.title.lead.find(n=>n)');
+  assert.ok(r.notes.some(hz=>Math.abs(hz-r.run(`nf(${first})`))<.01),'the melody is the written one');
+  r.run('newGame(2,5);musicForState();');           // in the tomb
+  assert.equal(r.run('MUSIC.name'),'delve');
+  r.run('G.hero.idol=true;musicForState();');       // and once the idol is yours
+  assert.equal(r.run('MUSIC.name'),'flight');
+  assert.ok(r.run('SONGS.flight.bpm')>r.run('SONGS.delve.bpm'),'the chase is quicker');
+  r.run('G.phase="paused";musicForState();');
+  assert.equal(r.run('MUSIC.name'),null,'a paused game is a silent one');
+  const quiet=r.notes.length;
+  play(r,1);
+  assert.equal(r.notes.length,quiet);
+  r.run('G.phase="play";musicForState();SOUND.enabled=false;');
+  play(r,1);
+  assert.equal(r.notes.length,quiet,'mute silences the music too');
+  r.run('SOUND.enabled=true;setMusic(false);musicForState();');
+  play(r,1);
+  assert.equal(r.notes.length,quiet,'and so does turning the music off on its own');
+  r.run('setMusic(true);musicForState();');
+  play(r,1);
+  assert.ok(r.notes.length>quiet,'turning it back on resumes it');
+});
+
+test('Deeper levels press the tempo',()=>{
+  const r=runtime(3,21);
+  const top=r.run('SONGS.delve.bpm');
+  r.run('G.hero.x=G.L.down.x;G.hero.y=bandFloor(FLOORS-1)*TS-G.hero.h;G.L.chests=[];useAction();');
+  assert.equal(r.run('G.depth'),1);
+  assert.ok(r.run('SONGS.delve.bpm')>top,'one level down beats faster');
+  r.run('newGame(3,21);');
+  assert.equal(r.run('SONGS.delve.bpm'),top,'and a new tomb starts from the top again');
 });

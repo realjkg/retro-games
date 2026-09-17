@@ -72,9 +72,37 @@ about fifteen keyboard commands:
 - The drawing surface takes the shape of the box it is in rather than a fixed 320x192, so the
   extra room in full screen shows more tomb instead of black bars.
 - Buttons that name what they are about to do, so nothing on the pad is a guess.
+- Nothing on the page is selectable text: holding a control holds the control, rather than
+  raising iOS Safari's selection handles and Copy / Look Up callout over the pad. A button
+  also lets go when the finger slides off it or the browser swallows the release.
 - A title screen rather than a menu on a black rectangle: a moonlit step pyramid with the
   torches still burning, the jade idol glowing in the temple doorway and someone already on
   the stair, drawn on the canvas and animated, with the menu sitting on it as a scrim.
+
+## Music
+
+The score here is **new writing, not an arrangement**. Before composing it I went looking for
+the original's music credits and found none: every source reachable from here credits Paul
+Stephenson for the game and Datamost as publisher, and none names a composer or sound author
+for the Apple II original or for the Atari and Commodore conversions. The 1982 Apple II played
+its effects through the machine's one-bit speaker, which is a sound-effects instrument rather
+than a scoring one, and no soundtrack from any version was available to study. So there was
+nothing to transcribe, and nothing here is transcribed.
+
+What the game plays instead is written in the idiom of the machines it ran on — three voices,
+a pulse lead, a triangle bass and a noisy drum, sequenced sixteenth by sixteenth and scheduled
+ahead of the audio clock so a busy frame cannot make it stumble:
+
+- **Title** — a slow processional in E phrygian. The flattened second is what makes it sound
+  like somewhere you should not be.
+- **In the tomb** — mostly silence: a drone, a drum, and a motif that answers itself. It beats
+  faster the deeper you go, and starts from the top again in a new tomb.
+- **With the idol** — the same key at twice the pace, because something is coming up the stairs
+  behind you.
+
+It stops when you pause, when the tab goes to the background, and when the game ends. SOUND
+OFF silences it with everything else, and the pause menu can turn the music off on its own and
+leave the effects playing.
 
 ## What remains approximate
 
@@ -82,7 +110,8 @@ This is **not an emulator or an exact reproduction** of the 1982 release. Room l
 art, enemy roster and behaviour, damage numbers, movement speeds, the scoring formula and the
 effect of each difficulty step are new work in the spirit of the original, not measured against
 a running Apple II, Atari or C64 copy. The sound is locally synthesized Web Audio, not the
-original machine's audio. The original's animation of the explorer, its specific trap set and
+original machine's audio, and the music is an original composition in a period idiom rather
+than any tune from the 1982 release — see **Music** above for why there was none to arrange. The original's animation of the explorer, its specific trap set and
 its endgame sequence are interpretations here. These distinctions should be preserved when
 describing the game.
 
@@ -93,6 +122,7 @@ describing the game.
 - [GameFAQs review of the Apple II release](https://gamefaqs.gamespot.com/appleii/581004-aztec/reviews/133675) — three floors with steps, searchable chests and debris, contents including Professor Von Forster's remains, the enemy menagerie, flooding rooms and compacting walls.
 - [Aztec on the Internet Archive (woz-a-day collection)](https://archive.org/details/wozaday_Aztec) — original Apple II disk image.
 - [c64online.com: Aztec](https://c64online.com/c64-games/aztec/) and [Lemon64: Aztec](https://www.lemon64.com/game/aztec) — C64 release notes and controls.
+- Searched for a music or sound credit across the above plus [MobyGames](https://www.mobygames.com/game/13259/aztec/) and the [High Voltage SID Collection](https://www.hvsc.c64.org/): no composer is credited for any version, which is why the score here is original work.
 
 ## Verification
 
@@ -101,6 +131,8 @@ Run `node --test aztec/tests/tomb.test.cjs` from the repository root (or
 script with minimal DOM/audio stubs and cover tomb generation (seed determinism, one idol on the
 lowest level, difficulty scaling), crawling under walls, digging, dynamite, the low-versus-high
 weapon rule, ammunition, hazards, level transitions, the escape condition, the full-screen toggle, the button
-labels and the way the view is sized to its box. They verify audio
+labels, the way the view is sized to its box, and the rules that stop a held control
+turning into a text selection, and the music engine — that it plays, follows the game state,
+speeds up with depth, and answers both the mute and the music switch. They verify audio
 events and mute, not subjective sound authenticity. Browser smoke testing separately verifies
 menus, touch controls, rendering and audio activation.

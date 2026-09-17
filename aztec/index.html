@@ -13,6 +13,11 @@
 }
 :root[data-theme="dark"]{--bg:#120e09;--panel:#1d1710;--panel2:#2a2117;--ink:#f1e6d2;--dim:#a8967a;--line:#3b2f21}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise the selection handles or the callout menu. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,#fs,.soundrow,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   overscroll-behavior:none;touch-action:manipulation}
@@ -23,14 +28,14 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
 #stage{position:relative;width:100%;aspect-ratio:5/3;background:#000;border:1px solid var(--line);
-  border-radius:12px;overflow:hidden}
+  border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:1px;user-select:none;cursor:pointer;touch-action:none;text-align:center}
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
 .btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
 .btn:active,.btn.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
 .btn:active small,.btn.on small{opacity:.8}
@@ -236,7 +241,7 @@ function mkFoe(k,x,y,diff,dir){const F=FOE[k];
   hp:Math.round(F.hp*(1+diff*.09)),sp:F.sp*(1+diff*.035),dmg:F.dmg,range:110+diff*24,dead:false};}
 
 /* ============ audio ============ */
-const SOUND={ctx:null,master:null,enabled:true,last:-1};
+const SOUND={ctx:null,master:null,music:null,enabled:true,last:-1};
 function audioLabel(){
  const s=document.getElementById("audio-status");
  s.textContent=!SOUND.enabled?"Muted":SOUND.ctx?"Audio on":"Tap a control to enable audio";
@@ -244,7 +249,9 @@ function audioLabel(){
 function unlockAudio(){
  if(!SOUND.ctx){const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
   SOUND.ctx=new AC(); SOUND.master=SOUND.ctx.createGain();
-  SOUND.master.gain.value=SOUND.enabled?.18:0; SOUND.master.connect(SOUND.ctx.destination);}
+  SOUND.master.gain.value=SOUND.enabled?.18:0; SOUND.master.connect(SOUND.ctx.destination);
+  SOUND.music=SOUND.ctx.createGain();            // the score sits under the effects
+  SOUND.music.gain.value=.5; SOUND.music.connect(SOUND.master);}
  if(SOUND.ctx.state==="suspended")SOUND.ctx.resume();
  audioLabel();
 }
@@ -268,6 +275,82 @@ const doorSound =()=>tone(180,90,.22,"square",.35);
 const digSound  =()=>tone(120,80,.07,"sawtooth",.25);
 const winSound  =()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,f,.22,"triangle",.45),i*140));};
 const dieSound  =()=>tone(300,40,.9,"sawtooth",.55);
+
+/* ============ music ============ */
+// The 1982 original credits no composer: the Apple II played effects through its
+// one-bit speaker and no score survives to arrange. This is therefore new writing
+// in the idiom of the machines it ran on - three voices, a pulse lead, a triangle
+// bass and a noisy drum - not a transcription of anything.
+const nf=m=>440*Math.pow(2,(m-69)/12);
+function musicNote(hz,endHz,dur,type,level,when){
+ if(!SOUND.enabled||!SOUND.ctx||!SOUND.music)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain(),t=Math.max(when,c.currentTime);
+ o.type=type;o.frequency.setValueAtTime(hz,t);
+ if(endHz&&endHz!==hz)o.frequency.exponentialRampToValueAtTime(Math.max(20,endHz),t+dur);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(level,t+.01);
+ g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+ o.connect(g);g.connect(SOUND.music);o.start(t);o.stop(t+dur+.02);
+}
+// Sixteenth-note patterns. 0 is a rest; the lead and bass are MIDI numbers,
+// the drum is "d" for the low ritual thud and "r" for the rattle over it.
+const SONGS={
+ // Title: a slow processional in E phrygian - the flattened second is what makes
+ // it sound like somewhere you should not be.
+ title:{bpm:92,
+  lead:[64,0,67,0, 69,0,0,65, 64,0,0,0, 0,0,62,0,
+        60,0,62,0, 64,0,0,0, 59,0,57,0, 55,0,0,0,
+        64,0,65,0, 67,0,64,0, 62,0,60,0, 59,0,0,0,
+        57,0,0,59, 60,0,0,0, 64,0,0,0, 0,0,0,0],
+  bass:[40,0,0,0, 40,0,0,0, 41,0,0,0, 40,0,0,0,
+        38,0,0,0, 38,0,0,0, 40,0,0,0, 40,0,0,0],
+  perc:["d",0,0,"r", 0,0,"d",0, "d",0,0,"r", 0,"r",0,0]},
+ // In the tomb: mostly silence, a drone and a motif that answers itself.
+ delve:{bpm:76,
+  lead:[0,0,0,0, 0,0,0,0, 76,0,0,0, 71,0,0,0,
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+        0,0,0,0, 0,0,0,0, 74,0,0,0, 69,0,67,0,
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  bass:[40,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+        41,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  perc:["d",0,0,0, 0,0,0,0, 0,0,"r",0, 0,0,0,0]},
+ // Idol in hand: the same key, but now something is coming up the stairs behind you.
+ flight:{bpm:132,
+  lead:[64,0,64,0, 67,0,64,0, 65,0,65,0, 64,0,62,0,
+        64,0,64,0, 69,0,67,0, 65,0,64,0, 62,0,60,0],
+  bass:[40,40,0,40, 0,40,0,0, 41,41,0,41, 0,41,0,0],
+  perc:["d",0,"r",0, "d",0,"r",0, "d","d","r",0, "d",0,"r","r"]}
+};
+const MUSIC={on:true,name:null,step:0,next:0};
+function musicPlay(name){
+ if(!SONGS[name]||MUSIC.name===name)return;
+ MUSIC.name=name;MUSIC.step=0;MUSIC.next=SOUND.ctx?SOUND.ctx.currentTime+.05:0;
+}
+function musicStop(){MUSIC.name=null;}
+// Scheduled ahead of the clock, so a busy frame cannot make the music stumble.
+function musicTick(){
+ if(!SOUND.ctx||!SOUND.enabled||!MUSIC.on||!MUSIC.name)return;
+ const T=SONGS[MUSIC.name], six=60/(T.bpm*4), now=SOUND.ctx.currentTime;
+ if(MUSIC.next<now)MUSIC.next=now;
+ for(let guard=0;MUSIC.next<now+.3&&guard<96;guard++){
+  const i=MUSIC.step, at=MUSIC.next;
+  const L=T.lead[i%T.lead.length], B=T.bass[i%T.bass.length], P=T.perc[i%T.perc.length];
+  if(L)musicNote(nf(L),0,six*3.2,"square",.16,at);
+  if(B)musicNote(nf(B),0,six*3.6,"triangle",.3,at);
+  if(P==="d")musicNote(96,44,six*2.4,"sawtooth",.26,at);
+  else if(P==="r")musicNote(1500,760,six*.7,"square",.07,at);
+  MUSIC.step++;MUSIC.next+=six;
+ }
+}
+// What plays follows the game: the tomb by day, the chase once the idol is yours.
+function musicForState(){
+ if(!SOUND.ctx)return;
+ if(!MUSIC.on||(typeof document!=="undefined"&&document.hidden)){musicStop();return;}
+ if(G.phase==="menu")musicPlay("title");
+ else if(G.phase==="play")musicPlay(G.hero&&G.hero.idol?"flight":"delve");
+ else musicStop();
+}
+function setMusic(on){MUSIC.on=on;if(!on)musicStop();musicForState();}
+
 function buzz(ms){if(typeof navigator!=="undefined"&&navigator.vibrate)try{navigator.vibrate(ms);}catch(e){}}
 
 /* ============ state ============ */
@@ -287,7 +370,7 @@ function newGame(diff,seed){
  G.hero={x:G.L.up.x,y:bandFloor(0)*TS-22,w:10,h:22,vx:0,vy:0,face:1,onGround:true,crawl:false,
   climb:false,running:false,hp:100,maxhp:100,bullets:6,dynamite:3,machete:false,pistol:true,
   idol:false,weapon:"pistol",cool:0,swing:0,inv:0,hurtT:0,hazT:0,anim:0};
- G.phase="play";
+ G.phase="play";SONGS.delve.bpm=76;
  say("The Tomb of Quetzalcoatl. Find the jade idol and climb back out.");
  hideOverlay();
  return G;
@@ -419,7 +502,7 @@ function enterLevel(d,at){
  const h=G.hero;
  setStance(h,false);
  h.x=m?m.x:TS*2;h.y=bandFloor(f)*TS-h.h;h.vx=0;h.vy=0;h.climb=false;
- G.dig=null;doorSound();
+ G.dig=null;doorSound();SONGS.delve.bpm=76+d*6;
 }
 function useAction(){
  const h=G.hero, c=nearChest();
@@ -606,13 +689,22 @@ document.addEventListener("visibilitychange",()=>{
  if(document.hidden){clearKeys();if(G.phase==="play"){G.phase="paused";pauseMenu();}
   if(SOUND.master)SOUND.master.gain.value=0;}
  else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+const held=new Map();                       // pointer id -> the release for that button
 function bindKey(el,k){
- const dn=e=>{e.preventDefault();el.setPointerCapture&&el.setPointerCapture(e.pointerId);
-  el.classList.add("on");keys[k]=true;press(k);};
- const up=e=>{if(e)e.preventDefault();el.classList.remove("on");keys[k]=false;};
+ const dn=e=>{e.preventDefault();
+  // capture can throw if the pointer is already gone; the press still counts
+  try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}
+  el.classList.add("on");keys[k]=true;held.set(e.pointerId,up);press(k);};
+ const up=e=>{if(e&&e.preventDefault)e.preventDefault();
+  if(e&&e.pointerId!==undefined)held.delete(e.pointerId);
+  el.classList.remove("on");keys[k]=false;};
  el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
  el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
 }
+// A finger that slides off a button, or a gesture the browser swallows, must still
+// let go of it — otherwise the explorer keeps walking after you have stopped.
+for(const ev of ["pointerup","pointercancel"])
+ document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
 document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
 document.getElementById("sound").addEventListener("click",()=>{
  SOUND.enabled=!SOUND.enabled;unlockAudio();
@@ -621,6 +713,11 @@ document.getElementById("sound").addEventListener("click",()=>{
  b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
  audioLabel();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
+// A held button is an input, not a text selection — refuse both gestures outright.
+const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
+document.addEventListener("contextmenu",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("selectstart",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("dragstart",e=>{if(inUI(e))e.preventDefault();});
 
 /* ============ full screen ============ */
 // iPhone Safari has no element fullscreen, so the layout class does the isolating
@@ -731,9 +828,11 @@ function helpMenu(back){
   "FULL SCREEN below the pad hides the page and leaves only the tomb and the controls.");
 }
 function pauseMenu(){
- showMenu("Paused","Depth "+(G.depth+1)+" of "+G.levels.length+" · "+fmtTime(G.time)+" · score "+G.score,
+ showMenu("Paused","Depth "+(G.depth+1)+" of "+G.levels.length+" · "+fmtTime(G.time)+" · score "+G.score+
+  " · music "+(MUSIC.on?"on":"off"),
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
    {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
+   {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
    {label:"Controls",fn:()=>{helpMenu(true);}},
    {label:"Abandon the tomb",fn:mainMenu}]);
 }
@@ -991,7 +1090,7 @@ function loop(now){
  if(!(frame++%20))fit();
  G.uiT+=dt;
  if(G.phase==="play")stepGame(dt);
- render();updateStatus();updatePads();
+ render();updateStatus();updatePads();musicForState();musicTick();
  requestAnimationFrame(loop);
 }
 fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
