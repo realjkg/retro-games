@@ -1,0 +1,558 @@
+{
+  "days: draws too": {
+    "verdicts": {
+      "buried": 223,
+      "deputy on probation": 17,
+      "run out of town": 156,
+      "sheriff of gold gulch": 62,
+      "town constable": 38,
+      "marshal": 4
+    },
+    "outcomes": {
+      "info": 386,
+      "disarm": 994,
+      "kill": 923,
+      "nothing": 852,
+      "miss": 624,
+      "too_slow": 72,
+      "treated": 38,
+      "alliance": 26,
+      "robbery": 178,
+      "refused": 34,
+      "romance": 38,
+      "prevented": 4
+    },
+    "prevented": {
+      "0": 211,
+      "1": 219,
+      "2": 62,
+      "3": 8
+    },
+    "meanCategories": {
+      "lawfulness": 48.5,
+      "judgement": 3.7,
+      "marksmanship": 63.1,
+      "restraint": 81.3,
+      "romance": 7.6,
+      "prevented": 0.7
+    }
+  },
+  "days: talks only": {
+    "verdicts": {
+      "sheriff of gold gulch": 215,
+      "buried": 91,
+      "marshal": 50,
+      "deputy on probation": 29,
+      "town constable": 105,
+      "run out of town": 10
+    },
+    "outcomes": {
+      "info": 838,
+      "nothing": 1753,
+      "kill": 528,
+      "disarm": 508,
+      "robbery": 380,
+      "miss": 348,
+      "treated": 59,
+      "prevented": 55,
+      "alliance": 69,
+      "romance": 86,
+      "refused": 43
+    },
+    "prevented": {
+      "0": 56,
+      "1": 201,
+      "2": 184,
+      "3": 59
+    },
+    "meanCategories": {
+      "lawfulness": 100,
+      "judgement": 23.2,
+      "marksmanship": 68,
+      "restraint": 86.2,
+      "romance": 17.2,
+      "prevented": 1.5
+    }
+  },
+  "variance": {
+    "dude": {
+      "firm": {
+        "top": 50,
+        "counts": {
+          "info": 50,
+          "nothing": 39,
+          "kill": 4,
+          "wounded": 6,
+          "disarm": 1
+        }
+      },
+      "kind": {
+        "top": 61,
+        "counts": {
+          "kill": 2,
+          "nothing": 61,
+          "info": 33,
+          "wounded": 2,
+          "disarm": 2
+        }
+      },
+      "joke": {
+        "top": 78,
+        "counts": {
+          "nothing": 78,
+          "info": 4,
+          "kill": 7,
+          "wounded": 4,
+          "disarm": 7
+        }
+      },
+      "probe": {
+        "top": 29,
+        "counts": {
+          "wounded": 29,
+          "disarm": 19,
+          "kill": 26,
+          "nothing": 14,
+          "info": 12
+        }
+      }
+    },
+    "rose": {
+      "firm": {
+        "top": 94,
+        "counts": {
+          "nothing": 94,
+          "info": 6
+        }
+      },
+      "kind": {
+        "top": 73,
+        "counts": {
+          "nothing": 27,
+          "info": 73
+        }
+      },
+      "joke": {
+        "top": 63,
+        "counts": {
+          "info": 63,
+          "nothing": 37
+        }
+      },
+      "probe": {
+        "top": 59,
+        "counts": {
+          "info": 41,
+          "nothing": 59
+        }
+      }
+    },
+    "mexicali": {
+      "firm": {
+        "top": 42,
+        "counts": {
+          "disarm": 26,
+          "kill": 32,
+          "wounded": 42
+        }
+      },
+      "kind": {
+        "top": 36,
+        "counts": {
+          "wounded": 29,
+          "kill": 27,
+          "disarm": 36,
+          "nothing": 8
+        }
+      },
+      "joke": {
+        "top": 39,
+        "counts": {
+          "kill": 39,
+          "wounded": 24,
+          "disarm": 37
+        }
+      },
+      "probe": {
+        "top": 41,
+        "counts": {
+          "wounded": 30,
+          "kill": 41,
+          "disarm": 29
+        }
+      }
+    },
+    "doctor": {
+      "firm": {
+        "top": 99,
+        "counts": {
+          "nothing": 99,
+          "info": 1
+        }
+      },
+      "kind": {
+        "top": 74,
+        "counts": {
+          "info": 74,
+          "nothing": 26
+        }
+      },
+      "joke": {
+        "top": 55,
+        "counts": {
+          "info": 45,
+          "nothing": 55
+        }
+      },
+      "probe": {
+        "top": 59,
+        "counts": {
+          "nothing": 59,
+          "info": 41
+        }
+      }
+    },
+    "newgun": {
+      "firm": {
+        "top": 40,
+        "counts": {
+          "wounded": 40,
+          "kill": 33,
+          "disarm": 26,
+          "nothing": 1
+        }
+      },
+      "kind": {
+        "top": 51,
+        "counts": {
+          "nothing": 51,
+          "kill": 18,
+          "disarm": 18,
+          "wounded": 13
+        }
+      },
+      "joke": {
+        "top": 38,
+        "counts": {
+          "kill": 32,
+          "disarm": 29,
+          "wounded": 38,
+          "nothing": 1
+        }
+      },
+      "probe": {
+        "top": 35,
+        "counts": {
+          "nothing": 19,
+          "wounded": 35,
+          "disarm": 20,
+          "kill": 26
+        }
+      }
+    },
+    "willy": {
+      "firm": {
+        "top": 97,
+        "counts": {
+          "nothing": 97,
+          "info": 3
+        }
+      },
+      "kind": {
+        "top": 64,
+        "counts": {
+          "info": 64,
+          "nothing": 36
+        }
+      },
+      "joke": {
+        "top": 90,
+        "counts": {
+          "info": 90,
+          "nothing": 10
+        }
+      },
+      "probe": {
+        "top": 94,
+        "counts": {
+          "nothing": 94,
+          "info": 6
+        }
+      }
+    },
+    "april": {
+      "firm": {
+        "top": 87,
+        "counts": {
+          "nothing": 87,
+          "info": 8,
+          "romance": 5
+        }
+      },
+      "kind": {
+        "top": 74,
+        "counts": {
+          "romance": 74,
+          "info": 22,
+          "nothing": 4
+        }
+      },
+      "joke": {
+        "top": 44,
+        "counts": {
+          "info": 38,
+          "nothing": 44,
+          "romance": 18
+        }
+      },
+      "probe": {
+        "top": 87,
+        "counts": {
+          "nothing": 87,
+          "romance": 3,
+          "info": 10
+        }
+      }
+    },
+    "gambler": {
+      "firm": {
+        "top": 39,
+        "counts": {
+          "wounded": 16,
+          "nothing": 39,
+          "kill": 29,
+          "disarm": 16
+        }
+      },
+      "kind": {
+        "top": 76,
+        "counts": {
+          "nothing": 76,
+          "disarm": 14,
+          "wounded": 6,
+          "kill": 4
+        }
+      },
+      "joke": {
+        "top": 77,
+        "counts": {
+          "nothing": 77,
+          "disarm": 7,
+          "kill": 6,
+          "wounded": 10
+        }
+      },
+      "probe": {
+        "top": 36,
+        "counts": {
+          "kill": 36,
+          "wounded": 34,
+          "disarm": 30
+        }
+      }
+    },
+    "deputy": {
+      "firm": {
+        "top": 100,
+        "counts": {
+          "robbery": 100
+        }
+      },
+      "kind": {
+        "top": 100,
+        "counts": {
+          "robbery": 100
+        }
+      },
+      "joke": {
+        "top": 100,
+        "counts": {
+          "robbery": 100
+        }
+      },
+      "probe": {
+        "top": 100,
+        "counts": {
+          "robbery": 100
+        }
+      }
+    },
+    "belle": {
+      "firm": {
+        "top": 35,
+        "counts": {
+          "disarm": 29,
+          "kill": 30,
+          "wounded": 35,
+          "nothing": 6
+        }
+      },
+      "kind": {
+        "top": 37,
+        "counts": {
+          "kill": 18,
+          "alliance": 37,
+          "wounded": 16,
+          "disarm": 11,
+          "nothing": 18
+        }
+      },
+      "joke": {
+        "top": 38,
+        "counts": {
+          "wounded": 13,
+          "nothing": 34,
+          "alliance": 38,
+          "disarm": 10,
+          "kill": 5
+        }
+      },
+      "probe": {
+        "top": 35,
+        "counts": {
+          "disarm": 35,
+          "wounded": 35,
+          "nothing": 6,
+          "kill": 23,
+          "alliance": 1
+        }
+      }
+    }
+  },
+  "deterministicPaths": [
+    "rose/firm 94% nothing|info",
+    "doctor/firm 99% nothing|info",
+    "willy/firm 97% nothing|info",
+    "willy/joke 90% info|nothing",
+    "willy/probe 94% nothing|info",
+    "april/firm 87% nothing|info|romance",
+    "april/probe 87% nothing|romance|info",
+    "deputy/firm 100% robbery",
+    "deputy/kind 100% robbery",
+    "deputy/joke 100% robbery",
+    "deputy/probe 100% robbery"
+  ],
+  "duel": {
+    "100ms": {
+      "hit": 55,
+      "kill": 31,
+      "disarm": 24,
+      "miss": 45,
+      "slow": 0,
+      "n": 96
+    },
+    "200ms": {
+      "hit": 59,
+      "kill": 33,
+      "disarm": 27,
+      "miss": 41,
+      "slow": 0,
+      "n": 160
+    },
+    "300ms": {
+      "hit": 66,
+      "kill": 30,
+      "disarm": 36,
+      "miss": 34,
+      "slow": 0,
+      "n": 160
+    },
+    "400ms": {
+      "hit": 79,
+      "kill": 46,
+      "disarm": 33,
+      "miss": 21,
+      "slow": 0,
+      "n": 158
+    },
+    "500ms": {
+      "hit": 81,
+      "kill": 49,
+      "disarm": 32,
+      "miss": 19,
+      "slow": 0,
+      "n": 155
+    },
+    "600ms": {
+      "hit": 81,
+      "kill": 52,
+      "disarm": 28,
+      "miss": 16,
+      "slow": 3,
+      "n": 155
+    },
+    "700ms": {
+      "hit": 74,
+      "kill": 41,
+      "disarm": 32,
+      "miss": 13,
+      "slow": 14,
+      "n": 155
+    },
+    "800ms": {
+      "hit": 59,
+      "kill": 31,
+      "disarm": 28,
+      "miss": 9,
+      "slow": 32,
+      "n": 155
+    },
+    "900ms": {
+      "hit": 45,
+      "kill": 24,
+      "disarm": 21,
+      "miss": 7,
+      "slow": 48,
+      "n": 155
+    },
+    "1000ms": {
+      "hit": 25,
+      "kill": 10,
+      "disarm": 14,
+      "miss": 5,
+      "slow": 71,
+      "n": 155
+    },
+    "1100ms": {
+      "hit": 8,
+      "kill": 5,
+      "disarm": 4,
+      "miss": 1,
+      "slow": 91,
+      "n": 155
+    },
+    "1200ms": {
+      "hit": 1,
+      "kill": 0,
+      "disarm": 1,
+      "miss": 0,
+      "slow": 99,
+      "n": 155
+    },
+    "1300ms": {
+      "hit": 0,
+      "kill": 0,
+      "disarm": 0,
+      "miss": 0,
+      "slow": 100,
+      "n": 155
+    },
+    "1400ms": {
+      "hit": 0,
+      "kill": 0,
+      "disarm": 0,
+      "miss": 0,
+      "slow": 100,
+      "n": 31
+    }
+  },
+  "doctor": {
+    "treated": 146,
+    "refused": 54
+  },
+  "woundedSpent": {
+    "died": 24,
+    "lived": 176
+  },
+  "audio": "cues            42 · values set      36083"
+}
