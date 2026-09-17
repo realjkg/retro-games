@@ -29,12 +29,15 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
-  font-size:17px;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer;
-  touch-action:none}
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;user-select:none;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
 .btn:active,.btn.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.btn.lit{border-color:var(--gold);color:var(--gold)}
 .acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
-.abtn{width:64px;height:64px;border-radius:50%;font-size:13px;font-weight:700;letter-spacing:.04em}
-.sbtn{width:64px;height:38px;border-radius:10px;font-size:12px;font-weight:700}
+.abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
+.sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
 #overlay{position:absolute;inset:0;background:rgba(10,7,4,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
@@ -48,8 +51,47 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
-#sound{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
   padding:9px 12px;min-height:40px}
+/* Full screen: the tomb and the controls, nothing else. The page goes black in
+   both colour schemes so there is no doubt which mode you are in. */
+body.fs{padding:0;height:100dvh;overflow:hidden;background:#07050b;color:#f1e6d2}
+body.fs .btn{background:#1d1710;border-color:#3b2f21;color:#f1e6d2}
+body.fs .btn:active,body.fs .btn.on{background:#e0b357;color:#1a1205;border-color:#e0b357}
+body.fs .btn.lit{border-color:#e0b357;color:#e0b357}
+body.fs #sound,body.fs #fs{background:#1d1710;border-color:#3b2f21;color:#f1e6d2}
+body.fs #fs{border-color:#e0b357;color:#e0b357}
+body.fs #wrap{max-width:none;height:100dvh;gap:4px;
+  padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
+body.fs #status{display:none}
+/* The screen takes as much room as its own shape allows and no more, so the
+   space the page chrome gave back goes to the pads instead of to black bars. */
+body.fs #stage{width:min(100%,calc(60dvh * 6 / 5));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:6/5;border-left:0;border-right:0}
+body.fs canvas{object-fit:contain;background:#000}
+/* Controls grow with the screen but never past the edge of a narrow phone. */
+body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
+  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
+body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
+body.fs .soundrow{margin:2px 0 0;gap:8px}
+body.fs #audio-status{display:none}
+@media (orientation:landscape) and (max-height:560px){
+  /* Held sideways there is no room below the screen, so the pads flank it
+     the way a handheld does: pad under the left thumb, buttons under the right. */
+  body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
+    gap:6px;padding:4px 8px}
+  body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
+  body.fs #stage{order:2;width:min(58vw,calc((100dvh - 12px) * 5 / 3));max-width:58vw;margin:0;
+    aspect-ratio:5/3}
+  body.fs .acts{order:3}
+  body.fs .abtn{width:66px;height:66px}
+  body.fs .sbtn{width:66px;height:38px}
+  body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
+    margin:0;z-index:5;font-size:10px}
+  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -59,24 +101,25 @@ button{font:inherit;cursor:pointer}
   <div id="pads">
     <div class="padrow">
       <div class="dpad">
-        <div></div><div class="btn" data-k="U">▲</div><div></div>
-        <div class="btn" data-k="L">◀</div><div class="btn" data-k="RUN">RUN</div><div class="btn" data-k="R">▶</div>
-        <div></div><div class="btn" data-k="D">▼</div><div></div>
+        <div></div><div class="btn" data-k="U">▲<small>jump</small></div><div></div>
+        <div class="btn" data-k="L">◀</div><div class="btn" id="runbtn" data-k="RUN">WALK</div><div class="btn" data-k="R">▶</div>
+        <div></div><div class="btn" data-k="D">▼<small>crawl</small></div><div></div>
       </div>
       <div class="acts">
-        <div class="btn abtn" data-k="FIRE">FIRE</div>
-        <div class="btn abtn" data-k="USE">USE</div>
-        <div class="btn sbtn" data-k="WEAP">WEAPON</div>
+        <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
+        <div class="btn abtn" id="usebtn" data-k="USE">USE</div>
+        <div class="btn sbtn" data-k="WEAP">SWAP<small>weapon</small></div>
         <div class="btn sbtn" data-k="MENU">MENU</div>
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
 /* ============ tomb geometry ============ */
-const TS=16, MAPW=56, FLOORH=6, FLOORS=3, MAPH=FLOORH*FLOORS, VW=320, VH=192;
+const TS=16, MAPW=56, FLOORH=6, FLOORS=3, MAPH=FLOORH*FLOORS;
+let VW=360, VH=216;   // game pixels on screen; fit() reshapes them to the canvas box
 const AIR=0, ROCK=1, DIRT=2, STAIR=3, DOWN=4, UP=5, SPIKE=6, WATER=7;
 const bandTop=f=>f*FLOORH, bandFloor=f=>f*FLOORH+FLOORH-1;
 const solidT=t=>t===ROCK||t===DIRT;
@@ -230,7 +273,7 @@ function newGame(diff,seed){
  G.depth=0;G.L=G.levels[0];G.time=0;G.score=0;G.dig=null;G.shake=0;G.flash=0;
  G.hero={x:G.L.up.x,y:bandFloor(0)*TS-22,w:10,h:22,vx:0,vy:0,face:1,onGround:true,crawl:false,
   climb:false,running:false,hp:100,maxhp:100,bullets:6,dynamite:3,machete:false,pistol:true,
-  idol:false,weapon:"pistol",cool:0,swing:0,inv:0,hurtT:0,hazT:0};
+  idol:false,weapon:"pistol",cool:0,swing:0,inv:0,hurtT:0,hazT:0,anim:0};
  G.phase="play";
  say("The Tomb of Quetzalcoatl. Find the jade idol and climb back out.");
  hideOverlay();
@@ -447,6 +490,7 @@ function stepGame(dt){
  G.flash=Math.max(0,G.flash-dt);
  h.inv=Math.max(0,h.inv-dt);h.cool=Math.max(0,h.cool-dt);h.hurtT=Math.max(0,h.hurtT-dt);
  h.hazT=Math.max(0,h.hazT-dt);
+ h.anim+=dt*(Math.abs(h.vx)>1||h.climb&&h.vy!==0?(h.running?1.5:1):0);
  if(h.swing>0){meleeStep();h.swing-=dt;}
 
  // stance, ladders, walking
@@ -565,6 +609,67 @@ document.getElementById("sound").addEventListener("click",()=>{
  audioLabel();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
 
+/* ============ full screen ============ */
+// iPhone Safari has no element fullscreen, so the layout class does the isolating
+// work on its own and the API call is a best-effort extra where it is supported.
+const fsBtn=document.getElementById("fs");
+const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function setFocus(on){
+ document.body.classList.toggle("fs",on);
+ fsBtn.textContent=on?"\u2715 EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.setAttribute("aria-pressed",String(on));
+}
+function toggleFullscreen(){
+ const on=!document.body.classList.contains("fs"), el=document.documentElement;
+ if(on){const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req)try{Promise.resolve(req.call(el)).catch(()=>{});}catch(e){}}
+ else{const ex=document.exitFullscreen||document.webkitExitFullscreen;
+  if(ex&&nativeFS())try{Promise.resolve(ex.call(document)).catch(()=>{});}catch(e){}}
+ setFocus(on);
+ clearKeys();
+ fit();
+ say(on?"Full screen. EXIT FULL SCREEN puts the page back.":"Back to the page.");
+}
+fsBtn.addEventListener("click",toggleFullscreen);
+// Leaving fullscreen by Esc or the system gesture drops the layout with it.
+for(const ev of ["fullscreenchange","webkitfullscreenchange"])
+ document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
+
+/* ============ what the buttons say ============ */
+// The pad is only as clear as its labels, so FIRE names the weapon in hand and
+// USE names the thing it is about to do right here.
+const fireBtn=document.getElementById("firebtn"), useBtn=document.getElementById("usebtn"),
+      runBtn=document.getElementById("runbtn");
+function weaponLabel(){
+ const h=G.hero; if(!h)return "FIRE";
+ if(h.weapon==="machete"&&h.machete)return "MACHETE";
+ if(h.weapon==="pistol"&&h.pistol)return "SHOOT "+h.bullets;
+ if(h.weapon==="dynamite"&&h.dynamite>0)return "LIGHT "+h.dynamite;
+ return "FISTS";
+}
+function actionLabel(){
+ if(!G.hero||G.phase!=="play")return "USE";
+ if(nearChest())return "OPEN";
+ const m=markerAt();
+ if(m===DOWN&&G.depth+1<G.levels.length)return "GO DOWN";
+ if(m===UP)return G.depth>0?"GO UP":(G.hero.idol?"ESCAPE":"NEED IDOL");
+ if(digTarget())return "DIG";
+ return "USE";
+}
+function label(el,text,caption){
+ if(!el||el.dataset.lbl===text)return;
+ el.dataset.lbl=text;
+ el.innerHTML=text+(caption?"<small>"+caption+"</small>":"");
+}
+function updatePads(){
+ const h=G.hero;
+ label(fireBtn,weaponLabel(),"fire");
+ const act=actionLabel();
+ label(useBtn,act,act==="USE"?"":"use");
+ label(runBtn,h&&h.running?"RUN":"WALK","");
+ if(runBtn&&runBtn.classList)runBtn.classList.toggle("lit",!!(h&&h.running));
+}
+
 /* ============ menus ============ */
 function showMenu(title,sub,items,tip,grid){
  G.menu={items,sel:0};
@@ -597,19 +702,23 @@ function diffMenu(){
   "bigger idol bounty come with the harder settings.",items,
   "The tomb is generated fresh every game.",true);
 }
-function helpMenu(){
- showMenu("How to play",
-  "Move with the pad or arrow keys. UP jumps, and climbs steps when you are on them. "+
-  "DOWN crawls — crawl to slip under half-blocked walls.",
-  [{label:"Back",fn:mainMenu}],
-  "FIRE swings the machete, fires the pistol or lights dynamite — WEAPON cycles them. "+
-  "USE opens chests and debris, takes the stairs down or up, and held against a dirt wall it digs. "+
-  "A standing machete swing passes over a serpent; crawl and stab low. "+
-  "Find the idol on the lowest level, then climb back to the entrance and out.");
+function helpMenu(back){
+ showMenu("The controls",
+  "\u25c0 \u25b6 walk. JUMP also climbs the steps you are standing on. CRAWL slips under "+
+  "half-blocked walls and lets you strike low. WALK/RUN toggles your pace.",
+  [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
+  "The big left button names the weapon in your hand \u2014 MACHETE, SHOOT with the bullets "+
+  "left, LIGHT for dynamite \u2014 and SWAP changes it. The big right button names what it will "+
+  "do where you stand: OPEN a chest, DIG the wall you face, GO DOWN, GO UP, ESCAPE. "+
+  "A standing swing or shot passes over a serpent; crawl and strike low. "+
+  "Find the idol on the lowest level, then climb back to the entrance and out. "+
+  "FULL SCREEN below the pad hides the page and leaves only the tomb and the controls.");
 }
 function pauseMenu(){
  showMenu("Paused","Depth "+(G.depth+1)+" of "+G.levels.length+" · "+fmtTime(G.time)+" · score "+G.score,
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
+   {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
+   {label:"Controls",fn:()=>{helpMenu(true);}},
    {label:"Abandon the tomb",fn:mainMenu}]);
 }
 
@@ -671,46 +780,91 @@ function drawFoe(e){
   c.fillRect(sx+(d>0?20:0),sy,9,8);c.fillStyle="#4a3f66";c.fillRect(sx+4,sy+18,5,4);c.fillRect(sx+16,sy+18,5,4);
   c.fillStyle="#e8e85a";c.fillRect(sx+(d>0?25:2),sy+3,2,2);}
 }
+// The hero of the original is an Indiana Jones in all but name: wide-brimmed
+// fedora, leather jacket, boots, and the tool of the moment held out in front.
 function drawHero(){
- const h=G.hero, c=ctx, sx=px(h.x-G.cam.x), sy=px(h.y-G.cam.y), d=h.face;
+ const h=G.hero, c=ctx;
  if(h.inv>0&&Math.floor(h.inv*20)%2)return;
- const skin="#e8c08a", coat="#8a5a2c", hat="#5b3a1a";
+ const skin="#e7bd8a", coat="#a4642c", coatDark="#7c4a1e", pants="#cdb98d",
+       hat="#432d14", hatDark="#2c1d0c", boot="#3b2a17";
+ c.save();
+ c.translate(px(h.x-G.cam.x)+h.w/2,px(h.y-G.cam.y));
+ if(h.face<0)c.scale(-1,1);
+ c.translate(-h.w/2,0);
+ const moving=Math.abs(h.vx)>1, stride=moving&&h.onGround?Math.floor(h.anim*7)%4:0;
  if(h.crawl){
-  c.fillStyle=coat;c.fillRect(sx,sy+4,10,6);
-  c.fillStyle=skin;c.fillRect(sx+(d>0?8:0),sy+3,4,4);
-  c.fillStyle=hat;c.fillRect(sx+(d>0?7:-1),sy+1,6,2);
+  c.fillStyle=pants;c.fillRect(-3,4,5,5);                 // legs trailing behind
+  c.fillStyle=boot;c.fillRect(-5,6,3,3);
+  c.fillStyle=coat;c.fillRect(0,2,8,7);                   // body flat to the floor
+  c.fillStyle=coatDark;c.fillRect(0,7,8,2);
+  c.fillStyle=skin;c.fillRect(7,2,4,4);                   // head forward
+  c.fillStyle=hat;c.fillRect(5,0,9,2);c.fillRect(7,-2,5,2);
+  c.fillStyle=skin;c.fillRect(10,6,3,2);                  // arm reaching out
+ }else if(h.climb){
+  const up=Math.floor(h.anim*6)%2;                        // hand over hand on the steps
+  c.fillStyle=coat;c.fillRect(1,7,8,9);
+  c.fillStyle=coatDark;c.fillRect(1,13,8,3);
+  c.fillStyle=pants;c.fillRect(1,16,3,6);c.fillRect(6,16,3,6);
+  c.fillStyle=boot;c.fillRect(1,20,3,2);c.fillRect(6,20,3,2);
+  c.fillStyle=skin;c.fillRect(2,2,6,5);
+  c.fillStyle=hat;c.fillRect(-2,1,14,2);c.fillRect(2,-2,6,3);
+  c.fillStyle=skin;c.fillRect(-1,up?4:8,3,5);c.fillRect(8,up?8:4,3,5);
  }else{
-  c.fillStyle=coat;c.fillRect(sx+1,sy+8,8,9);
-  c.fillStyle="#4a3a24";c.fillRect(sx+1,sy+17,3,5);c.fillRect(sx+6,sy+17,3,5);
-  c.fillStyle=skin;c.fillRect(sx+2,sy+2,6,6);
-  c.fillStyle=hat;c.fillRect(sx,sy,10,3);c.fillRect(sx+2,sy-2,6,2);
-  c.fillStyle=skin;c.fillRect(sx+(d>0?8:0),sy+9,2,5);
+  if(stride===0||stride===2){                             // legs mid-stride
+   c.fillStyle=pants;c.fillRect(-1,16,4,5);c.fillRect(6,16,4,5);
+   c.fillStyle=boot;c.fillRect(-2,20,4,2);c.fillRect(6,20,5,2);
+  }else{
+   c.fillStyle=pants;c.fillRect(1,16,3,6);c.fillRect(5,16,3,6);
+   c.fillStyle=boot;c.fillRect(1,20,3,2);c.fillRect(5,20,3,2);
+  }
+  c.fillStyle=coat;c.fillRect(0,7,10,9);                  // jacket
+  c.fillStyle=coatDark;c.fillRect(0,7,3,9);
+  c.fillStyle="#5d3d1b";c.fillRect(0,13,10,2);            // belt
+  c.fillStyle="#6b4a24";c.fillRect(-2,10,3,5);            // satchel on the hip
+  c.fillStyle=skin;c.fillRect(2,2,6,5);                   // face
+  c.fillStyle=hatDark;c.fillRect(6,4,1,1);
+  c.fillStyle=hat;c.fillRect(-2,1,14,2);c.fillRect(2,-3,7,4);  // brim, then crown
+  c.fillStyle=hatDark;c.fillRect(2,0,7,1);
+  c.fillStyle=skin;c.fillRect(9,9,3,2);                   // arm holding the weapon
+  if(h.weapon==="machete"&&h.machete){c.fillStyle="#dfe3ea";c.fillRect(12,8,7,2);
+   c.fillStyle="#3a2a18";c.fillRect(11,8,2,3);}
+  else if(h.weapon==="pistol"&&h.pistol){c.fillStyle="#3b3b45";c.fillRect(12,9,5,2);
+   c.fillStyle="#5a4a32";c.fillRect(11,10,2,3);}
+  else if(h.weapon==="dynamite"&&h.dynamite>0){c.fillStyle="#b8392a";c.fillRect(12,8,4,4);
+   c.fillStyle="#e0d0a0";c.fillRect(15,6,1,3);}
  }
- if(h.swing>0){c.fillStyle=h.machete?"#dfe3ea":"#e8c08a";
-  const b=swingBox(h);c.fillRect(px(b.x-G.cam.x),px(b.y-G.cam.y+b.h/2-1),b.w,2);}
- if(h.idol){c.fillStyle="#4fd39a";c.fillRect(sx+(d>0?-3:10),sy+(h.crawl?4:9),4,5);}
+ c.restore();
+ if(h.swing>0){                                           // the machete sweep itself
+  const b=swingBox(h);
+  c.fillStyle=h.machete?"#eef2f8":"#e7bd8a";
+  c.fillRect(px(b.x-G.cam.x),px(b.y-G.cam.y+b.h/2-1),b.w,2);
+  c.fillRect(px(b.x-G.cam.x)+(h.face>0?b.w-3:0),px(b.y-G.cam.y+1),3,b.h-2);
+ }
+ if(h.idol){const sx=px(h.x-G.cam.x);                     // the prize, once it is yours
+  c.fillStyle="#4fd39a";c.fillRect(sx+(h.face>0?-4:10),px(h.y-G.cam.y)+(h.crawl?3:9),4,5);}
 }
 function drawHUD(){
- const c=ctx, h=G.hero;
- c.fillStyle="rgba(10,8,4,.72)";c.fillRect(0,0,VW,14);
- c.fillStyle="#5a2020";c.fillRect(4,4,60,6);
- c.fillStyle=h.hp>35?"#6cc06c":"#d05050";c.fillRect(4,4,Math.max(0,60*h.hp/h.maxhp),6);
- c.fillStyle="#f1e6d2";c.font="8px monospace";c.textBaseline="top";
- c.fillText(h.weapon.toUpperCase()+"  "+h.bullets+"B "+h.dynamite+"D",70,4);
- c.fillText("DEPTH "+(G.depth+1)+"/"+G.levels.length,170,4);
- c.fillText(fmtTime(G.time),238,4);
- c.fillText(String(G.score),282,4);
- if(h.idol){c.fillStyle="#4fd39a";c.fillRect(160,4,6,6);}
- if(G.dig){c.fillStyle="#e0b357";c.fillRect(VW/2-20,VH-12,40*clamp(G.dig.p/1.1,0,1),3);}
- if(G.msgT>0){c.fillStyle="rgba(10,8,4,.72)";c.fillRect(0,VH-13,VW,13);
+ const c=ctx, h=G.hero, W=VW;
+ c.fillStyle="rgba(10,8,4,.8)";c.fillRect(0,0,W,15);
+ c.fillStyle="#5a2020";c.fillRect(4,5,64,6);
+ c.fillStyle=h.hp>35?"#6cc06c":"#d05050";c.fillRect(4,5,Math.max(0,64*h.hp/h.maxhp),6);
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ c.fillStyle="#f1e6d2";c.fillText(weaponLabel(),74,4);
+ if(h.idol){c.fillStyle="#4fd39a";c.fillRect(134,5,6,6);
+  c.fillStyle="#f1e6d2";c.fillText("IDOL",143,4);}
+ c.textAlign="center";c.fillText(fmtTime(G.time)+"   "+G.score,W/2,4);
+ c.textAlign="right";c.fillText("DEPTH "+(G.depth+1)+"/"+G.levels.length,W-4,4);
+ c.textAlign="left";
+ if(G.dig){c.fillStyle="#e0b357";c.fillRect(W/2-20,VH-16,40*clamp(G.dig.p/1.1,0,1),3);}
+ if(G.msgT>0){c.fillStyle="rgba(10,8,4,.8)";c.fillRect(0,VH-13,W,13);
   c.fillStyle="#e0b357";c.fillText(G.msg,4,VH-11);}
 }
 function render(){
  const c=ctx;
  if(G.phase==="menu"||!G.L||!G.hero){c.fillStyle="#0c0904";c.fillRect(0,0,VW,VH);return;}
  const h=G.hero;
- G.cam.x=clamp(h.x+h.w/2-VW/2,0,MAPW*TS-VW);
- G.cam.y=clamp(h.y+h.h/2-VH/2,0,MAPH*TS-VH);
+ G.cam.x=clamp(h.x+h.w/2-VW/2,0,Math.max(0,MAPW*TS-VW));
+ G.cam.y=clamp(h.y+h.h/2-VH/2,0,Math.max(0,MAPH*TS-VH));
  if(G.shake>0){G.cam.x+=(Math.random()-.5)*G.shake;G.cam.y+=(Math.random()-.5)*G.shake;}
  c.fillStyle="#150f08";c.fillRect(0,0,VW,VH);
  drawTiles();
@@ -744,14 +898,27 @@ function updateStatus(){
 }
 
 /* ============ loop ============ */
-let last=0;
+// The drawing surface takes the shape of the box it sits in, so full screen shows
+// more of the tomb instead of the same picture with bars around it.
+function fit(){
+ const r=cv.getBoundingClientRect(), w=r.width||360, hh=r.height||216;
+ if(!w||!hh)return;
+ const s=clamp(w/360,1,6);
+ const nw=clamp(Math.round(w/s),280,520), nh=clamp(Math.round(hh/s),150,MAPH*TS);
+ if(nw===VW&&nh===VH)return;
+ VW=nw;VH=nh;cv.width=VW;cv.height=VH;
+}
+addEventListener("resize",fit);
+addEventListener("orientationchange",fit);
+let last=0,frame=0;
 function loop(now){
  const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+ if(!(frame++%20))fit();
  if(G.phase==="play")stepGame(dt);
- render();updateStatus();
+ render();updateStatus();updatePads();
  requestAnimationFrame(loop);
 }
-mainMenu();audioLabel();requestAnimationFrame(loop);
+fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
