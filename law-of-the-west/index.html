@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Law of the West — Gold Gulch</title>
+<meta name="description" content="Law of the West: a browser recreation of the 1985 Commodore 64 western. Talk the street down or draw — the badge is yours to keep.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%A0%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#120d09;--panel:#1d1610;--panel2:#2a2016;--ink:#f2e6d2;--dim:#b09a7c;--gold:#d8a441;--line:#40311f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:4/3;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,44px);gap:4px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:17px;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer;
+  touch-action:none}
+.btn:active,.btn.on{background:var(--gold);color:#1a1207;border-color:var(--gold)}
+.abtn{width:62px;height:62px;border-radius:50%;font-size:13px;font-weight:700}
+.sbtn{padding:8px 12px;border-radius:10px;font-size:13px;height:40px}
+#overlay{position:absolute;inset:0;background:rgba(12,9,6,.93);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:360px;line-height:1.45}
+.said{font-size:14px;margin:0 0 6px;max-width:380px;line-height:1.5;color:var(--ink)}
+.said b{color:var(--gold)}
+.menuitem{width:min(340px,92%);padding:10px 11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:13px;cursor:pointer;color:var(--ink);text-align:left}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#1a1207;font-weight:700}
+small.tip{color:var(--dim);font-size:11px;max-width:360px;line-height:1.45}
+button{font:inherit;cursor:pointer}
+.soundrow{display:flex;align-items:center;gap:12px;margin:6px 0 12px;font-size:11px;color:var(--dim)}
+#sound,#full{background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:9px 12px;
+  min-height:40px;border-radius:10px}
+
+/* ---- full game mode: the page gets out of the way and the machine fills the screen ---- */
+body.gamemode{position:fixed;inset:0;padding:0;background:#000;overflow:hidden;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+body.gamemode #wrap{position:relative;max-width:none;width:100%;height:100%;gap:0;padding:0}
+body.gamemode #status{position:absolute;left:0;right:0;top:0;z-index:3;height:26px;min-height:0;
+  padding:5px 168px 5px 8px;border:0;border-radius:0;background:rgba(10,7,4,.74);color:#f2e6d2;
+  font-size:12px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+body.gamemode #stage{position:absolute;aspect-ratio:auto;border:0;border-radius:0;background:#000}
+body.gamemode #pads{position:absolute;inset:0;z-index:2;pointer-events:none}
+body.gamemode .padrow{position:absolute;left:0;right:0;pointer-events:none;
+  padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
+body.gamemode .padrow>*{pointer-events:auto}
+body.gamemode #pad1{bottom:calc(env(safe-area-inset-bottom) + 6px);align-items:flex-end}
+body.gamemode .btn{background:rgba(42,32,22,.82)}
+body.gamemode .btn:active,body.gamemode .btn.on{background:var(--gold);color:#1a1207}
+body.gamemode .soundrow{position:absolute;right:6px;top:2px;z-index:4;margin:0;gap:6px}
+body.gamemode #audio-status{display:none}
+body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:10px;opacity:.85;border-radius:7px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status" role="status">Loading…</div>
+  <div id="stage"><canvas id="cv"></canvas><div id="overlay"></div></div>
+  <div id="pads">
+    <div class="padrow" id="pad1">
+      <div class="dpad">
+        <div></div><div class="btn" data-k="1U">▲</div><div></div>
+        <div class="btn" data-k="1L">◀</div><div class="btn" data-k="1C">●</div><div class="btn" data-k="1R">▶</div>
+        <div></div><div class="btn" data-k="1D">▼</div><div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="display:flex;gap:8px">
+          <div class="btn abtn" data-k="1A">FIRE</div><div class="btn abtn" data-k="1B">B</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <div class="btn sbtn" data-k="MENU">MENU</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+</div>
+<script>
+"use strict";
+/* ============================================================
+   Law of the West — Gold Gulch, 1885. You are the sheriff.
+   Seven people come down the street. Most of them do not need
+   to be shot; the badge is kept by the lawman who knows which.
+   ============================================================ */
+
+/* ---- scene, drawn in a fixed 320x200 space and scaled ---- */
+const SW=320, SH=200;
+
+/* ---- the street ---- */
+const ZONES=["HAT","GUN HAND","CHEST"];     // what the sheriff's aim is covering
+/* Height of each mark above the boots, in figure units (a figure is 30 units tall). */
+const AIM_OFF={HAT:27.5,CHEST:19,"GUN HAND":14.5};
+const FIG=2.5, GROUND=178, VISITOR_X=104, SHERIFF_X=228;
+
+/* Each visitor is a small dialogue tree. A reply either moves to another node,
+   settles the encounter ("end"), or makes the visitor go for his gun ("draw").
+   pts is what the reply is worth to a lawman's standing. */
+const PEOPLE=[
+ {id:"drunk",name:"Muley Bugg",trade:"town drunk",art:"drunk",armed:false,nerve:0,
+  open:"Sheriff! Shay, hic — I only borrowed that horsh. It followed me home.",
+  nodes:{
+   start:{replies:[
+    {t:"\"Sleep it off in my cell, Muley. Door's open.\"",to:"cell",pts:60},
+    {t:"\"Whose horse, Muley? Point at it.\"",to:"horse",pts:40},
+    {t:"\"One more word and I'll jail you for a month.\"",to:"sore",pts:-10},
+    {t:"\"Get out of my street.\"",to:"sore",pts:-20}]},
+   cell:{say:"Yer a Christian man, Sheriff. I'll take the cot.",replies:[
+    {t:"\"Walk, don't crawl.\"",to:"end",pts:60,msg:"Muley sleeps it off. No trouble, no funeral."}]},
+   horse:{say:"That one. Or — hic — that one. They both look thirsty.",replies:[
+    {t:"\"You'll muck the stable till the owner's satisfied.\"",to:"end",pts:80,msg:"Muley works off the horse. The owner drops the charge."},
+    {t:"\"Then I'll hold you till a sober man claims it.\"",to:"end",pts:50,msg:"Muley is locked up, gently."}]},
+   sore:{say:"Hic. Yer a hard man for a town this small.",replies:[
+    {t:"\"Just move along.\"",to:"end",pts:10,msg:"Muley staggers off, muttering about your mother."},
+    {t:"Draw on him.",to:"draw",pts:0}]}}},
+
+ {id:"kid",name:"the Hardin boy",trade:"ranch kid",art:"kid",armed:false,nerve:0,
+  open:"They say you're fast, Sheriff. I aim to find out. I got my pa's gun.",
+  nodes:{
+   start:{replies:[
+    {t:"\"Hand it over and I'll teach you to shoot cans.\"",to:"cans",pts:90},
+    {t:"\"Your pa know his gun's gone?\"",to:"pa",pts:70},
+    {t:"\"Then draw, son.\"",to:"scared",pts:-60},
+    {t:"\"I've buried boys your age. Go home.\"",to:"pa",pts:40}]},
+   cans:{say:"Cans? … Well. Pa says I couldn't hit a barn.",replies:[
+    {t:"\"Saturday, behind the livery. Bring the cans.\"",to:"end",pts:120,msg:"The Hardin boy goes home with an appointment instead of a grave."}]},
+   pa:{say:"He'd skin me. It ain't even loaded, Sheriff.",replies:[
+    {t:"\"Then we'll walk it back to him together.\"",to:"end",pts:110,msg:"You walk the boy home. His pa says nothing, and means plenty."},
+    {t:"\"Unloaded guns get boys killed. Give it here.\"",to:"end",pts:90,msg:"You keep the gun on your desk. The boy keeps his life."}]},
+   scared:{say:"I— I weren't really gonna—",replies:[
+    {t:"\"Then go home before I change my mind.\"",to:"end",pts:20,msg:"The boy runs. He will tell it differently in ten years."},
+    {t:"Shoot.",to:"murder",pts:0}]}}},
+
+ {id:"teacher",name:"Miss Amelia Rowe",trade:"schoolteacher",art:"lady",armed:false,nerve:0,
+  open:"Sheriff, there are drunks firing at bottles behind my schoolhouse.",
+  nodes:{
+   start:{replies:[
+    {t:"\"I'll move them to the far end of town today.\"",to:"thanks",pts:90},
+    {t:"\"Send the children home early and I'll clear it now.\"",to:"thanks",pts:100},
+    {t:"\"Ma'am, this is a mining town. Bottles get shot.\"",to:"cool",pts:-30},
+    {t:"\"Perhaps you'd care to report it over supper.\"",to:"supper",pts:30}]},
+   thanks:{say:"Thank you. It is good to have a lawman who listens.",replies:[
+    {t:"\"That's the job, ma'am.\"",to:"end",pts:80,msg:"The school gets its quiet. Word of it reaches the mayor."}]},
+   cool:{say:"Then I shall write to the territorial governor instead.",replies:[
+    {t:"\"Ma'am — wait. I'll see to it.\"",to:"end",pts:40,msg:"You keep the peace and lose a little of your dignity."},
+    {t:"\"You do that.\"",to:"end",pts:-40,msg:"The letter is written. The governor is not a patient reader."}]},
+   supper:{say:"Supper. At six. Bring the quiet street with you.",replies:[
+    {t:"\"Six o'clock, ma'am.\"",to:"end",pts:100,msg:"The drunks are moved before five. You are not late."}]}}},
+
+ {id:"robber",name:"Slim Caldwell",trade:"bank robber",art:"robber",armed:true,nerve:2,
+  open:"That's my brother's horse at your rail, Sheriff. I'm taking it, and the bank's satchel with it.",
+  nodes:{
+   start:{replies:[
+    {t:"\"Satchel on the boardwalk. Then your gun.\"",to:"hard",pts:60},
+    {t:"\"Your brother hanged himself the day he rode with you.\"",to:"hard",pts:20},
+    {t:"\"Ride out empty and I won't wire the marshals.\"",to:"deal",pts:70},
+    {t:"Draw.",to:"draw",pts:0}]},
+   hard:{say:"You ain't got the town behind you, lawman. You got a tin star.",replies:[
+    {t:"\"The satchel. I won't ask a third time.\"",to:"draw",pts:40},
+    {t:"\"Then walk away and keep your hands empty.\"",to:"deal",pts:50}]},
+   deal:{say:"…Keep the satchel. I'll take the horse and my brother's saddle.",replies:[
+    {t:"\"Take it and go.\"",to:"end",pts:60,msg:"The bank keeps its money. Slim keeps his life, and his freedom."},
+    {t:"\"You'll take a cell.\"",to:"draw",pts:30}]}}},
+
+ {id:"rustler",name:"Jack Teale",trade:"cattle rustler",art:"rustler",armed:true,nerve:1,
+  open:"Those steers wandered, Sheriff. A man can't help where a steer wanders.",
+  nodes:{
+   start:{replies:[
+    {t:"\"They wandered into your brand. Show me the iron.\"",to:"iron",pts:70},
+    {t:"\"Give back the herd and the county forgets your name.\"",to:"deal",pts:60},
+    {t:"\"You'll hang for forty head.\"",to:"corner",pts:10},
+    {t:"Draw.",to:"draw",pts:0}]},
+   iron:{say:"…All right. The iron's in my saddlebag. I ain't a hanging man, Sheriff.",replies:[
+    {t:"\"Then you're a jailed one. Hands up.\"",to:"end",pts:140,msg:"Teale is jailed with the evidence on him. The ranchers get their herd."},
+    {t:"\"Drive them back tonight and I'll speak for you.\"",to:"end",pts:100,msg:"The herd is returned by morning. The judge hears your word."}]},
+   deal:{say:"Every head? … There's men waiting on me for those steers.",replies:[
+    {t:"\"Name them and ride out clean.\"",to:"end",pts:120,msg:"Teale names two buyers in Abilene. The herd comes home."},
+    {t:"\"Not my trouble. Every head.\"",to:"corner",pts:30}]},
+   corner:{say:"Then I got nothing to lose, do I.",replies:[
+    {t:"\"Nothing but your hand. Keep it still.\"",to:"draw",pts:40},
+    {t:"\"Easy. Let's talk about the buyers instead.\"",to:"deal",pts:60}]}}},
+
+ {id:"conman",name:"Doc Pettibone",trade:"patent medicine man",art:"conman",armed:false,nerve:0,
+  open:"Sheriff! A bottle of my elixir, free of charge, for the bravest badge in the territory.",
+  nodes:{
+   start:{replies:[
+    {t:"\"What's in it, Doc? Word for word.\"",to:"recipe",pts:80},
+    {t:"\"Peddle it in the next county. Wagon's pointed that way.\"",to:"leave",pts:60},
+    {t:"\"The Widow Pell paid four dollars and got sicker.\"",to:"refund",pts:100},
+    {t:"\"Much obliged.\"",to:"end",pts:-30,msg:"You drink it. Gold Gulch spends a week watching its sheriff sweat."}]},
+   recipe:{say:"Creek water, molasses, and — hic — a confident quantity of whiskey.",replies:[
+    {t:"\"Then sell it as whiskey, at whiskey's price.\"",to:"end",pts:110,msg:"The elixir is relabelled. Nobody is poisoned, and the saloon gains a rival."},
+    {t:"\"Pour it out. All of it.\"",to:"end",pts:90,msg:"Forty bottles run into the dust of Main Street."}]},
+   leave:{say:"The next county has no schoolhouse and no sheriff worth the name.",replies:[
+    {t:"\"It has a road. Use it.\"",to:"end",pts:70,msg:"The wagon rolls out before noon."}]},
+   refund:{say:"…An unfortunate constitution. I shall refund the good widow at once.",replies:[
+    {t:"\"Four dollars, in my hand, for her.\"",to:"end",pts:130,msg:"The widow gets her four dollars back. The Doc gets a day's head start."}]}}},
+
+ {id:"gunman",name:"Black Bart Hollis",trade:"hired gun",art:"gunman",armed:true,nerve:3,
+  open:"Sheriff. I've killed eleven men, and nine of them wore a star. You'll make ten.",
+  nodes:{
+   start:{replies:[
+    {t:"\"Then you'll want the street clear. Wait while I move the boy.\"",to:"clear",pts:80},
+    {t:"\"Eleven men and not one of them looking at you.\"",to:"taunt",pts:20},
+    {t:"\"Ride out, Hollis. There's no money in me.\"",to:"money",pts:60},
+    {t:"Draw.",to:"draw",pts:0}]},
+   clear:{say:"…Move him. I'll not be called a child-killer on top of the rest.",replies:[
+    {t:"\"Obliged. Now — whenever you're ready.\"",to:"draw",pts:110},
+    {t:"\"Now ride out while the street's still empty.\"",to:"money",pts:70}]},
+   taunt:{say:"You've a mouth on you, lawman. Let's see the hand that goes with it.",replies:[
+    {t:"Wait for his hand to move.",to:"draw",pts:60},
+    {t:"\"Last chance to mount up.\"",to:"money",pts:40}]},
+   money:{say:"There's two hundred dollars in you, Sheriff. Cattlemen's money.",replies:[
+    {t:"\"Then the cattlemen can come themselves.\"",to:"draw",pts:80},
+    {t:"\"Name them in front of witnesses and ride out rich.\"",to:"end",pts:150,msg:"Hollis names the two ranchers who bought you. He rides out; they answer to a judge."}]}}}
+];
+
+/* ---- audio: a few synthesized cues, no files ---- */
+const SOUND={ctx:null,master:null,enabled:true,voices:new Set(),lastShot:0};
+function audioLabel(){
+  const el=document.getElementById("audio-status");
+  el.textContent=!SOUND.ctx?"Tap a control to enable audio":
+    SOUND.ctx.state!=="running"?"Tap again to start audio":(SOUND.enabled?"Audio on":"Audio muted");
+  document.getElementById("sound").textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";
+  document.getElementById("sound").setAttribute("aria-pressed",SOUND.enabled?"true":"false");
+}
+function unlockAudio(){
+  try{
+    if(!SOUND.ctx){
+      const C=window.AudioContext||window.webkitAudioContext; if(!C)return;
+      SOUND.ctx=new C(); SOUND.master=SOUND.ctx.createGain();
+      SOUND.master.gain.value=SOUND.enabled?.2:0; SOUND.master.connect(SOUND.ctx.destination);
+      SOUND.ctx.onstatechange=audioLabel;}
+    if(SOUND.ctx.state!=="running")SOUND.ctx.resume().then(audioLabel).catch(()=>{});
+    audioLabel();
+  }catch(e){document.getElementById("audio-status").textContent="Audio unavailable";}
+}
+function tone(hz,endHz,seconds,type="square",level=.3){
+  const a=SOUND.ctx; if(!SOUND.enabled||!a||a.state!=="running"||document.hidden)return;
+  if(SOUND.voices.size>=3){const v=SOUND.voices.values().next().value;v.stop();SOUND.voices.delete(v);}
+  const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+  o.type=type;o.frequency.setValueAtTime(hz,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,endHz),t+seconds);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(level,t+.004);
+  g.gain.exponentialRampToValueAtTime(.001,t+seconds);
+  o.connect(g);g.connect(SOUND.master);o.start(t);o.stop(t+seconds+.015);SOUND.voices.add(o);
+  o.onended=()=>{SOUND.voices.delete(o);o.disconnect();g.disconnect();};
+}
+function shotSound(){const t=SOUND.ctx?.currentTime??0;if(t-SOUND.lastShot<.05)return;SOUND.lastShot=t;
+  tone(320,40,.22,"sawtooth",.55);}
+function drawSound(){tone(1500,900,.06,"square",.35);}      // leather and hammer
+function hitSound(){tone(150,50,.3,"triangle",.5);}
+function dingSound(){tone(1760,1740,.14,"triangle",.5);}    // a gun knocked from a hand
+function clickSound(){tone(900,880,.03,"square",.22);}
+
+/* ---- state ---- */
+const G={phase:"menu",person:0,node:"start",score:0,lives:3,murders:0,record:[],
+  duel:null,msg:"",over:null,uid:0};
+const keys={};
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+const statusEl=document.getElementById("status"), ov=document.getElementById("overlay");
+const person=()=>PEOPLE[G.person];
+
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+  if(typeof holders!=="undefined")holders.clear();
+  document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+addEventListener("blur",clearKeys);
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){clearKeys();if(SOUND.master)SOUND.master.gain.value=0;}
+  else{if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.2:0;
+    if(typeof gameMode!=="undefined"&&gameMode)keepAwake();}});
+document.addEventListener("pointerdown",unlockAudio,{capture:true});
+document.addEventListener("keydown",unlockAudio,{capture:true});
+document.getElementById("sound").addEventListener("click",()=>{
+  SOUND.enabled=!SOUND.enabled; if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.2:0;
+  if(SOUND.enabled){unlockAudio();dingSound();} audioLabel();});
+
+/* ============ full game mode ============ */
+const NAV=typeof navigator==="object"&&navigator?navigator:null;
+const bodyEl=document.body||{classList:{add(){},remove(){}}};
+const stageEl=document.getElementById("stage"), fullBtn=document.getElementById("full");
+let gameMode=false, wakeLock=null, wantGameMode=false;
+const SAFE={top:0,right:0,bottom:0,left:0};
+const BAR=26;
+try{wantGameMode=localStorage.getItem("lotw.gamemode")==="1";}catch(e){}
+function fsElement(){return document.fullscreenElement||document.webkitFullscreenElement||null;}
+function requestFS(){
+  const el=document.documentElement; if(!el)return;
+  try{const r=el.requestFullscreen?.({navigationUI:"hide"})??el.webkitRequestFullscreen?.();
+    if(r&&r.catch)r.catch(()=>{});}catch(e){}
+}
+function exitFS(){try{const r=document.exitFullscreen?.()??document.webkitExitFullscreen?.();
+  if(r&&r.catch)r.catch(()=>{});}catch(e){}}
+function keepAwake(){if(!NAV?.wakeLock?.request)return;
+  try{NAV.wakeLock.request("screen").then(l=>{wakeLock=l;}).catch(()=>{});}catch(e){}}
+function releaseAwake(){try{wakeLock?.release?.();}catch(e){}wakeLock=null;}
+function setGameMode(on){
+  gameMode=!!on; wantGameMode=gameMode;
+  bodyEl.classList?.[gameMode?"add":"remove"]("gamemode");
+  fullBtn?.setAttribute?.("aria-pressed",gameMode?"true":"false");
+  if(fullBtn)fullBtn.textContent=gameMode?"EXIT FULL":"FULL SCREEN";
+  try{localStorage.setItem("lotw.gamemode",gameMode?"1":"0");}catch(e){}
+  if(gameMode)keepAwake(); else releaseAwake();
+  layout();
+}
+function toggleGameMode(){if(gameMode){exitFS();setGameMode(false);}else{setGameMode(true);requestFS();}}
+function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);requestFS();}}
+/* The street is drawn 320x200; game mode gives it the whole screen and the
+   drawing code fits that shape inside whatever the pads leave free. */
+function layout(){
+  const st=stageEl;
+  if(!st?.style){fit();return;}
+  if(!gameMode){
+    st.style.width=st.style.height=st.style.left=st.style.top="";
+    SAFE.top=SAFE.right=SAFE.bottom=SAFE.left=0; fit(); return;
+  }
+  const vw=typeof innerWidth==="number"?innerWidth:0, vh=typeof innerHeight==="number"?innerHeight:0;
+  if(!vw||!vh){fit();return;}
+  const landscape=vw>vh;
+  const pad1=document.getElementById("pad1");
+  const shown=el=>el&&el.style?.display!=="none";
+  const h=el=>shown(el)?(el.getBoundingClientRect?.().height||0):0;
+  const colW=el=>shown(el)?Array.prototype.reduce.call(el.children||[],
+    (m,c)=>Math.max(m,c.getBoundingClientRect?.().width||0),0):0;
+  const cols=landscape?Math.round(colW(pad1))+10:0;
+  st.style.left="0px"; st.style.top="0px";
+  st.style.width=vw+"px"; st.style.height=vh+"px";
+  SAFE.top=BAR; SAFE.bottom=landscape?0:Math.round(h(pad1))+10;
+  SAFE.left=cols; SAFE.right=cols;
+  fit();
+}
+document.addEventListener?.("fullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+document.addEventListener?.("webkitfullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+fullBtn?.addEventListener?.("click",toggleGameMode);
+for(const t of ["gesturestart","gesturechange","gestureend"])
+  document.addEventListener?.(t,e=>{e.preventDefault?.();});
+document.addEventListener?.("contextmenu",e=>{if(gameMode||e.target?.closest?.("[data-k]"))e.preventDefault?.();});
+document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
+
+function fit(){const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2.5);
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d);}
+function safeRect(){
+  const r=cv.getBoundingClientRect?.(), d=(r&&r.width)?cv.width/r.width:1;
+  const x=SAFE.left*d, y=SAFE.top*d;
+  return {x,y,w:Math.max(40,cv.width-x-SAFE.right*d),h:Math.max(40,cv.height-y-SAFE.bottom*d)};
+}
+/* The scene keeps its 320x200 proportions and is centred in whatever is free. */
+function sceneGeom(){
+  const a=safeRect(), sc=Math.min(a.w/SW,a.h/SH);
+  return {sc,ox:a.x+(a.w-SW*sc)/2,oy:a.y+(a.h-SH*sc)/2,area:a};
+}
+addEventListener("resize",()=>layout());
+addEventListener("orientationchange",()=>layout());
+
+/* ============ the duel ============ */
+/* The sheriff may not shoot a man who has not gone for his gun; that is murder,
+   and two of them cost the badge. Once the hand moves, the fast shot wins - but a
+   shot fired in a panic strays, and the hand is a narrower mark than the chest. */
+const REACT=0.62;          // seconds from their draw to their shot
+const PANIC=0.12;          // a shot inside this window of their draw strays low
+
+function startDuel(){
+  const p=person();
+  G.phase="duel"; hideOverlay();
+  G.duel={t:0,aim:1,theirDraw:p.armed?(0.9+p.nerve*0.25):Infinity,drawn:false,
+    fired:false,theirShot:false,over:null,flash:0,result:null};
+  G.msg=p.name+" is squared up in the street.";
+  drawSound();
+}
+function aimZone(){return ZONES[G.duel.aim];}
+function moveAim(d){
+  const u=G.duel; const n=Math.max(0,Math.min(ZONES.length-1,u.aim+d));
+  if(n!==u.aim){u.aim=n;clickSound();}
+}
+/* Where the bullet actually goes: a rushed shot pulls one zone lower. */
+function shotZone(u){
+  const rushed=u.drawn&&(u.t-u.theirDraw)<PANIC;
+  const i=Math.min(ZONES.length-1,u.aim+(rushed?1:0));
+  return {zone:ZONES[i],strayed:rushed&&i!==u.aim};
+}
+function fire(){
+  const u=G.duel; if(!u||u.fired||u.over)return;
+  u.fired=true; u.flash=.12; shotSound();
+  const p=person();
+  if(!u.drawn){                                  // his hand never moved
+    G.murders++; G.score-=250;
+    endDuel("murder",p.armed
+      ? "You shot "+p.name+" before his hand moved. That is murder, badge or no badge."
+      : "You shot "+p.name+", who was unarmed. Gold Gulch will not forget it.");
+    return;
+  }
+  const {zone,strayed}=shotZone(u);
+  if(zone==="GUN HAND"){
+    G.score+=150; dingSound();
+    endDuel("disarm",p.name+"'s gun spins into the dust. He keeps his hand, and the county keeps its hanging.");
+  } else if(zone==="CHEST"){
+    G.score+=60; hitSound();
+    endDuel("kill",p.name+" is dead in the street."+(strayed?" You fired in a panic and the shot went low.":""));
+  } else {                                        // hat: a warning, and nerve decides
+    if(p.nerve<=2){G.score+=120;dingSound();
+      endDuel("surrender",p.name+"'s hat is in the road and his hands are up.");}
+    else{G.score+=10;
+      endDuel("miss",p.name+" does not flinch at a hat shot. His gun comes up.",true);}
+  }
+}
+function theirShot(){
+  const u=G.duel, p=person();
+  u.theirShot=true; shotSound(); hitSound();
+  G.lives--; G.score-=60;
+  endDuel("shot",p.name+" fired first. You are hit, and Gold Gulch is short a sheriff for a week.");
+}
+function endDuel(result,msg,theyFinish){
+  const u=G.duel; u.result=result; u.over=u.t+ (theyFinish?REACT:0); u.msg=msg;
+  if(theyFinish){u.fired=false;u.theirDraw=u.t;}   // he still gets his shot off
+  else{G.record.push({who:person().name,result,pts:0}); G.msg=msg; settle(msg,result);}
+}
+function duelStep(dt){
+  const u=G.duel; if(!u)return;
+  u.t+=dt; if(u.flash>0)u.flash-=dt;
+  if(!u.drawn&&u.t>=u.theirDraw){u.drawn=true;drawSound();G.msg=person().name+" goes for his gun.";}
+  if(u.result&&u.result!=="miss")return;
+  if(keys["1U"])moveAimHeld(-1,dt); else if(keys["1D"])moveAimHeld(1,dt); else aimHold=0;
+  if(keys["1A"])fire();
+  if(u.drawn&&!u.theirShot&&!(u.result&&u.result!=="miss")&&u.t-u.theirDraw>=REACT)theirShot();
+}
+let aimHold=0;
+function moveAimHeld(d,dt){
+  aimHold-=dt;
+  if(aimHold<=0){moveAim(d);aimHold=0.18;}        // held direction steps, it does not slide away
+}
+
+/* ============ encounters ============ */
+function beginPerson(){
+  const p=person();
+  G.node="start"; G.phase="talk"; G.duel=null;
+  G.msg=p.name+", "+p.trade+", is coming up the boardwalk.";
+  showNode(p.open);
+}
+function showNode(said){
+  const p=person(), node=p.nodes[G.node];
+  showOverlay(`<h1>${p.name.toUpperCase()}</h1>
+   <p class="said">"${said||node.say}"</p>
+   ${node.replies.map((r,i)=>`<div class="menuitem ${i===0?"sel":""}" data-reply="${i}">${r.t}</div>`).join("")}
+   <small class="tip">Up/down to choose, FIRE to say it. MENU quits to the street.</small>`);
+}
+function choose(i){
+  const p=person(), node=p.nodes[G.node], r=node.replies[i];
+  if(!r)return;
+  G.score+=r.pts||0;
+  if(r.to==="draw"){
+    if(!p.armed){                                  // an unarmed man will not trade shots
+      G.score-=120; G.murders++;
+      settle("You drew on "+p.name+", who has no gun. The street watched you do it.","murder");
+      return;
+    }
+    startDuel(); return;
+  }
+  if(r.to==="murder"){startDuel(); fire(); return;}
+  if(r.to==="end"){
+    G.record.push({who:p.name,result:"talked",pts:r.pts||0});
+    settle(r.msg||"The matter is settled.","talked"); return;
+  }
+  G.node=r.to; showNode();
+}
+function settle(msg,result){
+  G.phase="settled"; G.msg=msg;
+  if(result==="murder"||result==="shot"){
+    if(G.murders>=2||G.lives<=0){finish(result);return;}
+  }
+  const last=G.person>=PEOPLE.length-1;
+  showOverlay(`<h1>${result==="murder"?"MURDER":result==="disarm"?"DISARMED":
+    result==="kill"?"KILLED":result==="shot"?"YOU ARE HIT":result==="surrender"?"SURRENDER":"SETTLED"}</h1>
+   <p class="said">${msg}</p>
+   <p class="sub">Standing ${G.score} · lives ${G.lives} · ${G.murders} murder${G.murders===1?"":"s"} on the books</p>
+   <div class="menuitem sel" data-act="next">${last?"End the day":"Walk on down the street"}</div>`);
+}
+function nextPerson(){
+  if(G.person>=PEOPLE.length-1){finish("day");return;}
+  G.person++; beginPerson();
+}
+const RATINGS=[[-1e9,"Run out of town"],[0,"Deputy on probation"],[300,"Town constable"],
+  [600,"Sheriff of Gold Gulch"],[900,"Marshal of the territory"],[1200,"Legend of the West"]];
+function rating(score,murders,lives){
+  if(murders>=2||lives<=0)return "Run out of town";
+  let r=RATINGS[0][1];
+  for(const [min,name] of RATINGS)if(score>=min)r=name;
+  return r;
+}
+function finish(why){
+  G.phase="over"; G.over={why,rating:rating(G.score,G.murders,G.lives)};
+  showOverlay(`<h1>${G.over.rating.toUpperCase()}</h1>
+   <p class="sub">${why==="day"?"Sundown over Gold Gulch.":
+     why==="murder"?"The town council has taken your badge.":"You were carried off Main Street."}</p>
+   <p class="said">Standing <b>${G.score}</b> · ${G.record.filter(r=>r.result==="talked").length} settled with words ·
+    ${G.record.filter(r=>r.result==="disarm").length} disarmed · ${G.record.filter(r=>r.result==="kill").length} killed ·
+    ${G.murders} murder${G.murders===1?"":"s"}</p>
+   <div class="menuitem sel" data-act="again">Ride in again</div>
+   <div class="menuitem" data-act="menu">Title screen</div>`);
+}
+function newGame(){
+  G.person=0;G.score=0;G.lives=3;G.murders=0;G.record=[];G.duel=null;G.over=null;
+  beginPerson();
+}
+function mainMenu(){
+  G.phase="menu";G.duel=null;
+  showOverlay(`<h1>LAW OF THE WEST</h1>
+   <p class="sub">Gold Gulch, 1885. Seven people come up the street and you wear the only badge.
+   Most of them do not need to be shot — and the lawman who shoots them anyway does not keep the star.</p>
+   <div class="menuitem sel" data-act="start">Pin on the badge</div>
+   <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
+   <small class="tip">Talk: up/down to pick a reply, FIRE to say it.
+   Duel: up/down moves your aim between his hat, his gun hand and his chest; FIRE shoots.
+   Never shoot before his hand moves. G toggles full screen; a gamepad works too.</small>`);
+}
+
+/* ============ overlay ============ */
+let menuSel=0;
+function showOverlay(html){ov.innerHTML=html;ov.classList.remove("hidden");menuSel=0;
+  const items=ov.querySelectorAll(".menuitem");items.forEach((el,i)=>el.classList.toggle("sel",i===0));}
+function hideOverlay(){ov.classList.add("hidden");}
+function menuKey(k){
+  const items=[...ov.querySelectorAll(".menuitem")]; if(!items.length)return;
+  if(k==="1U"||k==="1L")menuSel=(menuSel-1+items.length)%items.length;
+  if(k==="1D"||k==="1R")menuSel=(menuSel+1)%items.length;
+  if(k==="1U"||k==="1D"||k==="1L"||k==="1R")clickSound();
+  items.forEach((el,i)=>el.classList.toggle("sel",i===menuSel));
+  if(k==="1A"||k==="1C")items[menuSel].click();
+}
+ov.addEventListener("click",e=>{
+  const el=e.target.closest("[data-reply],[data-act]"); if(!el)return;
+  if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
+  if(el.dataset.act==="start"){enterGameModeIfWanted();newGame();return;}
+  if(el.dataset.act==="again"){enterGameModeIfWanted();newGame();return;}
+  if(el.dataset.act==="menu"){mainMenu();return;}
+  if(el.dataset.act==="next"){nextPerson();return;}
+  if(el.dataset.reply!==undefined)choose(+el.dataset.reply);
+});
+
+/* ============ input ============ */
+function press(k){
+  if(k==="FULL"){toggleGameMode();return;}
+  if(k==="MENU"){mainMenu();return;}
+  if(G.phase==="duel")return;                      // the duel reads held keys, not presses
+  menuKey(k);
+}
+const padsEl=document.getElementById("pads");
+const holders=new Map();
+const keysOf=el=>((el?.dataset?.k)||"").split(",").filter(Boolean);
+function engage(el){for(const k of keysOf(el)){keys[k]=true;press(k);}el?.classList?.add("on");}
+function releaseEl(el){for(const k of keysOf(el))keys[k]=false;el?.classList?.remove("on");}
+function padAt(x,y){const t=document.elementFromPoint?.(x,y);return t?.closest?.("[data-k]")||null;}
+function padDown(e){
+  const el=e.target?.closest?.("[data-k]"); if(!el)return;
+  e.preventDefault?.(); padsEl?.setPointerCapture?.(e.pointerId);
+  holders.set(e.pointerId,{dpad:el.closest?.(".dpad")||null,cur:el});
+  engage(el);
+}
+function padMove(e){
+  const h=holders.get(e.pointerId); if(!h||!h.dpad)return;
+  const next=padAt(e.clientX,e.clientY);
+  const tgt=(next&&next.closest?.(".dpad")===h.dpad)?next:null;
+  if(tgt===h.cur)return;
+  if(h.cur)releaseEl(h.cur);
+  h.cur=tgt; if(tgt)engage(tgt);
+}
+function padUp(e){
+  const h=holders.get(e.pointerId); if(!h)return;
+  e.preventDefault?.(); if(h.cur)releaseEl(h.cur); holders.delete(e.pointerId);
+}
+if(padsEl?.addEventListener){
+  padsEl.addEventListener("pointerdown",padDown);
+  padsEl.addEventListener("pointermove",padMove);
+  padsEl.addEventListener("pointerup",padUp);
+  padsEl.addEventListener("pointercancel",padUp);
+  padsEl.addEventListener("lostpointercapture",padUp);
+}
+const KMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A"," ":"1A",
+  z:"1A",x:"1B",Backspace:"1B",Escape:"MENU",g:"FULL",F11:"FULL"};
+const CODEMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A",NumpadEnter:"1A",
+  Space:"1A",KeyZ:"1A",KeyX:"1B",Backspace:"1B",Escape:"MENU",KeyG:"FULL",F11:"FULL"};
+const mapKey=e=>CODEMAP[e.code]||KMAP[e.key]||KMAP[(e.key||"").toLowerCase()]||null;
+addEventListener("keydown",e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const k=mapKey(e); if(!k)return;
+  e.preventDefault();
+  if(e.repeat)return;
+  if(!keys[k])press(k); keys[k]=true;});
+addEventListener("keyup",e=>{const k=mapKey(e); if(k)keys[k]=false;});
+/* A gamepad is the point of a duel: the stick aims, the trigger fires. Edges only,
+   so the pad never clears a key the keyboard or a thumb is holding. */
+const GP={prev:{}};
+function padState(gp){
+  const now={},bt=gp.buttons||[],ax=gp.axes||[];
+  const on=n=>!!(bt[n]&&(bt[n].pressed||bt[n].value>.5));
+  const av=typeof ax[1]==="number"?ax[1]:0, ah=typeof ax[0]==="number"?ax[0]:0;
+  now["1U"]=on(12)||av<-.45; now["1D"]=on(13)||av>.45;
+  now["1L"]=on(14)||ah<-.45; now["1R"]=on(15)||ah>.45;
+  now["1A"]=on(0)||on(7)||on(5); now["1B"]=on(1)||on(6)||on(4);
+  now.MENU=on(3)||on(9); now.FULL=on(8);
+  return now;
+}
+function pollGamepads(){
+  if(!NAV?.getGamepads)return;
+  let list; try{list=NAV.getGamepads()||[];}catch(e){return;}
+  const gp=Array.prototype.filter.call(list,Boolean)[0];
+  const now=gp?padState(gp):{}, prev=GP.prev;
+  for(const k of Object.keys(now)){
+    if(now[k]&&!prev[k]){keys[k]=true;press(k);}
+    else if(!now[k]&&prev[k])keys[k]=false;
+  }
+  for(const k of Object.keys(prev))if(prev[k]&&!now[k])keys[k]=false;
+  GP.prev=now;
+}
+
+/* ============ drawing ============ */
+/* Everything is drawn from rectangles in a 320x200 space, the way the machine did it. */
+const PAL={sky:"#e8b46a",sky2:"#c9813f",dust:"#c49a63",road:"#a87f4e",shadow:"#7a5733",
+  wood:"#6b4a2a",wood2:"#54381f",dark:"#2a1c10",cloth:"#3b4b6b",star:"#e8cf6a",skin:"#e0ac7a"};
+function figure(x,ground,scale,look,arm){
+  // look: this visitor's palette; arm: 0 holstered, 1 hand on the gun, 2 levelled
+  const s=scale, dir=look.facing, dark=PAL.dark;
+  ctx.fillStyle="rgba(60,40,22,.35)";                                  // shadow in the dust
+  ctx.beginPath();ctx.ellipse(x,ground+1.5*s,5.5*s,1.6*s,0,0,7);ctx.fill();
+  ctx.fillStyle=look.legs;
+  ctx.fillRect(x-3.2*s,ground-11*s,2.6*s,11*s); ctx.fillRect(x+.6*s,ground-11*s,2.6*s,11*s);
+  ctx.fillStyle=dark;                                                   // boots
+  ctx.fillRect(x-3.4*s,ground-1.6*s,3*s,1.6*s); ctx.fillRect(x+.4*s,ground-1.6*s,3*s,1.6*s);
+  ctx.fillStyle=look.coat; ctx.fillRect(x-4.2*s,ground-22*s,8.4*s,11.4*s);
+  ctx.fillStyle=look.coat2||look.coat; ctx.fillRect(x-4.2*s,ground-22*s,8.4*s,2*s);   // yoke
+  ctx.fillStyle=PAL.skin; ctx.fillRect(x-1.8*s,ground-27*s,3.6*s,5.2*s);              // face
+  ctx.fillStyle=dark;     ctx.fillRect(x-1.8*s+(dir>0?2.2*s:0),ground-25.4*s,1.4*s,.9*s); // eye
+  ctx.fillStyle=look.hat; ctx.fillRect(x-5*s,ground-27.4*s,10*s,1.5*s);               // brim
+  ctx.fillRect(x-2.6*s,ground-30.2*s,5.2*s,2.9*s);                                    // crown
+  if(look.star){ctx.fillStyle=PAL.star;ctx.fillRect(x-3.2*s,ground-20*s,1.8*s,1.8*s);}
+  ctx.fillStyle=dark; ctx.fillRect(x-4.2*s,ground-14.6*s,8.4*s,1.3*s);                // gunbelt
+  if(arm===0){
+    ctx.fillStyle=look.coat; ctx.fillRect(x+dir*3.6*s,ground-21*s,1.9*s,6.4*s);       // arm down
+    ctx.fillStyle=PAL.skin;  ctx.fillRect(x+dir*3.6*s,ground-15*s,1.9*s,1.6*s);       // hand by the holster
+    ctx.fillStyle=dark;      ctx.fillRect(x+dir*3.4*s,ground-14.4*s,2.6*s,3.4*s);     // holster
+  } else if(arm===1){
+    ctx.fillStyle=look.coat; ctx.fillRect(x+dir*3.6*s,ground-21*s,1.9*s,4.4*s);
+    ctx.fillStyle=PAL.skin;  ctx.fillRect(x+dir*4.4*s,ground-17.4*s,2.4*s,1.8*s);     // hand rising
+    ctx.fillStyle=dark;      ctx.fillRect(x+dir*5.6*s,ground-17*s,3*s,1.5*s);         // gun clearing leather
+  } else {
+    ctx.fillStyle=look.coat; ctx.fillRect(x+dir*(dir>0?3.4:5.3)*s,ground-20*s,2*s,1.9*s);
+    ctx.fillStyle=PAL.skin;  ctx.fillRect(x+dir*5.6*s,ground-20*s,2.4*s,1.9*s);       // arm out
+    ctx.fillStyle=dark;      ctx.fillRect(x+dir*7.4*s,ground-19.8*s,4.4*s,1.5*s);     // levelled revolver
+  }
+}
+const LOOKS={
+  sheriff:{coat:"#4a5d80",legs:"#2f3b52",hat:"#2a1c10",star:true,facing:-1},
+  drunk:{coat:"#7a6a4a",legs:"#4a3f2a",hat:"#5a4a2a",facing:1},
+  kid:{coat:"#9a7a4a",legs:"#5a4630",hat:"#7a5a30",facing:1},
+  lady:{coat:"#8d5f7a",legs:"#5c3d50",hat:"#c8a2b6",facing:1},
+  robber:{coat:"#5a4a5a",legs:"#3a2f3a",hat:"#241a24",facing:1},
+  rustler:{coat:"#6a5a3a",legs:"#443a26",hat:"#3a2f1e",facing:1},
+  conman:{coat:"#5a6a5a",legs:"#3a443a",hat:"#e8dcc0",facing:1},
+  gunman:{coat:"#3a3a42",legs:"#26262c",hat:"#16161a",facing:1}};
+function drawScene(){
+  const g=sceneGeom();
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
+  // sky in bands, the way eight colours were made to look like a sunset
+  const sky=["#f2c988","#e8b46a","#dda059","#c9813f"];
+  for(let i=0;i<4;i++){ctx.fillStyle=sky[i];ctx.fillRect(0,i*11,SW,11);}
+  ctx.fillStyle="#9c6a3c"; ctx.fillRect(0,44,SW,14);            // hills across the end of the street
+  for(let i=0;i<7;i++){ctx.fillStyle="#8a5c33";
+    ctx.beginPath();ctx.moveTo(i*48-10,58);ctx.lineTo(i*48+14,44);ctx.lineTo(i*48+38,58);ctx.fill();}
+  ctx.fillStyle=PAL.dust; ctx.fillRect(0,58,SW,SH-58);
+  ctx.fillStyle=PAL.road; ctx.fillRect(0,132,SW,SH-132);        // the road itself
+  for(let i=0;i<40;i++){                                        // wheel ruts and stones
+    const x=(i*37)%SW, y=138+((i*53)%54);
+    ctx.fillStyle=i%3?"rgba(122,87,51,.5)":"rgba(206,170,120,.45)";
+    ctx.fillRect(x,y,i%4?3:2,1.4);
+  }
+  // buildings each side, with a boardwalk and posts
+  for(const [x,w,name,face] of [[0,104,"SALOON","#6b4a2a"],[216,104,"SHERIFF","#5e442a"]]){
+    ctx.fillStyle=face;      ctx.fillRect(x,34,w,98);
+    ctx.fillStyle=PAL.wood2; ctx.fillRect(x,34,w,9);
+    for(let i=0;i<9;i++){ctx.fillStyle="rgba(0,0,0,.10)";ctx.fillRect(x,46+i*9,w,2);}
+    ctx.fillStyle=PAL.dark;  ctx.fillRect(x+20,84,26,48);
+    ctx.fillStyle="#3b2a18"; ctx.fillRect(x+w-46,84,26,32);
+    ctx.fillStyle="rgba(232,207,106,.16)";ctx.fillRect(x+w-44,86,22,28);
+    ctx.fillStyle=PAL.star;  ctx.font="700 9px monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(name,x+w/2,40);
+    ctx.fillStyle=PAL.wood2; ctx.fillRect(x,126,w,6);           // boardwalk
+    for(const px of [x+6,x+w-10]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,60,4,66);}
+  }
+  ctx.fillStyle="#4b3520"; ctx.fillRect(112,126,96,3);          // hitching rail across the gap
+  ctx.fillRect(114,126,3,14); ctx.fillRect(203,126,3,14);
+  const p=person(), u=G.duel;
+  if(G.phase!=="menu"&&G.phase!=="over"){
+    figure(VISITOR_X,GROUND,FIG,LOOKS[p.art]||LOOKS.drunk,u?(u.theirShot?2:(u.drawn?1:0)):0);
+    figure(SHERIFF_X,GROUND,FIG,LOOKS.sheriff,u?((u.fired||u.result)?2:1):0);
+  }
+  if(u){
+    const zy=GROUND-AIM_OFF[aimZone()]*FIG;
+    ctx.strokeStyle=u.drawn?"#ffe9a8":"#f2e6d2"; ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.arc(VISITOR_X,zy,8,0,7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(VISITOR_X-13,zy);ctx.lineTo(VISITOR_X-4,zy);
+    ctx.moveTo(VISITOR_X+4,zy);ctx.lineTo(VISITOR_X+13,zy);
+    ctx.moveTo(VISITOR_X,zy-13);ctx.lineTo(VISITOR_X,zy-4);
+    ctx.moveTo(VISITOR_X,zy+4);ctx.lineTo(VISITOR_X,zy+13);ctx.stroke();
+    ctx.font="700 8px monospace"; ctx.textBaseline="top";
+    ctx.fillStyle="#2a1c10"; ctx.textAlign="left";
+    ctx.fillText(u.drawn?"HIS HAND IS MOVING":"HIS GUN IS HOLSTERED",6,6);
+    ctx.textAlign="right"; ctx.fillText("AIM: "+aimZone(),SW-6,6);
+    if(u.flash>0){ctx.fillStyle="#fff2c0";
+      ctx.beginPath();ctx.arc(SHERIFF_X-9.4*FIG,GROUND-19.2*FIG,7,0,7);ctx.fill();}
+    if(u.theirShot){ctx.fillStyle="#fff2c0";
+      ctx.beginPath();ctx.arc(VISITOR_X+9.4*FIG,GROUND-19.2*FIG,7,0,7);ctx.fill();}
+  }
+  ctx.fillStyle="rgba(20,14,8,.55)"; ctx.fillRect(0,SH-14,SW,14);
+  ctx.fillStyle=PAL.ink||"#f2e6d2"; ctx.font="700 8px monospace";
+  ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.fillText("STANDING "+G.score+"    LIVES "+G.lives+"    VISITOR "+(G.person+1)+"/"+PEOPLE.length,6,SH-7);
+  if(G.murders){ctx.textAlign="right";ctx.fillStyle="#e2585d";
+    ctx.fillText(G.murders+" MURDER"+(G.murders===1?"":"S"),SW-6,SH-7);}
+  ctx.restore();
+}
+/* ============ loop ============ */
+function render(){
+  drawScene();
+  statusEl.innerHTML=G.phase==="duel"
+    ? `<b>${person().name}</b> · aim ${aimZone()} · ${G.duel.drawn?"his hand is moving":"his gun is holstered"}`
+    : G.msg;
+}
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  try{
+    pollGamepads();
+    if(G.phase==="duel"&&!document.hidden){
+      duelStep(dt);
+    }
+    render();
+  }catch(err){console.error(err);}
+  requestAnimationFrame(loop);
+}
+layout(); mainMenu(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: '20'
       - run: node --test archon/tests/combat.test.cjs
+      - run: node --test law-of-the-west/tests/game.test.cjs
 
   deploy:
     needs: test
