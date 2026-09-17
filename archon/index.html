@@ -51,6 +51,27 @@ button{font:inherit;cursor:pointer}
 #stage{border-radius:0;background:#000}
 canvas{image-rendering:pixelated}
 .btn{touch-action:none}
+#full{background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:9px 12px;min-height:40px;border-radius:10px}
+
+/* ---- full game mode: the page gets out of the way and the machine fills the screen ---- */
+body.gamemode{position:fixed;inset:0;padding:0;background:#000;overflow:hidden;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+body.gamemode #wrap{position:relative;max-width:none;width:100%;height:100%;gap:0;padding:0}
+body.gamemode #status{position:absolute;left:0;right:0;top:0;z-index:3;height:26px;min-height:0;
+  padding:5px 168px 5px 8px;border:0;border-radius:0;background:rgba(8,10,16,.72);color:#e9edf6;
+  font-size:12px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+body.gamemode #stage{position:absolute;aspect-ratio:auto;border:0;border-radius:0;background:#000}
+body.gamemode #pads{position:absolute;inset:0;z-index:2;pointer-events:none}
+body.gamemode .padrow{position:absolute;left:0;right:0;pointer-events:none;
+  padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
+body.gamemode .padrow>*{pointer-events:auto}
+body.gamemode #pad1{bottom:calc(env(safe-area-inset-bottom) + 6px);align-items:flex-end}
+body.gamemode #pad2{top:calc(env(safe-area-inset-top) + 6px);align-items:flex-start}
+body.gamemode .btn{background:rgba(31,37,52,.82)}
+body.gamemode .btn:active,body.gamemode .btn.on{background:var(--gold);color:#10131c}
+body.gamemode .soundrow{position:absolute;right:6px;top:2px;z-index:4;margin:0;gap:6px}
+body.gamemode #audio-status{display:none}
+body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:10px;opacity:.85;border-radius:7px}
 </style>
 </head>
 <body>
@@ -82,7 +103,7 @@ canvas{image-rendering:pixelated}
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
@@ -280,9 +301,9 @@ function attackSound(f){
   tone(...(voice[f.icon]||[800,120,.14,"square"]));
 }
 function hitSound(){const t=SOUND.ctx?.currentTime??0;if(t-SOUND.lastHit<.08)return;SOUND.lastHit=t;tone(95,30,.08,"sawtooth",.45);}
-function clearKeys(){for(const k of Object.keys(keys))delete keys[k];document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];if(typeof holders!=="undefined")holders.clear();document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
 addEventListener("blur",clearKeys);
-document.addEventListener("visibilitychange",()=>{if(document.hidden){clearKeys();if(SOUND.master)SOUND.master.gain.value=0;}else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){clearKeys();if(SOUND.master)SOUND.master.gain.value=0;}else{if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;if(typeof gameMode!=="undefined"&&gameMode)keepAwake();}});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
 document.addEventListener("keydown",unlockAudio,{capture:true});
 document.getElementById("sound").addEventListener("click",()=>{
@@ -318,7 +339,7 @@ function newGame(){
   Object.assign(G,{turn:"L",lum:3,lumDir:1,sel:null,moves:[],spells:{L:{},D:{}},
     dead:{L:[],D:[]},target:null,anim:null,combat:null,over:null,round:1,quiet:0,phase:"play"});
   clearKeys();
-  hideOverlay(); document.getElementById("pad2").style.display="none";
+  hideOverlay(); document.getElementById("pad2").style.display="none";layout();
   beginTurn();
 }
 
@@ -396,7 +417,7 @@ function checkWin(){
   return null;
 }
 function gameOver(w){
-  G.phase="over"; G.over=w; document.getElementById("pad2").style.display="none";
+  G.phase="over"; G.over=w; document.getElementById("pad2").style.display="none";layout();
   showOverlay(`<h1>${w==="tie"?"A DRAW":(w==="L"?"LIGHT PREVAILS":"DARKNESS PREVAILS")}</h1>
   <p class="sub">${w==="tie"?"The last two icons destroyed each other.":"The board is claimed."}</p>
   <div class="menuitem sel" data-act="again">Play again</div>
@@ -455,7 +476,7 @@ function startCombat(att,def,x,y){
   clearKeys();
   G.combat={a,b,bg,lum,x,y,shots:[],barriers:makeBarriers(x,y),t0:performance.now(),time:0,over:0,p1:lightF,p2:darkF};
   G.phase="combat";G.turnPhase="combat";
-  document.getElementById("pad2").style.display=G.mode==="pvp"?"flex":"none";
+  document.getElementById("pad2").style.display=G.mode==="pvp"?"flex":"none";layout();
   tone(220,880,.25,"triangle",.4);
 }
 function barrierState(b,c=G.combat){
@@ -591,7 +612,7 @@ function finishCombat(){
     if(att.t!=="elemental")G.dead[att.side].push(att.t);
     G.dead[def.side].push(def.t); msg="Both icons fall on "+sqName(x,y)+".";
   }
-  G.combat=null; G.phase="play"; G.quiet=0; completeTurn(msg);
+  G.combat=null; G.phase="play"; G.quiet=0; layout(); completeTurn(msg);
 }
 
 /* ============ spells ============ */
@@ -743,6 +764,7 @@ function menuKey(k){
   if(k==="1A"||k==="1C")items[menuSel].click();
 }
 function press(k){
+  if(k==="FULL"){toggleGameMode();return;}
   if(G.phase==="menu"||G.phase==="over"||G.turnPhase==="spellmenu"||G.turnPhase==="revivemenu"){menuKey(k);return;}
   if(G.phase==="combat")return;
   if(k==="MENU"){mainMenu();return;}
@@ -768,20 +790,136 @@ function press(k){
     } else {G.sel=null;G.moves=[];}
   }
 }
-function bindKey(el,k){
-  const parts=k.split(",");
-  const dn=e=>{e.preventDefault();el.setPointerCapture?.(e.pointerId);
-    for(const key of parts){keys[key]=true;press(key);}el.classList.add("on");};
-  const up=e=>{e.preventDefault();for(const key of parts)keys[key]=false;el.classList.remove("on");};
-  el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
-  el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+/* ============ full game mode ============ */
+/* The controls only feel like a machine when the page stops behaving like a page:
+   fullscreen, no scrolling or zooming, and pads placed over the board's dead space. */
+const NAV=typeof navigator==="object"&&navigator?navigator:null;
+const bodyEl=document.body||{classList:{add(){},remove(){}}};
+const stageEl=document.getElementById("stage"), fullBtn=document.getElementById("full");
+let gameMode=false, wakeLock=null, wantGameMode=false;
+const BAR=26;   // height of the game-mode status strip, matching the stylesheet
+try{wantGameMode=localStorage.getItem("archon.gamemode")==="1";}catch(e){}
+
+function fsElement(){return document.fullscreenElement||document.webkitFullscreenElement||null;}
+function requestFS(){
+  const el=document.documentElement;if(!el)return;
+  try{const r=el.requestFullscreen?.({navigationUI:"hide"})??el.webkitRequestFullscreen?.();
+    if(r&&r.catch)r.catch(()=>{});}catch(e){}
 }
-document.querySelectorAll("[data-k]").forEach(el=>bindKey(el,el.dataset.k));
+function exitFS(){try{const r=document.exitFullscreen?.()??document.webkitExitFullscreen?.();
+  if(r&&r.catch)r.catch(()=>{});}catch(e){}}
+function keepAwake(){
+  if(!NAV?.wakeLock?.request)return;
+  try{NAV.wakeLock.request("screen").then(l=>{wakeLock=l;}).catch(()=>{});}catch(e){}
+}
+function releaseAwake(){try{wakeLock?.release?.();}catch(e){}wakeLock=null;}
+function setGameMode(on){
+  gameMode=!!on; wantGameMode=gameMode;
+  bodyEl.classList?.[gameMode?"add":"remove"]("gamemode");
+  fullBtn?.setAttribute?.("aria-pressed",gameMode?"true":"false");
+  if(fullBtn)fullBtn.textContent=gameMode?"EXIT FULL":"FULL SCREEN";
+  try{localStorage.setItem("archon.gamemode",gameMode?"1":"0");}catch(e){}
+  if(gameMode)keepAwake(); else releaseAwake();
+  layout();
+}
+/* Fullscreen only succeeds inside a user gesture, so every caller is a tap or a key. */
+function toggleGameMode(){
+  if(gameMode){exitFS();setGameMode(false);}
+  else{setGameMode(true);requestFS();}
+}
+function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);requestFS();}}
+
+/* The board is drawn as a square, so game mode sizes the stage square too and
+   lets the pads sit in the letterboxed space beside or below it. */
+function layout(){
+  const st=stageEl;
+  if(!st?.style){fit();return;}
+  if(!gameMode){st.style.width=st.style.height=st.style.left=st.style.top="";fit();return;}
+  const vw=typeof innerWidth==="number"?innerWidth:0, vh=typeof innerHeight==="number"?innerHeight:0;
+  if(!vw||!vh){fit();return;}
+  const landscape=vw>vh;
+  const pad1=document.getElementById("pad1"), pad2=document.getElementById("pad2");
+  const shown=el=>el&&el.style?.display!=="none";
+  const h=el=>shown(el)?(el.getBoundingClientRect?.().height||0):0;
+  // Widest single control column in a pad row (the d-pad or the button cluster).
+  const colW=el=>shown(el)?Array.prototype.reduce.call(el.children||[],
+    (m,c)=>Math.max(m,c.getBoundingClientRect?.().width||0),0):0;
+  // Landscape puts the pads in the letterbox either side of the play area;
+  // portrait stacks them under it (and above it, for the second player).
+  const cols=landscape?Math.round(Math.max(colW(pad1),colW(pad2)))+10:0;
+  const top=BAR+(!landscape&&shown(pad2)?Math.round(h(pad2))+8:0);
+  const bottom=landscape?0:Math.round(h(pad1))+10;
+  const band=Math.max(120,vh-top-bottom);
+  const avail=Math.max(160,vw-2*cols);
+  const ratio=(G.phase==="combat"&&G.combat)?(AW+22)/(AH+40):1;   // arena is wide, board is square
+  let w=Math.min(avail,band*ratio), hgt=w/ratio;
+  w=Math.max(160,Math.round(w)); hgt=Math.max(120,Math.round(hgt));
+  st.style.width=w+"px"; st.style.height=hgt+"px";
+  st.style.left=Math.round((vw-w)/2)+"px";
+  st.style.top=Math.round(top+(band-hgt)/2)+"px";
+  fit();
+}
+document.addEventListener?.("fullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+document.addEventListener?.("webkitfullscreenchange",()=>{if(!fsElement()&&gameMode)setGameMode(false);});
+fullBtn?.addEventListener?.("click",toggleGameMode);
+/* Stop the page gestures that steal a held direction: pinch zoom, double-tap zoom,
+   and the long-press context menu on a pad button. */
+for(const t of ["gesturestart","gesturechange","gestureend"])
+  document.addEventListener?.(t,e=>{e.preventDefault?.();});
+document.addEventListener?.("contextmenu",e=>{if(gameMode||e.target?.closest?.("[data-k]"))e.preventDefault?.();});
+document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
+
+/* One router for every pad button instead of one listener each: a finger that slides
+   across the d-pad hands the direction over as it goes (the C64 stick never needed the
+   player to lift off to change aim), while a finger on FIRE/A/B keeps that button held
+   even if it drifts off the edge. Pointers are tracked per id, so holding fire with one
+   thumb and aiming with the other works. */
+const padsEl=document.getElementById("pads");
+const holders=new Map();
+const keysOf=el=>((el?.dataset?.k)||"").split(",").filter(Boolean);
+function engage(el){for(const k of keysOf(el)){keys[k]=true;press(k);}el?.classList?.add("on");}
+function releaseEl(el){for(const k of keysOf(el))keys[k]=false;el?.classList?.remove("on");}
+function padAt(x,y){const t=document.elementFromPoint?.(x,y);return t?.closest?.("[data-k]")||null;}
+function padDown(e){
+  const el=e.target?.closest?.("[data-k]"); if(!el)return;
+  e.preventDefault?.(); padsEl?.setPointerCapture?.(e.pointerId);
+  holders.set(e.pointerId,{dpad:el.closest?.(".dpad")||null,cur:el});
+  engage(el);
+}
+function padMove(e){
+  const h=holders.get(e.pointerId); if(!h||!h.dpad)return;
+  const next=padAt(e.clientX,e.clientY);
+  const tgt=(next&&next.closest?.(".dpad")===h.dpad)?next:null;
+  if(tgt===h.cur)return;
+  if(h.cur)releaseEl(h.cur);
+  h.cur=tgt; if(tgt)engage(tgt);
+}
+function padUp(e){
+  const h=holders.get(e.pointerId); if(!h)return;
+  e.preventDefault?.(); if(h.cur)releaseEl(h.cur); holders.delete(e.pointerId);
+}
+if(padsEl?.addEventListener){
+  padsEl.addEventListener("pointerdown",padDown);
+  padsEl.addEventListener("pointermove",padMove);
+  padsEl.addEventListener("pointerup",padUp);
+  padsEl.addEventListener("pointercancel",padUp);
+  padsEl.addEventListener("lostpointercapture",padUp);
+}
 const KMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A"," ":"1A",
-  z:"1A",x:"1B",Backspace:"1B",w:"2U",s:"2D",a:"2L",d:"2R",Shift:"2A",f:"2A",q:"SPELL",Escape:"MENU"};
-addEventListener("keydown",e=>{const k=KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];
-  if(!k)return; e.preventDefault(); if(!keys[k])press(k); keys[k]=true;});
-addEventListener("keyup",e=>{const k=KMAP[e.key]||KMAP[(e.key||"").toLowerCase()]; if(k)keys[k]=false;});
+  z:"1A",x:"1B",Backspace:"1B",w:"2U",s:"2D",a:"2L",d:"2R",Shift:"2A",f:"2A",q:"SPELL",Escape:"MENU",
+  g:"FULL",F11:"FULL"};
+/* e.code first so the physical key works on non-QWERTY layouts. */
+const CODEMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A",NumpadEnter:"1A",
+  Space:"1A",KeyZ:"1A",KeyX:"1B",Backspace:"1B",KeyW:"2U",KeyS:"2D",KeyA:"2L",KeyD:"2R",
+  ShiftLeft:"2A",ShiftRight:"2A",KeyF:"2A",KeyQ:"SPELL",Escape:"MENU",KeyG:"FULL",F11:"FULL"};
+const mapKey=e=>CODEMAP[e.code]||KMAP[e.key]||KMAP[(e.key||"").toLowerCase()]||null;
+addEventListener("keydown",e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;          // leave browser shortcuts alone
+  const k=mapKey(e); if(!k)return;
+  e.preventDefault();                                 // arrows and space must not scroll the page
+  if(e.repeat)return;
+  if(!keys[k])press(k); keys[k]=true;});
+addEventListener("keyup",e=>{const k=mapKey(e); if(k)keys[k]=false;});
 cv.addEventListener("pointerdown",e=>{
   if(G.phase!=="play"||G.turnPhase!=="select"||!G.human[G.turn])return;
   const r=cv.getBoundingClientRect(), s=r.width/N;
@@ -791,6 +929,9 @@ cv.addEventListener("pointerdown",e=>{
 });
 ov.addEventListener("click",e=>{
   const el=e.target.closest("[data-mode],[data-side],[data-act],[data-spell],[data-revive]"); if(!el)return;
+  if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
+  // A click is a user gesture, which is the only moment fullscreen can be requested.
+  if(el.dataset.mode||el.dataset.side)enterGameModeIfWanted();
   if(el.dataset.mode){
     if(el.dataset.mode==="pvc"){sideMenu();return;}
     G.mode=el.dataset.mode;
@@ -817,22 +958,25 @@ function sideMenu(){
 }
 function mainMenu(){
   G.phase="menu"; G.turnPhase="select"; G.combat=null;
-  document.getElementById("pad2").style.display="none";
+  document.getElementById("pad2").style.display="none";layout();
   showOverlay(`<h1>ARCHON</h1><p class="sub">The Light and the Dark — a 9×9 board of shifting luminance
   where landing on an enemy starts a real-time duel. Take all five power points or destroy every enemy icon.</p>
   <div class="menuitem sel" data-mode="pvp">1P vs 2P &nbsp;<span style="opacity:.7">hot seat</span></div>
   <div class="menuitem" data-mode="pvc">1P vs CPU</div>
   <div class="menuitem" data-mode="cvc">CPU vs CPU &nbsp;<span style="opacity:.7">demo</span></div>
+  <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
   <small class="tip">D-pad moves the cursor · A selects and confirms · B cancels · SPELL opens the seven
   one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready. 1P vs 2P adds a second pad at the top for Dark.
-  Keyboard: arrows + Z/X, and WASD + Shift for player two.</small>
+  Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
+  A connected gamepad drives Light; a second one drives Dark.</small>
   <small class="tip"><a href="../" style="color:#ffd27f">← More retro games</a></small>`);
 }
 
 /* ============ rendering ============ */
 function fit(){const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2.5);
   cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d);}
-addEventListener("resize",fit);
+addEventListener("resize",()=>layout());
+addEventListener("orientationchange",()=>layout());
 function sqColour(x,y){const k=KIND[x][y];return k==="L"?"#ffffff":k==="D"?"#000000":C64_CYCLE[G.lum];}
 const DISC={L:"#000000",D:"#ffffff"},INK={L:"#d5df7c",D:"#8878d8"};
 function drawPiece(p,cx,cy,s){drawIcon(ctx,p.t,cx,cy,s*.85,INK[p.side],DISC[p.side]);}
@@ -943,10 +1087,41 @@ function render(){
   }
   statusEl.innerHTML=s;
 }
+/* ============ gamepads ============ */
+/* A real stick is the point of game mode: pad 1 drives Light, a second pad drives Dark.
+   Only edges are applied, so a gamepad never clears a key the keyboard or a thumb holds. */
+const GP={prev:[{},{}]};
+function padState(gp,pre){
+  const now={},bt=gp.buttons||[],ax=gp.axes||[];
+  const on=n=>!!(bt[n]&&(bt[n].pressed||bt[n].value>.5));
+  const ah=typeof ax[0]==="number"?ax[0]:0, av=typeof ax[1]==="number"?ax[1]:0;
+  now[pre+"U"]=on(12)||av<-.45; now[pre+"D"]=on(13)||av>.45;
+  now[pre+"L"]=on(14)||ah<-.45; now[pre+"R"]=on(15)||ah>.45;
+  now[pre+"A"]=on(0)||on(7)||on(5);            // A / triggers: fire and confirm
+  now[pre+"B"]=on(1)||on(6)||on(4);            // B / shoulders: cancel
+  if(pre==="1"){now.SPELL=on(2);now.MENU=on(3)||on(9);now.FULL=on(8);}
+  return now;
+}
+function pollGamepads(){
+  if(!NAV?.getGamepads)return;
+  let list; try{list=NAV.getGamepads()||[];}catch(e){return;}
+  const pads=Array.prototype.filter.call(list,Boolean);
+  for(let i=0;i<2;i++){
+    const gp=pads[i], prev=GP.prev[i], now=gp?padState(gp,i===0?"1":"2"):{};
+    for(const k of Object.keys(now)){
+      if(now[k]&&!prev[k]){keys[k]=true;press(k);}
+      else if(!now[k]&&prev[k])keys[k]=false;
+    }
+    for(const k of Object.keys(prev))if(prev[k]&&!now[k])keys[k]=false;
+    GP.prev[i]=now;
+  }
+}
+
 let last=performance.now();
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   try{
+    pollGamepads();
     if(G.phase==="combat"&&G.combat&&!document.hidden)combatStep(dt,now);
     else if(G.phase==="play"){
       if(G.turnPhase==="banner"&&now>G.banner.until){
@@ -960,7 +1135,7 @@ function loop(now){
   }catch(err){console.error(err);}
   requestAnimationFrame(loop);
 }
-fit(); mainMenu(); requestAnimationFrame(loop);
+layout(); mainMenu(); requestAnimationFrame(loop);
 </script>
 </body>
 </html>

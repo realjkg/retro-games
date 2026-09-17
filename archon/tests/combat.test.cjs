@@ -11,11 +11,15 @@ function runtime(){
     createOscillator(){return {frequency:{setValueAtTime(hz){notes.push(hz)},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
     resume(){return Promise.resolve();}
   }
-  const box={console,document:{hidden:false,getElementById:el,querySelectorAll(){return[]},addEventListener(){}},window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){}};
+  const pads=[];
+  const box={console,document:{hidden:false,getElementById:el,querySelectorAll(){return[]},addEventListener(){},
+    body:el('body'),documentElement:el('html'),elementFromPoint(){return null}},
+    window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){},
+    navigator:{getGamepads(){return pads;}}};
   vm.createContext(box);vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run('G.mode="pvp";G.human={L:true,D:true};newGame();');
-  return {run,notes};
+  return {run,notes,pads};
 }
 function duel(a='archer',b='manticore'){
  const r=runtime();r.run(`startCombat(mk('${a}','L'),mk('${b}','D'),4,4);G.combat.barriers=[];`);return r;
@@ -93,4 +97,60 @@ test('Enemy teleport initiates combat and exchange accepts an enemy icon',()=>{
 test('AI duels resolve without forced health drain',()=>{
  const r=duel('knight','goblin');r.run('G.human={L:false,D:false};G.mode="cvc";');
  r.run('for(let i=1;i<12000&&G.combat;i++)combatStep(.02,i*20);');assert.equal(r.run('G.combat'),null);
+});
+
+/* ---- full game mode: controls outside the game's own rules ---- */
+const gamepad=b=>({buttons:Array.from({length:17},(_,i)=>({pressed:!!b.buttons?.includes(i),value:0})),
+  axes:b.axes||[0,0,0,0]});
+test('A gamepad drives the pad keys, and a second one drives Dark',()=>{
+ const r=duel();
+ r.pads.push(gamepad({buttons:[15,0]}));                      // d-pad right + A
+ r.run('pollGamepads();');
+ assert.equal(r.run('keys["1R"]'),true); assert.equal(r.run('keys["1A"]'),true);
+ r.pads[0]=gamepad({axes:[0,-1,0,0]});                        // stick up, buttons released
+ r.run('pollGamepads();');
+ assert.equal(r.run('keys["1R"]'),false); assert.equal(r.run('keys["1A"]'),false);
+ assert.equal(r.run('keys["1U"]'),true);
+ r.pads.push(gamepad({buttons:[14]}));                        // second pad: left for Dark
+ r.run('pollGamepads();');
+ assert.equal(r.run('keys["2L"]'),true);
+ r.pads[1]=gamepad({});
+ r.run('pollGamepads();'); assert.equal(r.run('keys["2L"]'),false);
+});
+test('A gamepad never clears a direction the keyboard is holding',()=>{
+ const r=duel();
+ r.run('keys["1U"]=true;'); r.pads.push(gamepad({buttons:[15]}));
+ r.run('pollGamepads();');
+ assert.equal(r.run('keys["1U"]'),true);                      // untouched by the pad
+ assert.equal(r.run('keys["1R"]'),true);
+});
+test('Keys map by physical code so non-QWERTY layouts still fire',()=>{
+ const r=runtime();
+ assert.equal(r.run('mapKey({code:"KeyZ"})'),'1A');
+ assert.equal(r.run('mapKey({code:"ShiftRight"})'),'2A');
+ assert.equal(r.run('mapKey({code:"Space"})'),'1A');
+ assert.equal(r.run('mapKey({key:"ArrowUp"})'),'1U');         // key name is still honoured
+ assert.equal(r.run('mapKey({code:"KeyG"})'),'FULL');
+ assert.equal(r.run('mapKey({code:"BracketLeft",key:"["})'),null);
+});
+test('Full game mode toggles from any control and survives a missing Fullscreen API',()=>{
+ const r=runtime();
+ assert.equal(r.run('gameMode'),false);
+ r.run('press("FULL");'); assert.equal(r.run('gameMode'),true);
+ r.run('press("FULL");'); assert.equal(r.run('gameMode'),false);
+ r.run('G.phase="combat";press("FULL");');                    // reachable mid-duel as well
+ assert.equal(r.run('gameMode'),true);
+});
+test('Sliding across the d-pad hands the direction over without lifting',()=>{
+ const r=duel();
+ const el=k=>`{dataset:{k:"${k}"},classList:{add(){},remove(){}},`+
+   `closest(sel){return sel===".dpad"?DPAD:this}}`;
+ r.run(`var DPAD={};var up=${el('1U')},ur=${el('1U,1R')};`);
+ r.run('padDown({target:{closest(){return up}},pointerId:1});');
+ assert.equal(r.run('keys["1U"]'),true);
+ r.run('document.elementFromPoint=()=>ur;padMove({pointerId:1,clientX:0,clientY:0});');
+ assert.equal(r.run('keys["1U"]'),true); assert.equal(r.run('keys["1R"]'),true);
+ r.run('document.elementFromPoint=()=>null;padMove({pointerId:1,clientX:0,clientY:0});');
+ assert.equal(r.run('keys["1U"]'),false); assert.equal(r.run('keys["1R"]'),false);
+ r.run('padUp({pointerId:1});'); assert.equal(r.run('holders.size'),0);
 });

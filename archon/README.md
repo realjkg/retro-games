@@ -12,6 +12,27 @@ A self-contained browser recreation, with the **Commodore 64 release** as the re
 - Combat: **hold fire and a direction to aim/shoot; release fire to move**. All eight directions work, including the corner buttons on touch devices.
 - Second player: WASD and Shift/F, or the upper touch pad.
 - Sound starts after a tap/key press. SOUND ON/OFF mutes or enables it. A high recharge bell belongs to Light; a low bell belongs to Dark.
+- A finger may **slide across the d-pad** to change direction without lifting, and fire stays held even if the thumb drifts off its button. Each touch is tracked separately, so one thumb can hold fire while the other aims.
+- **Gamepads**: the first connected pad drives Light and a second drives Dark. D-pad or left stick moves, A/right trigger fires and confirms, B/left trigger cancels, X opens spells, Y or Start returns to the menu.
+- Keys map by physical position, so Z/X and WASD sit in the same place on a non-QWERTY layout.
+
+## Full game mode
+
+`FULL SCREEN`, the `G` key, or a gamepad's Back button hands the whole screen to the game:
+browser fullscreen where the API allows it — a tap or keypress, since browsers grant
+fullscreen only inside a user gesture and a gamepad button is not one — and either way the
+page stops behaving like a page — no scrolling, pinch zoom, double-tap zoom or long-press menu to interrupt a held
+direction, and the screen is kept awake while a game is running.
+
+The play area is then laid out for the device rather than for a document. In landscape the
+board fills the height and the pads sit in the letterbox either side of it, thumbs already
+resting on them; in portrait the board sits between the pads. Combat gives the stage the
+arena's own 320×192 shape instead of the board's square, so a duel on a landscape phone is
+drawn around 40% larger than the square layout allowed. The choice is remembered, so later games
+start in full game mode.
+
+On iPhone, Safari allows no element fullscreen; the immersive layout still applies, and
+adding the page to the Home Screen removes the browser's own chrome.
 
 ## C64 fidelity corrections
 
