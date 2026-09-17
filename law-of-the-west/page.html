@@ -31,7 +31,8 @@
   --bg:#efe4d2; --panel:#fbf4e6; --panel2:#f3e8d4; --ink:#241a10; --dim:#6b5638;
   --gold:#8a5a12; --line:#d2bc98; --npc:#7a4c06; --sel:#8a5a12; --selink:#fdf6e8;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
   font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   overscroll-behavior:none;touch-action:manipulation;user-select:none;-webkit-user-select:none}
@@ -62,7 +63,9 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 .dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,34px);gap:3px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
   font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;
-  touch-action:none}
+  touch-action:none;-webkit-touch-callout:none}
+/* the reply lines are controls as much as the pad is */
+.choice{touch-action:manipulation;-webkit-touch-callout:none}
 .btn:active{background:var(--sel);color:var(--selink)}
 .abtn{width:58px;height:58px;border-radius:50%;font-size:12px;font-weight:700}
 .sbtn{padding:6px 9px;font-size:11px;min-height:32px}

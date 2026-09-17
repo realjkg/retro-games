@@ -477,17 +477,43 @@ const CONTROL={up,down,left,right,fire,
   mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
     muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
 /* Every on-screen control carries data-cmd; the same names are the key map, so
- * a control can never exist that no handler covers. */
+ * a control can never exist that no handler covers.
+ *
+ * A press takes pointer capture, so a thumb that slides off the button keeps
+ * the gesture instead of handing it to the page as a text selection, and a
+ * held direction repeats: 320ms, then every 90ms. Holding a control now does
+ * what holding a control should, which is also why the browser never gets long
+ * enough to decide the player meant to select something. */
+const REPEAT_DELAY=320, REPEAT_RATE=90;
+const REPEATS=new Set(["up","down","left","right"]);
+let held=null;                        // {cmd, at, next, el}
+function runCmd(cmd,el){
+  if(cmd==="choose")choose(+el.dataset.index);
+  else if(CONTROL[cmd])CONTROL[cmd]();
+  else SND.deny();
+  paint();
+}
+function releaseHeld(){
+  if(held&&held.el&&held.el.classList)held.el.classList.remove("on");
+  held=null;
+}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
     e.preventDefault(); SND.unlock(); firstGesture();
     const cmd=el.dataset.cmd;
-    if(cmd==="choose")choose(+el.dataset.index);
-    else if(CONTROL[cmd])CONTROL[cmd]();
-    else SND.deny();
-    paint();
+    el.setPointerCapture?.(e.pointerId);
+    runCmd(cmd,el);
+    if(REPEATS.has(cmd))held={cmd,el,next:performance.now()+REPEAT_DELAY};
   });
+  for(const t of ["pointerup","pointercancel","lostpointercapture","pointerleave"])
+    el.addEventListener(t,()=>{if(held&&held.el===el)releaseHeld();});
 });
+/* Nothing on this page is text to be selected or dragged. */
+document.addEventListener?.("selectstart",e=>{
+  if(!e.target?.closest?.("input,textarea"))e.preventDefault?.();
+});
+document.addEventListener?.("dragstart",e=>e.preventDefault?.());
+addEventListener("blur",releaseHeld);
 const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
   Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
 addEventListener("keydown",e=>{
@@ -511,6 +537,7 @@ function frame(now){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
+    if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){

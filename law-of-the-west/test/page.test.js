@@ -21,17 +21,18 @@ process.on('exit',()=>open_pages.forEach(d=>{try{d.window.close();}catch(e){}}))
 
 function openPage(){
   if(jsdomMissing)throw new Error('jsdom is not installed');
-  // no pretendToBeVisual: the page's loop must not keep the harness alive
+  // no pretendToBeVisual: the page's loop must not keep the harness alive.
+  // The canvas stub goes in before the page's scripts run, because they capture
+  // the 2d context at load and jsdom has none.
+  const ctx2d=new Proxy({},{get:(t,k)=>k==='canvas'?{width:320,height:200}:()=>{}});
   const dom=new JSDOM(HTML,{runScripts:"dangerously",
-    url:"https://example.invalid/law-of-the-west/"});
+    url:"https://example.invalid/law-of-the-west/",
+    beforeParse(win){win.HTMLCanvasElement.prototype.getContext=()=>ctx2d;}});
   open_pages.push(dom);
   const w=dom.window;
   const errors=[];
   w.addEventListener("error",e=>errors.push(String(e.message||e.error)));
   w.console.error=(...a)=>errors.push(a.join(' '));
-  // canvas has no 2d context in jsdom, and there is no audio hardware
-  const ctx2d=new Proxy({},{get:(t,k)=>k==='canvas'?{width:320,height:200}:()=>{}});
-  w.HTMLCanvasElement.prototype.getContext=()=>ctx2d;
   // top-level const/let in a classic script are global lexical bindings, not
   // window properties, so the page's scope is reached through its own eval
   const ev=code=>w.eval(code);
@@ -254,5 +255,38 @@ test('8j. nothing a character says can be clipped or hidden behind a scroll', {s
   p.ev('fitText()');
   const scale=p.el('panel').style.getPropertyValue('--dlg');
   assert.ok(scale===''||(+scale>=0.7&&+scale<=1),'the dialogue scale went out of range: '+scale);
+  assert.deepEqual(p.errors,[]);
+});
+
+test('8k. a held control repeats, and nothing on the page is selectable', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const css=HTML.slice(HTML.indexOf('<style>'),HTML.indexOf('</style>'));
+  assert.match(css,/-webkit-touch-callout:none/,'long press can still raise the callout');
+  assert.match(css,/\*\{[^}]*user-select:none/,'the page is still selectable');
+
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  // a selection gesture is refused
+  const ev=new p.w.Event('selectstart',{bubbles:true,cancelable:true});
+  p.el('line1').dispatchEvent(ev);
+  assert.equal(ev.defaultPrevented,true,'selectstart was not prevented');
+  const drag=new p.w.Event('dragstart',{bubbles:true,cancelable:true});
+  p.el('line1').dispatchEvent(drag);
+  assert.equal(drag.defaultPrevented,true,'dragstart was not prevented');
+
+  // a direction taken and held registers as held, repeats on a frame, and clears
+  p.tap('[data-cmd="up"]');                       // draws the gun
+  assert.equal(p.G().mode,'gun');
+  p.tap('[data-cmd="up"]');                       // and now aims
+  assert.ok(p.ev('held'),'a held direction was not registered');
+  assert.equal(p.ev('held').cmd,'up');
+  const before={...p.G().aim};
+  p.frame(p.ev('held').next+1);                   // one frame past the repeat delay
+  assert.ok(p.G().aim.y<before.y,'holding did not repeat the direction');
+  const el=p.w.document.querySelector('[data-cmd="up"]');
+  el.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
+  assert.equal(p.ev('held'),null,'the hold did not clear on release');
+  // a non-directional control never repeats
+  p.tap('[data-cmd="fire"]');
+  assert.equal(p.ev('held'),null,'FIRE should not repeat');
   assert.deepEqual(p.errors,[]);
 });

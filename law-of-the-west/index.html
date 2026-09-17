@@ -31,7 +31,8 @@
   --bg:#efe4d2; --panel:#fbf4e6; --panel2:#f3e8d4; --ink:#241a10; --dim:#6b5638;
   --gold:#8a5a12; --line:#d2bc98; --npc:#7a4c06; --sel:#8a5a12; --selink:#fdf6e8;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
   font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   overscroll-behavior:none;touch-action:manipulation;user-select:none;-webkit-user-select:none}
@@ -62,7 +63,9 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 .dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,34px);gap:3px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
   font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;
-  touch-action:none}
+  touch-action:none;-webkit-touch-callout:none}
+/* the reply lines are controls as much as the pad is */
+.choice{touch-action:manipulation;-webkit-touch-callout:none}
 .btn:active{background:var(--sel);color:var(--selink)}
 .abtn{width:58px;height:58px;border-radius:50%;font-size:12px;font-weight:700}
 .sbtn{padding:6px 9px;font-size:11px;min-height:32px}
@@ -1498,17 +1501,43 @@ const CONTROL={up,down,left,right,fire,
   mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
     muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
 /* Every on-screen control carries data-cmd; the same names are the key map, so
- * a control can never exist that no handler covers. */
+ * a control can never exist that no handler covers.
+ *
+ * A press takes pointer capture, so a thumb that slides off the button keeps
+ * the gesture instead of handing it to the page as a text selection, and a
+ * held direction repeats: 320ms, then every 90ms. Holding a control now does
+ * what holding a control should, which is also why the browser never gets long
+ * enough to decide the player meant to select something. */
+const REPEAT_DELAY=320, REPEAT_RATE=90;
+const REPEATS=new Set(["up","down","left","right"]);
+let held=null;                        // {cmd, at, next, el}
+function runCmd(cmd,el){
+  if(cmd==="choose")choose(+el.dataset.index);
+  else if(CONTROL[cmd])CONTROL[cmd]();
+  else SND.deny();
+  paint();
+}
+function releaseHeld(){
+  if(held&&held.el&&held.el.classList)held.el.classList.remove("on");
+  held=null;
+}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
     e.preventDefault(); SND.unlock(); firstGesture();
     const cmd=el.dataset.cmd;
-    if(cmd==="choose")choose(+el.dataset.index);
-    else if(CONTROL[cmd])CONTROL[cmd]();
-    else SND.deny();
-    paint();
+    el.setPointerCapture?.(e.pointerId);
+    runCmd(cmd,el);
+    if(REPEATS.has(cmd))held={cmd,el,next:performance.now()+REPEAT_DELAY};
   });
+  for(const t of ["pointerup","pointercancel","lostpointercapture","pointerleave"])
+    el.addEventListener(t,()=>{if(held&&held.el===el)releaseHeld();});
 });
+/* Nothing on this page is text to be selected or dragged. */
+document.addEventListener?.("selectstart",e=>{
+  if(!e.target?.closest?.("input,textarea"))e.preventDefault?.();
+});
+document.addEventListener?.("dragstart",e=>e.preventDefault?.());
+addEventListener("blur",releaseHeld);
 const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
   Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
 addEventListener("keydown",e=>{
@@ -1532,6 +1561,7 @@ function frame(now){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
+    if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
