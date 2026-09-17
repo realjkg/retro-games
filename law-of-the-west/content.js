@@ -24,10 +24,10 @@ const ENCOUNTERS=[
   core:"authority", armed:true, nerve:2, drawAt:6, hostile:0.12,
   /* First match wins, so the specific outcomes sit above the fallback. */
   endings:[
-   {id:"forgery",   when:[["evidence",">=",2]],
+   {id:"forgery",   when:[["evidence",">=",2]], chance:0.85,
     text:"The seal is a county seal, and the county it names has no such court. He goes into his own cell, and the prisoner stays in the next one.",
     fx:{safety:+1,clue:"warrant"}, award:"arrest", points:180},
-   {id:"escorted",  when:[["respect",">=",2],["suspicion","<=",1]],
+   {id:"escorted",  when:[["respect",">=",2],["suspicion","<=",1]], chance:0.85,
     text:"He signs for the prisoner in front of two witnesses and rides out at a walk. Whatever he is, he is now a man on paper.",
     fx:{clue:"escort"}, award:"talked", points:120},
    {id:"standoff",  when:[["drawRisk",">=",4]],
@@ -51,7 +51,24 @@ const ENCOUNTERS=[
  {id:"widow", title:"The Widow's Ledger", place:"RANCH",
   surface:"A ranch widow says her husband's debt was forged",
   hidden:"Her own books contain a damaging secret",
-  core:"evidence", armed:false, nerve:0, drawAt:99, hostile:0.00, endings:[]},
+  core:"evidence", armed:false, nerve:0, drawAt:99, hostile:0.00,
+  endings:[
+   /* The one durable favour in the anthology. Shown her the courtesy and read
+    * the ledger properly and she owes the sheriff something worth having; make
+    * her afraid and she owes him nothing. */
+   {id:"widow_favour", when:[["evidence",">=",2],["respect",">=",1],["fear","<=",1]], chance:0.78,
+    text:"Mrs. Vale closes the ledger, then presses the sheriff's hand. \u201cIf this town ever leaves you in the dust, send word to my place.\u201d",
+    fx:{favour:1,safety:+1,clue:"ledger"}, award:"talked", points:160},
+   {id:"secret_exposed", when:[["suspicion",">=",4]], chance:0.8,
+    text:"You read far enough to find what she was hiding: four years of quiet payments to a name she will not say aloud. The debt was forged, and so was her good standing.",
+    fx:{safety:+1,clue:"payments"}, award:"clue", points:-20},
+   {id:"debt_voided", when:[["evidence",">=",2]],
+    text:"Two hands wrote that signature and neither of them was her husband's. The debt is void, and the man who drew it up has a week's head start.",
+    fx:{clue:"ledger"}, award:"talked", points:110},
+   {id:"closed_book", when:[],
+    text:"She closes the ledger, thanks you for your time in the voice people use on tax collectors, and drives the wagon home.",
+    fx:{}, award:null, points:-20}
+  ]},
  {id:"tuner", title:"The Piano Tuner", place:"SALOON",
   surface:"A musician says someone stole his instrument case",
   hidden:"The case holds coded messages, not tools",
@@ -78,6 +95,64 @@ const HITBOX={
  * what the reply does to the state.
  */
 const DIALOGUE={
+ widow:[
+  {say:"Sheriff. My husband is eight weeks in the ground and a man from the bank says he signed for four hundred dollars the month he was too sick to hold a cup. I have the ledger. I want somebody to look at it.",
+   replies:[
+    {intent:"conciliate",
+     t:"\"Sit down, Mrs. Vale. Nobody takes a ranch off a widow in my town on a piece of paper.\"",
+     react:"She sits, and the ledger stays shut on her knees. \"That is more than the bank said, and it said a great deal.\"",
+     fx:{respect:+2,fear:-1}},
+    {intent:"probe",
+     t:"\"Open it to the month he took ill. I want the page before and the page after.\"",
+     react:"She turns to it without looking down, which means she has turned to it often. The hand in the margin is not the hand on the line.",
+     fx:{evidence:+1,suspicion:+1}},
+    {intent:"command",
+     t:"\"Leave the ledger with me and go home. I'll send word when I know something.\"",
+     react:"\"Leave it.\" Her hands close on the cover. \"It is the only thing in the house that is still mine.\"",
+     fx:{respect:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"If you've written a line of that yourself, I'll know it by supper.\"",
+     react:"The colour goes out of her face in a way that tells you something, though not the thing you asked about.",
+     fx:{fear:+2,respect:-2,suspicion:+1}}]},
+
+  {say:"\"The bank's man says the debt was witnessed. He named two riders who left the county before the funeral.\"",
+   replies:[
+    {intent:"conciliate",
+     t:"\"Then we'll write to the county they left for, and until it answers, nobody touches your fences.\"",
+     react:"\"You would put that in writing?\" \u2014 and for the first time she opens the ledger the rest of the way.",
+     fx:{respect:+2,evidence:+1,fear:-1}},
+    {intent:"probe",
+     t:"\"Show me the page you turned past. The narrow column, the one in pencil.\"",
+     react:"\"That is household.\" She says it too quickly, and does not cover the page, which is worse.",
+     fx:{evidence:+2,suspicion:+2}},
+    {intent:"command",
+     t:"\"Names, dates, and what you paid out. All of it, Mrs. Vale, or the bank's story is the only one I have.\"",
+     react:"\"All of it.\" She reads the room, then the ledger, then the room again.",
+     fx:{respect:+1,evidence:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"Widows have forged a signature before now. Give me a reason to believe you did not.\"",
+     react:"\"A reason.\" She stands up with the ledger against her chest. \"I brought you the reason. You would rather have a confession.\"",
+     fx:{fear:+3,respect:-2}}]},
+
+  {say:"\"So. Do I drive home and wait for men with a wagon, or is there law in this town for a woman who owns a fence line somebody wants?\"",
+   replies:[
+    {intent:"conciliate",
+     t:"\"There's law. Leave your name on my book and the bank can come and argue with me.\"",
+     react:"She writes her name in a round, careful hand, and puts the pen down straight.",
+     fx:{respect:+2,evidence:+1,fear:-1}},
+    {intent:"probe",
+     t:"\"One more question, and I want the pencil column answered. Who were you paying?\"",
+     react:"\"Somebody who stopped asking when my husband died,\" she says, and closes the book on her own hand.",
+     fx:{evidence:+2,suspicion:+2}},
+    {intent:"command",
+     t:"\"You'll drive home, and you'll leave the ledger where the court can find it. That is the law, and it is on your side today.\"",
+     react:"\"On my side.\" She nods slowly, the way people do when they are deciding whether to believe a man.",
+     fx:{respect:+1,evidence:+1,fear:+1}},
+    {intent:"threaten",
+     t:"\"Drive home. If any of this is your doing, I'll be out at your place before the week is up.\"",
+     react:"\"Then come out,\" she says, and the wagon is moving before you have finished the sentence.",
+     fx:{fear:+3,respect:-1}}]}],
+
  deputy:[
   {say:"Sheriff. Deputy Marsh, territorial office. I'm here for the man you're holding — Coyle. Warrant's made out and my horse is tired.",
    replies:[

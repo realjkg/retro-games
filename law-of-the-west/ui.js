@@ -166,8 +166,8 @@ const OUTCOME_LINES={
   killed_him:"He is dead on the boardwalk, and the street saw who fired.",
   murder:"You shot a man whose hand never moved. The street saw that too.",
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
-  wounded:"You are hit. It will keep until sundown, and no longer.",
-  patched:"Somebody who owes you a favour gets you off the street and closes the hole.",
+  wound_consequence:"You are hit. It will keep until sundown, and no longer.",
+  rescued_from_street:"A wagon you did not send comes up the street. Somebody who owes you a favour gets you off it and closes the hole.",
   walked_away:"He looks at the gun in your hand, decides against all of it, and leaves.",
   unwritten:"[this encounter has no authored ending yet]"
 };
@@ -264,8 +264,8 @@ function settleSound(){
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
   else if(o==="murder"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
   else if(o==="missed_him")SND.ricochet();
-  else if(o==="wounded"){SND.gunshot();SND.hit();}
-  else if(o==="patched"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
+  else if(o==="wound_consequence"){SND.gunshot();SND.hit();}
+  else if(o==="rescued_from_street"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
   else if(o==="walked_away")SND.step();
   else SND.clock();
   if(G.phase==="summary")endSound();

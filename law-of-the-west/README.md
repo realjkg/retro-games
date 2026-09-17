@@ -91,7 +91,7 @@ characters, plot or dialogue is used.
 | The Brass-Button Deputy | Demands custody of a prisoner | His warrant may be fabricated | authority | **written** |
 | The Rainmaker | Wants permission to hold a revival | Collecting for someone dangerous | trust | pending |
 | The Quiet Surveyor | Requests town records | Scouting for a railroad takeover | suspicion | pending |
-| The Widow's Ledger | Says her husband's debt was forged | Her own books hold a secret | evidence | pending |
+| The Widow's Ledger | Says her husband's debt was forged | Her own books hold a secret | evidence, and the favour | **written** |
 | The Piano Tuner | Says his instrument case was stolen | The case holds coded messages | perception | pending |
 | The Boy With the Locket | Asks the sheriff to find a missing parent | The missing person may be fleeing | mercy | pending |
 
@@ -100,6 +100,13 @@ authority, a hidden identity, a peaceful resolution, a consequential wrong
 choice, and a draw that can be justified or not. Its four endings are the
 forgery exposed, the prisoner escorted out on paper, a stand-off nobody wins,
 and the handover that costs the town its payroll.
+
+The Widow's Ledger came second because it owns the only durable favour in the
+anthology. Read her ledger properly while treating her decently and she banks
+one with the sheriff; frighten her and she owes him nothing. Her four endings
+are that favour, the forged debt voided, her own quiet payments dug up at the
+cost of her standing, and the closed book. The favour is spent once, later, when
+a bullet would otherwise leave the sheriff in the street.
 
 ## Decisions taken, so they are not buried in code
 
@@ -115,29 +122,39 @@ and the handover that costs the town its payroll.
 - **Drawing first cannot lose a race.** Only a man who drew on you can outshoot
   you; drawing first risks the reflex timer, not his speed.
 - **No physician in the anthology**, so the original's doctor rescue became a
-  banked favour: whoever owes the sheriff one gets him off the street. Nothing
-  grants a favour yet — an encounter should, and that is an open question.
+  banked favour, and the Widow owns it: a wagon nobody sent comes up the street
+  and gets the sheriff off it. One use, consumed explicitly, tested across
+  encounters rather than in isolation.
+- **An ending may be less than certain.** Endings carry an optional `chance`, so
+  a man can nearly tell you and then not. Without it an unarmed visitor was
+  perfectly deterministic — the Widow ended the same way 100 times out of 100
+  for each attitude — because draw-risk temper was the only variation in the
+  model. A social reading of the sheriff now jitters by a point each turn too,
+  while evidence never does: the ledger says what it says.
 
 ## Numbers
 
 From `node --test test/*.test.js`, with fixture turns standing in for the five
 unwritten encounters:
 
-- **The written encounter, 500 runs with the intent picked at random.** All four
-  authored endings reached: forgery 142, escorted 92, handover 19, stand-off 16,
-  and 231 runs that became gunfights (wounded 84, killed him 77, disarmed 70).
-  Nothing over 60%.
-- **One intent held all three turns.** Conciliate settles as an escort 91 times
-  in 100; probe exposes the forgery 84; command splits four ways with no outcome
-  over 29%; threaten always ends in gunsmoke, split 38/34/28 between being hit,
-  disarming him and killing him. The characteristic outcome of an attitude is
-  supposed to be characteristic — but it is never certain, because his temper
-  and his patience are not.
+- **Both written encounters, 500 runs each with the intent picked at random.**
+  The Deputy: forgery 135, escorted 85, handover 45, stand-off 27, and 208 that
+  became gunfights. The Widow: debt voided 200, favour banked 153, closed book
+  111, her secret dug up 36. Every authored ending reached in both, nothing over
+  60%.
+- **One intent held all three turns.** The Deputy — conciliate escorts him out
+  79/100, probe exposes the forgery 65/100, command splits four ways with no
+  outcome over 27%, threaten always ends in gunsmoke at 37/32/31. The Widow —
+  conciliate banks the favour 79/100, probe digs up her secret 65/100, command
+  voids the debt 98/100, threaten sends her home every time. An attitude has a
+  signature without a certainty, except where the writing means it absolutely.
 - **2000 duels, 140–1400 ms.** Hit 59% at 200 ms, 66% at 300, 79% at 400, 82% at
   600, then falling as he gets there first: beaten to the shot 2% at 600 ms, 27%
   at 800, 66% at 1000. Arm, centre mass and miss all occur throughout.
-- **Wounds.** One carries; a banked favour patches it; the second is fatal and
-  rates the day at 1.
+- **Wounds.** One carries; the Widow's favour, if banked, takes the sheriff off
+  the street instead and is consumed; the second wound is fatal and rates the
+  day at 1. Tested end to end: earned in her scene, spent in a later one, never
+  twice, and never earned at all by a sheriff who frightened her.
 - **Audio.** 42 cues, nothing non-finite, negative or out of range. Title 8.05 s,
   dusk 4.50 s, dawn 3.77 s, romance 2.91 s, saloon 1.46 s, respect 1.13 s,
   disgrace 1.15 s; peaks 0.12 to 0.29.
@@ -149,12 +166,12 @@ unwritten encounters:
 
 ## What the game still needs
 
-- **Five encounters' dialogue**: the Rainmaker, the Surveyor, the Widow, the
-  Tuner and the Boy, each three turns of four intents with a reaction and an
-  effect per reply, and two to four endings. `DIALOGUE` and `endings` in
-  `content.js` are where they go; the Deputy is the worked example to follow.
-- **A favour source** — which encounter can leave somebody owing the sheriff
-  enough to get him off the street when he is shot.
+- **Four encounters' dialogue**: the Rainmaker, the Surveyor, the Tuner and the
+  Boy, each three turns of four intents with a reaction and an effect per reply,
+  and two to four endings. `DIALOGUE` and `endings` in `content.js` are where
+  they go; the Deputy and the Widow are the worked examples.
+- Each remaining scene wants its own resource focus — fear, standing, safety or
+  clues — so the day is not four more evidence hunts.
 
 ## Credit
 

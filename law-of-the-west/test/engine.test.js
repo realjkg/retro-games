@@ -50,9 +50,12 @@ test('2. the anthology and every authored encounter are sound', ()=>{
           if(!known.includes(n))bad.push(e.id+"/"+x.id+": unknown variable "+n);
           if(!ops.includes(op))bad.push(e.id+"/"+x.id+": unknown operator "+op);
         }
+        if(x.chance!=null&&!(x.chance>0&&x.chance<=1))
+          bad.push(e.id+"/"+x.id+": chance out of 0..1");
         const last=i===(e.endings.length-1);
         if(!last&&!(x.when||[]).length)bad.push(e.id+"/"+x.id+": unconditional but not last");
         if(last&&(x.when||[]).length)bad.push(e.id+": no fallback ending");
+        if(last&&x.chance!=null)bad.push(e.id+": the fallback must be certain");
       });
     }
     return JSON.stringify(bad);
@@ -83,25 +86,29 @@ function playEncounter(id,seed,chooser,fireLatency){
   })()`));
 }
 
-test('3. five hundred runs of the written encounter reach every ending', ()=>{
-  const endings={}, outcomes={};
-  let exceptions=0;
-  for(let i=0;i<500;i++){
-    let r;
-    try{ r=playEncounter('deputy',i,(turn,x)=>Math.floor(x*4)); }
-    catch(e){exceptions++;continue;}
-    assert.equal(r.phase,'resolve','run '+i+' did not settle');
-    endings[r.ending||('duel:'+r.outcome)]=(endings[r.ending||('duel:'+r.outcome)]||0)+1;
-    outcomes[r.outcome]=(outcomes[r.outcome]||0)+1;
+test('3. five hundred runs of every written encounter reach every ending', ()=>{
+  const {run}=load({fill:false});
+  const written=JSON.parse(run('JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>({id:e.id,endings:e.endings.map(x=>x.id)})))'));
+  report.runs={};
+  for(const enc of written){
+    const endings={};
+    let exceptions=0;
+    for(let i=0;i<500;i++){
+      let r;
+      try{ r=playEncounter(enc.id,i,(turn,x)=>Math.floor(x*4)); }
+      catch(e){exceptions++;continue;}
+      assert.equal(r.phase,'resolve',enc.id+' run '+i+' did not settle');
+      const key=r.ending||('duel:'+r.outcome);
+      endings[key]=(endings[key]||0)+1;
+    }
+    assert.equal(exceptions,0,enc.id+' threw '+exceptions+' times');
+    report.runs[enc.id]=endings;
+    const missing=enc.endings.filter(id=>!endings[id]);
+    assert.deepEqual(missing,[],enc.id+': endings never reached: '+missing.join(', '));
+    const total=Object.values(endings).reduce((a,b)=>a+b,0);
+    const top=Math.max(...Object.values(endings))/total;
+    assert.ok(top<=0.6,enc.id+': one outcome took '+(top*100).toFixed(1)+'%: '+JSON.stringify(endings));
   }
-  assert.equal(exceptions,0);
-  report.deputy={endings,outcomes};
-  const authored=JSON.parse(load().run('JSON.stringify(ENCOUNTERS[0].endings.map(e=>e.id))'));
-  const missing=authored.filter(id=>!endings[id]);
-  assert.deepEqual(missing,[],'endings never reached: '+missing.join(', '));
-  const total=Object.values(endings).reduce((a,b)=>a+b,0);
-  const top=Math.max(...Object.values(endings))/total;
-  assert.ok(top<=0.6,'one outcome took '+(top*100).toFixed(1)+'%: '+JSON.stringify(endings));
 });
 
 test('4. one intent held all the way through does not always end the same', ()=>{
@@ -123,9 +130,13 @@ test('4. one intent held all the way through does not always end the same', ()=>
   report.variance=per;
   const rigid=Object.entries(per).filter(([,paths])=>
     Object.values(paths).every(p=>p.top>80)).map(([id])=>id);
-  // the five unwritten encounters run on a single fixture ending, so only the
-  // written one can be judged here
-  assert.ok(!rigid.includes('deputy'),'no intent path varies for the written encounter');
+  // the unwritten encounters run on a single fixture ending, so only the
+  // written ones can be judged here
+  // ask an unfilled harness which scenes are actually authored
+  const writtenIds=JSON.parse(load({fill:false})
+    .run('JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>e.id))'));
+  const stuck=writtenIds.filter(id=>rigid.includes(id));
+  assert.deepEqual(stuck,[],'no intent path varies for: '+stuck.join(', '));
   report.rigidPaths=Object.entries(per).flatMap(([id,paths])=>
     Object.entries(paths).filter(([,p])=>p.top>80).map(([t,p])=>id+'/'+t+' '+p.top+'%'));
 });
@@ -156,20 +167,71 @@ test('5. two thousand duels across the tell range', ()=>{
   assert.ok(Object.values(report.duel).some(v=>v.slow>0),'nobody was ever beaten to the shot');
 });
 
-test('6. wounds carry, a favour buys one back, and the second one is fatal', ()=>{
+test('6. wounds carry, a banked favour buys one back, and the second is fatal', ()=>{
   const {run,slotOf}=load();
   const slot=slotOf('deputy');
   const one=run(`(()=>{const G=newGame({seed:1});G.slot=${slot};beginSlot(G);
     takeHit(G,"test");return JSON.stringify({o:G.outcome,w:G.wounds,phase:G.phase});})()`);
-  assert.deepEqual(JSON.parse(one),{o:'wounded',w:1,phase:'resolve'});
+  assert.deepEqual(JSON.parse(one),{o:'wound_consequence',w:1,phase:'resolve'});
   const two=run(`(()=>{const G=newGame({seed:2});G.slot=${slot};beginSlot(G);
     takeHit(G,"a");takeHit(G,"b");return JSON.stringify({phase:G.phase,why:G.over&&G.over.why,rating:G.over&&G.over.rating});})()`);
   const t=JSON.parse(two);
   assert.equal(t.phase,'summary'); assert.equal(t.why,'killed'); assert.equal(t.rating,1);
   const fav=run(`(()=>{const G=newGame({seed:3});G.slot=${slot};beginSlot(G);G.favours=1;
     takeHit(G,"test");return JSON.stringify({o:G.outcome,w:G.wounds,f:G.favours});})()`);
-  assert.deepEqual(JSON.parse(fav),{o:'patched',w:0,f:0});
+  assert.deepEqual(JSON.parse(fav),{o:'rescued_from_street',w:0,f:0});
   report.wounds='one wound carries, a banked favour patches it, the second kills';
+});
+
+/* The favour is the one state that has to survive between encounters, so it is
+ * tested across them rather than in isolation. */
+test('6b. the Widow\'s favour is earned in her scene and spent in a later one', ()=>{
+  const {run}=load();
+  // her favour ending carries a chance of its own, so take the first seed
+  // that earns it rather than assuming one does
+  const earned=JSON.parse(run(`(()=>{
+    for(let seed=0;seed<80;seed++){
+      const G=newGame({seed});
+      G.slot=ENCOUNTERS.findIndex(e=>e.id==="widow");
+      beginSlot(G); openDialogue(G);
+      G.S.evidence=2; G.S.respect=2; G.S.fear=0; G.turn=RULES.TURNS-1;
+      respond(G,0);                                   // the conciliate reply
+      if(G.ending&&G.ending.id==="widow_favour"){
+        globalThis.G=G;
+        return JSON.stringify({ending:G.ending.id,favours:G.favours,
+          clues:G.clues,safety:G.safety,seed});
+      }
+    }
+    return JSON.stringify({ending:null});
+  })()`));
+  assert.equal(earned.ending,'widow_favour','no seed in eighty earned her favour');
+  assert.equal(earned.favours,1,'the favour was not banked');
+  assert.ok(earned.clues.includes('ledger'));
+  assert.equal(earned.safety,1);
+  // carried into a later encounter, spent once, and gone
+  const spent=JSON.parse(run(`(()=>{
+    const G=globalThis.G;
+    while(G.slot<ENCOUNTERS.length-1&&ENCOUNTERS[G.slot].id!=="deputy")nextSlot(G);
+    const first=takeHit(G,"shot");
+    const second=takeHit(G,"shot again");
+    return JSON.stringify({first:first.outcome,favours:G.favours,
+      second:second.outcome||G.phase,wounds:G.wounds});
+  })()`));
+  assert.equal(spent.first,'rescued_from_street','the banked favour was not spent');
+  assert.equal(spent.favours,0,'the favour was not consumed');
+  assert.equal(spent.second,'wound_consequence','the favour paid twice');
+  assert.equal(spent.wounds,1);
+  // and a sheriff who frightened her gets nothing
+  const feared=JSON.parse(run(`(()=>{
+    const G=newGame({seed:12});
+    G.slot=ENCOUNTERS.findIndex(e=>e.id==="widow");
+    beginSlot(G); openDialogue(G);
+    G.S.evidence=3; G.S.respect=2; G.S.fear=2; G.turn=RULES.TURNS;
+    settle(G);
+    return JSON.stringify({ending:G.ending&&G.ending.id,favours:G.favours});
+  })()`));
+  assert.notEqual(feared.ending,'widow_favour','fear did not cost her goodwill');
+  assert.equal(feared.favours,0);
 });
 
 test('7. every cue plays through the runtime with only finite, in-range values', ()=>{

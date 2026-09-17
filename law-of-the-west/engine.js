@@ -79,7 +79,15 @@ function respond(G,index){
   for(const [k,v] of Object.entries(reply.fx||{})){
     if(k in G.S)G.S[k]+=v; else if(k==="safety")G.safety+=v;
   }
+  /* A point of temper either way each turn, on his patience and on one social
+   * reading of the sheriff. Evidence is never jittered: the ledger says what
+   * it says. */
   G.S.drawRisk+=Math.floor(G.rng()*3)-1;
+  const social=["respect","fear","suspicion"].filter(k=>k in (reply.fx||{}));
+  if(social.length){
+    const k=social[Math.floor(G.rng()*social.length)];
+    G.S[k]+=Math.floor(G.rng()*3)-1;
+  }
   if(e.armed&&G.S.drawRisk>=e.drawAt+G.mood)return theyDraw(G,"provoked");
   G.turn++;
   if(G.turn>=RULES.TURNS)return settle(G);
@@ -101,7 +109,11 @@ function settle(G){
   const e=who(G);
   // even a settled man can turn, and a riled one more easily
   if(e.armed&&G.rng()<(e.hostile||0)*(G.S.drawRisk>0?1.5:0.7))return theyDraw(G,"turned");
-  const ending=(e.endings||[]).find(x=>holds(G,x.when));
+  /* First ending whose conditions hold, except that an ending may carry a
+   * chance of its own: he nearly told you, and then did not. The fallback has
+   * no chance of its own and always fires. */
+  const ending=(e.endings||[]).find(x=>holds(G,x.when)&&
+    (x.chance==null||G.rng()<x.chance));
   if(!ending)return resolve(G,"unwritten");
   G.ending=ending;
   for(const [k,v] of Object.entries(ending.fx||{})){
@@ -230,10 +242,13 @@ function theirReply(G){
  * A favour banked with someone in town buys one of them back. */
 function takeHit(G,why){
   G.wounded=true; award(G,"wounded");
-  if(G.favours>0){G.favours--; G.wounds=Math.max(0,G.wounds-0); return resolve(G,"patched"); }
+  if(G.favours>0){                       // somebody in town owes him, once
+    G.favours--;
+    return resolve(G,"rescued_from_street");
+  }
   G.wounds++;
   if(G.wounds>=RULES.WOUNDS)return finish(G,"killed",why);
-  return resolve(G,"wounded");
+  return resolve(G,"wound_consequence");
 }
 
 /* ---- resolution and the day's end ---- */

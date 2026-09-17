@@ -3,65 +3,65 @@
     "deputy written",
     "rainmaker pending",
     "surveyor pending",
-    "widow pending",
+    "widow written",
     "tuner pending",
     "locket pending"
   ],
-  "deputy": {
-    "endings": {
-      "escorted": 92,
-      "forgery": 142,
-      "duel:wounded": 84,
-      "duel:killed_him": 77,
-      "duel:disarmed": 70,
-      "handover": 19,
-      "standoff": 16
+  "runs": {
+    "deputy": {
+      "escorted": 85,
+      "forgery": 135,
+      "duel:killed_him": 61,
+      "duel:wound_consequence": 68,
+      "duel:disarmed": 79,
+      "standoff": 27,
+      "handover": 45
     },
-    "outcomes": {
-      "escorted": 92,
-      "forgery": 142,
-      "wounded": 84,
-      "killed_him": 77,
-      "disarmed": 70,
-      "handover": 19,
-      "standoff": 16
+    "widow": {
+      "widow_favour": 153,
+      "debt_voided": 200,
+      "closed_book": 111,
+      "secret_exposed": 36
     }
   },
   "variance": {
     "deputy": {
       "conciliate": {
-        "top": 91,
+        "top": 79,
         "counts": {
-          "escorted": 91,
-          "duel:wounded": 2,
-          "duel:disarmed": 4,
-          "duel:killed_him": 3
+          "escorted": 79,
+          "duel:killed_him": 1,
+          "duel:wound_consequence": 3,
+          "duel:disarmed": 7,
+          "handover": 10
         }
       },
       "probe": {
-        "top": 84,
+        "top": 65,
         "counts": {
-          "duel:wounded": 6,
-          "forgery": 84,
-          "duel:disarmed": 5,
-          "duel:killed_him": 5
+          "forgery": 65,
+          "duel:killed_him": 9,
+          "handover": 14,
+          "duel:wound_consequence": 6,
+          "duel:disarmed": 6
         }
       },
       "command": {
-        "top": 29,
+        "top": 27,
         "counts": {
-          "escorted": 29,
-          "duel:disarmed": 26,
-          "duel:wounded": 20,
-          "duel:killed_him": 25
+          "escorted": 25,
+          "duel:killed_him": 25,
+          "standoff": 2,
+          "duel:wound_consequence": 27,
+          "duel:disarmed": 21
         }
       },
       "threaten": {
-        "top": 38,
+        "top": 37,
         "counts": {
-          "duel:wounded": 38,
-          "duel:disarmed": 34,
-          "duel:killed_him": 28
+          "duel:wound_consequence": 37,
+          "duel:disarmed": 32,
+          "duel:killed_him": 31
         }
       }
     },
@@ -119,27 +119,30 @@
     },
     "widow": {
       "conciliate": {
-        "top": 100,
+        "top": 79,
         "counts": {
-          "fixture_settled": 100
+          "widow_favour": 79,
+          "debt_voided": 21
         }
       },
       "probe": {
-        "top": 100,
+        "top": 65,
         "counts": {
-          "fixture_settled": 100
+          "secret_exposed": 65,
+          "debt_voided": 35
         }
       },
       "command": {
-        "top": 100,
+        "top": 98,
         "counts": {
-          "fixture_settled": 100
+          "debt_voided": 98,
+          "widow_favour": 2
         }
       },
       "threaten": {
         "top": 100,
         "counts": {
-          "fixture_settled": 100
+          "closed_book": 100
         }
       }
     },
@@ -197,8 +200,6 @@
     }
   },
   "rigidPaths": [
-    "deputy/conciliate 91%",
-    "deputy/probe 84%",
     "rainmaker/conciliate 100%",
     "rainmaker/probe 100%",
     "rainmaker/command 100%",
@@ -207,9 +208,7 @@
     "surveyor/probe 100%",
     "surveyor/command 100%",
     "surveyor/threaten 100%",
-    "widow/conciliate 100%",
-    "widow/probe 100%",
-    "widow/command 100%",
+    "widow/command 98%",
     "widow/threaten 100%",
     "tuner/conciliate 100%",
     "tuner/probe 100%",
