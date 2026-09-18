@@ -3,44 +3,154 @@
 <head>
 <meta charset="utf-8">
 <title>Page not found — Retro Games</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Browser recreations of retro games for the Apple II, Commodore 64 and Atari.">
+<meta name="theme-color" content="#0a0713">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%B9%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
-:root{color-scheme:dark}
-body{margin:0;min-height:100vh;background:#0b0b12;color:#e8e8f0;
-  font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;padding:32px 16px}
-main{width:100%;max-width:44rem}
-h1{font-size:1.9rem;letter-spacing:.14em;text-transform:uppercase;margin:0 0 .25rem}
-p.sub{color:#a9a9bd;margin:0 0 2rem}
-ul{list-style:none;padding:0;margin:0;display:grid;gap:14px}
-a.card{display:block;padding:18px 20px;border:1px solid #2a2a3c;border-radius:12px;
-  background:#13131f;color:inherit;text-decoration:none}
-a.card:hover,a.card:focus{border-color:#ffd27f;background:#181828}
-a.card h2{margin:0 0 .3rem;font-size:1.15rem}
-a.card span{color:#a9a9bd;font-size:.92rem}
-footer{margin-top:2.5rem;color:#71718a;font-size:.85rem}
-footer a{color:#ffd27f}
+:root{
+  color-scheme:dark;
+  --bg:#0a0713; --panel:#140f22; --panel2:#1b1430; --line:#2f2450;
+  --ink:#f3eeff; --dim:#a79cc8;
+  --cyan:#38e8ff; --magenta:#ff3ea5; --gold:#ffd27f; --jade:#4fd39a; --ember:#ff8c42;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{min-height:100dvh;background:var(--bg);color:var(--ink);
+  font-family:var(--mono);display:flex;justify-content:center;
+  padding:calc(env(safe-area-inset-top) + 26px) 16px calc(env(safe-area-inset-bottom) + 28px);
+  position:relative;overflow-x:hidden}
+/* The cabinet glow, and the scanlines over everything in front of it. */
+body::before{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(42% 32% at 50% 0%,rgba(255,62,165,.20),transparent 70%),
+    radial-gradient(46% 34% at 12% 22%,rgba(56,232,255,.13),transparent 70%),
+    radial-gradient(52% 40% at 88% 78%,rgba(255,140,66,.12),transparent 70%)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:3;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.26) 0 1px,transparent 1px 3px);
+  mix-blend-mode:multiply;opacity:.55;animation:roll 9s linear infinite}
+@keyframes roll{from{transform:translateY(0)}to{transform:translateY(3px)}}
+main{width:100%;max-width:46rem;position:relative;z-index:1}
+
+/* ---------- marquee ---------- */
+.marquee{border:2px solid var(--line);border-radius:16px;padding:22px 18px 20px;
+  background:linear-gradient(180deg,rgba(38,26,68,.92),rgba(14,10,26,.92));
+  box-shadow:0 0 0 1px rgba(255,255,255,.04) inset,0 18px 46px -22px rgba(255,62,165,.55);
+  text-align:center;position:relative;overflow:hidden}
+.bars{display:flex;height:8px;border-radius:5px;overflow:hidden;margin:0 auto 16px;max-width:320px}
+.bars i{flex:1}
+.bars i:nth-child(1){background:#ff3ea5}.bars i:nth-child(2){background:#ff8c42}
+.bars i:nth-child(3){background:#ffd27f}.bars i:nth-child(4){background:#4fd39a}
+.bars i:nth-child(5){background:#38e8ff}.bars i:nth-child(6){background:#8a6cff}
+h1{margin:0;font-size:clamp(2rem,11vw,3.6rem);line-height:.95;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;color:#fff8e6;
+  text-shadow:
+    -3px 0 0 rgba(56,232,255,.9), 3px 0 0 rgba(255,62,165,.9),
+    0 0 18px rgba(255,210,127,.55), 0 0 42px rgba(255,62,165,.35);
+  animation:flicker 7s steps(1) infinite}
+@keyframes flicker{0%,96%,100%{opacity:1}97%{opacity:.82}98%{opacity:1}99%{opacity:.9}}
+.tag{margin:12px 0 0;font-size:.74rem;letter-spacing:.24em;color:var(--dim);text-transform:uppercase}
+.systems{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
+.systems span{font-size:.66rem;letter-spacing:.16em;padding:5px 9px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(10,7,19,.7);color:var(--dim)}
+.coin{margin:16px 0 0;font-size:.7rem;letter-spacing:.3em;color:var(--gold);
+  animation:blink 1.6s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.18}}
+
+/* ---------- cabinet cards ---------- */
+ul{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:14px}
+a.card{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+  padding:16px;border:2px solid var(--line);border-radius:14px;text-decoration:none;color:inherit;
+  background:linear-gradient(180deg,var(--panel2),var(--panel));
+  transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease}
+a.card:hover,a.card:focus-visible{transform:translateY(-2px);border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent) inset,0 14px 34px -20px var(--accent);outline:none}
+a.card .art{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.08),rgba(0,0,0,.45));
+  border:1px solid var(--line)}
+a.card svg{width:44px;height:44px;display:block}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+h2{margin:0;font-size:1.02rem;letter-spacing:.04em;color:var(--ink)}
+.chip{font-size:.6rem;letter-spacing:.14em;padding:3px 7px;border-radius:999px;
+  border:1px solid var(--accent);color:var(--accent);white-space:nowrap}
+p.blurb{margin:.45rem 0 0;font-size:.82rem;line-height:1.5;color:var(--dim);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.play{margin:.6rem 0 0;font-size:.68rem;letter-spacing:.2em;color:var(--accent)}
+footer{margin-top:26px;text-align:center;color:#6f6592;font-size:.7rem;letter-spacing:.14em}
+footer a{color:var(--gold)}
+@media (prefers-reduced-motion:reduce){
+  body::after,h1,.coin{animation:none}
+}
 </style>
 </head>
 <body>
 <main>
-  <h1>Page not found</h1>
-  <p class="sub">That page does not exist here. These games do:</p>
+  <header class="marquee">
+    <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <h1>Game Over</h1>
+    <p class="tag">That page does not exist here — but these do</p>
+    <div class="systems"><span>Apple II</span><span>Commodore 64</span><span>Atari</span></div>
+    <p class="coin">▸ Continue?</p>
+  </header>
+
   <ul>
-    <li><a class="card" href="archon/">
-      <h2>Archon — The Light and the Dark</h2>
-      <span>Commodore 64 · a 9×9 board of shifting luminance where landing on an enemy starts a real-time duel.</span>
+    <li><a class="card" href="archon/" style="--accent:#ffd27f">
+      <span class="art" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="21" fill="#0b0b10"/>
+          <path d="M32 11a21 21 0 0 0 0 42z" fill="#f2efe4"/>
+          <circle cx="32" cy="32" r="21" fill="none" stroke="#ffd27f" stroke-width="3"/>
+          <path d="M21 43 43 21" stroke="#0b0b10" stroke-width="5" stroke-linecap="round"/>
+          <path d="M43 43 21 21" stroke="#f2efe4" stroke-width="5" stroke-linecap="round"/>
+        </svg></span>
+      <span>
+        <span class="head"><h2>Archon — The Light and the Dark</h2><span class="chip">C64 · 1983</span></span>
+        <p class="blurb">A 9×9 board of shifting luminance where landing on an enemy starts a real-time duel.
+          Hot seat for two, or a CPU you can now pick a difficulty for.</p>
+        <p class="play">Play ▸</p>
+      </span>
     </a></li>
-    <li><a class="card" href="aztec/">
-      <h2>Aztec — Tomb of Quetzalcoatl</h2>
-      <span>Commodore 64 · a randomly generated tomb to dig, crawl and shoot your way down for the jade idol.</span>
+
+    <li><a class="card" href="aztec/" style="--accent:#4fd39a">
+      <span class="art" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <rect x="8" y="46" width="48" height="8" fill="#6b4a26"/>
+          <rect x="14" y="38" width="36" height="8" fill="#7d5730"/>
+          <rect x="20" y="30" width="24" height="8" fill="#8f6438"/>
+          <rect x="26" y="20" width="12" height="10" fill="#3b2c1b"/>
+          <rect x="29" y="24" width="6" height="8" fill="#4fd39a"/>
+          <rect x="29" y="30" width="6" height="24" fill="#5c452b"/>
+          <path d="M20 54h24" stroke="#2a2216" stroke-width="2"/>
+          <circle cx="14" cy="26" r="2.5" fill="#ffd27f"/><circle cx="50" cy="26" r="2.5" fill="#ffd27f"/>
+        </svg></span>
+      <span>
+        <span class="head"><h2>Aztec — Tomb of Quetzalcoatl</h2><span class="chip">C64 · 1984</span></span>
+        <p class="blurb">A randomly generated tomb to dig, crawl and shoot your way down for the jade idol —
+          then carry it back out past whatever is still awake.</p>
+        <p class="play">Play ▸</p>
+      </span>
     </a></li>
-    <li><a class="card" href="law-of-the-west/">
-      <h2>Law of the West — Gold Gulch</h2>
-      <span>Commodore 64 · a sheriff, a street, and four ways to answer every man who walks up it. One encounter written so far.</span>
+
+    <li><a class="card" href="law-of-the-west/" style="--accent:#ff8c42">
+      <span class="art" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <circle cx="32" cy="30" r="20" fill="#2a1a10"/>
+          <path d="M32 12h0" stroke="none"/>
+          <path d="M32 13 36.8 24.2 49 25.3 39.8 33.4 42.5 45.3 32 39 21.5 45.3 24.2 33.4 15 25.3 27.2 24.2z"
+                fill="#ff8c42"/>
+          <circle cx="32" cy="30" r="4.6" fill="#2a1a10"/>
+          <path d="M10 52h44" stroke="#ff8c42" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+        </svg></span>
+      <span>
+        <span class="head"><h2>Law of the West — Gold Gulch</h2><span class="chip">C64 · 1985</span></span>
+        <p class="blurb">A sheriff, a street, and four ways to answer every man who walks up it.
+          One encounter written so far.</p>
+        <p class="play">Play ▸</p>
+      </span>
     </a></li>
   </ul>
-  <footer>Source on <a href="https://github.com/realjkg/retro-games">GitHub</a>.</footer>
+
+  <footer>Source on <a href="https://github.com/realjkg/retro-games">GitHub</a></footer>
 </main>
 </body>
 </html>
