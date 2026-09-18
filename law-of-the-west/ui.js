@@ -11,6 +11,7 @@ const modeEl=document.getElementById("mode");
 const muteBtn=document.getElementById("mute");
 
 let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
+let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
 let flash=0, bodyFall=0, said="", react="";
 
@@ -203,14 +204,25 @@ const PEOPLE=[{x:196,w:5,h:13},{x:206,w:5,h:12},{x:52,w:5,h:13}];
 const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
 /* Each caller's place decides the sign over the door and what is parked in the
  * near right of the frame. */
-const PROPS={STREET:"coach","STAGE ROAD":"coach","THE CUT":"loco",SALOON:"barrels",
-  BANK:"crates",JAIL:"crates",DOCTOR:"barrels",SCHOOL:"fence",CORRAL:"fence"};
+/* Gold Gulch keeps the same five fronts every day; what changes is the big
+ * board over the middle one, which names the concern this caller has come out
+ * of, and what is parked in the near right. */
+const PLACES={
+  STREET:      {sign:"GOLD GULCH HOTEL",     prop:"coach"},
+  SALOON:      {sign:"MAGUIRE'S SALOON",     prop:"barrels"},
+  DOCTOR:      {sign:"DR FINCH SURGEON",     prop:"crates"},
+  SCHOOL:      {sign:"GOLD GULCH SCHOOL",    prop:"fence"},
+  JAIL:        {sign:"GOLD GULCH JAIL",      prop:"crates"},
+  CORRAL:      {sign:"BELLE HOLLISTER",      prop:"fence"},
+  "STAGE ROAD":{sign:"MORGAN EXPRESS CO",    prop:"coach"},
+  "THE CUT":   {sign:"GOLD GULCH & WESTERN", prop:"loco"},
+  BANK:        {sign:"J P MORGAN BANK",      prop:"crates"}};
 const STORES=[
-  {x0:0,  x1:46, top:44, wall:C64.lgy, trim:C64.dgy, storey:2},
-  {x0:46, x1:100,top:56, wall:C64.yel, trim:C64.org, storey:1},
-  {x0:100,x1:158,top:40, wall:C64.lrd, trim:C64.brn, storey:2, signs:true},
-  {x0:158,x1:212,top:54, wall:C64.yel, trim:C64.org, storey:1},
-  {x0:212,x1:252,top:48, wall:C64.gry, trim:C64.dgy, storey:2}];
+  {x0:0,  x1:46, top:44, wall:C64.lgy, trim:C64.dgy, storey:2, sign:"HANLEY'S"},
+  {x0:46, x1:96, top:56, wall:C64.yel, trim:C64.org, storey:1, sign:"ASSAY OFFICE"},
+  {x0:96, x1:170,top:38, wall:C64.lrd, trim:C64.brn, storey:2, board:true},
+  {x0:170,x1:216,top:54, wall:C64.yel, trim:C64.org, storey:1, sign:"LIVERY"},
+  {x0:216,x1:252,top:48, wall:C64.gry, trim:C64.dgy, storey:2, sign:"TELEGRAPH"}];
 function sky(){
   px(0,0,SCENE.w,ROOF+8,C64.blu);
   for(let i=0;i<6;i++){                                   // cloud banks, stepped
@@ -244,17 +256,43 @@ function storefront(s,sign){
       px(side,WALK-20,12,14,C64.blk); px(side+1,WALK-19,10,12,C64.dgy);
     }
   }
-  if(sign){                                               // the name over the door
-    px(s.x0+4,s.top+6,w-8,12,C64.blk);
-    ctx.fillStyle=C64.yel; ctx.font="700 8px monospace";
-    ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(sign,(s.x0+s.x1)/2,s.top+12);
-  }
+  if(s.sign)painted(s.sign,s.x0+3,s.top+6,w-6,11,6);      // the concern's own board
 }
+/* A painted board: brown frame, black field, yellow letters, the face dropped a
+ * point at a time until the name fits the front it is nailed to. */
+function painted(text,x,y,w,h,size){
+  while(size>4&&text.length*size*0.62>w-4)size--;
+  px(x,y,w,h,C64.brn); px(x+1,y+1,w-2,h-2,C64.blk);
+  ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(text,x+w/2,y+h/2+1);
+}
+/* The big board over the middle front: two lines when the name is long, and a
+ * smaller face when even two will not carry it. */
+function signboard(text){
+  const words=text.split(" ");
+  let lines=[text];
+  if(text.length>12&&words.length>1){
+    let best=1e9,cut=1;
+    for(let i=1;i<words.length;i++){
+      const m=Math.max(words.slice(0,i).join(" ").length,words.slice(i).join(" ").length);
+      if(m<best){best=m;cut=i;}
+    }
+    lines=[words.slice(0,cut).join(" "),words.slice(cut).join(" ")];
+  }
+  const longest=Math.max.apply(null,lines.map(t=>t.length));
+  const size=longest<=11?8:6;
+  const bx=90, bw=96, by=44, bh=lines.length>1?22:14;
+  px(bx,by,bw,bh,C64.brn); px(bx+2,by+2,bw-4,bh-4,C64.blk);
+  ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  lines.forEach((t,i)=>ctx.fillText(t,bx+bw/2,by+bh/2+1+(i-(lines.length-1)/2)*(size+3)));
+}
+/* The tree stands out in front of the fronts, low enough to leave the boards
+ * on them readable. */
 function tree(){
-  px(78,WALK-4,6,-40+WALK-(WALK-44),C64.brn);
-  px(78,74,6,44,C64.brn);
-  for(const [cx,cy,r] of [[81,62,15],[70,70,11],[92,70,11],[81,74,13]]){
+  px(78,96,6,WALK-96,C64.brn);
+  for(const [cx,cy,r] of [[81,80,13],[70,88,10],[92,88,10],[81,92,11]]){
     for(let y=-r;y<=r;y++){const half=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
       px(cx-half,cy+y,half*2,1,(y+cx)%5?C64.grn:C64.lgn);}
   }
@@ -315,15 +353,16 @@ function propAt(kind){
 }
 function town(now,armed){
   sky();
-  const enc=who(G), place=(enc&&enc.place)||"GOLD GULCH";
+  const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
   street();
-  for(const s of STORES)storefront(s,s.signs?place:null);
+  for(const s of STORES)storefront(s);
+  signboard(here.sign);
   tree();
   // people on the boardwalk, who do not stay for gunplay
   if(!armed)for(const p of PEOPLE){
     px(p.x,WALK-p.h,p.w,p.h,C64.dgy); px(p.x,WALK-p.h,p.w,2,C64.blk);
   }
-  propAt(PROPS[place]||"crates");
+  propAt(here.prop);
 }
 function drawScene(now){
   const g=sceneGeom();
@@ -376,6 +415,42 @@ function fitText(){
   }
 }
 
+/* ---- sound test ---- *
+ * Every cue the game can make, on a screen of its own, so the pistol, the tell,
+ * the bells and the eleven entrance themes can be heard without playing a day
+ * to reach them. Reached from the title; it is a screen, not a game phase, so
+ * nothing in the engine knows about it. */
+const CUES=()=>Object.keys(SOUNDS);
+const MUSIC=["title","dawn","dusk","badge","romance","respect","disgrace","piano"];
+function cueKind(name){
+  return name.indexOf("th_")===0?"entrance theme"
+    :MUSIC.indexOf(name)>=0?"music":"sound effect";
+}
+function playCue(name){
+  if(name.indexOf("th_")===0)SND.theme(name);
+  else if(typeof SND[name]==="function")SND[name]();
+}
+function soundCmd(what){
+  const list=CUES();
+  if(what==="play")playCue(list[cueAt]);
+  else if(what==="next")cueAt=(cueAt+1)%list.length;
+  else if(what==="prev")cueAt=(cueAt+list.length-1)%list.length;
+  else if(what==="back"){screen=null;SND.cut();}
+  paint();
+}
+function paintSound(){
+  const list=CUES(), name=list[cueAt];
+  lineEls[0].className="npc";
+  lineEls[0].textContent=(cueAt+1)+" of "+list.length+" \u00b7 "+name+" \u00b7 "+cueKind(name);
+  ["1. Play it","2. Next","3. Previous","4. Back to the street"].forEach((t,i)=>{
+    lineEls[i+1].textContent=t;
+    lineEls[i+1].className="choice"+(i===0?" sel":"");
+  });
+  modeEl.textContent="GOLD GULCH \u00b7 SOUND TEST";
+  scoreEl.textContent=name;
+  fitText();
+}
+
 function beat(){return nodeOf(G);}
 /* Who is in front of you, where you are in the day, and how it is going. It
  * lives above the picture rather than over it: the 320x200 frame carries no
@@ -395,6 +470,7 @@ function hud(){
 const JOB_PROMPT={stage:"1. Ride for the ford",train:"1. Get down to the cut",
   bank:"1. Round the back of the bank"};
 function paint(){
+  if(screen==="sound")return paintSound();
   const b=beat(), live=build.rows>=10;
   if(G.phase==="summary"){return paintSummary();}
   if(G.phase==="intro"){
@@ -402,8 +478,8 @@ function paint(){
     lineEls[0].className="npc";
     lineEls[1].textContent="1. Pin on the badge";
     lineEls[1].className="choice sel";
-    lineEls[2].textContent=CAST.length+" callers, one day, and a gun you may draw at any of it.";
-    lineEls[2].className="choice dim";
+    lineEls[2].textContent="2. Sound test";
+    lineEls[2].className="choice";
     lineEls[3].textContent="An original recreation inspired by the 1985 game.";
     lineEls[3].className="choice dim";
     lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
@@ -552,6 +628,7 @@ function newScene(){
   if(theme)setTimeout(()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);},700);
 }
 function up(){
+  if(screen==="sound"){soundCmd("prev");return;}
   if(G.phase==="intro")return;
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
@@ -561,6 +638,7 @@ function up(){
   if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
 }
 function down(){
+  if(screen==="sound"){soundCmd("next");return;}
   if(G.mode==="gun"){
     // down walks the crosshair down the scene; pulled past the bottom it
     // holsters, which is the way out of a stand-off. HOL and Escape do it at once.
@@ -569,11 +647,14 @@ function down(){
   }
   if(G.phase==="dialogue"&&build.rows>=10){cursor=(cursor+1)%4;SND.click();paint();}
 }
-function left(){if(G.mode==="gun"){moveAim(G,-1,0);SND.click();}
+function left(){if(screen==="sound"){soundCmd("prev");return;}
+  if(G.mode==="gun"){moveAim(G,-1,0);SND.click();}
   else if(G.phase==="dialogue"){cursor=(cursor+3)%4;SND.click();paint();}}
-function right(){if(G.mode==="gun"){moveAim(G,1,0);SND.click();}
+function right(){if(screen==="sound"){soundCmd("next");return;}
+  if(G.mode==="gun"){moveAim(G,1,0);SND.click();}
   else if(G.phase==="dialogue"){cursor=(cursor+1)%4;SND.click();paint();}}
 function fire(){
+  if(screen==="sound"){soundCmd("play");return;}
   if(G.phase==="intro"){startDay();paint();return;}
   if(G.phase==="summary"){startDay();paint();return;}
   if(G.phase==="resolve"){advance();return;}
@@ -603,7 +684,10 @@ function fire(){
   paint();
 }
 function choose(i){                       // the 1-4 keys and the tapped lines
-  if(G.phase==="intro"){startDay();paint();return;}
+  if(screen==="sound"){soundCmd(["play","next","prev","back"][i]||"play");return;}
+  if(G.phase==="intro"){
+    if(i===1){screen="sound";cueAt=0;SND.unlock();paint();return;}
+    startDay();paint();return;}
   if(G.phase!=="dialogue"||G.mode!=="talk")return;
   cursor=Math.max(0,Math.min(3,i)); fire();
 }
@@ -615,6 +699,7 @@ function afterShot(before){
   paint();
 }
 function settleSound(){
+  SND.cut();                              // the theme is over; this is the answer
   const o=G.outcome;
   const flags=(G.ending&&G.ending.flags)||[];
   if(flags.indexOf("offended")>=0)SND.penalty();
@@ -628,7 +713,6 @@ function settleSound(){
   else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
   else if(o==="wounded"){SND.gunshot();SND.hit();}
   else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
-  else if(o==="job_stopped"){SND.thread();SND.respect();}
   else if(o==="job_missed"){SND.alarm();SND.robbery();}
   else SND.clock();
   if(o==="killed_him"||o==="innocent_killed")setTimeout(()=>SND.churchbell(),900);

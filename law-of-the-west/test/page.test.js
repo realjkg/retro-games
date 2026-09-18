@@ -369,3 +369,25 @@ test('8o. being outdrawn by the clock still paints the reckoning', {skip:jsdomMi
   assert.match(p.el('line4').textContent,/^1\. /,'no way to ride in again');
   assert.deepEqual(p.errors,[]);
 });
+
+test('8p. the sound test reaches every cue the game can make', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const played=[];
+  p.ev('SND').theme=n=>played.push(n);
+  p.ev('SND').cut=()=>{};
+  for(const k of Object.keys(p.ev('SOUNDS')))p.ev('SND')[k]=()=>played.push(k);
+  p.press('2');                                    // the title offers it
+  assert.equal(p.ev('screen'),'sound','the sound test did not open');
+  const cues=p.ev('CUES()');
+  assert.ok(cues.includes('gunshot')&&cues.includes('ricochet')&&cues.includes('reload'),
+    'the gunfight effects are not in the list');
+  for(let i=0;i<cues.length;i++){p.press('1');p.press('2');}
+  assert.deepEqual([...new Set(played)].sort(),[...cues].sort(),
+    'the test cannot reach: '+cues.filter(c=>!played.includes(c)).join(', '));
+  assert.equal(p.G().phase,'intro','the sound test started a day');
+  p.press('4');
+  assert.equal(p.ev('screen'),null,'there is no way back to the street');
+  p.tap('[data-cmd="fire"]');
+  assert.equal(p.G().phase,'dialogue','the title no longer starts a day');
+  assert.deepEqual(p.errors,[]);
+});

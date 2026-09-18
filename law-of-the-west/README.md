@@ -13,7 +13,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The deliverable: one self-contained page, everything inline, 128 KB |
+| `index.html` | The deliverable: one self-contained page, everything inline, 133 KB |
 | `page.html` | The markup and CSS shell, with a `/* SCRIPTS */` marker |
 | `sid-audio.js` | The SID-idiom synth, 54 cues; the synthesis is untouched |
 | `content.js` | The eleven callers, the three robberies, the figures and the hitboxes |
@@ -85,10 +85,15 @@ nearest neighbour, and framed the way the 1985 game framed it.
 **A flat row of storefronts across the back**, under a dark sky with stepped
 cloud banks and a ridge of hills: five false fronts of differing heights and
 colours, upstairs windows lit or dark, awnings, doors, a boardwalk along the
-whole run and a tree standing out of it. The middle front carries the sign for
-wherever this caller has come to — SALOON, JAIL, SCHOOL, CORRAL, BANK. In front
-of it the street is grey dirt with stones and ruts, and three people on the
-boardwalk who leave the moment a gun comes out.
+whole run and a tree standing out in front of it. Gold Gulch keeps the same
+concerns either side every day — HANLEY'S, the ASSAY OFFICE, the LIVERY, the
+TELEGRAPH — and the big board over the middle front names whichever one this
+caller has come out of: Maguire's Saloon, Dr Finch Surgeon, the Gold Gulch
+Hotel, School and Jail, Belle Hollister's, the J P Morgan Bank, Morgan Express
+Co, and the Gold Gulch & Western where the westbound slows. Long names take two
+lines and every board drops a point at a time until it fits the front it is
+nailed to. In front of it the street is grey dirt with stones and ruts, and
+three people on the boardwalk who leave the moment a gun comes out.
 
 **One large thing parked in the near right**, chosen by the place: a stagecoach
 with spoked wheels, a locomotive with its smokebox door and cowcatcher and the
@@ -169,8 +174,35 @@ wide open intervals and no ornament for Belle; and for the last one, not a tune
 at all — a drone, a tritone over it, and one glint.
 
 A theme runs on its own gain node, so a gun leaving the leather cuts it off
-mid-bar. That is the only change to the audio module: the synthesis itself has
-not been touched.
+mid-bar, and so does the resolution of the encounter it opened. That is the only
+change to the audio module: the synthesis itself has not been touched.
+
+**How it sequences.** Nothing loops under the dialogue; the day is scored in
+short cues placed on the things that happen.
+
+| When | What plays |
+| --- | --- |
+| The title screen | `title`, on the first tap or key — the only moment audio can start |
+| Pinning on the badge | `dawn`, then `badge` |
+| A caller arriving | `door`, boots at 260 ms, then whatever his own arrival is — hooves, a wagon, spurs, a crowd, the piano — and at 700 ms his entrance theme |
+| Moving the cursor, choosing a line | `click`, then `select` |
+| Drawing | the theme is **cut**, then `holster`, `cock`, and `aim` 140 ms later |
+| Aiming | `click` per step |
+| His hand moving | `tell` and `tension`, with the theme cut |
+| Firing | `gunshot` with the muzzle flash; `dryfire` if that chamber is spent |
+| The shot landing | `ricochet` and `wound` for a disarm, `hit` and `death` for a kill, `ricochet` then `graze` for a miss, `hit` for a wound taken, `patch` 400 ms after the doctor reaches you |
+| A kill | `churchbell` at 900 ms; `reload` at 1200 ms after any shot |
+| A tip, an arrest, an offence | `tipoff` and `point`, `respect` and `thread`, `penalty` |
+| Walking on | `clock` and `wind`, then the next caller's arrival |
+| A robbery | `th_job` on the brief; `alarm`, `tell` and `tension` when you ride into it, or `alarm` and `robbery` when you hear about it afterwards |
+| Sundown | the theme cut, `dusk`, then `respect` or `disgrace` at 700 ms |
+
+**Sound test.** Line 2 of the title screen opens a screen that walks all 54 cues
+by name and class, so the pistol, the ricochet, the reload, the church bell and
+the eleven entrance themes can all be heard without playing a day to reach them.
+Play, next, previous, back are the same four lines the rest of the game uses. A
+test drives the whole list and asserts every cue in `SOUNDS` is reachable
+through it.
 
 The effects — the gunshot, the tell, the bells, the doctor's bottle, the alarm —
 are the supplied table. `node tools/render-sounds.js` renders any of it to wav.
@@ -195,7 +227,10 @@ From `node --test test/*.test.js` and 500 simulated days:
   overlapping another.
 - **Audio.** 54 cues through the runtime with no non-finite, negative or
   out-of-range value; every theme reachable, none needing a fourth voice at
-  once, none shorter than 0.8 s or longer than 6.
+  once, none shorter than 0.8 s or longer than 6. The gunfight, rendered:
+  `gunshot` 0.61 s peak 0.33, `ricochet` 0.31 s, `hit` 0.23 s, `wound` 0.35 s,
+  `death` 0.90 s, `cock` 0.16 s, `dryfire` 0.20 s, `reload` 0.59 s,
+  `tell` 0.60 s, `churchbell` 2.15 s.
 - **The page.** Real `pointerdown` and `keydown` events at every control in
   jsdom: the day starts, all four lines select and speak by tap and by number
   key, up draws and cuts the theme, the crosshair moves, down and Escape
