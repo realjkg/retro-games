@@ -36,6 +36,18 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 canvas{width:100%;height:100%;display:block}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .padcol{display:flex;flex-direction:column;align-items:center;gap:5px}
+/* A round stick beats nine buttons for a real-time duel: one thumb, eight ways,
+   and no gap to fall into between two of them. */
+.stick{display:none;width:152px;height:152px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 50% 42%,var(--panel2),var(--panel));
+  border:1px solid var(--line);touch-action:none;flex:0 0 auto}
+.stick::after{content:"";position:absolute;inset:18%;border-radius:50%;border:1px dashed var(--line);opacity:.5}
+.stick .knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;
+  border-radius:50%;background:var(--panel2);border:1px solid var(--line);
+  box-shadow:0 2px 8px rgba(0,0,0,.45);transition:transform .06s linear}
+.stick.on .knob{background:var(--gold);border-color:var(--gold)}
+body.stickmode .stick{display:block}
+body.stickmode .dpad{display:none}
 .padlabel{font-size:10px;letter-spacing:.12em;font-weight:700;opacity:.75}
 .padlabel.light{color:#d5df7c}
 .padlabel.dark{color:#a89aff}
@@ -116,6 +128,7 @@ body.gamemode #install{display:none}
     <div class="padrow flip" id="pad2" style="display:none">
       <div class="padcol">
         <div class="padlabel dark">DARK · P2</div>
+        <div class="stick" data-stick="2"><div class="knob"></div></div>
         <div class="dpad">
           <div class="btn" data-k="2U,2L">↖</div><div class="btn" data-k="2U">▲</div><div class="btn" data-k="2U,2R">↗</div>
           <div class="btn" data-k="2L">◀</div><div class="btn" data-k="2C">●</div><div class="btn" data-k="2R">▶</div>
@@ -130,6 +143,7 @@ body.gamemode #install{display:none}
     <div class="padrow" id="pad1">
       <div class="padcol">
         <div class="padlabel light" id="lbl1">LIGHT · P1</div>
+        <div class="stick" data-stick="1"><div class="knob"></div></div>
       <div class="dpad">
         <div class="btn" data-k="1U,1L">↖</div><div class="btn" data-k="1U">▲</div><div class="btn" data-k="1U,1R">↗</div>
         <div class="btn" data-k="1L">◀</div><div class="btn" data-k="1C">●</div><div class="btn" data-k="1R">▶</div>
@@ -344,7 +358,8 @@ function attackSound(f){
   tone(...(voice[f.icon]||[800,120,.14,"square"]));
 }
 function hitSound(){const t=SOUND.ctx?.currentTime??0;if(t-SOUND.lastHit<.08)return;SOUND.lastHit=t;tone(95,30,.08,"sawtooth",.45);}
-function clearKeys(){for(const k of Object.keys(keys))delete keys[k];if(typeof holders!=="undefined")holders.clear();document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+  if(typeof STICK!=="undefined")for(const n of [1,2]){STICK[n].on=false;STICK[n].dirs={};}if(typeof holders!=="undefined")holders.clear();document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
 addEventListener("blur",clearKeys);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){clearKeys();if(SOUND.master)SOUND.master.gain.value=0;}else{if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;if(typeof gameMode!=="undefined"&&gameMode)keepAwake();}});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
@@ -565,18 +580,42 @@ function doAttack(f,e,q){
   else c.shots.push({x:f.x+f.fx*12,y:f.y+f.fy*12,vx:f.fx*f.pspd,vy:f.fy*f.pspd,
       dmg:f.dmg,owner:f,side:f.side,dead:false});
 }
+/* How hard the machine plays. A duel is real time, so the difference is mostly
+   reaction: how often it takes the shot, how straight it aims, whether it bothers
+   to sidestep a missile. On the board it is how much noise and caution go into
+   the move it picks. Novice is the default, because a first game on a phone
+   against the old scoring was a beating. */
+const CPU_LEVELS={
+  novice:{label:"Novice",  blurb:"Slow to shoot, wanders, forgives",  fire:.42,aim:.55,react:.72,dodge:false,noise:10,caution:.35},
+  knight:{label:"Warrior", blurb:"Takes its chances and defends",     fire:.8, aim:.85,react:.93,dodge:true, noise:5, caution:1},
+  master:{label:"Master",  blurb:"Fires on sight, never wastes a move",fire:1,  aim:1,  react:1,  dodge:true, noise:1.5,caution:1.3}
+};
+let cpuLevel="novice";
+try{const v=localStorage.getItem("archon.cpu"); if(CPU_LEVELS[v])cpuLevel=v;}catch(e){}
+const cpu=()=>CPU_LEVELS[cpuLevel]||CPU_LEVELS.knight;
+function setCpuLevel(v){
+  if(CPU_LEVELS[v])cpuLevel=v;
+  try{localStorage.setItem("archon.cpu",cpuLevel);}catch(e){}
+}
+let aiRand=()=>Math.random();     // a seam the tests hold still
 function aiInput(f,e,elapsed){
+  const L=cpu();
   const dx=e.x-f.x,dy=e.y-f.y,d=Math.hypot(dx,dy)||1;
-  const aimX=Math.abs(dx)<8?0:Math.sign(dx),aimY=Math.abs(dy)<8?0:Math.sign(dy);
+  let aimX=Math.abs(dx)<8?0:Math.sign(dx),aimY=Math.abs(dy)<8?0:Math.sign(dy);
   const aligned=Math.abs(dx)<10||Math.abs(dy)<10||Math.abs(Math.abs(dx)-Math.abs(dy))<12;
   const close=f.atk==="melee"?d<24:f.atk==="burst"?d<34:aligned;
   const busy=f.atk==="missile"&&G.combat.shots.some(s=>s.owner===f);
-  if(close&&f.cd<=0&&!busy)return [aimX,aimY,true];
+  if(aiRand()>L.aim){                       // a shot loosed a little off the line
+    if(aiRand()<.5)aimX=0; else aimY=0;
+    if(!aimX&&!aimY)aimX=Math.sign(dx)||1;
+  }
+  if(close&&f.cd<=0&&!busy&&aiRand()<L.fire)return [aimX,aimY,true];
+  if(aiRand()>L.react)return [0,0,false];   // and a beat of hesitation before moving
   let ix=aimX,iy=aimY;
   if(f.atk==="missile"){
     if(d<90){ix=-aimX;iy=-aimY;}
     else if(d<170){if(Math.abs(dx)>Math.abs(dy)){ix=0;iy=aimY;}else{ix=aimX;iy=0;}}
-    const shot=G.combat.shots.find(s=>s.side!==f.side&&Math.hypot(s.x-f.x,s.y-f.y)<65);
+    const shot=L.dodge&&G.combat.shots.find(s=>s.side!==f.side&&Math.hypot(s.x-f.x,s.y-f.y)<65);
     if(shot){ix=-Math.sign(shot.vy);iy=Math.sign(shot.vx);}
   }
   if(blocked(f.x+ix*14,f.y+iy*14)){
@@ -787,8 +826,8 @@ function cpuMove(){
         let od=winOdds(p.t,f.t,side)*((p.hp/maxHP(p.t))/((f.hp/maxHP(f.t))||1));
         return Math.min(worst,Math.max(.03,Math.min(.97,od)));
       },1);
-      s-=(1-hurtme)*pieceValue(p.t)*1.15*Math.max(0.12,1-push*0.03);  // caution, fading
-      s+=(p.hp/maxHP(p.t))*3 + Math.random()*5;
+      s-=(1-hurtme)*pieceValue(p.t)*1.15*Math.max(0.12,1-push*0.03)*cpu().caution;  // caution, fading
+      s+=(p.hp/maxHP(p.t))*3 + aiRand()*cpu().noise;
       if(s>bs){bs=s;best={x,y,nx,ny};}
     }
   }
@@ -1063,11 +1102,11 @@ cv.addEventListener("pointerdown",e=>{
   G.cursor={x,y}; press("1A");
 });
 ov.addEventListener("click",e=>{
-  const el=e.target.closest("[data-mode],[data-side],[data-seat],[data-act],[data-spell],[data-revive]"); if(!el)return;
+  const el=e.target.closest("[data-mode],[data-side],[data-seat],[data-cpu],[data-act],[data-spell],[data-revive]"); if(!el)return;
   if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
   // A click is a user gesture, which is the only moment fullscreen can be requested.
   if(el.dataset.act==="back"){mainMenu();return;}
-  if(el.dataset.mode||el.dataset.side||el.dataset.seat)enterGameModeIfWanted();
+  if(el.dataset.mode||el.dataset.side||el.dataset.seat||el.dataset.cpu)enterGameModeIfWanted();
   if(el.dataset.seat){setSeating(el.dataset.seat);
     G.mode="pvp"; G.human={L:true,D:true}; newGame(); applySeating(); return;}
   if(el.dataset.mode){
@@ -1075,8 +1114,10 @@ ov.addEventListener("click",e=>{
     if(el.dataset.mode==="pvp"){seatMenu();return;}
     G.mode=el.dataset.mode;
     G.human={L:G.mode!=="cvc",D:G.mode==="pvp"}; newGame(); applySeating(); return;}
-  if(el.dataset.side){G.mode="pvc";
-    G.human={L:el.dataset.side==="L",D:el.dataset.side==="D"}; newGame(); applySeating(); return;}
+  if(el.dataset.side){cpuMenu(el.dataset.side);return;}
+  if(el.dataset.cpu){setCpuLevel(el.dataset.cpu); G.mode="pvc";
+    G.human={L:pendingSide==="L",D:pendingSide==="D"}; newGame(); applySeating(); return;}
+  if(el.dataset.act==="controls"){setControls(controls==="stick"?"dpad":"stick");mainMenu();return;}
   if(el.dataset.act==="again"){newGame();return;}
   if(el.dataset.act==="menu"){mainMenu();return;}
   if(el.dataset.spell){castSpell(el.dataset.spell);return;}
@@ -1103,6 +1144,16 @@ function sideMenu(){
   <div class="menuitem" data-side="D">Play the Dark</div>
   <div class="menuitem" data-act="menu">Back</div>`);
 }
+function cpuMenu(side){
+  pendingSide=side;
+  showOverlay(`<h1>HOW HARD?</h1><p class="sub">The machine plays the other colour. You can change this
+  between games.</p>`+
+  Object.entries(CPU_LEVELS).map(([k,L],i)=>
+    `<div class="menuitem${k===cpuLevel?" sel":""}" data-cpu="${k}">${L.label}<br>
+      <span style="opacity:.7;font-size:12px">${L.blurb}</span></div>`).join("")+
+  `<div class="menuitem" data-act="menu">Back</div>`);
+}
+let pendingSide="L";
 function mainMenu(){
   G.phase="menu"; G.turnPhase="select"; G.combat=null;
   document.getElementById("pad2").style.display="none";layout();
@@ -1111,9 +1162,12 @@ function mainMenu(){
   <div class="menuitem sel" data-mode="pvp">1P vs 2P &nbsp;<span style="opacity:.7">hot seat</span></div>
   <div class="menuitem" data-mode="pvc">1P vs CPU</div>
   <div class="menuitem" data-mode="cvc">CPU vs CPU &nbsp;<span style="opacity:.7">demo</span></div>
+  <div class="menuitem" data-act="controls">Controls: ${controls==="stick"?"JOYSTICK":"D-PAD"}</div>
   <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
-  <small class="tip">D-pad moves the cursor · A selects and confirms · B cancels · SPELL opens the seven
+  <small class="tip">The stick moves the cursor and holds a direction in a duel — Controls switches it
+  for a d-pad · A selects, confirms and fires · B cancels · SPELL opens the seven
   one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready.
+  1P vs CPU asks how hard the machine should play, from Novice to Master.
   1P vs 2P gives each player their own pad — Light's and Dark's, each live only on its own turn —
   and asks whether you are sitting side by side or facing each other across the device.
   Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
@@ -1310,6 +1364,86 @@ function render(){
   }
   statusEl.innerHTML=s;
 }
+/* ============ thumbsticks ============ */
+/* The C64 stick had eight ways and no dead buttons between them. These sticks
+   quantise to the same eight, so combat aiming is a push of the thumb rather
+   than a search for the right little square; the board repeats while held. */
+let controls="stick";
+try{if(localStorage.getItem("archon.controls")==="dpad")controls="dpad";}catch(e){}
+function applyControls(){
+  bodyEl.classList?.[controls==="stick"?"add":"remove"]("stickmode");
+  layout();
+}
+function setControls(v){
+  controls=v==="dpad"?"dpad":"stick";
+  try{localStorage.setItem("archon.controls",controls);}catch(e){}
+  clearKeys();applyControls();
+}
+const DEAD=.34;                       // how far the thumb must travel to count
+function stickDirs(nx,ny){
+  const mag=Math.hypot(nx,ny);
+  if(mag<DEAD)return{U:false,D:false,L:false,R:false};
+  const oct=((Math.round(Math.atan2(ny,nx)/(Math.PI/4))%8)+8)%8;   // 0=right, clockwise
+  const tbl=[[0,0,0,1],[0,1,0,1],[0,1,0,0],[0,1,1,0],[0,0,1,0],[1,0,1,0],[1,0,0,0],[1,0,0,1]];
+  const [u,d,l,r]=tbl[oct];
+  return{U:!!u,D:!!d,L:!!l,R:!!r};
+}
+const STICK={1:{on:false,dirs:{},next:0},2:{on:false,dirs:{},next:0}};
+function stickApply(n,nx,ny,now){
+  const st=STICK[n], dirs=stickDirs(nx,ny), pre=String(n);
+  let changed=false;
+  for(const d of ["U","D","L","R"]){
+    const key=pre+d, want=!!dirs[d];
+    if(!!keys[key]===want)continue;
+    keys[key]=want; changed=true;
+    if(want)press(key);            // the board steps on the edge, as a tap would
+  }
+  if(changed)st.next=(now||0)+300;  // then repeats, slower at first
+  st.dirs=dirs;
+}
+function stickRelease(n){
+  const pre=String(n);
+  for(const d of ["U","D","L","R"])keys[pre+d]=false;
+  STICK[n].on=false;STICK[n].dirs={};
+}
+/* Held directions repeat on the board only: combat reads the keys every frame. */
+function stickRepeat(now){
+  if(G.phase!=="play"||G.turnPhase!=="select")return;
+  for(const n of [1,2]){
+    const st=STICK[n];
+    if(!st.on)continue;
+    const held=["U","D","L","R"].filter(d=>st.dirs[d]);
+    if(!held.length){st.next=0;continue;}
+    if(now<st.next)continue;
+    st.next=now+150;
+    for(const d of held)press(String(n)+d);
+  }
+}
+for(const el of (document.querySelectorAll?.(".stick")||[])){
+  const n=+(el.dataset?.stick||1), knob=el.firstElementChild;
+  const centre=()=>{const r=el.getBoundingClientRect?.()||{left:0,top:0,width:152,height:152};
+    return{cx:r.left+r.width/2,cy:r.top+r.height/2,rad:(r.width||152)/2};};
+  const track=e=>{
+    const {cx,cy,rad}=centre();
+    const dx=(e.clientX-cx)/rad, dy=(e.clientY-cy)/rad;
+    const mag=Math.hypot(dx,dy)||1, k=Math.min(1,.62/mag);
+    if(knob?.style)knob.style.transform=`translate(${(dx*rad*k).toFixed(1)}px,${(dy*rad*k).toFixed(1)}px)`;
+    stickApply(n,dx,dy,performance.now?.()||0);
+  };
+  const stop=()=>{
+    if(knob?.style)knob.style.transform="";
+    el.classList?.remove("on");stickRelease(n);
+  };
+  el.addEventListener?.("pointerdown",e=>{
+    e.preventDefault?.();unlockAudio?.();
+    try{el.setPointerCapture?.(e.pointerId);}catch(err){}
+    STICK[n].on=true;el.classList?.add("on");track(e);
+  });
+  el.addEventListener?.("pointermove",e=>{if(STICK[n].on){e.preventDefault?.();track(e);}});
+  for(const ev of ["pointerup","pointercancel","lostpointercapture"])
+    el.addEventListener?.(ev,e=>{e.preventDefault?.();stop();});
+}
+
 /* ============ gamepads ============ */
 /* A real stick is the point of game mode: pad 1 drives Light, a second pad drives Dark.
    Only edges are applied, so a gamepad never clears a key the keyboard or a thumb holds. */
@@ -1345,7 +1479,7 @@ let last=performance.now();
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   try{
-    pollGamepads();
+    pollGamepads();stickRepeat(now);
     if(G.phase==="combat"&&G.combat&&!document.hidden)combatStep(dt,now);
     else if(G.phase==="play"){
       if(G.turnPhase==="banner"&&now>G.banner.until){
@@ -1359,7 +1493,7 @@ function loop(now){
   }catch(err){console.error(err);}
   requestAnimationFrame(loop);
 }
-layout(); applySeating(); mainMenu(); requestAnimationFrame(loop);
+layout(); applySeating(); applyControls(); mainMenu(); requestAnimationFrame(loop);
 </script>
 </body>
 </html>

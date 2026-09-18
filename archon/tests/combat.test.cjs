@@ -298,3 +298,83 @@ test('Both pads label the same buttons the same way',()=>{
  assert.equal(btn('2B'),'B');
  assert.equal(btn('SPELL'),btn('2SPELL'),'and both spell buttons read alike');
 });
+
+/* ---- the thumbstick ---- */
+test('The stick reads eight ways with a dead centre',()=>{
+ const r=runtime();
+ const dirs=(x,y)=>r.run(`JSON.stringify(stickDirs(${x},${y}))`);
+ assert.deepEqual(JSON.parse(dirs(0,0)),{U:false,D:false,L:false,R:false},'a resting thumb steers nothing');
+ assert.deepEqual(JSON.parse(dirs(.2,.1)),{U:false,D:false,L:false,R:false},'and neither does a twitch');
+ assert.deepEqual(JSON.parse(dirs(1,0)),{U:false,D:false,L:false,R:true});
+ assert.deepEqual(JSON.parse(dirs(-1,0)),{U:false,D:false,L:true,R:false});
+ assert.deepEqual(JSON.parse(dirs(0,-1)),{U:true,D:false,L:false,R:false});
+ assert.deepEqual(JSON.parse(dirs(0,1)),{U:false,D:true,L:false,R:false});
+ assert.deepEqual(JSON.parse(dirs(.7,-.7)),{U:true,D:false,L:false,R:true},'and the corners are there too');
+ assert.deepEqual(JSON.parse(dirs(-.7,.7)),{U:false,D:true,L:true,R:false});
+});
+
+test('A push of the stick moves the cursor, holding it repeats, letting go stops',()=>{
+ const r=runtime();
+ r.run('G.mode="pvc";G.human={L:true,D:false};newGame();G.turnPhase="select";G.cursor={x:4,y:4};');
+ r.run('STICK[1].on=true;stickApply(1,1,0,0);');           // pushed right
+ assert.equal(r.run('G.cursor.x'),5,'the push itself is a step');
+ assert.equal(r.run('keys["1R"]'),true,'and combat would read it as held');
+ r.run('stickRepeat(1000);');
+ assert.equal(r.run('G.cursor.x'),6,'holding walks on');
+ r.run('stickRepeat(1001);');
+ assert.equal(r.run('G.cursor.x'),6,'but not faster than the repeat rate');
+ r.run('stickApply(1,0,0,1200);stickRelease(1);');
+ assert.equal(r.run('keys["1R"]'),false);
+ r.run('stickRepeat(2000);');
+ assert.equal(r.run('G.cursor.x'),6,'a released stick is still');
+});
+
+test('Each stick belongs to its own player',()=>{
+ const r=runtime();
+ r.run('G.mode="pvp";G.human={L:true,D:true};newGame();G.turnPhase="select";G.cursor={x:4,y:4};');
+ r.run('STICK[2].on=true;stickApply(2,1,0,0);');
+ assert.equal(r.run('G.cursor.x'),4,'Dark\'s stick does nothing on Light\'s turn');
+ assert.equal(r.run('keys["2R"]'),true,'though a duel would still read it');
+ r.run('G.turn="D";stickApply(2,0,0,0);stickApply(2,1,0,100);');
+ assert.equal(r.run('G.cursor.x'),5,'and it drives on Dark\'s turn');
+});
+
+/* ---- how hard the machine plays ---- */
+test('The CPU has three strengths, and starts at the gentlest',()=>{
+ const r=runtime();
+ assert.equal(r.run('cpuLevel'),'novice','a first game is not a beating');
+ assert.deepEqual(JSON.parse(r.run('JSON.stringify(Object.keys(CPU_LEVELS))')),['novice','knight','master']);
+ for(const [a,b] of [['novice','knight'],['knight','master']]){
+  assert.ok(r.run(`CPU_LEVELS.${b}.fire>CPU_LEVELS.${a}.fire`),b+' shoots more readily than '+a);
+  assert.ok(r.run(`CPU_LEVELS.${b}.aim>CPU_LEVELS.${a}.aim`),b+' aims straighter');
+  assert.ok(r.run(`CPU_LEVELS.${b}.noise<CPU_LEVELS.${a}.noise`),b+' guesses less on the board');
+ }
+ r.run('setCpuLevel("master");');assert.equal(r.run('cpuLevel'),'master');
+ r.run('setCpuLevel("nonsense");');assert.equal(r.run('cpuLevel'),'master','junk is ignored');
+});
+
+test('A novice hesitates and misses shots a master takes',()=>{
+ const r=duel('knight','goblin');
+ r.run('aiRand=()=>0.9;');                        // the same luck for both levels
+ r.run('G.combat.a.x=100;G.combat.a.y=96;G.combat.b.x=112;G.combat.b.y=96;G.combat.b.cd=0;');
+ r.run('setCpuLevel("master");');
+ assert.equal(r.run('aiInput(G.combat.b,G.combat.a,1)[2]'),true,'the master takes the shot');
+ r.run('setCpuLevel("novice");');
+ assert.equal(r.run('aiInput(G.combat.b,G.combat.a,1)[2]'),false,'the novice does not');
+ assert.deepEqual(JSON.parse(r.run('JSON.stringify(aiInput(G.combat.b,G.combat.a,1))')),[0,0,false],
+   'and stands there a moment instead of closing in');
+ r.run('aiRand=()=>Math.random();');
+});
+
+test('Only a master sidesteps a missile already in the air',()=>{
+ const r=duel('archer','manticore');
+ // Its weapon is still recharging, so this is a question of feet, not of firing.
+ r.run('aiRand=()=>0.1;G.combat.a.x=40;G.combat.a.y=96;G.combat.b.x=200;G.combat.b.y=96;G.combat.b.cd=500;');
+ r.run('G.combat.shots=[{x:190,y:96,vx:-200,vy:0,dmg:5,owner:G.combat.a,side:"L"}];');
+ r.run('setCpuLevel("novice");');
+ const soft=JSON.parse(r.run('JSON.stringify(aiInput(G.combat.b,G.combat.a,1))'));
+ r.run('setCpuLevel("master");');
+ const hard=JSON.parse(r.run('JSON.stringify(aiInput(G.combat.b,G.combat.a,1))'));
+ assert.notDeepEqual(soft,hard,'the novice walks into what the master steps around');
+ r.run('aiRand=()=>Math.random();setCpuLevel("novice");');
+});
