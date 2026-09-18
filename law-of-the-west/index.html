@@ -415,11 +415,28 @@ const SND=(function(){
  */
 const LIMITS={NPC:150,REPLY:92,ROUNDS:3,REPLIES:4};
 const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
-  "depart","offended","doctor_civil","doctor_insulted","warned_bank"];
+  "depart","offended","doctor_civil","doctor_insulted","doctor_sober"];
+
+/* The three jobs the day's tips are about. A sheriff who was told is standing
+ * in the right place when it happens; a sheriff who was not reads about it. */
+const JOBS={
+ stage:{id:"stage", name:"The Stage Road", place:"STAGE ROAD", theme:"th_job",
+   armed:true, arrive:["wagon"],
+   brief:"The Thursday coach comes down the grade with the mine's money aboard, and two men step out of the rocks above the ford.",
+   missed:"They took it at the ford while you were up the street. The driver is alive. Nobody else saw a thing worth telling."},
+ train:{id:"train", name:"The Westbound", place:"THE CUT", theme:"th_job",
+   armed:true, arrive:["wagon","crowd"],
+   brief:"The westbound comes into the cut at a walking pace, and a man drops off the payroll car's step with his coat open.",
+   missed:"The payroll car was opened at the cut and the westbound came in two hours late with nothing in it."},
+ bank:{id:"bank", name:"The Bank", place:"BANK", theme:"th_job",
+   armed:true, arrive:["crowd"],
+   brief:"The back wall of the bank has a door in it that was not there yesterday, and a man in the alley turns round with his hand already moving.",
+   missed:"They went through the back wall while you were at the other end of town, and the flour sack went with them."}
+};
 
 const CAST=[
  /* 1 ---------------------------------------------------------------- */
- {id:"stranger", name:"A Stranger", place:"STREET", theme:"stranger",
+ {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
   armed:true, arrive:["wagon","crowd"],
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
@@ -469,7 +486,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
 
  /* 2 ---------------------------------------------------------------- */
- {id:"rose", name:"Miss Rose", place:"SALOON", theme:"rose",
+ {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
@@ -519,7 +536,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
 
  /* 3 ---------------------------------------------------------------- */
- {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"kid",
+ {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
@@ -561,9 +578,22 @@ const CAST=[
   ends:{}},
 
  /* 4 ---------------------------------------------------------------- */
- {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"doctor",
-  armed:false, arrive:["crowd"], doctor:true,
+ {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
+  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
   rounds:{
+   /* Which of the two he opens with is settled at dawn, not by the player. */
+   opening_drunk:{npc:"Sheriff. I have had a night of it and a bottle after the night, and I am ashamed of neither. Ask me what you like, but ask it slowly.",
+    replies:[
+     {text:"\"Then sit down and take the coffee instead.\"", next:"coffee"},
+     {text:"\"Slowly, then. What have you heard this week?\"", next:"listen"},
+     {text:"\"You're the only doctor in sixty miles, Doc.\"", next:"coffee"},
+     {text:"\"A drunk doctor is no doctor at all.\"", next:"sour"}]},
+   coffee:{npc:"…The pot is on the stove and it is yesterday's. You would have to pour it yourself and stand over me while I drank it, and you have a street to walk.",
+    replies:[
+     {text:"\"The street will keep. Drink it.\"", end:"sobered"},
+     {text:"\"I'll pour, and stand here till it's gone.\"", end:"sobered"},
+     {text:"\"Drink it or don't. I've said my piece.\"", end:"still_drinking"},
+     {text:"\"Sleep it off. Try to be useful by dark.\"", end:"insulted"}]},
    opening:{npc:"Sheriff. I dug a ball out of a freighter's shoulder at four this morning and I'd like to know whether I'll be doing it again tonight.",
     replies:[
      {text:"\"Not if the day goes the way I mean it to.\"", next:"civil"},
@@ -594,23 +624,335 @@ const CAST=[
    grudging:{text:"\"At four this morning I had my hands inside a man,\" he says, and shuts the door. He will still come if you are shot, but he will not hurry.",
          flags:["tip_bank"], authority:0},
    insulted:{text:"\"Then don't send for me,\" he says, loud enough for the street. Several people hear him say it.",
-         flags:["doctor_insulted","offended"], authority:-1}}},
+         flags:["doctor_insulted","offended"], authority:-1},
+   sobered:{text:"He drinks it scalding, twice, and by the second cup his hands have stopped and he is looking at you like a man again.",
+         flags:["doctor_sober","doctor_civil"], authority:1},
+   still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
+         flags:[], authority:0}}},
 
- /* 5-11: the rest of the day, not yet written ------------------------ */
- {id:"shotgun", name:"The Shotgun Owner", place:"STREET", theme:"shotgun",
-  armed:true, arrive:["spurs","crowd"], rounds:{}, ends:{}},
- {id:"willie", name:"Little Willie", place:"STREET", theme:"willie",
-  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
- {id:"april", name:"Miss April", place:"SCHOOL", theme:"april",
-  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
- {id:"gambler", name:"The Gambler", place:"SALOON", theme:"gambler",
-  armed:true, arrive:["piano","crowd"], rounds:{}, ends:{}},
- {id:"deputy", name:"The Deputy", place:"JAIL", theme:"deputy",
-  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
- {id:"belle", name:"Belle", place:"CORRAL", theme:"belle",
-  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
- {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"lastgun",
-  armed:true, arrive:["spurs"], forcedDuel:true, rounds:{}, ends:{}}
+ /* 5 ---------------------------------------------------------------- */
+ {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
+  armed:true, arrive:["spurs","crowd"],
+  rounds:{
+   opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
+    replies:[
+     {text:"\"That's a handsome piece of work. Mind the hammer.\"", next:"admire"},
+     {text:"\"Forty dollars is a deal of money for a man to be carrying.\"", next:"money"},
+     {text:"\"Put it back in the leather while we talk.\"", next:"order"},
+     {text:"\"A new gun and an old habit. Which one brought you here?\"", next:"probe"}]},
+   admire:{npc:"You know guns, then. Most men see a gun and see trouble coming. I see forty dollars of Kansas City work and a thing that fits my hand.",
+    replies:[
+     {text:"\"I see both. Keep it pointed at the dirt.\"", next:"intent"},
+     {text:"\"Where does a man your age come by forty dollars?\"", next:"intent"},
+     {text:"\"Show me how it sits in the holster.\"", end:"holstered"},
+     {text:"\"Sell it before somebody makes you use it.\"", next:"proud"}]},
+   money:{npc:"I had a piece of work up in Ellsworth. Honest, most of it. The part that wasn't is not written down anywhere a man could go and read it.",
+    replies:[
+     {text:"\"Then we'll leave it unwritten. Mind how you go.\"", end:"holstered"},
+     {text:"\"Tell me the part that wasn't.\"", next:"intent"},
+     {text:"\"Nothing stays unwritten. Hand me the gun.\"", next:"proud"},
+     {text:"\"Ellsworth. I'll wire them tonight.\"", action:"delayed"}]},
+   order:{npc:"It's in my hand because it's mine. You'd be the first man in this town to tell me where to keep my own property, and I've been here a week.",
+    replies:[
+     {text:"\"Then hold it and listen. Nobody's taking it.\"", next:"intent"},
+     {text:"\"I'll be the first and the last. Holster it.\"", next:"proud"},
+     {text:"\"Your property. My street.\"", next:"proud"},
+     {text:"\"Holster it or lose the hand.\"", action:"draw"}]},
+   probe:{npc:"Habits. Every man's got habits. Mine is shooting bottles off the corral rail of an evening, and there is no law in this territory about bottles.",
+    replies:[
+     {text:"\"There isn't. Shoot bottles and we'll stay friends.\"", end:"holstered"},
+     {text:"\"Bottles don't cost forty dollars. What does?\"", next:"intent"},
+     {text:"\"There's a law about what comes after bottles.\"", next:"intent"},
+     {text:"\"Shoot one now and I'll show you the law.\"", action:"ambush"}]},
+   proud:{npc:"You've a way of speaking to a man that gets a town a new sheriff every spring. I'll put it away when I am done looking at it and not before.",
+    replies:[
+     {text:"\"Look at it, then. I'll wait.\"", end:"holstered"},
+     {text:"\"Last spring's sheriff. What became of him?\"", end:"warned"},
+     {text:"\"You're done. Set it on the rail.\"", action:"surrender"},
+     {text:"\"You'll put it away now or in the dust.\"", action:"draw"}]},
+   intent:{npc:"…All right. A man at the livery says the bank's takings go out Friday in a flour sack. I only wanted to know if a sheriff would be watching.",
+    replies:[
+     {text:"\"Now I am. Set the gun down and walk to the jail.\"", action:"surrender"},
+     {text:"\"Who is the man at the livery?\"", end:"tip"},
+     {text:"\"You've told me. Go home and stay there.\"", end:"warned"},
+     {text:"\"You wanted to know. Now you do.\"", action:"draw"}]}},
+  ends:{
+   holstered:{text:"He turns it over once more, the way a man does with a thing he has paid too much for, and puts it away.",
+        flags:["depart"], authority:1},
+   tip:{text:"He gives the name at the livery and the day with it, and looks like a man who has set down something heavy.",
+        flags:["tip_bank","depart"], authority:1},
+   warned:{text:"He goes, and not toward the livery, and the new gun stays in the leather the whole length of the street.",
+        flags:["depart"], authority:0}}},
+
+ /* 6 ---------------------------------------------------------------- */
+ {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
+  armed:false, arrive:["crowd"],
+  rounds:{
+   opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
+    replies:[
+     {text:"\"Nobody hears it from me, Willy. Sit on the rail.\"", next:"kind"},
+     {text:"\"What's it worth, then? I've a nickel says a nickel.\"", next:"deal"},
+     {text:"\"Say it quick, then. I've a street to walk.\"", next:"brisk"},
+     {text:"\"If you've done something, say so now.\"", next:"stern"}]},
+   kind:{npc:"You're the only one calls me Willy instead of boy. Ma says a sheriff's got no time for boys. You've got some, though, ain't you.",
+    replies:[
+     {text:"\"As much as this takes. Go on.\"", next:"secret"},
+     {text:"\"I've time for anybody who saw something.\"", next:"secret"},
+     {text:"\"Not much of it. What did you see?\"", next:"clam"},
+     {text:"\"Then don't waste it. Out with it.\"", next:"clam"}]},
+   deal:{npc:"A nickel! Mister Hanley gives a nickel for sweeping out the whole store. A secret's got to be worth more than sweeping a store.",
+    replies:[
+     {text:"\"It is. Tell it and we'll settle after.\"", next:"secret"},
+     {text:"\"Two bits if it's true and if it's mine first.\"", next:"secret"},
+     {text:"\"You don't sell what you know to the law, Willy.\"", next:"clam"},
+     {text:"\"I don't buy from boys. Go home.\"", end:"sent"}]},
+   brisk:{npc:"I can say it fast. I only want to know first whether I'm saying it to the sheriff or to the man who drinks coffee with my ma of a Sunday.",
+    replies:[
+     {text:"\"To the sheriff. Your ma hears nothing.\"", next:"secret"},
+     {text:"\"To both, and neither of them tells.\"", next:"secret"},
+     {text:"\"To the sheriff. That's the only one here today.\"", next:"clam"},
+     {text:"\"You're saying it to a man in a hurry.\"", next:"clam"}]},
+   stern:{npc:"I ain't done nothing! I only saw a thing. Seeing ain't doing. Ma says seeing ain't doing and she says it about you as well.",
+    replies:[
+     {text:"\"Your ma's right and I'm sorry. What did you see?\"", next:"secret"},
+     {text:"\"Seeing isn't doing. Telling isn't either. Go on.\"", next:"secret"},
+     {text:"\"Then seeing is what I want. Quickly.\"", next:"clam"},
+     {text:"\"Boys who see things get shot at. Home.\"", end:"scared"}]},
+   secret:{npc:"Two men been out back of the bank with a rope, measuring along the wall. They gave me a nickel not to say and I already spent it on liquorice.",
+    replies:[
+     {text:"\"Then it's paid for already. You did right, Willy.\"", end:"tip"},
+     {text:"\"Measuring with a rope. What day was that?\"", end:"tip"},
+     {text:"\"You keep the liquorice. I'll keep the rope.\"", end:"tip"},
+     {text:"\"You took their money? Get home.\"", end:"scared"}]},
+   clam:{npc:"…No. I promised. A promise is a promise even when it's a bad one, Ma says. Ask me something else and I'll answer that.",
+    replies:[
+     {text:"\"Then keep it. That's a fair thing to do.\"", end:"kept"},
+     {text:"\"Come and find me when it stops being a promise.\"", end:"kept"},
+     {text:"\"Promises don't hold against the law, son.\"", end:"kept"},
+     {text:"\"You'll say it now or say it in the jail.\"", end:"scared"}]}},
+  ends:{
+   tip:{text:"He tells it in one breath and then again slower, in case the first time was too fast, and runs for the corner before you can thank him.",
+        flags:["tip_bank","depart"], authority:1},
+   kept:{text:"He goes off up the boardwalk with it still in him, walking slowly, hoping the whole way to be called back.",
+        flags:["depart"], authority:0},
+   sent:{text:"He shrugs the way a boy shrugs when he has decided not to mind, and goes back down toward the store.",
+        flags:["depart"], authority:0},
+   scared:{text:"He runs. Two women outside the milliner's watch him go, and then look at you for rather a long time.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 7 ---------------------------------------------------------------- */
+ {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
+  armed:false, arrive:["crowd"],
+  rounds:{
+   opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
+    replies:[
+     {text:"\"Nor is it manners. What are they learning instead?\"", next:"warm"},
+     {text:"\"They may be better at it than arithmetic. What have they seen?\"", next:"seen"},
+     {text:"\"Keep them at the window. They see more than I do.\"", next:"seen"},
+     {text:"\"Then teach them to mind their own business.\"", next:"cool"}]},
+   warm:{npc:"Long division, and not gracefully. It is a quiet post. A woman may go a month here without being asked a single question worth answering.",
+    replies:[
+     {text:"\"Then ask me one. I'll try to be worth it.\"", next:"supper"},
+     {text:"\"I'll ask you one a day if it helps.\"", next:"supper"},
+     {text:"\"Ask the window, then. What does it show?\"", next:"window"},
+     {text:"\"Quiet is what I'm paid for, ma'am.\"", end:"ordinary"}]},
+   seen:{npc:"The schoolhouse looks down the grade to where the westbound slows. The children count the cars. Lately they have been counting men instead.",
+    replies:[
+     {text:"\"Men. Where, and how many?\"", next:"window"},
+     {text:"\"Children count better than deputies. Go on.\"", next:"window"},
+     {text:"\"Keep them counting. I'll come back at four.\"", next:"supper"},
+     {text:"\"Children imagine. Don't bring me imagining.\"", end:"alienated"}]},
+   cool:{npc:"I have taught in three towns, Sheriff, and been told to mind my business in every one of them. It has never once been good advice.",
+    replies:[
+     {text:"\"It wasn't this time either. I'm sorry — go on.\"", next:"window"},
+     {text:"\"Then give me yours instead of minding it.\"", next:"window"},
+     {text:"\"In this town it is the only advice I have.\"", end:"ordinary"},
+     {text:"\"Three towns, and not one of them kept you.\"", end:"alienated"}]},
+   supper:{npc:"There is a supper at the hotel on Saturday. I have been asked twice already by men I do not care for, and I am running out of ways to say no.",
+    replies:[
+     {text:"\"Then say yes to one you haven't met properly.\"", end:"date"},
+     {text:"\"Say no again and let me ask you on Sunday.\"", end:"date"},
+     {text:"\"I'd take you, if the town lets me. It may not.\"", end:"date"},
+     {text:"\"I'd stay clear of hotel suppers this week.\"", end:"ordinary"}]},
+   window:{npc:"Four men, three mornings, at the cut where the grade slows the westbound. They were not counting cars. One of them had a rifle rolled in a blanket.",
+    replies:[
+     {text:"\"At the cut. That's a day's work you've done.\"", end:"tip"},
+     {text:"\"Keep the children inside tomorrow morning.\"", end:"tip"},
+     {text:"\"A rifle in a blanket. Anything else?\"", end:"tip"},
+     {text:"\"Four men and a blanket is not evidence.\"", end:"alienated"}]}},
+  ends:{
+   tip:{text:"She writes the hour on a slate in a clear hand, turns it round for you to read, and wipes it off again with her sleeve.",
+        flags:["tip_train"], authority:1},
+   date:{text:"\"Saturday,\" she says, and goes back in to the long division with something in her step that was not there before.",
+        flags:["date"], authority:1},
+   ordinary:{text:"She closes the schoolhouse door quietly, which somehow says a great deal more than slamming it would have.",
+        flags:["depart"], authority:0},
+   alienated:{text:"\"Good day, Sheriff,\" she says, in the voice she keeps for boys who have not done the work.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 8 ---------------------------------------------------------------- */
+ {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
+  armed:true, arrive:["piano","crowd"],
+  rounds:{
+   opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
+    replies:[
+     {text:"\"I don't play. I'll watch a hand.\"", next:"watch"},
+     {text:"\"Show me the deck you've been learning with.\"", next:"deck"},
+     {text:"\"Stand up and turn out your sleeves.\"", next:"sleeves"},
+     {text:"\"You've cleaned out two freighters this week. Out.\"", next:"hard"}]},
+   watch:{npc:"Watch, then. It is an honest game with honest men and I have had honest luck for eleven nights running, which is a thing that happens.",
+    replies:[
+     {text:"\"Eleven nights is a deal of luck for one man.\"", next:"caught"},
+     {text:"\"Deal one hand face up and I'll believe you.\"", next:"caught"},
+     {text:"\"Enjoy the twelfth somewhere else.\"", next:"leave"},
+     {text:"\"Luck like that gets a man buried, not rich.\"", next:"leave"}]},
+   deck:{npc:"It is the house's deck. Ask the man behind the bar. I have not carried my own cards since Natchez, and Natchez was a misunderstanding.",
+    replies:[
+     {text:"\"Natchez. Tell me about the misunderstanding.\"", next:"caught"},
+     {text:"\"Then you'll not mind me cutting it.\"", next:"caught"},
+     {text:"\"That's a long way to come for a misunderstanding.\"", next:"leave"},
+     {text:"\"Hand it here, house deck or not.\"", next:"caught"}]},
+   sleeves:{npc:"…I will stand. I will not turn out anything in front of six men who owe me money. You can see the difficulty in it, Sheriff.",
+    replies:[
+     {text:"\"Then step outside and turn them out there.\"", next:"caught"},
+     {text:"\"I can. Outside, or here in front of all of them.\"", next:"caught"},
+     {text:"\"I see six men who'd like their money back.\"", next:"leave"},
+     {text:"\"Turn them out or I'll turn them out for you.\"", action:"draw"}]},
+   hard:{npc:"Two freighters who could not count. That is not cheating, that is arithmetic, and there is no statute against arithmetic in this territory.",
+    replies:[
+     {text:"\"There's one against what's up your left cuff.\"", next:"caught"},
+     {text:"\"Give them back their wages and we're square.\"", next:"leave"},
+     {text:"\"There's a statute about me. Move.\"", next:"leave"},
+     {text:"\"Then we'll settle it without one.\"", action:"draw"}]},
+   caught:{npc:"…A holdout clip. Well. Eleven good nights. What is it precisely that you would like me to do about it now, Sheriff?",
+    replies:[
+     {text:"\"Set it on the table and walk to the jail.\"", action:"surrender"},
+     {text:"\"Pay the freighters back, then the jail.\"", action:"surrender"},
+     {text:"\"Leave the money and leave the territory.\"", action:"depart"},
+     {text:"\"Nothing. I want the whole room to see it.\"", action:"delayed"}]},
+   leave:{npc:"Then I shall finish this hand and be on the noon coach. You will not see me again and you will not miss me by Thursday.",
+    replies:[
+     {text:"\"Finish it standing up and go.\"", action:"depart"},
+     {text:"\"Leave the hand. Take the coach.\"", action:"depart"},
+     {text:"\"The coach — and the freighters' wages on the bar.\"", end:"repaid"},
+     {text:"\"You'll go when I say and not before.\"", action:"delayed"}]}},
+  ends:{
+   repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
+        flags:["depart"], authority:1}}},
+
+ /* 9 ---------------------------------------------------------------- */
+ {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
+  armed:true, arrive:["hooves"],
+  rounds:{
+   opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
+    replies:[
+     {text:"\"Slow down. Tell it in the order it happened.\"", next:"order"},
+     {text:"\"How many, and were they mounted?\"", next:"count"},
+     {text:"\"You're certain or you're not. Which is it?\"", next:"press"},
+     {text:"\"You've been certain twice this week already.\"", next:"sting"}]},
+   order:{npc:"I come round by the assay office and there was two horses stood at the bank's back wall with nobody holding them. Horses don't stand like that.",
+    replies:[
+     {text:"\"No, they don't. Go on — what else?\"", next:"confirm"},
+     {text:"\"Two horses. Anything in the alley?\"", next:"confirm"},
+     {text:"\"Horses stand where they're tied, Deputy.\"", next:"doubt"},
+     {text:"\"You ran all this way to tell me about horses.\"", next:"doubt"}]},
+   count:{npc:"Two. Maybe three. Mounted — no, stood, and one up on the boardwalk in a coat that was wrong for the weather we're having.",
+    replies:[
+     {text:"\"A coat wrong for the weather is worth the run.\"", next:"confirm"},
+     {text:"\"Three men and a heavy coat. Where's your gun?\"", next:"confirm"},
+     {text:"\"Two, maybe three. That is not a report.\"", next:"doubt"},
+     {text:"\"Come back when the number stops moving.\"", next:"doubt"}]},
+   press:{npc:"…Certain. I am certain. I'd not have run if I wasn't and I'd not be stood here letting you look at me like that either.",
+    replies:[
+     {text:"\"Then I'm certain too. Get the shotgun.\"", next:"confirm"},
+     {text:"\"Good man. Tell me the rest as we walk.\"", next:"confirm"},
+     {text:"\"You've been certain about a deal of things.\"", next:"doubt"},
+     {text:"\"Looking at you is all I've done. Try being right.\"", next:"doubt"}]},
+   sting:{npc:"Twice, and both times you went and both times it was nothing, and you have not let me forget either of them. This one is not nothing.",
+    replies:[
+     {text:"\"Then this is the one that counts. Show me.\"", next:"confirm"},
+     {text:"\"You're right. I've been hard on you. Go on.\"", next:"confirm"},
+     {text:"\"Third time pays for all, they say. Prove it.\"", next:"doubt"},
+     {text:"\"Three for three, then. Sit down, Deputy.\"", next:"doubt"}]},
+   confirm:{npc:"Back wall, two horses, and the coat. If you want me at the front I'll take the front, and if you want me nowhere I'll take that too.",
+    replies:[
+     {text:"\"Take the front. I'll come round the back.\"", end:"ready"},
+     {text:"\"You've done well. Get the shotgun and follow.\"", end:"ready"},
+     {text:"\"Nowhere. Stay here and mind the jail.\"", end:"alone"},
+     {text:"\"You'll take the back, and you'll go first.\"", end:"pushed"}]},
+   doubt:{npc:"…All right. All right, Sheriff. Maybe it was horses. I'll go back by the corner and look again, and I'll not run this time.",
+    replies:[
+     {text:"\"Look again. Come straight to me either way.\"", end:"ready"},
+     {text:"\"No. We'll both look, and we'll look now.\"", end:"ready"},
+     {text:"\"Do that. And Deputy — walk, don't run.\"", end:"dismissed"},
+     {text:"\"Don't trouble. Mind the jail and let me work.\"", end:"dismissed"}]}},
+  ends:{
+   ready:{text:"He is out of the door before you are, and for once in the day you are following a man who knows where he is going.",
+        flags:["tip_bank"], authority:1},
+   alone:{text:"He takes the keys and the chair by the stove, and does not look up when you go out.",
+        flags:["tip_bank"], authority:0},
+   pushed:{text:"He goes where he is sent, white about the mouth, and the men on the boardwalk watch him being sent.",
+        flags:["tip_bank","offended"], authority:-1},
+   dismissed:{text:"He hangs his hat back on the nail and says nothing at all, which from him is a great deal.",
+        flags:["depart"], authority:-1}}},
+
+ /* 10 --------------------------------------------------------------- */
+ {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
+  armed:true, arrive:["hooves"],
+  rounds:{
+   opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
+    replies:[
+     {text:"\"You'll not pretend. That's a start. Why are they there?\"", next:"why"},
+     {text:"\"Then they can walk out again, and you with them.\"", next:"out"},
+     {text:"\"Whose iron did the second burn, Belle?\"", next:"iron"},
+     {text:"\"Two steers is a rope in this territory.\"", next:"rope"}]},
+   why:{npc:"Because Kinch at the Bar-K runs his stock over my water and calls it open range. I took two. He has taken my water for three years running.",
+    replies:[
+     {text:"\"Three years is a grievance, not a defence.\"", next:"square"},
+     {text:"\"Then we'll take it to the judge, water and all.\"", next:"square"},
+     {text:"\"Drive them back tonight and I'll speak for you.\"", next:"turn"},
+     {text:"\"He'll get the judge and you'll get the rope.\"", next:"square"}]},
+   out:{npc:"They can. I'll walk them back myself at first light and Kinch can count them twice. It is what I meant to do before you came up the hill.",
+    replies:[
+     {text:"\"Then I'll ride out and watch him count.\"", next:"turn"},
+     {text:"\"First light. I'll be here at first light.\"", next:"turn"},
+     {text:"\"You'll walk them back now, and I'll follow.\"", next:"square"},
+     {text:"\"You meant nothing of the kind.\"", next:"square"}]},
+   iron:{npc:"Mine. I burned it over his and I made a poor job of it, which you can see from where you are stood, and I did not much care that you could.",
+    replies:[
+     {text:"\"A poor job and an honest answer. Sit down.\"", next:"turn"},
+     {text:"\"You cared, or you'd not have said it that way.\"", next:"turn"},
+     {text:"\"Then come down to the jail and say it again.\"", next:"square"},
+     {text:"\"Careless and a thief. Hands where I see them.\"", next:"square"}]},
+   rope:{npc:"It is. It's a rope for a man as well. You'll notice nobody has hung Kinch over the water, and nobody in this county is going to.",
+    replies:[
+     {text:"\"Nobody's hanging anybody today. Talk to me.\"", next:"turn"},
+     {text:"\"Then let me be the first to ask him about it.\"", next:"turn"},
+     {text:"\"Kinch isn't stood in front of me. You are.\"", next:"square"},
+     {text:"\"Keep talking and we'll see about the rope.\"", action:"draw"}]},
+   square:{npc:"…So it's the jail. Say it straight out, Sheriff, and let me fetch my coat. I would rather that than be talked round to it by degrees.",
+    replies:[
+     {text:"\"It's the jail, and I'll speak to the judge for you.\"", action:"surrender"},
+     {text:"\"Fetch it. The water goes in the record too.\"", action:"surrender"},
+     {text:"\"No jail. Drive them back and we never spoke.\"", action:"depart"},
+     {text:"\"Fetch your coat, and be quick about it.\"", action:"delayed"}]},
+   turn:{npc:"You are the first man off that road in three years to say a thing to me that was not about cattle. There is a dance at the grange on Saturday.",
+    replies:[
+     {text:"\"Then I'll come up the road again Saturday.\"", end:"date"},
+     {text:"\"Saturday, and I'll not mention cattle once.\"", end:"date"},
+     {text:"\"Drive them back first. Then ask me again.\"", end:"steers"},
+     {text:"\"I came about the steers, Belle. Only the steers.\"", end:"steers"}]}},
+  ends:{
+   date:{text:"She whistles the dog off the gate and walks you as far as the road, which is further than she has walked anybody in three years.",
+        flags:["date"], authority:1},
+   steers:{text:"She drives them back at first light, Kinch counts them twice, and she does not look at you once the whole way down.",
+        flags:["depart"], authority:1}}},
+
+ /* 11 --------------------------------------------------------------- */
+ {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
+  armed:true, arrive:["spurs"], forcedDuel:true,
+  standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
+  rounds:{}, ends:{}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
 
@@ -654,8 +996,10 @@ const RULES={
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2
 };
-/* Which job comes off after which caller, if the sheriff never heard of it. */
-const INTERLUDES=[{after:3,job:"train"},{after:7,job:"stage"},{after:9,job:"bank"}];
+/* Where each job falls in the day. Every job sits after the callers who could
+ * have warned about it: the stage after Rose, the train after Miss April, the
+ * bank after the Doctor, the new gun, Willy and the Deputy. */
+const INTERLUDES=[{after:4,job:"stage"},{after:8,job:"train"},{after:10,job:"bank"}];
 
 const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
@@ -665,7 +1009,7 @@ function absNormal(g,sigma){
   return Math.abs(Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v))*sigma;
 }
 
-function newDay(opts){
+function rawDay(opts){
   const seed=opts&&opts.seed;
   return {
     phase:"intro", encounter:0, node:"opening", round:1,
@@ -679,15 +1023,21 @@ function newDay(opts){
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
+/* Whether the doctor has been up all night with a bottle is settled before the
+ * day starts, not by anything the sheriff does; what he does about it is his. */
+function newDay(opts){const G=rawDay(opts); G.doctor.sober=G.rng()>=0.3; return G;}
 const newGame=newDay;                      // the page calls it this
-const who=G=>CAST[G.encounter]||null;
+/* During a robbery the man in front of the sheriff is the robber, not the next
+ * caller, and every rule below reads him through the same accessor. */
+const who=G=>(G.interlude?JOBS[G.interlude]:CAST[G.encounter])||null;
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
 function beginEncounter(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
-  G.phase="approach"; G.node="opening"; G.round=1;
+  G.phase="approach"; G.round=1;
+  G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   if(e.doctor)G.doctor.met=true;
@@ -740,6 +1090,7 @@ function terminal(G,id){
     if(f==="arrest")G.arrests++;
     if(f==="doctor_civil")G.doctor.disposition+=1;
     if(f==="doctor_insulted")G.doctor.disposition-=2;
+    if(f==="doctor_sober")G.doctor.sober=true;
   }
   G.authority+=t.authority||0;
   return resolve(G,id);
@@ -834,6 +1185,7 @@ function shoot(G,latencyMs){
     return resolve(G,"disarmed");
   }
   d.result="kill";
+  if(e.doctor)G.doctor.alive=false;                     // there is no other one
   if(d.unprovoked||!e.armed){G.innocentsKilled++;G.authority-=2;return resolve(G,"innocent_killed");}
   G.badGuysShot++;
   return resolve(G,"killed_him");
@@ -843,24 +1195,40 @@ function theirReply(G){
   if(G.duel.initiator==="you"&&!e.armed)return resolve(G,"missed_him");
   return takeHit(G,"he answered your miss");
 }
-/* The doctor is the difference between a wound and a grave:
- *   insulted        the first ball is the last thing that happens to you
- *   civil and sober he has you inside and patched, and the day goes on
- *   otherwise       nobody comes; one wound is survivable, two are not
- * He must be alive and sober to be any use, however he was spoken to. */
+/* The doctor is the difference between a wound and a grave, and he is in one of
+ * four states by the time the sheriff needs him:
+ *   dead        nothing is survivable; the town has no other one
+ *   hostile     he will not come, and the first ball is the last thing
+ *   drunk       he comes and makes a poor job of it: one wound, no more
+ *   civil       alive, sober and well disposed — patched up, and the day goes on
+ *   neutral     alive and sober but owing nothing: one wound, no more
+ * Not having met him yet counts as neutral; he is in the town either way. */
+function doctorState(G){
+  const d=G.doctor;
+  if(!d.alive)return "dead";
+  if(d.disposition<0)return "hostile";
+  if(!d.sober)return "drunk";
+  return d.disposition>0?"civil":"neutral";
+}
 function takeHit(G,why){
-  const doc=G.doctor;
-  if(doc.disposition<0){
-    G.wounds++; G.alive=false;
+  G.wounds++;
+  const state=doctorState(G);
+  if(state==="dead"){
+    G.alive=false;
+    return finish(G,"killed",why||"no doctor left in Gold Gulch to send for");
+  }
+  if(state==="hostile"){
+    G.alive=false;
     return finish(G,"killed",why||"the doctor would not come");
   }
-  G.wounds++;
-  if(doc.alive&&doc.sober&&doc.disposition>0)return resolve(G,"doctor_saved");
+  if(state==="civil")return resolve(G,"doctor_saved");
   if(G.wounds>=RULES.WOUNDS){
     G.alive=false;
-    return finish(G,"killed",why||"bled out with nobody to send for");
+    return finish(G,"killed",why||(state==="drunk"
+      ?"a second ball, and the doctor's hands no steadier"
+      :"a second ball, and nobody owing you a favour"));
   }
-  return resolve(G,"wounded");
+  return resolve(G,state==="drunk"?"doctor_drunk":"doctor_came");
 }
 
 /* ---- resolution, interludes and the reckoning ---- */
@@ -876,19 +1244,28 @@ function interludeDue(G){
   const done=G.encounter+1;
   return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
 }
+/* The job is a scene, not a line of bookkeeping: being told about it puts the
+ * sheriff in front of it with his own gun still in the leather. */
 function runInterlude(G,job){
   G.interlude=job; G.phase="interlude";
-  if(G.tips[job]){
-    G.authority+=1;
-    G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
-    return resolve(G,"job_stopped");
-  }
-  G.crimesMissed++;
+  G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
+  G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
-  return resolve(G,"job_missed");
+  return {interlude:job,warned:!!G.tips[job]};
+}
+/* Entering it: warned, and it is a gunfight; unwarned, and it is a report. */
+function enterJob(G){
+  const job=G.interlude; if(!job)return null;
+  if(!G.tips[job]){
+    G.crimesMissed++; G.authority-=1;
+    return resolve(G,"job_missed");
+  }
+  G.authority+=1;
+  return theyDraw(G,"ambush");
 }
 function nextEncounter(G){
   if(G.phase==="summary")return null;
+  if(G.phase==="interlude"&&G.interlude)return enterJob(G);   // walk into it
   if(G.pending){                         // he had not finished after all
     const why=G.pending; G.pending=null;
     G.ending=null; G.outcome=null;
@@ -1180,6 +1557,8 @@ function fitText(){
 }
 
 function beat(){return nodeOf(G);}
+const JOB_PROMPT={stage:"1. Ride for the ford",train:"1. Get down to the cut",
+  bank:"1. Round the back of the bank"};
 function paint(){
   const b=beat(), live=build.rows>=10;
   if(G.phase==="summary"){return paintSummary();}
@@ -1199,6 +1578,16 @@ function paint(){
     fitText(); return;
   }
   lineEls[0].className="npc";
+  if(G.phase==="interlude"){
+    const job=JOBS[G.interlude]||{};
+    lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
+    lineEls[1].textContent=G.tips[G.interlude]?(JOB_PROMPT[G.interlude]||"1. Go"):"1. Hear it out";
+    lineEls[1].className="choice sel";
+    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    modeEl.textContent=(job.name||"").toUpperCase();
+    scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests;
+    fitText(); return;
+  }
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
     lineEls[1].textContent=(G.encounter>=CAST.length-1)?"1. End the day":"1. Walk on down the street";
@@ -1208,8 +1597,11 @@ function paint(){
     modeEl.textContent=who(G)?who(G).name.toUpperCase():"";
     fitText(); return;
   }
-  lineEls[0].textContent=!b?"["+(who(G)?who(G).name:"this caller")+" is not written yet]"
-    :b.npc;
+  const him=who(G);
+  lineEls[0].textContent=b?b.npc
+    :(him&&him.standoff)?him.standoff
+    :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
+    :"Nobody is saying anything. The street has gone quiet.";
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
     const r=replies[i];
@@ -1229,16 +1621,19 @@ const OUTCOME_LINES={
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
   wounded:"You are hit, and on your feet, which is more than some manage.",
   doctor_saved:"The doctor has you inside and the ball out before the dust settles.",
-  doctor_came:"The doctor comes, unhurried, and does the work without looking at you.",
+  doctor_came:"The doctor comes, unhurried, and does the work without once looking at you.",
+  doctor_drunk:"The doctor comes with the bottle still on him and makes a poor, slow job of it.",
   turns_away:"He turns and walks, which is not the same as leaving.",
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
-  job_stopped:"You were waiting for them. It was over before the horses were tied.",
-  job_missed:"It happened while you were up the street, and nobody had told you it would.",
+  job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
-const outcomeLine=()=>OUTCOME_LINES[G.outcome]||"The matter settles.";
+function outcomeLine(){
+  if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  return OUTCOME_LINES[G.outcome]||"The matter settles.";
+}
 function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
@@ -1353,6 +1748,13 @@ function fire(){
   if(G.phase==="intro"){startDay();paint();return;}
   if(G.phase==="summary"){startDay();paint();return;}
   if(G.phase==="resolve"){advance();return;}
+  if(G.phase==="interlude"){
+    const warned=!!G.tips[G.interlude];
+    enterJob(G);
+    if(warned){SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
+    else settleSound();
+    paint(); return;
+  }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
@@ -1411,7 +1813,8 @@ function advance(){
   if(G.phase==="summary")return;
   const r=nextEncounter(G);
   if(G.phase==="summary"){endSound();paint();return;}
-  openDialogue(G); newScene(); SND.clock(); SND.wind(); paint();
+  if(G.phase!=="interlude")openDialogue(G);
+  newScene(); SND.clock(); SND.wind(); paint();
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,

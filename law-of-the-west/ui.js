@@ -256,6 +256,8 @@ function fitText(){
 }
 
 function beat(){return nodeOf(G);}
+const JOB_PROMPT={stage:"1. Ride for the ford",train:"1. Get down to the cut",
+  bank:"1. Round the back of the bank"};
 function paint(){
   const b=beat(), live=build.rows>=10;
   if(G.phase==="summary"){return paintSummary();}
@@ -275,6 +277,16 @@ function paint(){
     fitText(); return;
   }
   lineEls[0].className="npc";
+  if(G.phase==="interlude"){
+    const job=JOBS[G.interlude]||{};
+    lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
+    lineEls[1].textContent=G.tips[G.interlude]?(JOB_PROMPT[G.interlude]||"1. Go"):"1. Hear it out";
+    lineEls[1].className="choice sel";
+    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    modeEl.textContent=(job.name||"").toUpperCase();
+    scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests;
+    fitText(); return;
+  }
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
     lineEls[1].textContent=(G.encounter>=CAST.length-1)?"1. End the day":"1. Walk on down the street";
@@ -284,8 +296,11 @@ function paint(){
     modeEl.textContent=who(G)?who(G).name.toUpperCase():"";
     fitText(); return;
   }
-  lineEls[0].textContent=!b?"["+(who(G)?who(G).name:"this caller")+" is not written yet]"
-    :b.npc;
+  const him=who(G);
+  lineEls[0].textContent=b?b.npc
+    :(him&&him.standoff)?him.standoff
+    :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
+    :"Nobody is saying anything. The street has gone quiet.";
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
     const r=replies[i];
@@ -305,16 +320,19 @@ const OUTCOME_LINES={
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
   wounded:"You are hit, and on your feet, which is more than some manage.",
   doctor_saved:"The doctor has you inside and the ball out before the dust settles.",
-  doctor_came:"The doctor comes, unhurried, and does the work without looking at you.",
+  doctor_came:"The doctor comes, unhurried, and does the work without once looking at you.",
+  doctor_drunk:"The doctor comes with the bottle still on him and makes a poor, slow job of it.",
   turns_away:"He turns and walks, which is not the same as leaving.",
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
-  job_stopped:"You were waiting for them. It was over before the horses were tied.",
-  job_missed:"It happened while you were up the street, and nobody had told you it would.",
+  job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
-const outcomeLine=()=>OUTCOME_LINES[G.outcome]||"The matter settles.";
+function outcomeLine(){
+  if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  return OUTCOME_LINES[G.outcome]||"The matter settles.";
+}
 function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
@@ -429,6 +447,13 @@ function fire(){
   if(G.phase==="intro"){startDay();paint();return;}
   if(G.phase==="summary"){startDay();paint();return;}
   if(G.phase==="resolve"){advance();return;}
+  if(G.phase==="interlude"){
+    const warned=!!G.tips[G.interlude];
+    enterJob(G);
+    if(warned){SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
+    else settleSound();
+    paint(); return;
+  }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
@@ -487,7 +512,8 @@ function advance(){
   if(G.phase==="summary")return;
   const r=nextEncounter(G);
   if(G.phase==="summary"){endSound();paint();return;}
-  openDialogue(G); newScene(); SND.clock(); SND.wind(); paint();
+  if(G.phase!=="interlude")openDialogue(G);
+  newScene(); SND.clock(); SND.wind(); paint();
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,

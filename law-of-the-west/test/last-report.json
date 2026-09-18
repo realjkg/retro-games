@@ -3,7 +3,13 @@
     "stranger",
     "rose",
     "kid",
-    "doctor"
+    "doctor",
+    "shotgun",
+    "willie",
+    "april",
+    "gambler",
+    "deputy",
+    "belle"
   ],
   "order": [
     "stranger",
@@ -32,29 +38,29 @@
       "wounds": 1
     },
     "drunk": {
-      "outcome": "wounded",
+      "outcome": "doctor_drunk",
       "phase": "resolve",
       "alive": true,
       "wounds": 1
     },
     "dead": {
-      "outcome": "wounded",
-      "phase": "resolve",
-      "alive": true,
+      "outcome": null,
+      "phase": "summary",
+      "alive": false,
       "wounds": 1
     }
   },
   "themesPending": [
-    "stranger",
-    "rose",
-    "kid",
-    "doctor",
-    "shotgun",
-    "willie",
-    "april",
-    "gambler",
-    "deputy",
-    "belle",
-    "lastgun"
+    "th_stranger",
+    "th_rose",
+    "th_kid",
+    "th_doctor",
+    "th_shotgun",
+    "th_willie",
+    "th_april",
+    "th_gambler",
+    "th_deputy",
+    "th_belle",
+    "th_lastgun"
   ]
 }

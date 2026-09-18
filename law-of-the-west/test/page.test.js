@@ -161,7 +161,7 @@ test('8f. a whole day can be played through to the summary and restarted', {skip
     p.ready();
     const ph=p.G().phase;
     if(ph==='dialogue'){p.press(String(1+(guard%4)));}
-    else if(ph==='resolve'){p.tap('[data-cmd="fire"]');}
+    else if(ph==='resolve'||ph==='interlude'){p.tap('[data-cmd="fire"]');}
     else if(ph==='tell'||ph==='duel'){
       if(p.G().mode!=='gun')p.tap('[data-cmd="up"]');   // he telegraphed: draw
       p.G().aim={...p.hit().weapon};

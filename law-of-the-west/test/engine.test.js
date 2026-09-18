@@ -22,7 +22,9 @@ test('2. eleven callers, in order, and every written tree is sound', ()=>{
       if(typeof e.armed!=="boolean")bad.push(e.id+": armed is not a boolean");
       if(!written(e))continue;
       if(!e.rounds.opening)bad.push(e.id+": no opening");
-      const seen={opening:true}, ends=new Set(), deepest={};
+      const roots=e.roots||["opening"];
+      const seen={}, ends=new Set(), deepest={};
+      for(const r of roots){seen[r]=true; if(!e.rounds[r])bad.push(e.id+": no root "+r);}
       const walk=(id,d)=>{
         if(deepest[id]>=d)return;                     // already checked at least this deep
         deepest[id]=d;
@@ -48,7 +50,7 @@ test('2. eleven callers, in order, and every written tree is sound', ()=>{
             bad.push(where+": unknown action "+r.action);
         });
       };
-      walk("opening",1);
+      for(const r of roots)walk(r,1);
       for(const id of Object.keys(e.rounds))if(!seen[id])bad.push(e.id+": node "+id+" is unreachable");
       for(const id of Object.keys(e.ends||{})){
         if(!ends.has(id))bad.push(e.id+": ending "+id+" is unreachable");
@@ -180,16 +182,23 @@ test('6. the doctor decides whether a bullet is survivable', ()=>{
 test('7. a tip stops its robbery and silence lets it happen', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
+    const at=INTERLUDES.find(i=>i.job==="stage").after;
     const go=(tips)=>{const G=newDay({seed:33});Object.assign(G.tips,tips);
-      G.encounter=2; beginEncounter(G); resolve(G,"departed");
-      nextEncounter(G);                                 // the interlude falls here
-      return {outcome:G.outcome,missed:G.crimesMissed,authority:G.authority};};
-    return JSON.stringify({warned:go({train:true}),blind:go({})});
+      G.encounter=at-1; beginEncounter(G); resolve(G,"departed");
+      const brief=nextEncounter(G);                     // the job falls here
+      const entered=enterJob(G);                        // and the sheriff walks into it
+      return {brief,phase:G.phase,outcome:G.outcome,missed:G.crimesMissed,
+        authority:G.authority,why:G.tell&&G.tell.why,who:who(G)&&who(G).id};};
+    return JSON.stringify({warned:go({stage:true}),blind:go({})});
   })()`));
-  assert.equal(out.warned.outcome,'job_stopped','a warned sheriff missed the train job');
+  assert.equal(out.warned.brief.warned,true,'the brief did not say he had been warned');
+  assert.equal(out.warned.phase,'tell','a warned sheriff was not there when they came');
+  assert.equal(out.warned.who,'stage','the robbery is not who he is facing');
   assert.equal(out.warned.missed,0);
+  assert.ok(out.warned.authority>0,'standing in front of it earned nothing');
   assert.equal(out.blind.outcome,'job_missed','an unwarned sheriff somehow stopped it');
   assert.equal(out.blind.missed,1);
+  assert.ok(out.blind.authority<0,'missing it cost nothing');
 });
 
 test('8. shooting an unarmed man counts against the sheriff, not for him', ()=>{
