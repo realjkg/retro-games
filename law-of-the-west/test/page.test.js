@@ -23,7 +23,20 @@ function openPage(setup,cold){
   // no pretendToBeVisual: the page's loop must not keep the harness alive.
   // The canvas stub goes in before the page's scripts run, because they capture
   // the 2d context at load and jsdom has none.
-  const ctx2d=new Proxy({},{get:(t,k)=>k==='canvas'?{width:320,height:200}:()=>{}});
+  // The stub records what was painted where, in the colour that was set, so a
+  // test can read the picture back without a real canvas. Everything else on a
+  // 2d context is a no-op.
+  const painted=[];
+  const state={fillStyle:'#000000'};
+  const ctx2d=new Proxy(state,{
+    get:(t,k)=>{
+      if(k==='canvas')return {width:320,height:200};
+      if(k==='fillStyle')return t.fillStyle;
+      if(k==='fillRect')return (x,y,w,h)=>painted.push({x,y,w,h,c:t.fillStyle});
+      if(k==='__painted')return painted;
+      return ()=>{};
+    },
+    set:(t,k,v)=>{t[k]=v;return true;}});
   const dom=new JSDOM(HTML,{runScripts:"dangerously",
     url:"https://example.invalid/law-of-the-west/",
     beforeParse(win){win.HTMLCanvasElement.prototype.getContext=()=>ctx2d;
@@ -41,7 +54,7 @@ function openPage(setup,cold){
   // the ones about that moment wants the page already awake, so the gesture is
   // marked used here rather than in forty call sites.
   if(!cold)ev('themePlayed=true;');
-  return {dom,w,errors,ev,
+  return {dom,w,errors,ev,painted,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
     ready(){ev('build').rows=10;ev('paint()');},
     el:id=>w.document.getElementById(id),
@@ -167,7 +180,7 @@ test('8e. the mute control and the m key both toggle and show it', {skip:jsdomMi
   const before=p.snd().on;
   p.tap('#mute');
   assert.notEqual(p.snd().on,before,'the mute control did nothing');
-  assert.match(p.el('mute').textContent,/SOUND (ON|OFF)/);
+  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
   assert.equal(p.el('mute').getAttribute('aria-pressed'),String(p.snd().on));
   p.press('m');
   assert.equal(p.snd().on,before,'the m key did not toggle it back');
@@ -396,8 +409,11 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   const src=p.ev('SHERIFF_SRC');
   assert.ok(/^data:image\/png;base64,/.test(src),'his artwork is not carried inline');
   assert.ok(src.length<40000,'his artwork is '+src.length+' characters');
-  // talking shows the strip below the gun arm, drawing shows the whole of him
-  assert.ok(own.rest>0&&own.rest<own.h,'the resting crop is '+own.rest);
+  // he is never a fragment: the same whole drawing in both states, moved only
+  // by the lean, and the frame is what crops him
+  assert.equal(own.w,129); assert.equal(own.h,200);
+  assert.ok(own.lean>0&&own.lean<8,'the lean is '+own.lean);
+  assert.equal(p.ev('typeof restingStrip'),'undefined','a partial draw survived');
   assert.deepEqual(p.errors,[]);
 });
 
@@ -446,7 +462,10 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   // the gesture that builds an AudioContext
   const quiet=openPage(win=>{try{win.localStorage.setItem('lotw.sound','0');}catch(e){}});
   assert.equal(quiet.ev('SND.on'),false,'the page came back up making noise');
-  assert.equal(quiet.el('mute').textContent,'SOUND OFF','the control does not say so');
+  assert.equal(quiet.el('mute').textContent,'SOUND: OFF','the control does not say so');
+  // the label is a state, never an instruction: a button saying SOUND ON is
+  // pressed by someone wanting sound on, which turns it off and keeps it off
+  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
   assert.equal(quiet.el('mute').getAttribute('aria-pressed'),'false');
   quiet.tap('[data-cmd="fire"]');
   assert.equal(quiet.ev('typeof (window.AudioContext||window.webkitAudioContext)'),
@@ -462,7 +481,7 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'0','the choice was not kept');
   p.tap('[data-cmd="mute"]');
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'1');
-  assert.equal(p.el('mute').textContent,'SOUND ON');
+  assert.equal(p.el('mute').textContent,'SOUND: ON');
 
   // every cue the game can fire is one the engine knows, and the ones a player
   // hears over and over are the ones allowed to move
@@ -826,4 +845,92 @@ test('9q. the title is a drawn plate and its music comes round again',
   assert.equal(rlog.slice(n).filter(c=>c==='title').length,0,
     'the title music played on over the day');
   assert.deepEqual(r.errors,[]);
+});
+
+test('9r. the dither is one weave over the whole picture, not a stripe per row',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const at=(rows)=>{
+    p.painted.length=0;
+    rows();
+    const grid={};
+    for(const q of p.painted)grid[q.x+','+q.y]=q.c;
+    return grid;
+  };
+  // A band laid down a row at a time is what the sky is made of. Read from each
+  // rectangle's own corner the matrix never leaves its first row, every row
+  // comes out identical, and the sky is vertical stripes.
+  const band=at(()=>{for(let y=0;y<4;y++)p.ev(`dither(0,${y},8,1,"#000000","#ffffff",0.5)`);});
+  const row=y=>[0,1,2,3,4,5,6,7].map(x=>band[x+','+y]).join('');
+  const rows=[row(0),row(1),row(2),row(3)];
+  assert.equal(new Set(rows).size>1,true,
+    'every row of the band came out the same: '+rows[0]);
+  // and the four rows together are the matrix, so each column varies too
+  const cols=[0,1,2,3].map(x=>[0,1,2,3].map(y=>band[x+','+y]).join(''));
+  assert.equal(new Set(cols).size>1,true,'every column came out the same');
+
+  // Two shapes that meet must share one weave: the same pixel gets the same
+  // answer whichever rectangle painted it.
+  const whole=at(()=>p.ev('dither(0,0,8,4,"#000000","#ffffff",0.5)'));
+  const split=at(()=>{p.ev('dither(0,0,8,2,"#000000","#ffffff",0.5)');
+                      p.ev('dither(0,2,8,2,"#000000","#ffffff",0.5)');});
+  for(let y=0;y<4;y++)for(let x=0;x<8;x++)
+    assert.equal(split[x+','+y],whole[x+','+y],
+      'a seam at '+x+','+y+': split '+split[x+','+y]+' vs whole '+whole[x+','+y]);
+  // an offset rectangle keeps the weave too, rather than restarting it
+  const off=at(()=>p.ev('dither(2,1,6,3,"#000000","#ffffff",0.5)'));
+  for(let y=1;y<4;y++)for(let x=2;x<8;x++)
+    assert.equal(off[x+','+y],whole[x+','+y],'the weave restarted at '+x+','+y);
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9s. every figure gets a face, wherever its face is drawn',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const figs=p.ev('Object.keys(FIGURES)');
+  assert.ok(figs.length>=12,'only '+figs.length+' figures');
+  const seen={};
+  for(const k of figs){
+    const cut=p.ev(`headOf(FIGURES[${JSON.stringify(k)}])`);
+    const rows=p.ev(`FIGURES[${JSON.stringify(k)}].rows`);
+    // the eye row is read off the drawing, not assumed: they are not all alike
+    assert.equal(rows[cut.eye].indexOf('E')>=0,true,
+      k+" has no eyes on the row it was told to put a brow over");
+    // the head is cut below the face, never through it
+    assert.ok(cut.head>cut.eye+1,k+' is cut through its own face');
+    // and a mood actually marks that face
+    const plain=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.neutral,false,${cut.eye})`).join('|');
+    const cross=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.hostile,false,${cut.eye})`).join('|');
+    const shut=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.neutral,true,${cut.eye})`).join('|');
+    assert.notEqual(cross,plain,k+' looks the same angry as calm');
+    assert.notEqual(shut,plain,k+' never blinks');
+    seen[k]=cut.eye;
+  }
+  // the bug this holds shut: assuming one eye row for all of them
+  assert.ok(new Set(Object.values(seen)).size>1,
+    'every figure now has its eyes on the same row; the test proves nothing');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9t. backgrounding really parks the audio, and waking respects that',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]');
+  // suspend must not be undone by the statechange it causes
+  p.ev('SND.suspend()');
+  assert.equal(p.ev('SND.parked'),true,'suspending did not park it');
+  assert.equal(p.ev('SND.wake()'),false,'waking undid a suspend we asked for');
+  assert.equal(p.ev('SND.parked'),true,'waking unparked what backgrounding parked');
+  // only a gesture unparks it
+  p.ev('SND.unlock()');
+  assert.equal(p.ev('SND.parked'),false,'a gesture did not unpark it');
+  // and a muted player holds nobody's audio session
+  const q=openPage(win=>{try{win.localStorage.setItem('lotw.sound','0');}catch(e){}});
+  q.tap('[data-cmd="fire"]');
+  assert.equal(q.ev('SND.on'),false);
+  assert.equal(q.ev('SND.session'),false,'a muted page seized the audio session');
+  assert.deepEqual(p.errors,[]);
 });

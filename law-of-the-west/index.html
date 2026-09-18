@@ -448,7 +448,7 @@ const SOUNDS={
 const GATE={step:90,click:30,hit:60,ricochet:70};
 const SND=(function(){
   const AC=window.AudioContext||window.webkitAudioContext;
-  let ac=null,bus=null,nz=null,on=true; const lastAt={};
+  let ac=null,bus=null,nz=null,on=true,stuck=0,parked=false; const lastAt={};
   function noiseBuf(c){                       // SID's 23-bit LFSR
     const n=(c.sampleRate*2)|0, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
     let r=0x7ffff8, held=1, acc=0; const inc=(SID_CLK/256)/c.sampleRate;
@@ -471,8 +471,18 @@ const SND=(function(){
                        tail.release.value=0.14;
                        bus.connect(tail); tail.connect(ac.destination); }
              else bus.connect(ac.destination);
-             nz=noiseBuf(ac); }
-    if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
+             nz=noiseBuf(ac);
+             // This must never undo a suspend we asked for, or backgrounding
+             // would resume the context the instant it suspended it.
+             try{ ac.onstatechange=function(){
+               if(on&&!parked&&ac&&ac.state!=="running"){try{ac.resume();}catch(e){}}
+             }; }catch(e){}
+    }
+    // Not only "suspended". Safari on iOS parks a context in "interrupted" when
+    // the audio route changes under it - a call arrives, another app takes the
+    // session, or the screen is mirrored to a television - and a check for
+    // "suspended" alone walks straight past it and never plays again.
+    if(ac.state!=="running"){try{ac.resume();}catch(e){}}
     return ac;
   }
   /* a pulse of variable width: saw minus the same saw delayed by width/f */
@@ -677,20 +687,87 @@ const SND=(function(){
                            s.connect(themeGain); return s;});
     list.forEach((v,i)=>voice(v,c.currentTime,slots[Math.min(i,VOICES-1)]));
   }
-  const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
+  /* iPhones mute Web Audio under the ring/silent switch. A page with a media
+   * element actually playing is treated as playback rather than ambient sound,
+   * and is then heard through it - and the same element keeps the audio session
+   * alive across a route change, which is what mirroring to a television is. So
+   * a full second of real silence loops under everything, started on the same
+   * gesture that unlocks the rest. It is inaudible by construction: the samples
+   * are silence, not a volume of zero, because iOS ignores volume. A whole
+   * second and not a fraction of one: an element restarting thirty times a
+   * second is the kind a phone stops counting as playback. */
+  const HUSH="data:audio/wav;base64,UklGRmQfAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAfAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+  let keeper=null;
+  function keepSession(){
+    if(!on)return;                       // a muted player holds nobody's audio
+    if(keeper){ if(keeper.paused){try{keeper.play();}catch(e){}} return; }
+    if(typeof document==="undefined"||!document.createElement)return;
+    try{
+      const a=document.createElement("audio");
+      a.src=HUSH; a.loop=true; a.preload="auto";
+      a.setAttribute("playsinline",""); a.setAttribute("webkit-playsinline","");
+      a.muted=false;                       // muted media does not promote anything
+      // In the document, not merely constructed: a detached element is the kind
+      // a phone may decline to count as playback at all.
+      a.setAttribute("aria-hidden","true");
+      a.style.cssText="position:absolute;width:0;height:0;opacity:0;pointer-events:none";
+      (document.body||document.documentElement).appendChild(a);
+      const pr=a.play();
+      if(pr&&pr.catch)pr.catch(function(){});
+      keeper=a;
+    }catch(e){ keeper=null; }
+  }
+  function dropSession(){ if(keeper){try{keeper.pause();}catch(e){}} }
+  const API={
+    /* A gesture. The only place a context may be built or rebuilt: iOS will not
+     * start one anywhere else, so one that has stopped answering is thrown away
+     * here and nowhere else. */
+    unlock(){
+      parked=false;
+      if(ac&&stuck>=3&&ac.state!=="running"){
+        const dead=ac;
+        try{stopAll();}catch(e){}
+        ac=null;bus=null;nz=null;themeGain=null;themeName=null;slots=null;live=[];
+        try{dead.close();}catch(e){}
+      }
+      stuck=0; keepSession(); ctx();
+    },
+    get on(){return on;}, theme, cut,
     get playing(){return themeName;},
     /* Silence means silence: what is sounding stops with what was pending, and
      * turning it back on never resurrects the theme that was playing when it
      * went off. */
-    toggle(){on=!on; if(!on)stopAll(); else{ctx();play("select");} return on;},
+    toggle(){on=!on;
+      if(!on){dropSession(); stopAll();}
+      else{parked=false; keepSession(); ctx(); play("select");}
+      return on;},
     stopAll,
     /* Backgrounding. The context is suspended rather than torn down, and only
      * another gesture resumes it. */
-    suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
-    get suspended(){ return !!ac&&ac.state==="suspended"; },
+    suspend(){ parked=true; dropSession(); stopAll();
+               if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    get suspended(){ return !!ac&&ac.state!=="running"; },
+    get state(){ return ac?ac.state:"none"; },
+    get stuck(){ return stuck; },
+    get parked(){ return parked; },
+    get session(){ return !!keeper&&!keeper.paused; },
+    /* Waking is not unlocking. It never builds a context - before the first
+     * gesture there is nothing to wake, and a context built anywhere but in a
+     * gesture stays silent on iOS - it only takes back one that exists and was
+     * parked by something other than us. resume() is a promise, so whether it
+     * worked is not knowable on the next line: the count is kept by the promise,
+     * and one that stays stuck is left for the next gesture to replace. */
+    wake(){
+      if(!on||!ac||parked)return false;
+      if(ac.state==="running"){stuck=0;return true;}
+      let pr=null;
+      try{pr=ac.resume();}catch(e){stuck++;}
+      if(pr&&pr.then)pr.then(function(){stuck=0;},function(){stuck++;});
+      return false;
+    },
     /* Restoring what the player chose last time must not be the thing that
      * builds an AudioContext: no sound before a gesture, whatever is stored. */
-    quiet(){on=false; return on;},
+    quiet(){on=false; dropSession(); return on;},
     /* What the mix does, readable from outside so it can be asserted without
      * an AudioContext: which cues are allowed to move, how long one runs, and
      * how far a theme steps back under it. */
@@ -2080,7 +2157,7 @@ const muteBtn=document.getElementById("mute");
 let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
 let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
-let flash=0, bodyFall=0, said="", react="";
+let flash=0, bodyFall=0, said="", react="", wokeAt=0;
 
 /* ---- one clock for the sound ---- *
  * Cues used to be scheduled on setTimeout, which has no idea what happened
@@ -2203,14 +2280,122 @@ function drawFigure(rows,x0,y0,look,cw,ch){
     }
   }
 }
-function visitor(enc,pose){
+
+/* ---- what a body does while it is standing there ---- *
+ * A figure that holds one pose is a cut-out, whatever is drawn on it. These
+ * are twenty-four cells across, so there is no room to act with; what there is
+ * is a pixel of movement, and a pixel at this size is the difference between a
+ * man waiting and a prop of a man. Everyone breathes, sways off one hip, and
+ * blinks on his own clock. The head carries a mood on three rows of it: a brow
+ * that comes down, a mouth that sets, and a lean. And when the sheriff says
+ * something, whoever he said it to reacts before he answers.
+ */
+/* Where a given figure's head ends and his eyes are. Not every one is built
+ * alike: the eyes sit on row 4 for six of them, row 5 for four, and row 10 for
+ * Little Willy, who is a child and drawn small inside the same grid. Assuming
+ * one row for all of them left five of the twelve with no blink, no brow and no
+ * mouth, and split three of them through the jaw. It is read off the drawing
+ * instead, once per figure. */
+const HEADOF={};
+function headOf(fig){
+  const key=fig.rows.join("|");
+  if(HEADOF[key])return HEADOF[key];
+  let eye=-1, body=-1;
+  for(let r=0;r<fig.rows.length;r++){
+    if(eye<0&&fig.rows[r].indexOf("E")>=0)eye=r;
+    if(body<0&&/[CWLK]/.test(fig.rows[r]))body=r;
+  }
+  if(eye<0)eye=4;
+  const head=(body>eye+1)?body:eye+2;
+  return HEADOF[key]={eye:eye, head:head};
+}
+const MOODS={
+  warm:   {brow:0, mouth:"soft", lean: 0, rise: 0},
+  neutral:{brow:0, mouth:"set",  lean: 0, rise: 0},
+  wary:   {brow:1, mouth:"set",  lean: 0, rise:-1},
+  hostile:{brow:2, mouth:"grim", lean: 1, rise:-1},
+  scared: {brow:0, mouth:"open", lean:-1, rise: 1}
+};
+/* Each round of talk is named for its temper, so the name is the mood. */
+const MOOD_OF={
+  cordial:"warm", kind:"warm", civil:"warm", easy:"warm", warm:"warm", admire:"warm",
+  proud:"warm", supper:"warm", deal:"warm", square:"warm", money:"warm", talk:"warm",
+  wary:"wary", doubt:"wary", probe:"wary", watch:"wary", secret:"wary", clam:"wary",
+  cool:"wary", listen:"wary", why:"wary", seen:"wary", askers:"wary", count:"wary",
+  deck:"wary", window:"wary", confirm:"wary", terms:"wary", business:"wary",
+  prickly:"hostile", sour:"hostile", hard:"hostile", stern:"hostile", iron:"hostile",
+  sting:"hostile", press:"hostile", order:"hostile", belt:"hostile", intent:"hostile",
+  brisk:"hostile", sleeves:"hostile",
+  caught:"scared", out:"scared", leave:"scared", turn:"scared", rope:"scared",
+  yield:"scared", clam_up:"scared"
+};
+function moodNow(){
+  if(G.duel&&G.duel.drawn)return "hostile";
+  if(G.phase==="tell")return "hostile";
+  if(G.outcome==="surrendered")return "scared";
+  return MOOD_OF[G.node]||"neutral";
+}
+/* Nobody breathes in time with anybody else. */
+const phaseOf=id=>((hash(id.length,id.charCodeAt(0)|0)%1000)/1000)*6.283;
+let reactAt=-1e9, reactKind="";
+function reactTo(nextNode){
+  const m=MOOD_OF[nextNode]||"neutral";
+  reactKind=(m==="hostile"||m==="scared")?"flinch":(m==="warm"?"nod":"take");
+  reactAt=performance.now();
+}
+/* The eyes are the only cells named E on the face row, and the brow sits on the
+ * row above them: to bring a brow down is to put its own shadow over the eyes. */
+function expressOn(head,mood,blink,eyeRow){
+  const out=head.slice();
+  const browRow=eyeRow-1, mouthRow=eyeRow+1;
+  const eyes=[];
+  for(let c=0;c<(out[eyeRow]||"").length;c++)if(out[eyeRow][c]==="E")eyes.push(c);
+  const put=(r,c,ch)=>{
+    if(!out[r]||c<0||c>=out[r].length)return;
+    out[r]=out[r].slice(0,c)+ch+out[r].slice(c+1);
+  };
+  if(blink)for(const c of eyes)put(eyeRow,c,"F");
+  for(let k=0;k<mood.brow;k++)
+    for(const c of eyes)put(browRow,c-(k?1:0),"E");
+  if(eyes.length>=2){
+    const mid=Math.round((eyes[0]+eyes[eyes.length-1])/2);
+    if(mood.mouth==="grim"){put(mouthRow,mid-1,"E");put(mouthRow,mid,"E");}
+    else if(mood.mouth==="open"){put(mouthRow,mid,"E");put(mouthRow,mid+1,"E");}
+    else if(mood.mouth==="set")put(mouthRow,mid,"E");
+  }
+  return out;
+}
+function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
   const rows=figureRows(fig,pose);
   let lowest=0;
   for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
-  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow, on the grid
+  const t=(now||0)/1000, ph=phaseOf(enc.figure||enc.id||"x");
+  const mood=MOODS[moodNow()]||MOODS.neutral;
+  // breath, and the weight going from one hip to the other
+  const breath=Math.sin(t*1.7+ph)>0.55?-1:0;
+  const sway=Math.round(Math.sin(t*0.63+ph)*1.2);
+  // an eye shuts for a moment, on his own clock and not on anyone else's
+  const cyc=3.1+((ph*7)%2.4), blink=(t+ph)%cyc<0.13;
+  // and he answers before he answers: a flinch back, a nod in, a beat taken
+  const since=(now||0)-reactAt, RE=460;
+  let rdx=0, rdy=0;
+  if(since>=0&&since<RE){
+    const u=1-since/RE, e=u*u;
+    if(reactKind==="flinch"){rdx=-Math.round(2.6*e); rdy=-Math.round(e);}
+    else if(reactKind==="nod"){rdy=Math.round(1.6*e);}
+    else rdx=Math.round(1.2*e);
+  }
+  const bdx=sway+mood.lean, bdy=breath+mood.rise;
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow stays put
   ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
-  drawFigure(rows,SPRX,SPRY,look);
+  const cut=headOf(fig);
+  const body=rows.map((r,i)=>i>=cut.head?r:"");
+  const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
+  drawFigure(body,SPRX+bdx,SPRY+bdy,look);
+  // The shoulders come up, the head stays where it was: that is what hunching
+  // is. Letting the rise carry the head too only opens a gap at his neck.
+  drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-mood.rise+rdy,look);
 }
 
 /* ---- the sheriff ---- *
@@ -2231,7 +2416,19 @@ function visitor(enc,pose){
  * his hip, the cartridge belt and the holster — and clearing leather brings
  * the whole of him up. */
 const SHERIFF_SRC="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIEAAADICAMAAAD4KXLGAAAAwFBMVEUAAABONiktMDvEubZYLRY8HQ4PIktMJxOWh3xDIxF3RCe7sa0fNWZnOR5AT3alnJkdDgeKeG8lFBiYj40XCgYuFw1VYIBfWFTu498iOnQnHhqknqFNRkcRFB0wFwoIBQQPCQYCAgNHJCBRTU0CCyEVEhIHHEktRoImEglXMR3PxMGTYDwqJycRKl/g19J5c3LKwb1mYWEEFDYICRCzqaZAPT4AAABfWltHQ0SGf35WUlNwamrTycWvpaLWzcnezs/b8nkBAAAAQHRSTlMA////////////////////////////////////////////////////////////////////////////////////EyueMQAAIoRJREFUeNq1XIlim9iSjUEIIYQhAiyZYBZjbJAQCAnEJtD//9WcutjpfjM9nTwHM96SvGkOtZw6VbfwN883XN/3XdeNIsFxDM91PU2MI8+LjGgpfvv6y3c1zTAiR3AkukRJ0BzPdw0N/+BGy+evRxA5Dm5Pt8bnTFkqMxEoItjiAtNEsfT1CAwtkqQZ3RxXjB9ne7qWoqPBPd4s/nobCMIsnuHRZxJMsWR3V2ALXJLp+Z4kml+LQBBEZTaDEcQokkSYQZkxFOO1FATNE74WAh6dLgGZIIozXMpyv9zDADH9tFjsYwE58pUIJEEQTAeXgGBUZrA/3X+v0P3fLyUyzS+0gxNpyDqHmUBh4aiQIRQGZR/HIxDFJKBfg8DwKBs0E56gRJzFkohLiePZbKmIP2MC3ogB4isQeBowaOAEkcIAUTFGg0jpEH94AoaBcfYgCvMrEHia5oAQGQAGgpxAtx6/4vb4C/o3Zf8difocTY3Ahw3AyTCxwO7O0mEMB3pyogr8GItA8xxTbADFxHUBYaiBi4CAQgC3oxvvyQ4K7k9BQU7Z76U7mEUwXFcTJy0XhobLkURBBATywjImE9CTKxSadM1AlXEEG3he6HoopIIyIQQDZdDA7VGPJHLCkuUhfZsp7/efScr++e57DIpOyuTpjIolTIlAM2ACcgEhEPHw49MrY/SJwmwm7PfCci+4Sd3mTZNlteW6ZjQhH1AgAgCFgsiinm6OSBQVZhdFUpbmfm96Zdcc092QDseiDY31ZAigT2ACZCOJBHb3DwCjBRRptjeX+8irc7nvj9sUH+lRt7QJvUDizMGXiCiB3T+mKCBaQrEUxb0QkwUWeiHveNz/drsOQ5+sp7OBY0aoCmbEAmF0gSIxC0hIDGcpSQBQd13PH4/DkV9ked5kg9xOxkgGSpMjRHAFKTVQj0hqhT4AQHRmd9Feccusk3l5O/xYZHwKT/B5c5wyF7TIQf0lG4jvBARbAI4iChKicKlZTV7w/Bb3HXD/LV2qfpzMBgAAH0QCswFxoiKQM+ADUXCWJuVh0DdFsfuR8fJtO+wGXOlW768T2QBeMBiAkZYRgLGAYASCWDCRCvvYS5pOLY5qw++220HepYBx3G4zfiobgJEQCJQNDtOM4EclpjiEdlLABFqYZeqRl+3d8ZbK/DEdtil/k7c3fSIEkRaZzAKmYzoIxFiQZkQGgmQ6UK77O7du1L7gA/6aXo/y8ZoiFNJ0d93q07jBRb8UgZWpb3EoB/AzaTRmgqWxXxph3hRqmqt8OsiUj0BwS9PrdTvwE/EBAhHywDThBwFE7EiOwnwhRIiIveAnmb4YsgxskO7ghOtti3DYkRv47SRe8DSmThxiRjK+MwpGmCJSTGXpnQMdNqh4BF868FeY4Er5eAWgIp1GpVEeOA7rnIGAwnEmsg4CqQgTWFmj8kF/RfRfeV4+3o6EYDged+kwSSBAJjrvF+JAlEgywvqSaWqKoCyjc9uocpbD/aBCuWC3BimlO34rwxFTRKJGxZl9MFocU1KQHCDQloqb5Koul/LuuL39UNX0KvewADPC9ahupwgEFxqJxYBDzCyyaEA4mo4mAAFqYtPIbTb0/I1fqLtUViERiJV38jbV0ykQwP+SFI/tAQUk7k1jDFMwYAjFsIJG1UuZ1/kboAyqXoALyAhDkQ7qJAguvut6uAzNfBYhjiUDUgVITGOpzUSf22R91fCoS2DmXa8XQ8rDArftVt7u9GE3TWWKqGOh+I8012Q6VaRGcmYszUu50fVy1/84qhuVV3tVTgdWG2/bIj32W36aymSOYxxKQjTxGnpIJSZKjmKQQVtw+lXnf1S6LKtqwV9322ELFMNuu1MnKdA0xjKpKhIRxsQCcIIBy0h3guJbbdeUhdr3bVP0usrLCAJ5YLyMIq3evk1mA2k26jNJ9EDNsaR5hqSZkc/Vet7pap8jHvte7dPr9ligMN0QDcebup0GgWZ+yGQSRppAnWJkOCIYKWzLgmv1ospUXe9RIq875ABSAY447sBP03iBKEliKhl6REIbr9AcDbJJ8ZLW1jld7Tq9yVRwI7SBzKdUGQc+5dVpKhP1jY4wgxFQj6CRtYgpZE+EMdyyrWy7zzaLplEbnedvlIsIgmsBNuj7YiovROP0gCFAMphAAD4yFM1vywyFKWjYpUKbDFfKxiOvHreDqk7BBlQb0bgKbHBDPaJIim221AzRgD7MrDxp7AzNYpP1MvThLoVKvB13qrw9ToUAJjBJJSMZBKbPDQPJANViiC4XWGWddxmioOjlgXQyj89beu2PA3q42zQIIBSpFJDpkYgzCWExUzzH9CS3LK0w2DSZnsl8MVyH606WoRFQptVjLxf9RDMUjwbrrGNEOUJhhnJVRN+BhPfrMnzadF3T6L3ODzeZ71Wg2G0Lmed7eGIirUyTNBohKTGEImjRNEwpdqN3BEmXd4X+o+GHHm0bCAGKHQJt16e8vp0GAXKBeQF0gMKMgBSNSBCpkTL9lgsDhMFRb/qB51VV/wFxSmRw5YfdRGwALzBGYsnosNm2qGmCGKGdNMMg5Nosk0EFMgJBRV0grbZDD88f+2yipo31jQ7rF0VqGRCRpiZImqsZUViGdperfdMUsizruc7T+AKkVICRM3UiE6BjIU4kSowdppMVosXIjbzItZKqzQpwUf9D1rOugFhETUDTIF+zohimsgFywZTYHG9UaIriaZLpa57pe23Vgo26vpD7JtfhfTjhepWL40K/qfxkCD5sIIKQSSwppuGYvuEJvr8p86zNdQLQNcMRCEDMx55HG13It4kQGC4iTxLBRRSJ0K2zpeiZjmfABue6zas8U4siw9eU50kYIBMBAJwkT4XAM5hGI1aOqE7CDZrhaK4XGVaXV3aXyXJXdU2BrpVoeVfs1DTtj306WS7Q4QZVBCCASsQfFBOEdEEzlVR5DXXE5xUUAn/c3fjrgJ5JRmVSmybtJ8sF6lxFdtYGJgQnzEQYwDVcL6mCoFvwsEC2QON+4/krmuZjcex1HbVyO10uoGFk/bJJCMBHUAYReim/zNu2U6sKvWuBVLxBIsES0GeqnqGfnoyVI2fMhdnMhBfwZ0mRUK8uhhvUdtt0QZYhG8BCiIEdCcRjoXYNuWUiL5DhR6kqQhsaEfSBKBq+f/HDqqyCru5gAhDyFQBuxy0B4fus2ai3qSZZGptoSjTHdOjQi9wgRnTsXNptUG1ySKRF3+928hWF8UpDhEFd5Fk/GR8YNNsWaaweOyScTTr3g1K6+HZdIxBIITX6ruC34AMk5O7KH5sq6yarC3C8R2csqMuKpLHugXVNmu+3dbepEYZd3sjFFVRATkA6Fn2edZk6nQ1ooMiKoyKadNpA/AAbuH7bVmWQdTn4EJaX1S16hPRGdRF/1U3Gyi7upUVj0yTR2gExFASCZ/iIAq7KSab94OUjGnj0S7v0iDaaUmEqUqaZKiwvsa5p5mie57LUcOCFvCrbrsqrRv/RX3swARvo3eQG2QGz3CZD4LvM7tQ4CiAilyhKECIgIKkOJzS6ei1QmI7Qh2AEGRSZZxPawGXDdUFCwyoJTgQA4ARHiDy/s4M8b4MMvbOsggWu6e6aHnl003AMNONECC6eNvIBxLIiCJrLKCqCNYCgzLsKjKjKCEWmEIcdNHKWZUAwWTbCBi5ygcTRciY4FAkG5QPZoK470gd6oaNj2l2HI7rGq0xRgFrZT4jAgNFpoK4oMXhZo40khyIxs+sAideBk4vbwMJwe92hJgAB1OtU+gASyTNojMOO3EUHpcGjPoohKLvOzrteV9NdceQBYLc7QjPr4EldvU1XnT02UwSEGLUBYUl7WZrhXtrSrvK2gg3QIBAlbmm6jpsDQbdorhMZgWIfPYsojWswogkInk8a7dLWdZXbVaMiDo/MCdeU71EmdBpoNFOFIhBoP5UiLYFQgXZ96JPLpgYhBJUOCNcjCHmgebaOC5UKfylP1rUZbAWCrWXRMZ+AwCAjuH5Vl60NsQ724ftjek2ZDzK6v6r3aGEnQ4BqZAoztv1AhoBKMECN/iWARqrROIKBQQQDn155lYpijw5mB8E23fyA9gAFkVXHJe1HQSZ4/uVyCfI6gEyrEAYFmAg6kUpCf9wO8MdR//5tukiMWNMiChLNlKkmgBOAoLS5EvoA2ScPCIQdX+hd04OVbtu0z+p8MgS0EmmQRqGbwwp0Eq8RAr/lWlz6AnWxuPLXghSyDMW+HfQ6yadaw7j4BlUCOtegyiQoykxyTAOpcPFzhGILkdQXPbrWotHROF1v2y3fra28ngoBxQFNNU1q3HFzgWlmjYzgd1wZgJF0vR/4Kw9byPIt3W7V0uO6oOn1qbxAO1EAMVYGIaLVGwQGOJHSEUbYoF/hd0dVlalAp9smSZKss9XtROUZhMgWADx2woXCAHpENpARIFG4OqCWjd+lDMCAGNDLPIByAj1OhIDGBxEpNbafiFgwHWkGoQobXLiWK0sUR11OZdrA2MECvV2VZbBIt3KzmKxzRZPChJHAti/oyI0Eo+tekq4tywoI+EKWwUhDui0g2pqG3962+WYivU4aLXKi8fBXoSUoJAIUC63JJhDLAZpXyDQ07rf0upXBiXoBmQBblLnMT4TAgDSO6MRLYB20gMpkIhL8CxCUHASCrlMIXNPtFe0TKhKdvR/1OptmguAb1CfOiAI01j1KokPb0ojNS1jVQYnK0Oi8PNygUJpGl3fbtFB/DEXfydtmoqkujS9EsBGkkkQby2xf2qDOEaRY1kwsQxxteQgjlKcexQGttH7cbruJJprEhzM8uwCFTN0jIySPSgPZwK5QDGRe3u10veiHAkJZR3XkYYsdp/6//90kq/7tts9N/Tc+ECLWOSMMBTbRRBevQSsCQdvCC3a2QLdwo+Fus1DRy8tyQVsIKi+H1T/uYeR6+y1MOqhMNDz0pfvf61Prtrb+YuVoPOkSlXEhccYiwbtAIFzKvCzRwqM08QUAoFHpGmImnmqDuu3KUk7/AcK6VMt1EELNVVVbbVpQe5hwHEeff7uSj0ikSKDZNtMHCltHE6AQyAbnruZK1KYepNyQSIdul4/s1Dlb7HabJsmu6T+wgrZpMu5JzqwwfAKHW6Fa5Lsj+o3rcB0GfmDXtV9/6AOaKBKCmKwQU0yCJT3PQ20qqxqMsFnIPaIQ6ozvabwOANSx4K/scnf9J7m4ztuz3iSW13eJlZT5RsZ/BZU+aIPADuiybbsdEWjUN9LmAdvGHNsWEghQ8agMYReUZASIlCMvQ7Xf6NR76DsEZZrt+Cbo/7FAGSXHyXnYdNwWZD7AX4n78/LZGxuet17/1b2zkTY77VJoM1EAHxm+pl0ubpuTTtrkEGfHI+1eQCzudJr0Drd+OxTVbsv/g2JdB096E4TJkPTHov/xI4MnrPFaj9/IOT8nGJo7liU69mRCjY026R0OFKcO1amFUmmKYVfskAZ9UeXNj17e8qhURYcC8Q+NQ8LZehU8WVmddRyCwapLq/24AhcKy/j7XJmdPI87eQiCGZMoJJd9REIYZDXHBWSIDkIdudi1VdMfezp4Q6kutkPd/J91lDCs1MoO1taGa+uQnrfaWJsNCwVEQsKF1X90bR9n3wptwLDWRRRowHUhrcjlbZkEdlmWdosymVU0VhqIj/rbllfT7Y9ATYv/HYcZLFC2YVhadZ1BW6qWZax/Xp719zVXyFTN1Jz3w28FzMjeZyDF7pJcdUdOCEqOvtlo3Rs89/Z27XfXG0mmPBvUDwTrdZKs15p5t9lUXGm7bnmuS5b65/9YKl0L/6ETNbaWZzIIy3hG29sSVUvDY1YIqUDWbWXDG2WQ/eh59AugROjnlJqYcnHTh/HEZ23ZWZCEznIvtABuh1Z4LkP3HCIK//18gSZXTuS8rwDQUh5qQ2S++6HMoYrKIA9qMgLoCaSIxIBql7fXa2bDxoN+YwDKzE5CQ9wvhTJJ6oA7u4kXhgRg/a+ViV7hoBFSRLt5S3iC8Ggk3RiEus03nF0HXVMBgU0hib5R7eVBRqFEHC7kNKNQCJMkyDlPE/czAfcPgpbu/hSGayt7/lel+r6ybeKxJXHJioNDQ3aEKDVvflB3HTisbdSMhfIYkrpcpGlfd2raHYvueLtb41m5srIRCfAgrNYGeZ5X7LP5FwRsY5v2D2g/0GRbaUQMDAKpFCCw2ETLtgPoRdQa/BerbKGjVqRF3i52fH5VM36bhOfzk2VxdgVxSbUgXJcVEJdtULfBv3jhfQeEWABPblKFkNiSoEMQUCBRosqEC3Lws53xvEozFB0FEnwkd8GC36rVdaHvUrsMzyFxXW2XAUpiFXBWmCB0anQd/9ZfadHH+QYVRWdcUmQ7ehQIAIA++kxpUDXwQFPwYEVZ71HfjuheG4RCU6WNnh4zqw4T3LKCpslsJI3cVGUSugiE9S+UKhsmzogKSJ0IAuUEvedmEiXABDBEgiJdVmDDTVPsUKIgFm+yngWNym/7Lk+7YkibsOYsLizbrM0CWhnIg9au88Srf7FfTvPUEULMRAp8wN6kwFeNqNlj4wykI8e1VYCYQolKhyuvds0GLW0q662aZv0wNAYQwF+Ivw7hWnKIhSSxW+tXCIyxbx431pEHMZOtbCWEvexIIxb4ISBHgBprVGp+d92hk0c09IPc593QL8APjVkmpdda0LYl3T5cMyZAhlr/joAVJfYWUUxSMWblie2oiVJEYz2aN/p+WNmAAKYdhaucoo8raCepKfW0UY/8sRFKrrWSNgk4enzkAmKY+ChIfr0RRcOT/VLZj+9zsTCYjcWBECAifYRC1iZcmcAMG9QmROT1Ku96vWlLXm4QGdvn2C675NyF8ATsTzCAIQzd7BcI2BoO29Fmb5At9wqd+BAKRIKpuRGT7q7/nGQoUciu0oZogi+gPHS9yZPu2qjq7Zg+L227KcM8RCFCIc31Ludc3wjL/JcdC5Vn2OHuWYkVMRaVPb1XRyioiUEjRTnh+d/CEuoALgbZgZzbDfXUel62vN40V/moxksUgsTa4PEpbpE6epV4SfnL9xx8It4LvVGKnzzrWaGtIHylpW2oNU8TBCIGl5QXtAmsTnUavRzukFV1edQzdLDy0V4qMJFltRY3xkHC1aCD3+iZzmefPnB/fCM94JrPS3jFRIWg/o2WyalGkfTKgwDP3UDt2iDnrIIM4ouu02W1KKx9TNLPKq0xDMeSaP0GgpeX88uZXS/0Iz5JyJox2QAshaLtkBsM0nUlmo+gAgY6gMs3bV0jF2jSpetZvBcTqNCQCy1WD8MzJcLvvOwCunk5vTxdyASww+nlRKYACrTUkiPEbHGYRl30P7ZQH6Dd6QiyCgIulxu9hWYqsr7c703uKbTOSfhuAPzshr/zOiL4f75ancbd8eg85zg6cmbB4UZQzUJMdVKLxreHDH+NQEQutIFtNX1Gx+Jd36kLYa8YXHi2fC5cU4GyErvjvN963wc+nq8eS6rRqM7nx8PKh0ijc2cyhCuIESvV7wi+4QndkLNt1N+FjpLdNQEpllJZSqhL57WfkCZDrwaN/ysqer/q3Fg9vpU0w2ly5/z28OCyvo3GOC8vvu9RqXIgZsfneWZF1wutHJ6oyzwPNm2n55ESa2T9s5eEH05AYP4WgtI2Vm9vHJLOzDdS+PDw4IEUYlJJ/un0Ao9oAlvuf28xnoN8UyZ2lm8CaMfWDjabrlnPFBP39kP/PQhoB9sLf++lqyjSCAEN1yNJfAICAzXqOZ4Jxnk152jK7wn0ru/Hf26d1CXJIHy1axslOG8scWa6FpWBv5Qpeev3ZiiQxKvHe452hk3TfHp7uPcE2leNBfP8dlgZkedfXAAQfj7Q2s5zks2BvYGGD/IsEUTTXYeeG/pPkGoEAV0b95sAEIne4fGRQ/t8d/csPL3d32vx+EsAovP9/T2kPMjdp1eu/prA4BGTzcYOKrTkXW6hdrkwPPIadehMEBAnCWf9JgIkHrKR88fr/Hh/jx7Geo5jSTvfP66AQLsgKGGg/3ybz4IIKTsYgPrx0PJo5OKF9AePfYM8+E0E5xd/Pl89ndj1cl6t5v4LIyfXIDh0/OrT6Ru89X9a9KR8XqNTgxShcIEFUMURC2cX/9/e+vm3ETAufn09vOJ6eXp6Ob2+EhjgmM/nHh3C4ovnmv//q86EIXx6ci/0/O/X7798CEo+vZ5eD6vD2yO7Dm9vj6vHw3z+cr7n5mBnx/BjBOT6Xxl2HRo0hPTYuxAo+P/FPPFnVTrhicGOq/E6HOaHE/3tCyqMT23kt1891TrSJLbRQu+D/RcIThzuW69W9/fw+iO+IRJWB47gjKEBYrw4QvTrN2uhchRHep8J/hcI8JinORyP29KzA8b96uHxgRDRn+crIDkbomn+BgLW+NO7UNJ/cwYFKXxG9CEODgfck257YF/m9H/z+eucuFn8nd89QL0uG4yt/6t3YEmhxsrd83MCO7w9vtH18DZeFJGPyJGTT2+Ef/uiC6VforZdiuPlM3AkCQjq8ZGwkF3IGq+ns4Z6+XUIZvu9Z4g5HbABCTTqnfX0hLvDI4c3AnF4PbuiIBpfhMD1pEXsRsr3pWEo6hLtgWnGy/1d/AyvsIhAKL740EpfhiBSFoKnSRvR05SFEhlKvzAdWhGMl9LaAkvACyfXlMToyxCI3yMvUlTT0OKNaXji96UZSfs9WUNCmVxTzaB81L4Ige/QS+3R7LvpRTFhWfaS5gnf95Em4guNlqwzQtF0vsoGvgAErqnsI99R9hqssTfhisWz50rfl1oEY4hx6Gv4y69CEN3F9DrbXiNrAMGSEIiL2DAk2EVAHyBokSJ56N++CIG42GvurFtqfqQohku/acAAAknDF8GN7KUhuDGNVcy79dcgcJEJrvkdN1/KsIGk3IFY471AcWD6zn5pmK4iCIImxl+DAAqMFIDhRa62FGCNxd4wImWDJgWB6Qv7O8OM4kjUYtP8GgQO/QIE03Mj2kSDEHGfNc2I9gvTM+9swxcWz0hKU3h2XUn6mmxAiyZSm0ZdErUtHkwSubQ6He8RIM5eMrVnUzHQCkpfEwjUptIo6Y5eKjQjwdHYgqaBT6Dw9rLoGMvozs+hwYMv+b1drFNml6vB2LGypB2MCK2j5xumrynGiKBLwkbNv8IPTCb6TDCfx2M4Dc1CTKcMGttWjQQgePYrK5TVzVcws0/39kkxj6JwxKGhbYtpvBqhYTMUIEBPXNql8SU2IC16mlObMH99nY9AAMKj8sh+T4uhaKLrmqJrWV9hgzNJVX++enlFHT6sqHFhMplw+S69gS8YsRE74CrTc76CmF+oYUGffiKpCl30uGI/MGvAI64mSaaBxt7zRUX4EgSnE4z/slqdmCaENmUSFSIRPcsrYfANkXESUab3FbkAAITg/sSUIa4PnQxrkDpCv2JI8AB6FgmU9cFJyXpN49WSdiTKquSs9ae54pV61pd7ZoMDQzCa4Y308uH1/oRchQFEOvwz4nep9tx2JU0JwoSmmGd070mZl39gg/k7gkdmhMcPIwDL6+Mc+elK9AJ2pMXxu1SzM8t32dwq4ZLE885gtbBpP4vg9cAQzCkMxkbhPRTwp/n9/RMcEUU+unhUaNMoA7suw7INqoQOEtehFXqeVdpBl3N/ZgOWi6u/3Z6+HeYPK9KpnuS6Altor+uyDkr6dVlhUtL2NnsRudvQ6V7yeQQHhgCt++PhLyfgc7V6fVhx1C5IqFUQEOGG8y9hbYVJSNMSuN+y6DgjoclZefdpBMwLcwpEalx/+uGNENE/UNcmub5puJsy9C/rxPJD8j+dLtLcMinrrC3t5LOMNOYCtckHIqPV30PhkbxwgBHcOAIv+1WQhJcQCGhU5CVlk1Vsgbpkg7RvfxaJ73Gw+khGmAC98+FhlYAvTr7k0GqM1zZl6FlrWhWiqdU59MfBEQ3yPitfUBUOxInMBswNq7/S8e1ANoAbfFMyDM2j5ZympdmhBwA+TfDBBPAHnSVYyWcR/OUF1i4Dwl+xeHh45MDPyAZa6tfoOCis9NJyUTF8z6OzhKS06FDNC6vg0zZ4fX0pDxxqEQXB4QPCA0tH5AJD4M9oTYDtIyAQuDJhx4mhhQ8r5Kwkbzf2+g8QnFZzIAAEysbRDQ/3DMH9igMomuPQ71HSLuMF70O5llmnV52uZk1AR9zep/UBIJy4OXciCHOqDfiABcgGh3vKRgqEF4g2NK/eBwR31JfeuGJFhyHJZ9XL+cwQoDyfaGxF93ujlHh4YADu70/4ExBEgveMnoIOf+gzpEUdP6Exanjx3Boa7vMISCRBoqxqUgpA8XpgFYoAPFK9eFyRUFjHrgQ34L5kB5eNssM6vLhrMIQHnrbDT3vhhUE40ejwBH6kck20REPOe6QqfiIveLGH8vjhBjcBGSA1LfCSBQSBtw7CP7AB6eTzmVsd6jmbIL5SMOD+3MvrimZ6hMBHYTRHBC4hcC+hazWJ75WJDwRh+GkE/geEl/PTan5fv7I55hx0fH96mVNIjgjOQuRCJL0fEnsMQZhDJtglbNCF8MhnbeAzBLA97sKxKS4+YIDy6XSgeKRxOzjrHAmokF6QhbQw51k+IbBDIOAuIX74Ay+gXWFGmDNhWhI/r+5X98nLacUycpxpvpw9QhDKXUJZ4Fmuv/atjrxgsUhcfzoSL+fRCi9MNJ/OTxyFIBqYw+PDwwPJVZrr4h98CTop7BLrHcEFfEiRiDhYhzls8NnKdLmcx1B49wXCIeBekIO4/xuV68cDspFCUXShWMsycT3KRugEd/0RiWEXWp/UaITAHyOBNY4n5gqkAIUga10oCg7UUkChaJLhJfTbTOlM6wKdQl4ISt8KW0jFzyMgDO8GmDM2oGTEkx/mrEDgxzmFoi+YHooDfIAPlKTLGmUSXggoEttzyP0Jggud/RM700UPfhihMGp+pDMXxKIbmShPbJfaZbkAGyAbvZr4oPXW5Z8hYFOM8wc10PUBgFwB0TCnCT+SQYgM2uYOQxRp2AA1gaNcaP8oDtg1Hned32OSzt5WIxkcRvGG8DBEVzAFE+KMzhZ932KMhEgEgjy07D9CAAN8TDAoIl8Po2qnPJyTXnkkRnBFN6JXLS60rbamwmhlyRgHhODPvPDin/0xFMdAWLEIZH94JLXE2mhf9Fx6OZ+2+s/rC0Ui5YKdjF74NALG89SkM6ky6lWWACwqV0yqvDfRkuFKtBlBkYg4sHxUJsjn8rJGbfw8gjOLghcWCGMIztl5J0m2d7W4OoyUJGgIRcfw3xEgEnOyAXexPPtPELBV1BeihDOZYcyF1xPTjA8/o5FsYEZAELHy6Flkg7Bd+x5HXtj8KQJyA24/VmmWinOoxXexSPREXjhHEljJpBfTwcosDnLLHXOh8qz6DxHQQBFPTvOs1zEX3t5+9m6PB1a0DAmVYXzXymVxsAYnutx7Nn6aD9x3BFSl35loTrnwjuBhbB8pEM4O+iYxYjYYvcA0EiLR8mo0kZ+epbFQ9E8jE40hgJr80TSx7wdmmbMmGC4qA+Qx80LoMz6oyQaIRO7zCPwPBCwOmA8Oj3+faR1eWctAnZsfRywbz6hM4ViZ6j+OxPPlZyC8jm5gfiDBvmJLEaxKjggiXzQjg60RQh/g7lBp76yc/GEuXKg+n0+vjA9eqXN6bxoe36szFQZXMvERoXFGdf6ojS5T63X4xza4nMaKNBrhldXD0RCUCQB0Yke/Lm2OkkIZvYA4IBusEQfJn3EiuQGZiI8PCPDDfJwvPrL6PJKi4BkozwyBd3ny15nFOJFF4mf54H8AnPQyC3Z6I8wAAAAASUVORK5CYII=";
-const OWN={x:0,y:0,w:129,h:200,rest:138};
+/* He is a whole man in every frame of this game, and the frame is what crops
+ * him, not the code. Showing only the strip below his gun arm while he talked
+ * left a hip and a holster standing in the street with no body over them - and
+ * an empty holster with no gun anywhere to explain it read as a bin rather than
+ * as his.
+ *
+ * There is no clip that takes the revolver away and leaves him whole. His body
+ * stays inside x<=62 on every row but 92 to 135, where the forearm goes out to
+ * 124, so any cut that loses the gun loses his arm at the elbow, which is worse
+ * than losing his body. So nothing is cut. He stands there with it, and the
+ * draw moves him three pixels forward - which can never open a gap, because the
+ * pixels it takes from are the ones the left edge of the frame was eating. */
+const OWN={x:0,y:0,w:129,h:200,lean:3};
 let sheriffImg=null;
 if(typeof Image==="function"){
   sheriffImg=new Image();
@@ -2241,11 +2438,7 @@ if(typeof Image==="function"){
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
-  if(out)ctx.drawImage(sheriffImg,OWN.x,OWN.y,OWN.w,OWN.h);
-  else{
-    const t=OWN.rest, h=OWN.h-t;
-    ctx.drawImage(sheriffImg,0,t,OWN.w,h,OWN.x,OWN.y+t,OWN.w,h);
-  }
+  ctx.drawImage(sheriffImg,OWN.x-(out?0:OWN.lean),OWN.y,OWN.w,OWN.h);
 }
 
 /* ---- the title card ---- *
@@ -2449,11 +2642,19 @@ const PEOPLE=[{x:206,w:5,h:13},{x:216,w:5,h:12},{x:120,w:5,h:13}];
 const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
 /* A 4x4 ordered matrix: the one a C64 artist would have dithered with. */
 const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+/* The matrix is read at the pixel's own place on the screen, not at its place
+ * inside whatever rectangle is being filled. Reading it from the rectangle's
+ * own corner gives two wrong pictures: a band filled a row at a time never
+ * leaves the matrix's first row, so a 4x4 dither collapses into a 1x4 one and
+ * the sky comes out in vertical stripes; and two dithered shapes that meet
+ * anywhere but on a multiple of four show a seam where each restarts the
+ * pattern. Indexing by the screen keeps one continuous weave under everything. */
 function dither(x,y,w,h,a,b,amount){
   const t=Math.round(Math.max(0,Math.min(1,amount))*16);
+  const x0=Math.round(x), y0=Math.round(y);
   for(let j=0;j<h;j++)for(let i=0;i<w;i++){
-    const X=Math.round(x)+i, Y=Math.round(y)+j;
-    ctx.fillStyle=BAYER[(j&3)*4+(i&3)]<t?b:a;
+    const X=x0+i, Y=y0+j;
+    ctx.fillStyle=BAYER[(Y&3)*4+(X&3)]<t?b:a;
     ctx.fillRect(X,Y,1,1);
   }
 }
@@ -2668,7 +2869,8 @@ function signboard(text){
     let best=1e9,cut=1;
     for(let i=1;i<words.length;i++){
       const m=Math.max(words.slice(0,i).join(" ").length,words.slice(i).join(" ").length);
-      if(m<best){best=m;cut=i;}
+      // On a tie take the later break: GOLD GULCH / JAIL, never GOLD / GULCH JAIL
+      if(m<=best){best=m;cut=i;}
     }
     lines=[words.slice(0,cut).join(" "),words.slice(cut).join(" ")];
   }
@@ -2806,6 +3008,10 @@ function propAt(kind){
   } else {
     for(let i=0;i<4;i++){
       const x=244+i*26, y=110+i*12, h=76-i*8;
+      // every other thing standing in this street casts where it meets the dirt;
+      // without it a post reads as hanging in the air rather than sunk in it
+      ctx.fillStyle="rgba(0,0,0,.38)"; ctx.fillRect(x-3,y+h-1,15,2);
+      ctx.fillStyle="rgba(0,0,0,.18)"; ctx.fillRect(x-5,y+h+1,19,1);
       px(x,y,9,h,T.trunk); px(x,y,3,h,"#8a6a3a"); px(x,y,9,2,T.board);
     }
     for(let k=0;k<3;k++)for(let i=0;i<3;i++){
@@ -2876,9 +3082,15 @@ function drawScene(now){
     const pose=(G.outcome==="surrendered")?"surrender"
       :(G.duel&&(G.duel.drawn||G.phase==="tell"))?"raise":"idle";
     if(G.outcome==="killed_him"||G.outcome==="innocent_killed"){
-      ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(Math.min(1.4,bodyFall));
-      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
-    } else visitor(enc,pose);
+      // He turns about his own boots. The shadow he was standing in has to come
+      // round with him and lie flat, or he ends up floating over the plaza with
+      // everything else in the picture sitting on it.
+      const turn=Math.min(1.4,bodyFall), lay=turn/1.4;
+      ctx.fillStyle="rgba(0,0,0,"+(0.34*lay+0.06).toFixed(3)+")";
+      ctx.fillRect(FIG.cx-6,FIG.ground-1,Math.round(12+40*lay),2);
+      ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(turn);
+      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle",now);ctx.restore();
+    } else visitor(enc,pose,now);
   }
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
@@ -2949,7 +3161,11 @@ function paintSound(){
   ["Play it","Next","Previous","Back to the street"].forEach((t,i)=>
     setChoice(lineEls[i+1],i+1,t,i===0?"sel":""));
   modeEl.textContent="GOLD GULCH \u00b7 SOUND TEST";
-  scoreEl.textContent=name;
+  // What the audio is actually doing. A phone that will not make a sound looks
+  // exactly like a game that will not make a sound, and this is the only way to
+  // tell them apart from across the room.
+  scoreEl.textContent="AUDIO "+(SND.on?SND.state.toUpperCase():"OFF")
+    +(SND.session?" \u00b7 SESSION":"");
   fitText();
 }
 
@@ -3122,8 +3338,14 @@ document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
  * on the way back is what resumes it, as it was what started it. */
 document.addEventListener?.("visibilitychange",()=>{
   if(document.hidden){releaseAll(); newSeq(); SND.suspend(); return;}
+  // Coming back is not a fresh start: the gesture that unlocked the audio still
+  // counts, so the sound comes back with the picture rather than waiting for
+  // another tap that, on a television across the room, may never come.
+  SND.wake();
   if(gameMode)keepAwake();
 });
+addEventListener("pageshow",()=>SND.wake());
+addEventListener("focus",()=>SND.wake());
 addEventListener("pagehide",()=>{releaseAll(); newSeq(); SND.suspend();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
@@ -3151,7 +3373,8 @@ function titleLoop(){
 function firstGesture(){
   SND.unlock();
   if(themePlayed||G.phase!=="intro")return false;
-  themePlayed=true; cueAtMs(0,titleLoop);
+  themePlayed=true;
+  titleLoop();                       // in the gesture, not a frame behind it
   return SND.on;
 }
 /* Back to the title from the sundown table: the music starts over with it. */
@@ -3262,6 +3485,7 @@ function fire(){
   const b=beat(); if(!b){SND.deny();return;}
   const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
+  reactTo(chosen.next||chosen.end||chosen.action||"");
   say(G,cursor);
   if(G.phase==="tell"){G.tell.at=performance.now();SND.cut();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
@@ -3324,7 +3548,18 @@ const CONTROL={up,down,left,right,fire,
     try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
 function showSound(on){
   if(!muteBtn)return;
-  muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+  /* A button reading SOUND ON is read as a thing to press to get sound on, so
+   * pressing it is how a player turns the sound off while trying to turn it on
+   * - and the choice is remembered, so the game stays silent from then on. The
+   * colon makes it a state and not an invitation.
+   *
+   * And SOUND: ON while a phone sits on its silent switch is a lie the player
+   * has no way to see through, so a context that will not run says so instead. */
+  const stuck=on&&SND.state!=="none"&&SND.state!=="running";
+  muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND: ON"):"SOUND: OFF";
+  muteBtn.setAttribute("aria-label",
+    on?(stuck?"Sound is on but this device is not playing it":"Sound is on")
+      :"Sound is off");
   muteBtn.setAttribute("aria-pressed",on?"true":"false");
 }
 /* A player who turned the sound off does not want it back on every reload. The
@@ -3502,6 +3737,13 @@ function frame(now){
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     runAim(now);
     runQueue(now);
+    // Nothing announces an audio route change. Once a second, if the sound is
+    // meant to be on and the context is not running, take it back.
+    if(now-wokeAt>1000){
+      wokeAt=now;
+      if(SND.on&&SND.suspended)SND.wake();
+      showSound(SND.on);
+    }
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
