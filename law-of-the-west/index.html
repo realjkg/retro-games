@@ -2386,13 +2386,19 @@ function visitor(enc,pose,now){
     else if(reactKind==="nod"){rdy=Math.round(1.6*e);}
     else rdx=Math.round(1.2*e);
   }
-  const bdx=sway+mood.lean, bdy=breath+mood.rise;
-  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow stays put
-  ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
+  const walk=walkNow(now||0);
+  const bdx=sway+mood.lean+(walk?walk.dx:0), bdy=breath+mood.rise+(walk?walk.bob:0);
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow goes with him
+  ctx.fillRect(SPRX+4*FIGCW+(walk?walk.dx:0),SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
   const cut=headOf(fig);
   const body=rows.map((r,i)=>i>=cut.head?r:"");
   const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
-  drawFigure(body,SPRX+bdx,SPRY+bdy,look);
+  if(walk){
+    // his legs go under him: the lower third takes the stride, the rest rides it
+    const knee=Math.round(rows.length*0.68);
+    drawFigure(rows.map((r,i)=>(i>=cut.head&&i<knee)?r:""),SPRX+bdx,SPRY+bdy,look);
+    drawFigure(rows.map((r,i)=>i>=knee?r:""),SPRX+bdx+walk.boot,SPRY+bdy,look);
+  } else drawFigure(body,SPRX+bdx,SPRY+bdy,look);
   // The shoulders come up, the head stays where it was: that is what hunching
   // is. Letting the rise carry the head too only opens a gap at his neck.
   drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-mood.rise+rdy,look);
@@ -2435,10 +2441,31 @@ if(typeof Image==="function"){
   sheriffImg.onload=function(){paint();};
   sheriffImg.src=SHERIFF_SRC;
 }
+/* The drawing has one pose and it is the levelled one, so a whole man drawn
+ * whole is a man aiming a revolver at everyone he speaks to, and holstering is
+ * a word with nothing behind it. The forearm leaves his body at row 90 and
+ * nothing of him is out there but arm, so the picture comes apart along that
+ * line: the body in three pieces that tile exactly around the gap, and the arm
+ * as one piece hinged at the elbow. At level it reassembles to the pixel; down
+ * it is the same arm, lowered. He draws and holsters with his own hand. */
+const ARM={sx:60,sy:88,w:69,h:50}, ELBOW={x:60,y:98}, DOWN=1.34;
+let swing=0;                          // 0 hangs down, 1 is levelled
+let reloadAt=-1; const RELOAD_MS=620;
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
-  ctx.drawImage(sheriffImg,OWN.x-(out?0:OWN.lean),OWN.y,OWN.w,OWN.h);
+  const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean), below=ARM.sy+ARM.h;
+  ctx.drawImage(img,0,0,ARM.sx,OWN.h,               dx,0,ARM.sx,OWN.h);
+  ctx.drawImage(img,ARM.sx,0,ARM.w,ARM.sy,          dx+ARM.sx,0,ARM.w,ARM.sy);
+  ctx.drawImage(img,ARM.sx,below,ARM.w,OWN.h-below, dx+ARM.sx,below,ARM.w,OWN.h-below);
+  const a=(1-swing)*DOWN;
+  if(a>0.001){
+    ctx.save();
+    ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
+    ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
+  }
+  ctx.drawImage(img,ARM.sx,ARM.sy,ARM.w,ARM.h, dx+ARM.sx,ARM.sy,ARM.w,ARM.h);
+  if(a>0.001)ctx.restore();
 }
 
 /* ---- the title card ---- *
@@ -3107,7 +3134,8 @@ function drawScene(now){
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
-const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
+const RETICLE=[[-5,0],[-4,0],[-3,0],[3,0],[4,0],[5,0],
+               [0,-5],[0,-4],[0,-3],[0,3],[0,4],[0,5],[0,0]];
 function crosshair(){
   const a=G.aim;
   const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
@@ -3402,18 +3430,36 @@ function startDay(){
 }
 /* Each visitor is audible before he is visible: his own arrival over the door
  * and the boardwalk. */
+/* Nobody is simply there. The door goes, and then he comes up the street on his
+ * own feet and stops where he means to stand, and his theme comes up under him
+ * as he arrives - which is the whole of an entrance: a door, a walk, and a tune
+ * that tells you who it is before he has said anything. */
+const WALK_MS=1500, WALK_FROM=86, STRIDE=6;
+let walkAt=-1e9;
 function newScene(after){
   build={at:performance.now(),rows:0};
   said=""; react=""; cursor=0;
   const t0=after||0, e=who(G);
-  cueAtMs(t0,()=>SND.door());                       // the door, then the boardwalk
-  cueAtMs(t0+260,()=>SND.step());
+  reloadAt=-1;
+  cueAtMs(t0,()=>SND.door());                       // the door he comes through
+  walkAt=performance.now()+t0+200;                  // and then the walk itself
+  for(let i=0;i<STRIDE;i++)                         // a boot down on every stride
+    cueAtMs(t0+200+Math.round((i+0.5)*WALK_MS/STRIDE),()=>SND.step());
   (e&&e.arrive||[]).forEach((cue,i)=>{
     if(typeof SND[cue]==="function")cueAtMs(t0+420+i*520,()=>SND[cue]());
   });
-  // and then his own theme, which is how you know who is in the street
+  // his theme comes up as he is arriving, not after he has stopped
   const theme=e&&e.theme;
-  if(theme)cueAtMs(t0+700,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
+  if(theme)cueAtMs(t0+WALK_MS*0.45,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
+}
+/* Where he is on that walk, and which boot is forward. */
+function walkNow(now){
+  const t=(now-walkAt)/WALK_MS;
+  if(t<0||t>=1)return null;
+  const e=1-Math.pow(1-t,1.7);                      // slowing as he arrives
+  return {dx:Math.round(WALK_FROM*(1-e)),
+          bob:(Math.floor(t*STRIDE*2)%2)?-1:0,
+          boot:(Math.floor(t*STRIDE)%2)?1:-1};
 }
 /* A navigation click marks a selection changing. Walking into a wall is not a
  * selection changing, and neither is a reply that is not there. */
@@ -3476,6 +3522,7 @@ function fire(){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
     SND.gunshot(); flash=0.16;
+    reloadAt=performance.now()+760;             // and then he reloads it
     const before=G.outcome;
     shoot(G,Math.max(60,lat));
     afterShot(before);
@@ -3735,6 +3782,12 @@ function frame(now){
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
+    // His arm comes up when the gun does and goes down when it is put away, and
+    // dips once between the two while he puts a fresh round in the chamber -
+    // which is the reload the ear already had and the eye did not.
+    const loading=reloadAt>0&&now>=reloadAt&&now<reloadAt+RELOAD_MS;
+    const want=(G.mode==="gun")?(loading?0.34:1):0;
+    if(swing!==want)swing=Math.abs(want-swing)<0.02?want:swing+(want-swing)*0.28;
     runAim(now);
     runQueue(now);
     // Nothing announces an audio route change. Once a second, if the sound is

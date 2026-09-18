@@ -33,6 +33,8 @@ function openPage(setup,cold){
       if(k==='canvas')return {width:320,height:200};
       if(k==='fillStyle')return t.fillStyle;
       if(k==='fillRect')return (x,y,w,h)=>painted.push({x,y,w,h,c:t.fillStyle});
+      if(k==='drawImage')return (...a)=>painted.push({draw:a.length});
+      if(k==='rotate')return a=>painted.push({rotate:a});
       if(k==='__painted')return painted;
       return ()=>{};
     },
@@ -932,5 +934,67 @@ test('9t. backgrounding really parks the audio, and waking respects that',
   q.tap('[data-cmd="fire"]');
   assert.equal(q.ev('SND.on'),false);
   assert.equal(q.ev('SND.session'),false,'a muted page seized the audio session');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9u. he draws and holsters with his own arm, and reloads between',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  // the picture comes apart at the elbow: three pieces of body, one arm
+  const arm=p.ev('ARM'), elbow=p.ev('ELBOW');
+  assert.ok(arm.sx>0&&arm.sy>0&&arm.w>0&&arm.h>0,'no arm to move');
+  assert.equal(elbow.x,arm.sx,'the hinge is not on the seam');
+  assert.ok(elbow.y>arm.sy&&elbow.y<arm.sy+arm.h,'the hinge is outside the arm');
+  // jsdom fetches no images, so his drawing stands in as one that is loaded;
+  // what is under test is how the picture is cut up, not what is in it
+  p.ev('sheriffImg={complete:true,naturalWidth:129,naturalHeight:200};');
+  const draws=()=>{p.painted.length=0; p.ev('ownGun(G.mode==="gun")');
+    return {n:p.painted.filter(q=>q.draw).length,
+            turn:p.painted.filter(q=>q.rotate!==undefined).map(q=>q.rotate)};};
+  // levelled: the four pieces tile back to the drawing, with no turn at all
+  p.ev('swing=1;'); const level=draws();
+  assert.equal(level.n,4,'the body and arm are '+level.n+' pieces');
+  assert.deepEqual(level.turn,[],'the levelled arm was turned');
+  // down: the same four pieces, and the arm turned
+  p.ev('swing=0;'); const down=draws();
+  assert.equal(down.n,4,'lowering lost a piece');
+  assert.equal(down.turn.length,1,'the arm did not turn');
+  assert.ok(down.turn[0]>0.5,'the arm barely moved: '+down.turn[0]);
+
+  // firing owes a reload, and a new scene owes none
+  p.ev('G.mode="gun";G.duel={drawn:true,fired:false};reloadAt=-1;');
+  p.tap('[data-cmd="fire"]');
+  assert.ok(p.ev('reloadAt')>0,'firing did not put a reload on the clock');
+  p.ev('newScene()');
+  assert.equal(p.ev('reloadAt'),-1,'a new man arrived owing the last one a reload');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9v. every caller walks in rather than appearing',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  p.frame(10000);
+  p.ev('newSeq();newScene();');
+  const at=p.ev('walkAt');
+  assert.ok(at>=10000,'nobody was sent walking');
+  // he starts away from his mark, arrives on it, and then it is over
+  const near=p.ev(`walkNow(${at+40})`), mid=p.ev(`walkNow(${at+700})`),
+        end=p.ev(`walkNow(${at+1450})`), after=p.ev(`walkNow(${at+4000})`);
+  assert.ok(near&&near.dx>50,'he started on his mark: '+JSON.stringify(near));
+  assert.ok(mid&&mid.dx<near.dx,'he did not move');
+  assert.ok(end&&end.dx<mid.dx,'he did not arrive');
+  assert.equal(after,null,'he never stopped walking');
+  // and the boot changes over, which is what a stride is
+  const boots=[0,200,400,600,800,1000,1200].map(d=>p.ev(`walkNow(${at+d})`))
+    .filter(Boolean).map(w=>w.boot);
+  assert.ok(new Set(boots).size===2,'both boots did the same thing: '+boots.join(','));
+  // a boot goes down on every stride of it
+  const log=p.log();
+  for(let t=at;t<=at+1800;t+=40)p.frame(t);
+  assert.ok(log.filter(c=>c==='step').length>=4,
+    'he crossed the street in silence: '+log.join(','));
+  assert.ok(log.indexOf('door')<log.indexOf('step'),'he walked before the door went');
   assert.deepEqual(p.errors,[]);
 });
