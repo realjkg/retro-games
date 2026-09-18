@@ -551,10 +551,10 @@ function ownGun(out){
  * with the shadow they cast, plank boardwalks, and light that comes from the
  * left so every edge knows which side it is on. Nothing has a soft edge.
  */
-const HORIZON=126, ROOF=48, WALK=118;
-const PEOPLE=[{x:196,w:5,h:13},{x:206,w:5,h:12},{x:52,w:5,h:13}];
+const HORIZON=118;
+const PEOPLE=[{x:206,w:5,h:13},{x:216,w:5,h:12},{x:120,w:5,h:13}];
 const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
-/* A 4x4 ordered matrix: the same one a C64 artist would have dithered with. */
+/* A 4x4 ordered matrix: the one a C64 artist would have dithered with. */
 const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
 function dither(x,y,w,h,a,b,amount){
   const t=Math.round(Math.max(0,Math.min(1,amount))*16);
@@ -564,13 +564,28 @@ function dither(x,y,w,h,a,b,amount){
     ctx.fillRect(X,Y,1,1);
   }
 }
-/* A vertical run of colours with a dithered band between each pair. */
 function skyband(y0,y1,a,b){
   const n=y1-y0;
   for(let j=0;j<n;j++)dither(0,y0+j,SCENE.w,1,a,b,j/(n-1||1));
 }
-/* Gold Gulch keeps the same five fronts every day; what changes is the big
- * board over the middle one and what is parked in the near right. */
+/* ---- the palette of the town ---- */
+const T={
+  sky1:"#3c2fb4", sky2:"#5a4fd0", sky3:"#8a86e8", haze:"#b9b4e4",
+  cloud:"#ffffff", cloud2:"#c8c4e8", cloudsh:"#9a95c8",
+  hill:"#4a4a72", hill2:"#34345a",
+  dirt:"#b4b0a8", dirt2:"#9c988f", dirt3:"#cac6bd", dirtsh:"#807c74",
+  board:"#c8a878", boardsh:"#8a6a3a", boardtr:"#6a4a22",
+  green:"#6f8f5c", greensh:"#4c6b3e",
+  adobe:"#a97e4c", adobesh:"#7a5630",
+  brick:"#a85a4a", bricksh:"#7a3a30", stone:"#d8c8ae",
+  white:"#e9e2d2", whitesh:"#bfb6a2",
+  stn:"#8b5a38", stnsh:"#5f3b22", awn:"#d8c060", awnsh:"#a08828",
+  tank:"#a8392e", tanksh:"#76241c",
+  glass:"#2b2f6a", lit:"#e8d060", dark:"#241a12",
+  tree:"#4a7a3a", tree2:"#6f9e4e", trunk:"#6a4a2a",
+  iron:"#1c1c1e", iron2:"#4a4a50", iron3:"#8e8e96", shine:"#e6e6ee",
+  tie:"#6a4a2a", rail:"#9a9aa2", ballast:"#8e8a82"};
+/* ---- where each caller is, what is over the door and what is parked ---- */
 const PLACES={
   STREET:      {sign:"GOLD GULCH HOTEL",     prop:"coach"},
   SALOON:      {sign:"MAGUIRE'S SALOON",     prop:"barrels"},
@@ -581,83 +596,166 @@ const PLACES={
   "STAGE ROAD":{sign:"MORGAN EXPRESS CO",    prop:"coach"},
   "THE CUT":   {sign:"GOLD GULCH & WESTERN", prop:"loco"},
   BANK:        {sign:"J P MORGAN BANK",      prop:"crates"}};
-const STORES=[
-  {x0:0,  x1:46, top:44, wall:C64.lgy, dark:C64.gry,  trim:C64.dgy, storey:2, sign:"HANLEY'S"},
-  {x0:46, x1:96, top:56, wall:C64.yel, dark:"#8d9a52", trim:C64.org, storey:1, sign:"ASSAY OFFICE"},
-  {x0:96, x1:170,top:38, wall:C64.lrd, dark:"#784f3f", trim:C64.brn, storey:2, board:true},
-  {x0:170,x1:216,top:54, wall:C64.yel, dark:"#8d9a52", trim:C64.org, storey:1, sign:"LIVERY"},
-  {x0:216,x1:252,top:48, wall:C64.gry, dark:C64.dgy,  trim:C64.dgy, storey:2, sign:"TELEGRAPH"}];
 
 function sky(){
-  skyband(0,16,C64.blu,"#4a3a8f");
-  skyband(16,30,"#4a3a8f",C64.lbl);
-  skyband(30,42,C64.lbl,C64.lgy);
-  skyband(42,ROOF+8,C64.lgy,C64.lrd);
-  for(let i=0;i<6;i++){                                   // cloud banks, lit on top
-    const cx=10+i*56, cy=6+(i%3)*10, w=44+(i%3)*14;
-    for(let k=0;k<4;k++){
-      const inset=[0,5,12,22][k], hh=[4,3,3,2][k];
-      px(cx+inset,cy+8-k*3,w-inset*2,hh,k?C64.wht:C64.lgy);
+  skyband(0,14,T.sky1,T.sky2);
+  skyband(14,34,T.sky2,T.sky3);
+  skyband(34,52,T.sky3,T.haze);
+  for(const [cx,cy,w] of [[26,12,40],[96,8,54],[168,16,46],[236,6,50],[292,20,36]]){
+    for(let k=0;k<4;k++){                                  // stepped, lit on top
+      const inset=[0,5,11,19][k], hh=[3,3,3,2][k];
+      px(cx+inset,cy+7-k*3,w-inset*2,hh,k?T.cloud:T.cloud2);
     }
-    dither(cx+4,cy+9,w-8,3,C64.lgy,C64.gry,0.6);          // the shaded underside
+    dither(cx+3,cy+8,w-6,3,T.cloud2,T.cloudsh,0.55);
   }
-  for(let x=0;x<SCENE.w;x++){                             // hills, lit from the left
-    const h=Math.round(ROOF-8+6*Math.sin(x/31)+3*Math.sin(x/9));
-    const slope=Math.cos(x/31)>0;
-    px(x,h,1,4,slope?"#5f4f6e":"#402f52");
-    px(x,h+4,1,HORIZON-h-4,"#402f52");
+  for(let x=0;x<SCENE.w;x++){                              // the rim of hills
+    const h=Math.round(50+7*Math.sin(x/33)+4*Math.sin(x/11));
+    px(x,h,1,4,T.hill); px(x,h+4,1,HORIZON-h-4,T.hill2);
   }
-  dither(0,ROOF-6,SCENE.w,8,"#402f52","#33264a",0.5);     // haze at their feet
+  dither(0,46,SCENE.w,10,T.hill2,T.haze,0.4);
 }
-function window2(x,y,w,h,lit){
-  px(x-1,y-1,w+2,h+2,C64.brn);                            // frame
-  px(x,y,w,h,lit?C64.yel:"#26305c");
-  if(lit)dither(x,y,w,h,C64.yel,"#8d9a52",0.35);
-  else dither(x,y,w,h,"#26305c",C64.blu,0.5);
-  px(x+Math.floor(w/2),y,1,h,C64.brn);                    // mullions
-  px(x,y+Math.floor(h/2),w,1,C64.brn);
-  px(x,y,w,1,lit?C64.wht:C64.lgy);                        // a line of light off the glass
-  px(x-1,y+h+1,w+2,2,C64.org);                            // the sill
-}
-function door(x,y,w,h){
-  px(x-1,y-1,w+2,h+1,C64.brn);
-  px(x,y,w,h,"#2a1c10");
-  for(const j of [0,1]){                                  // two sunken panels
-    const py0=y+3+j*Math.floor((h-8)/2), ph=Math.floor((h-10)/2);
-    px(x+3,py0,w-6,ph,"#1d1409");
-    px(x+3,py0,w-6,1,C64.brn); px(x+3,py0,1,ph,C64.brn);
+/* ---- ground: one broad dirt plaza, tonal rather than striped ---- */
+function ground(){
+  px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,T.dirt);
+  dither(0,HORIZON,SCENE.w,10,T.dirt,T.dirt2,0.55);        // it packs hard at the walls
+  for(let i=0;i<14;i++){                                   // broad patches of wear
+    const x=(hash(i,5)%300)-20, y=HORIZON+4+(hash(i,9)%70);
+    const w=30+(hash(i,13)%70), h=6+(hash(i,17)%14);
+    dither(x,y,w,h,T.dirt,(i%3)?T.dirt3:T.dirt2,0.22);
   }
-  px(x+w-4,y+Math.floor(h/2),2,2,C64.yel);                // the knob
+  dither(0,SCENE.h-22,SCENE.w,22,T.dirt,T.dirtsh,0.30);    // shadow at the near edge
+  for(let i=0;i<90;i++){                                   // stones, lit and shadowed
+    const x=(hash(i,3)%SCENE.w), y=HORIZON+2+(hash(i,7)%(SCENE.h-HORIZON-4));
+    const w=1+(hash(i,11)%3);
+    px(x,y,w,1,T.dirt3); px(x,y+1,w,1,T.dirtsh);
+  }
 }
-function storefront(s){
-  const w=s.x1-s.x0;
-  px(s.x0,s.top,w,WALK-s.top,s.wall);
-  dither(s.x0,s.top,w,WALK-s.top,s.wall,s.dark,0.28);     // grain in the paint
-  for(let y=s.top+6;y<WALK;y+=3)px(s.x0,y,w,1,s.dark);    // clapboard siding
-  px(s.x0,s.top,w,5,s.trim);                              // the false front's cap
-  px(s.x0,s.top+5,w,1,C64.blk);
-  px(s.x0,s.top,w,1,C64.lgy);
-  px(s.x0,s.top+6,2,WALK-s.top-6,s.trim);                 // corner boards
-  px(s.x1-2,s.top+6,2,WALK-s.top-6,s.trim);
-  px(s.x1-3,s.top+6,1,WALK-s.top-6,C64.blk);              // and the shadow in the joint
-  if(s.storey>1)for(let i=0;i<2;i++)
-    window2(s.x0+9+i*(w-25),s.top+13,11,13,hash(s.x0,i)%3!==0);
-  const ay=WALK-27;
-  px(s.x0+2,ay,w-4,3,s.trim); px(s.x0+2,ay+3,w-4,1,C64.blk);   // the awning
-  dither(s.x0+2,ay+4,w-4,5,s.wall,C64.blk,0.55);              // its shadow on the wall
-  for(const px0 of [s.x0+4,s.x1-7])px(px0,ay+3,2,WALK-ay-3,C64.brn);  // posts
-  const dx=s.x0+Math.round(w/2)-8;
-  door(dx,WALK-21,16,21);
-  for(const side of [s.x0+7,s.x1-20])
-    if(side<dx-13||side>dx+15)window2(side,WALK-19,13,12,false);
-  if(s.sign)painted(s.sign,s.x0+3,s.top+7,w-6,11,6);
+/* ---- buildings: each one its own design, not five of the same ---- */
+function windowPane(x,y,w,h,lit,frame){
+  px(x-1,y-1,w+2,h+2,frame);
+  px(x,y,w,h,lit?T.lit:T.glass);
+  dither(x,y,w,h,lit?T.lit:T.glass,lit?T.awnsh:"#171a44",0.4);
+  px(x+((w/2)|0),y,1,h,frame); px(x,y+((h/2)|0),w,1,frame);
+  px(x,y,w,1,lit?T.cloud:T.iron3);
 }
-/* A painted board: brown frame, black field, yellow letters, the face dropped a
- * point at a time until the name fits the front it is nailed to. */
+function boarded(x0,x1,top){                               // tan boards, false front
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.board);
+  dither(x0,top,w,HORIZON-top,T.board,T.boardsh,0.26);
+  for(let y=top+5;y<HORIZON;y+=3)px(x0,y,w,1,T.boardsh);
+  px(x0,top,w,5,T.boardtr); px(x0,top,w,1,T.stone); px(x0,top+5,w,1,T.dark);
+  px(x0,top+5,2,HORIZON-top-5,T.boardtr); px(x1-2,top+5,2,HORIZON-top-5,T.boardtr);
+  windowPane(x0+7,top+12,10,11,hash(x0,1)%3!==0,T.boardtr);
+  px(x0+4,HORIZON-24,w-8,3,T.boardtr); px(x0+4,HORIZON-21,w-8,1,T.dark);
+  dither(x0+4,HORIZON-20,w-8,5,T.board,T.dark,0.5);
+  for(const p of [x0+5,x1-8])px(p,HORIZON-21,2,21,T.boardtr);
+  px(x0+((w/2)|0)-6,HORIZON-18,13,18,T.dark);
+  px(x0+((w/2)|0)-5,HORIZON-17,11,17,"#14100a");
+}
+function plastered(x0,x1,top,wall,sh){                     // green or white plaster
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,wall);
+  dither(x0,top,w,HORIZON-top,wall,sh,0.22);
+  px(x0,top,w,4,sh); px(x0,top,w,1,T.stone);               // parapet
+  px(x0,top+4,w,1,"rgba(0,0,0,.35)");
+  px(x1-3,top+4,3,HORIZON-top-4,sh);                       // the shaded side
+  windowPane(x0+6,top+11,9,10,false,sh);
+  windowPane(x1-16,top+11,9,10,hash(x0,2)%2===0,sh);
+  windowPane(x0+6,top+30,9,10,false,sh);
+  px(x1-17,top+30,13,HORIZON-top-30,T.dark);
+  px(x1-16,top+31,11,HORIZON-top-31,"#14100a");
+}
+function adobe(x0,x1,top){                                 // squat, arched, sun-baked
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.adobe);
+  dither(x0,top,w,HORIZON-top,T.adobe,T.adobesh,0.24);
+  px(x0,top,w,3,T.stone); px(x0,top+3,w,2,T.adobesh);
+  for(let i=0;i<3;i++){                                    // deep-set arched windows
+    const wx=x0+5+i*((w-10)/3|0), wy=top+10;
+    px(wx,wy+3,9,10,T.dark);
+    for(let k=0;k<5;k++)px(wx+k,wy+3-Math.round(Math.sqrt(25-(k-2)*(k-2))),1,1,T.dark);
+    px(wx+1,wy+5,7,8,T.glass);
+  }
+  px(x0+((w/2)|0)-6,HORIZON-20,13,20,T.dark);
+  px(x0+((w/2)|0)-5,HORIZON-19,11,19,"#14100a");
+  px(x0,HORIZON-3,w,3,T.adobesh);
+}
+function brickHouse(x0,x1,top,carry){                      // the one the board hangs on
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.brick);
+  for(let y=top+3;y<HORIZON;y+=3){                         // courses
+    px(x0,y,w,1,T.bricksh);
+    for(let x=x0+((y/3|0)%2?0:3);x<x1;x+=6)px(x,y-2,1,2,T.bricksh);
+  }
+  px(x0,top,w,4,T.stone); px(x0,top+4,w,1,T.dark);
+  px(x0,top,2,HORIZON-top,T.stone); px(x1-2,top,2,HORIZON-top,T.bricksh);
+  for(let i=0;i<3;i++)windowPane(x0+8+i*((w-16)/3|0),top+30,10,12,i===1,T.stone);
+  px(x0+4,HORIZON-26,w-8,4,T.awn); px(x0+4,HORIZON-22,w-8,1,T.awnsh);
+  dither(x0+4,HORIZON-21,w-8,5,T.brick,T.dark,0.5);
+  for(const p of [x0+6,x1-9])px(p,HORIZON-22,2,22,T.stone);
+  px(x0+((w/2)|0)-8,HORIZON-20,17,20,T.dark);
+  px(x0+((w/2)|0)-7,HORIZON-19,15,19,T.glass);
+}
+function station(x0,x1,top){                               // brick, striped awning
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.stn);
+  for(let y=top+3;y<HORIZON;y+=3){
+    px(x0,y,w,1,T.stnsh);
+    for(let x=x0+((y/3|0)%2?0:3);x<x1;x+=6)px(x,y-2,1,2,T.stnsh);
+  }
+  px(x0,top,w,5,T.stone); px(x0,top+5,w,1,T.dark);
+  for(let i=0;i<3;i++)windowPane(x0+6+i*((w-12)/3|0),top+12,9,12,i!==1,T.stone);
+  px(x0+2,HORIZON-30,w-4,7,T.awn);                          // the striped awning
+  for(let x=x0+2;x<x1-2;x+=4)px(x,HORIZON-30,2,7,T.awnsh);
+  px(x0+2,HORIZON-23,w-4,1,T.dark);
+  dither(x0+2,HORIZON-22,w-4,5,T.stn,T.dark,0.5);
+  px(x0+((w/2)|0)-7,HORIZON-20,15,20,T.glass);
+  px(x0+((w/2)|0)-8,HORIZON-21,17,1,T.stone);
+}
+function watertower(cx,base){
+  px(cx-14,base-46,28,22,T.tank);
+  dither(cx-14,base-46,28,22,T.tank,T.tanksh,0.35);
+  px(cx-14,base-46,28,3,T.iron3); px(cx-14,base-28,28,3,T.tanksh);
+  px(cx-16,base-49,32,4,T.iron2);
+  for(const dx of [-12,-4,4,12])px(cx+dx,base-24,3,24,T.trunk);
+  px(cx-14,base-16,28,2,T.trunk);
+  px(cx+2,base-24,2,14,T.iron2);
+}
+function treeAt(x,base,r){
+  px(x,base-r-6,4,r+6,T.trunk); px(x,base-r-6,1,r+6,T.tree2);
+  for(const [dx,dy,rr] of [[2,-r-4,r],[-r+4,-r+2,r-3],[r-2,-r+2,r-3],[2,-r+4,r-2]]){
+    for(let y=-rr;y<=rr;y++){const h=Math.round(Math.sqrt(Math.max(0,rr*rr-y*y)));
+      px(x+dx-h,base+dy+y,h*2,1,T.tree);}
+  }
+  for(const [dx,dy,rr] of [[2,-r-4,r],[-r+4,-r+2,r-3]])
+    for(let y=-rr;y<=-rr/3;y++){const h=Math.round(Math.sqrt(Math.max(0,rr*rr-y*y)));
+      px(x+dx-h,base+dy+y,Math.round(h*1.2),1,T.tree2);}
+}
+const ROW=[
+  {kind:"board",   x0:34, x1:74,  top:64},
+  {kind:"green",   x0:74, x1:110, top:56},
+  {kind:"adobe",   x0:110,x1:146, top:62},
+  {kind:"brick",   x0:146,x1:214, top:40, carry:true},
+  {kind:"white",   x0:214,x1:250, top:58},
+  {kind:"station", x0:250,x1:296, top:46}];
+function buildings(){
+  watertower(276,HORIZON);
+  for(const b of ROW){
+    if(b.kind==="board")boarded(b.x0,b.x1,b.top);
+    else if(b.kind==="green")plastered(b.x0,b.x1,b.top,T.green,T.greensh);
+    else if(b.kind==="white")plastered(b.x0,b.x1,b.top,T.white,T.whitesh);
+    else if(b.kind==="adobe")adobe(b.x0,b.x1,b.top);
+    else if(b.kind==="brick")brickHouse(b.x0,b.x1,b.top,b.carry);
+    else station(b.x0,b.x1,b.top);
+  }
+  treeAt(68,HORIZON,11); treeAt(148,HORIZON,9);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+}
+/* ---- the board over the middle building ---- */
 function painted(text,x,y,w,h,size){
   while(size>4&&text.length*size*0.62>w-4)size--;
-  px(x,y,w,h,C64.brn); px(x,y,w,1,C64.org); px(x+1,y+1,w-2,h-2,C64.blk);
-  ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
+  px(x,y,w,h,T.trunk); px(x,y,w,1,T.stone); px(x+1,y+1,w-2,h-2,T.dark);
+  ctx.fillStyle=T.awn; ctx.font="700 "+size+"px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(text,x+w/2,y+h/2+1);
 }
@@ -674,141 +772,156 @@ function signboard(text){
   }
   const longest=Math.max.apply(null,lines.map(t=>t.length));
   const size=longest<=11?8:6;
-  const bx=90, bw=96, by=44, bh=lines.length>1?22:14;
-  px(bx-1,by-1,bw+2,bh+2,C64.blk);
-  px(bx,by,bw,bh,C64.brn); px(bx,by,bw,2,C64.org);
-  px(bx+2,by+2,bw-4,bh-4,C64.blk);
-  ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
+  const bx=150, bw=62, by=46, bh=lines.length>1?20:13;
+  px(bx-1,by-1,bw+2,bh+2,T.dark);
+  px(bx,by,bw,bh,T.trunk); px(bx,by,bw,2,T.stone); px(bx+2,by+2,bw-4,bh-4,T.dark);
+  ctx.fillStyle=T.awn; ctx.font="700 "+(longest<=11?7:6)+"px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
-  lines.forEach((t,i)=>ctx.fillText(t,bx+bw/2,by+bh/2+1+(i-(lines.length-1)/2)*(size+3)));
-  px(bx+5,by+bh,3,8,C64.brn); px(bx+bw-8,by+bh,3,8,C64.brn);   // the brackets
+  lines.forEach((t,i)=>ctx.fillText(t,bx+bw/2,by+bh/2+1+(i-(lines.length-1)/2)*(size+2)));
 }
-/* A cottonwood: an irregular head of foliage, lit from the left. */
-function tree(){
-  px(220,94,7,WALK-94,C64.brn); px(220,94,2,WALK-94,"#6a5a33"); // trunk, lit edge
-  px(227,100,5,2,C64.brn);                                      // a branch
-  const blobs=[[224,78,13],[213,86,10],[236,86,11],[224,92,11],[232,76,8]];
-  for(const [cx,cy,r] of blobs)
-    for(let y=-r;y<=r;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
-      px(cx-h,cy+y,h*2,1,C64.grn);}
-  for(const [cx,cy,r] of blobs)                                // light on the upper left
-    for(let y=-r;y<=-r/3;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
-      px(cx-h,cy+y,Math.round(h*1.1),1,C64.lgn);}
-  for(const [cx,cy,r] of blobs)                                // and shadow beneath
-    dither(cx-r,cy+Math.round(r*0.45),r*2,Math.round(r*0.5),C64.grn,"#3a5c2c",0.6);
-}
-function street(){
-  px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,C64.gry);
-  dither(0,HORIZON,SCENE.w,SCENE.h-HORIZON,C64.gry,C64.lgy,0.30);
-  dither(0,SCENE.h-26,SCENE.w,26,C64.gry,C64.dgy,0.28);        // the dirt near the boots
-  // the boardwalk: planks, board ends and the shadow it throws on the street
-  px(0,WALK,SCENE.w,HORIZON-WALK,C64.org);
-  dither(0,WALK,SCENE.w,HORIZON-WALK,C64.org,C64.brn,0.35);
-  px(0,WALK,SCENE.w,1,"#8a6a3a");
-  for(let i=0;i<40;i++)px(i*8+3,WALK+1,1,HORIZON-WALK-1,C64.brn);
-  px(0,HORIZON-2,SCENE.w,2,C64.brn);
-  dither(0,HORIZON,SCENE.w,3,C64.gry,C64.dgy,0.7);
-  for(let i=0;i<5;i++){                                        // wheel ruts
-    const y=HORIZON+10+i*13, w=40+i*22;
-    dither(18+i*44,y,w,2,C64.gry,C64.dgy,0.75);
-    px(18+i*44,y+2,w,1,C64.lgy);
+
+/* ---- what is parked in the near right ---- */
+function rails(){
+  /* Two rails running out of the bottom-right corner toward the town, with
+     sleepers between them and ballast under the lot. */
+  const ax=258, ay=HORIZON+2, bx=392, by=SCENE.h+6;       // the vanishing pair
+  for(let t=0;t<=1.0001;t+=0.01){
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    dither(cx-half-8,y,half*2+16,3,T.ballast,T.dirtsh,0.5);
   }
-  for(let i=0;i<70;i++){                                       // stones, lit and shadowed
-    const x=(hash(i,3)%SCENE.w), y=HORIZON+3+(hash(i,7)%(SCENE.h-HORIZON-6));
-    const w=1+(hash(i,11)%3);
-    px(x,y,w,1,C64.lgy); px(x,y+1,w,1,C64.dgy);
+  for(let t=0;t<=1.0001;t+=0.055){                        // sleepers
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    const h=Math.max(1,Math.round(1+t*5));
+    px(cx-half-6,y,half*2+12,h,T.tie);
+    px(cx-half-6,y,half*2+12,1,"#8a6a3a");
+  }
+  for(let t=0;t<=1.0001;t+=0.004){                        // the rails themselves
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    const w=Math.max(1,Math.round(1+t*3));
+    px(cx-half,y,w,1,T.rail); px(cx+half-w,y,w,1,T.rail);
   }
 }
-/* The one large thing parked in the near right, chosen by the place. Lit from
- * the left like everything else, and dithered where a flat panel would show. */
+function loco(){
+  rails();
+  const cx=296, cy=100, R=33;
+  /* The boiler runs back off the right edge: a cylinder, so it is banded
+     light at the top quarter and dark along the bottom. */
+  const BT=62, BB=142;
+  px(268,BT,56,BB-BT,T.iron2);
+  for(let y=BT;y<BB;y++){
+    const t=(y-BT)/(BB-BT);                               // 0 top .. 1 bottom
+    const c=t<0.18?T.iron3:t<0.30?T.iron2:t<0.72?T.iron2:T.iron;
+    px(268,y,56,1,c);
+  }
+  dither(268,BT+10,56,16,T.iron3,T.iron2,0.5);            // the roll of the light
+  dither(268,BB-28,56,20,T.iron2,T.iron,0.55);
+  for(const by of [BT+2,BB-14]){                          // boiler bands
+    px(268,by,56,3,T.iron); px(268,by,56,1,T.iron3);
+  }
+  px(266,BT,2,BB-BT,T.iron); px(268,BT,1,BB-BT,T.iron3);  // the near edge, hard
+  px(268,BT,56,1,T.iron); px(268,BB-1,56,1,T.iron);
+  /* The smokebox door. Flat plate, rim ring, one seam of rivets, a hinge
+     strap down the middle and a handle boss at the centre. */
+  for(let y=-R;y<=R;y++){
+    const h=Math.round(Math.sqrt(Math.max(0,R*R-y*y)));
+    px(cx-h,cy+y,h*2,1,T.iron2);
+    const lit=Math.max(0,1-(y+R)/(R*1.3));                // light from up-left
+    dither(cx-h,cy+y,h,1,T.iron3,T.iron2,0.25+lit*0.45);
+    dither(cx,cy+y,h,1,T.iron2,T.iron,0.30+(1-lit)*0.4);
+  }
+  ring(cx,cy,R,2,T.iron3); ring(cx,cy,R-2,1,T.iron);      // the rim
+  ring(cx,cy,R-6,1,T.iron);                               // the rivet seam
+  for(let a=0;a<360;a+=15){
+    const t=a*Math.PI/180;
+    px(cx+Math.cos(t)*(R-6)-1,cy+Math.sin(t)*(R-6)-1,2,2,T.iron3);
+  }
+  px(cx-2,cy-R+3,4,R*2-6,T.iron);                         // the hinge strap
+  px(cx-2,cy-R+3,1,R*2-6,T.iron3);
+  px(cx-6,cy-6,12,12,T.iron3); px(cx-4,cy-4,8,8,T.iron);  // the handle boss
+  px(cx-5,cy-1,10,2,T.iron3); px(cx-1,cy-5,2,10,T.iron3);
+  /* The stack: a straight column that flares into a lip at the crown. */
+  px(cx-10,18,20,44,T.iron2);
+  for(let y=18;y<62;y++)dither(cx-10,y,10,1,T.iron3,T.iron2,0.4);
+  for(let y=18;y<62;y++)dither(cx,y,10,1,T.iron2,T.iron,0.45);
+  px(cx-15,12,30,8,T.iron2); px(cx-15,12,30,2,T.iron3);
+  px(cx-15,20,30,2,T.iron); px(cx-15,12,7,8,T.iron3);
+  /* The headlamp is bolted to the smokebox front, above the door. */
+  px(cx-11,60,22,18,T.iron); px(cx-9,62,18,14,T.lit);
+  dither(cx-9,62,18,14,T.lit,T.shine,0.4);
+  px(cx-11,59,22,2,T.iron3); px(cx-11,77,22,2,T.iron3);
+  px(cx-4,78,8,4,T.iron2);
+  /* Pilot beam and cowcatcher. */
+  px(262,144,68,9,T.iron2); px(262,144,68,2,T.iron3); px(262,151,68,2,T.iron);
+  for(let i=0;i<10;i++){
+    const x=264+i*7, len=20+Math.abs(4.5-i)*4;
+    px(x,153,4,len,T.iron2); px(x,153,1,len,T.iron3); px(x+3,153,1,len,T.iron);
+  }
+  px(260,152,72,4,T.iron3); px(260,156,72,2,T.iron);
+}
+function ring(cx,cy,r,w,col){
+  for(let a=0;a<360;a+=0.5){
+    const t=a*Math.PI/180;
+    px(cx+Math.cos(t)*r-(w>>1),cy+Math.sin(t)*r-(w>>1),w,w,col);
+  }
+}
 function propAt(kind){
-  if(kind==="loco"){
-    px(250,56,60,20,C64.dgy); dither(250,56,60,20,C64.dgy,C64.blk,0.4);
-    px(250,56,60,2,C64.gry);
-    px(246,76,74,48,C64.blk);                              // the boiler
-    for(let y=-24;y<=24;y++){const h=Math.round(Math.sqrt(Math.max(0,576-y*y)));
-      const lit=y<-6;
-      px(266-h,100+y,h*2,1,lit?C64.gry:C64.dgy);}          // the smokebox door, round
-    dither(242,88,50,26,C64.dgy,C64.blk,0.45);
-    for(let y=78;y<122;y+=6)px(248,y,70,1,C64.blk);        // boiler bands
-    px(274,92,18,18,C64.blk); px(276,94,14,14,C64.lgy);    // the headlamp
-    px(278,96,10,10,C64.wht);
-    px(256,32,16,26,C64.dgy); px(252,28,24,6,C64.gry);     // the stack
-    dither(256,32,16,26,C64.dgy,C64.blk,0.4);
-    px(242,124,80,10,C64.blk);                             // the cowcatcher
-    for(let i=0;i<9;i++)px(246+i*9,134,4,16,i%2?C64.dgy:C64.gry);
-    for(let i=0;i<6;i++){const y=160+i*8;                  // the rails running out
-      px(230+i*14,y,SCENE.w,3,C64.brn); px(230+i*14,y,SCENE.w,1,"#6a5a33");}
-  } else if(kind==="coach"){
-    px(248,66,70,48,C64.brn); dither(248,66,70,48,C64.brn,"#2e2700",0.35);
-    px(248,66,70,4,C64.org); px(248,70,70,1,C64.blk);
-    for(const wx of [256,284]){                            // windows with a blind
-      px(wx-1,75,20,18,C64.blk); px(wx,76,18,16,"#26305c");
-      dither(wx,76,18,16,"#26305c",C64.blu,0.5);
-      px(wx,76,18,3,C64.org);
+  if(kind==="loco")return loco();
+  if(kind==="coach"){
+    px(250,64,70,46,T.trunk); dither(250,64,70,46,T.trunk,T.stnsh,0.3);
+    px(250,64,70,4,T.awn); px(250,68,70,1,T.dark);
+    for(const wx of [258,286]){
+      px(wx-1,73,20,18,T.dark); px(wx,74,18,16,T.glass);
+      dither(wx,74,18,16,T.glass,"#171a44",0.5); px(wx,74,18,3,T.awn);
     }
-    px(244,114,78,6,C64.dgy); px(244,114,78,1,C64.lgy);
-    px(250,120,6,20,C64.brn); px(300,120,6,24,C64.brn);    // springs
-    for(const [cx,r] of [[264,20],[306,25]]){              // wheels: rim, spokes, hub
+    px(246,110,78,6,T.iron2); px(246,110,78,1,T.iron3);
+    px(252,116,6,20,T.trunk); px(302,116,6,24,T.trunk);
+    for(const [wx,r] of [[266,20],[308,25]]){
       for(let y=-r;y<=r;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
-        px(cx-h,132+y,h*2,1,C64.brn);}
+        px(wx-h,132+y,h*2,1,T.trunk);}
       for(let y=-r+4;y<=r-4;y++){const h=Math.round(Math.sqrt(Math.max(0,(r-4)*(r-4)-y*y)));
-        px(cx-h,132+y,h*2,1,C64.gry);}
-      for(let a=0;a<10;a++){const dx=Math.cos(a*0.628),dy=Math.sin(a*0.628);
-        for(let t=0;t<r-3;t++)px(cx+dx*t,132+dy*t,2,2,C64.brn);}
-      px(cx-3,129,6,6,C64.org);
+        px(wx-h,132+y,h*2,1,T.dirt2);}
+      for(let a=0;a<10;a++){const t=a*0.628;
+        for(let k=0;k<r-3;k++)px(wx+Math.cos(t)*k,132+Math.sin(t)*k,2,2,T.trunk);}
+      px(wx-3,129,6,6,T.awn);
     }
   } else if(kind==="barrels"){
-    for(const [bx,by,bw,bh] of [[250,106,28,44],[286,118,30,50],[256,150,32,36]]){
-      px(bx,by,bw,bh,C64.org);
-      dither(bx,by,bw,bh,C64.org,C64.brn,0.35);
-      px(bx,by,3,bh,"#8a6a3a");                            // the lit stave
-      px(bx+bw-4,by,4,bh,C64.brn);
-      for(const hy of [by+2,by+Math.round(bh/2)-1,by+bh-5])px(bx,hy,bw,3,C64.brn);
-      px(bx,by,bw,2,"#8a6a3a");
+    for(const [bx,by,bw,bh] of [[252,104,28,44],[288,116,30,50],[258,148,32,36]]){
+      px(bx,by,bw,bh,T.board); dither(bx,by,bw,bh,T.board,T.boardsh,0.3);
+      px(bx,by,3,bh,T.stone); px(bx+bw-4,by,4,bh,T.boardsh);
+      for(const hy of [by+2,by+((bh/2)|0)-1,by+bh-5])px(bx,hy,bw,3,T.trunk);
+      px(bx,by,bw,2,T.stone);
       ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
     }
   } else if(kind==="crates"){
-    for(const [bx,by,bw,bh] of [[246,114,44,38],[292,128,28,30],[254,152,48,40]]){
-      px(bx,by,bw,bh,C64.brn); px(bx+2,by+2,bw-4,bh-4,C64.org);
-      dither(bx+2,by+2,bw-4,bh-4,C64.org,C64.brn,0.3);
-      px(bx+2,by+2,bw-4,1,"#8a6a3a");
-      px(bx+2,by+Math.round(bh/2)-1,bw-4,2,C64.brn);       // the band
-      px(bx+Math.round(bw/2)-1,by+2,2,bh-4,C64.brn);
+    for(const [bx,by,bw,bh] of [[248,112,44,38],[294,126,26,30],[256,150,48,40]]){
+      px(bx,by,bw,bh,T.trunk); px(bx+2,by+2,bw-4,bh-4,T.board);
+      dither(bx+2,by+2,bw-4,bh-4,T.board,T.boardsh,0.28);
+      px(bx+2,by+2,bw-4,1,T.stone);
+      px(bx+2,by+((bh/2)|0)-1,bw-4,2,T.trunk);
+      px(bx+((bw/2)|0)-1,by+2,2,bh-4,T.trunk);
       ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
     }
-  } else {                                                 // a corral fence in perspective
+  } else {
     for(let i=0;i<4;i++){
-      const x=242+i*26, y=114+i*11, h=74-i*7;
-      px(x,y,9,h,C64.brn); px(x,y,3,h,"#6a5a33"); px(x,y,9,2,C64.org);
+      const x=244+i*26, y=110+i*12, h=76-i*8;
+      px(x,y,9,h,T.trunk); px(x,y,3,h,"#8a6a3a"); px(x,y,9,2,T.board);
     }
     for(let k=0;k<3;k++)for(let i=0;i<3;i++){
-      const x=242+i*26, y=124+i*11+k*17;
-      px(x,y,28,6,C64.org); px(x,y,28,1,"#8a6a3a"); px(x,y+5,28,1,C64.brn);
+      const x=244+i*26, y=120+i*12+k*18;
+      px(x,y,28,6,T.board); px(x,y,28,1,"#8a6a3a"); px(x,y+5,28,1,T.trunk);
     }
   }
 }
 function town(now,armed){
   sky();
   const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
-  street();
-  for(const s of STORES)storefront(s);
+  ground();
+  buildings();
   signboard(here.sign);
-  tree();
-  // people on the boardwalk, who do not stay for gunplay
   if(!armed)for(const p of PEOPLE){
-    px(p.x,WALK-p.h,p.w,p.h,C64.dgy); px(p.x,WALK-p.h,p.w,2,C64.blk);
+    px(p.x,HORIZON-p.h,p.w,p.h,T.hill); px(p.x,HORIZON-p.h,p.w,2,T.dark);
   }
   propAt(here.prop);
-}
-/* A hitching rail at the sheriff's own boots, nearer than anything else on the
- * ground. With the arm out of the top corner it is what puts the player in the
- * street rather than watching it. */
-function nearRail(){
-  px(0,148,108,9,"#2a1c10"); px(0,148,108,2,C64.brn);
-  px(0,176,96,10,"#2a1c10"); px(0,176,96,2,C64.brn);
-  px(10,140,18,60,"#1d1409"); px(10,140,4,60,C64.brn);
-  px(78,152,12,48,"#1d1409"); px(78,152,3,48,C64.brn);
 }
 function drawScene(now){
   const g=sceneGeom();
@@ -825,8 +938,7 @@ function drawScene(now){
       ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
     } else visitor(enc,pose);
   }
-  nearRail();
-  ownGun(G.mode==="gun");
+  ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
