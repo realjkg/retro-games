@@ -15,6 +15,27 @@ let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
 let flash=0, bodyFall=0, said="", react="";
 
+/* ---- one clock for the sound ---- *
+ * Cues used to be scheduled on setTimeout, which has no idea what happened
+ * after it was set. A man's footsteps would arrive after he had been shot, a
+ * church bell after the next visitor had knocked, a reload into the sundown
+ * table. Every scheduled cue now carries the sequence it was scheduled in, and
+ * the frame loop drops any whose sequence has moved on. Advancing the
+ * encounter is a single call, and the street goes quiet with it.
+ */
+let seq=0;
+const queue=[];
+function cueAtMs(ms,fn){queue.push({at:performance.now()+ms,seq:seq,fn:fn});}
+function newSeq(){seq++; queue.length=0;}
+function runQueue(now){
+  if(!queue.length)return;
+  queue.sort((a,b)=>a.at-b.at);
+  while(queue.length&&queue[0].at<=now){
+    const c=queue.shift();
+    if(c.seq===seq)c.fn();
+  }
+}
+
 /* ---- layout: the canvas keeps the scene's proportions inside the top half ---- */
 function fit(){
   const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2.5);
@@ -832,36 +853,75 @@ for(const t of ["gesturestart","gesturechange","gestureend"])
 const inUI=e=>!!e.target?.closest?.("#app");
 document.addEventListener?.("contextmenu",e=>{if(gameMode||inUI(e))e.preventDefault?.();});
 document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
-document.addEventListener?.("visibilitychange",()=>{if(!document.hidden&&gameMode)keepAwake();});
+/* Going away. A thumb still down when the page is backgrounded would otherwise
+ * be held forever, and a cue scheduled before it went would land on a street
+ * nobody is watching. The context is suspended rather than torn down; a gesture
+ * on the way back is what resumes it, as it was what started it. */
+document.addEventListener?.("visibilitychange",()=>{
+  if(document.hidden){releaseAll(); newSeq(); SND.suspend(); return;}
+  if(gameMode)keepAwake();
+});
+addEventListener("pagehide",()=>{releaseAll(); newSeq(); SND.suspend();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
 /* The theme belongs to the title screen, and it needs a gesture before the
  * audio context exists at all, so the first tap or key is where it starts. */
 let themePlayed=false;
+/* A gesture unlocks the audio and does nothing else with it. The title cue is
+ * scheduled behind the unlock rather than played inside it, so a player who
+ * presses FIRE straight through never hears it start under the dawn: starting
+ * the day cancels the sequence it was scheduled in. */
 function firstGesture(){
+  SND.unlock();
   if(themePlayed||G.phase!=="intro")return;
-  themePlayed=true; SND.title();
+  themePlayed=true; cueAtMs(0,()=>{if(G.phase==="intro")SND.title();});
 }
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
+  // whatever was sounding — the title, the sundown, the last man's theme — is
+  // over, and nothing it scheduled is still owed
+  newSeq(); SND.stopAll();
   SND.dawn();
   G=newDay({}); cursor=0; said=""; react="";
-  beginEncounter(G); openDialogue(G); newScene();
-  SND.badge();
+  beginEncounter(G); openDialogue(G);
+  // the badge follows the dawn rather than landing on top of it, and the day's
+  // first visitor follows the badge
+  const d=SND.spec.lengthOf(SOUNDS.dawn)*1000;
+  const b=SND.spec.lengthOf(SOUNDS.badge)*1000;
+  cueAtMs(d+60,()=>SND.badge());
+  newScene(d+b+160);
 }
 /* Each visitor is audible before he is visible: his own arrival over the door
  * and the boardwalk. */
-function newScene(){
+function newScene(after){
   build={at:performance.now(),rows:0};
   said=""; react=""; cursor=0;
-  SND.door(); setTimeout(()=>SND.step(),260);
-  const e=who(G);
+  const t0=after||0, e=who(G);
+  cueAtMs(t0,()=>SND.door());                       // the door, then the boardwalk
+  cueAtMs(t0+260,()=>SND.step());
   (e&&e.arrive||[]).forEach((cue,i)=>{
-    if(typeof SND[cue]==="function")setTimeout(()=>SND[cue](),420+i*520);
+    if(typeof SND[cue]==="function")cueAtMs(t0+420+i*520,()=>SND[cue]());
   });
   // and then his own theme, which is how you know who is in the street
   const theme=e&&e.theme;
-  if(theme)setTimeout(()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);},700);
+  if(theme)cueAtMs(t0+700,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
+}
+/* A navigation click marks a selection changing. Walking into a wall is not a
+ * selection changing, and neither is a reply that is not there. */
+function moveCursor(d){
+  if(build.rows<10)return;
+  const b=beat(); const n=b&&b.replies?b.replies.length:0;
+  if(n<1)return;
+  const was=cursor;
+  cursor=((cursor+d)%n+n)%n;
+  if(cursor!==was)SND.click();
+  paint();
+}
+/* Putting the gun up is one sound, the same one whichever way he does it: the
+ * HOL control, Escape, or walking the sights off the bottom of the street. */
+function putUp(){
+  if(G.mode!=="gun")return;
+  holster(G); SND.holster(); paint();
 }
 function up(){
   if(screen==="sound"){soundCmd("prev");return;}
@@ -869,26 +929,28 @@ function up(){
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
     SND.cut();                                  // the theme stops where the gun starts
-    SND.holster(); SND.cock(); setTimeout(()=>SND.aim(),140); paint(); return;
+    // leather out of the holster, the hammer back, the sights settling: once
+    SND.leather(); SND.cock(); cueAtMs(140,()=>SND.aim());
+    paint(); return;
   }
-  if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
+  if(G.mode==="gun")moveAim(G,0,-1);            // the sights make no sound
 }
 function down(){
   if(screen==="sound"){soundCmd("next");return;}
   if(G.mode==="gun"){
     // down walks the crosshair down the scene; pulled past the bottom it
     // holsters, which is the way out of a stand-off. HOL and Escape do it at once.
-    if(G.aim.y>=0.995){holster(G);SND.holster();paint();return;}
-    moveAim(G,0,1); SND.click(); return;
+    if(G.aim.y>=0.995){putUp();return;}
+    moveAim(G,0,1); return;                     // the sights make no sound
   }
-  if(G.phase==="dialogue"&&build.rows>=10){cursor=(cursor+1)%4;SND.click();paint();}
+  if(G.phase==="dialogue"&&build.rows>=10)moveCursor(1);
 }
 function left(){if(screen==="sound"){soundCmd("prev");return;}
-  if(G.mode==="gun"){moveAim(G,-1,0);SND.click();}
-  else if(G.phase==="dialogue"){cursor=(cursor+3)%4;SND.click();paint();}}
+  if(G.mode==="gun"){moveAim(G,-1,0);return;}
+  if(G.phase==="dialogue")moveCursor(-1);}
 function right(){if(screen==="sound"){soundCmd("next");return;}
-  if(G.mode==="gun"){moveAim(G,1,0);SND.click();}
-  else if(G.phase==="dialogue"){cursor=(cursor+1)%4;SND.click();paint();}}
+  if(G.mode==="gun"){moveAim(G,1,0);return;}
+  if(G.phase==="dialogue")moveCursor(1);}
 function fire(){
   if(screen==="sound"){soundCmd("play");return;}
   if(G.phase==="intro"){startDay();paint();return;}
@@ -946,31 +1008,33 @@ function settleSound(){
   else if(o==="wounded_innocent"){SND.wound();SND.disgrace();}
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
   else if(o==="innocent_killed"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
-  else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
+  else if(o==="missed_him"){SND.ricochet();cueAtMs(220,()=>SND.graze());}
   else if(o==="wounded"){SND.gunshot();SND.hit();}
-  else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
+  else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();cueAtMs(400,()=>SND.patch());}
   else if(o==="job_missed"){SND.alarm();SND.robbery();}
   else SND.clock();
-  if(o==="killed_him"||o==="innocent_killed")setTimeout(()=>SND.churchbell(),900);
-  if(G.duel&&G.duel.fired)setTimeout(()=>SND.reload(),1200);
+  if(o==="killed_him"||o==="innocent_killed")cueAtMs(900,()=>SND.churchbell());
+  if(G.duel&&G.duel.fired)cueAtMs(1200,()=>SND.reload());
   if(G.phase==="summary")endSound();
 }
 function endSound(){
   SND.cut(); SND.dusk();
-  setTimeout(()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();},700);
+  cueAtMs(700,()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();});
 }
 function advance(){
   if(G.phase==="summary")return;
+  // the last man's footsteps, bell and reload are no longer owed to anyone
+  newSeq(); SND.cut();
   const r=nextEncounter(G);
   if(G.phase==="summary"){endSound();paint();return;}
   if(G.phase!=="interlude")openDialogue(G);
   newScene(); SND.clock(); SND.wind(); paint();
-  if(G.phase==="interlude")setTimeout(()=>{if(G.phase==="interlude")SND.theme("th_job");},300);
+  if(G.phase==="interlude")cueAtMs(300,()=>{if(G.phase==="interlude")SND.theme("th_job");});
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,
-  holster:()=>{holster(G);paint();},
-  mute:()=>{const on=SND.toggle();showSound(on);
+  holster:putUp,
+  mute:()=>{const on=SND.toggle(); if(!on)newSeq(); showSound(on);
     try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
 function showSound(on){
   if(!muteBtn)return;
@@ -1041,7 +1105,10 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
       if(!aiming())held={cmd,el,next:performance.now()+REPEAT_DELAY};
     }
   });
-  for(const t of ["pointerup","pointercancel","lostpointercapture","pointerleave"])
+  // Capture is taken on the press, so a thumb that slides off the button still
+  // owns the gesture: only letting go, or the system taking it away, ends it.
+  // pointerleave is not letting go.
+  for(const t of ["pointerup","pointercancel","lostpointercapture"])
     el.addEventListener(t,()=>{
       if(el.dataset.cmd)pressed.delete(el.dataset.cmd);
       if(held&&held.el===el)releaseHeld();
@@ -1065,9 +1132,13 @@ function keyCmd(e){
   if(e.code&&e.code.indexOf("Numpad")===0)return KEYS[e.code.slice(6)]||null;
   return KEYS[e.key]||KEYS[(e.key||"").toLowerCase()]||null;
 }
+/* The browser's own key repeat never does anything. A held key is a held key:
+ * it goes into the same set the pad fills, and whatever repeating it should do
+ * is done by the frame loop, on the frame loop's clock. That is what makes a
+ * held key and a held thumb the same thing. */
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
-  SND.unlock(); firstGesture();
+  firstGesture();
   if(/^[1-4]$/.test(e.key)&&!(e.code&&e.code.indexOf("Numpad")===0)){
     e.preventDefault();
     if(!e.repeat){choose(+e.key-1);paint();}
@@ -1076,18 +1147,24 @@ addEventListener("keydown",e=>{
   const cmd=keyCmd(e);
   if(!cmd)return;
   e.preventDefault();
-  if(DIRV[cmd]&&aiming()){                  // the loop moves the sights, not the OS
+  if(e.repeat)return;                       // the OS may not act on the player's behalf
+  if(DIRV[cmd]){
     pressed.add(cmd);
-    if(!e.repeat)CONTROL[cmd]();
-    return;
+    CONTROL[cmd]();
+    // with the gun out the loop runs the sights; in the dialogue it repeats
+    // the menu, on the same clock and after the same wait as the pad
+    if(!aiming())held={cmd,el:null,next:performance.now()+REPEAT_DELAY};
+    paint(); return;
   }
-  if(e.repeat&&!DIRV[cmd])return;           // a held FIRE is one shot, not a burst
   CONTROL[cmd]();
   paint();
 });
 addEventListener("keyup",e=>{
   const cmd=keyCmd(e);
-  if(cmd)pressed.delete(cmd);
+  if(cmd){
+    pressed.delete(cmd);
+    if(held&&held.cmd===cmd&&!held.el)releaseHeld();
+  }
   if(!pressed.size){aimRun=0;aimTick=0;}
 });
 
@@ -1137,6 +1214,7 @@ function frame(now){
     }
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     runAim(now);
+    runQueue(now);
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){

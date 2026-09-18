@@ -39,6 +39,12 @@ const SOUNDS={
             {w:"tri",f0:95,f1:58,dur:0.3,vol:0.2,cut:600,res:4}],
   death:   [{w:"saw",f0:220,f1:44,dur:0.8,vol:0.26,cut:3200,cut1:180,res:11},
             {w:"pulse",f0:110,f1:40,pw:0.2,pw1:0.5,dur:0.85,vol:0.18,cut:1200,cut1:200,res:8}],
+  /* Two opposite actions had one sound between them. Leather is the gun coming
+   * out — a rising drag and a ring off the trigger guard. Holster is it going
+   * back: the same drag falling, and no ring. */
+  leather: [{w:"noise",f0:1,dur:0.11,vol:0.15,cut:700,cut1:2600,res:8},
+            {w:"saw",f0:96,f1:168,dur:0.15,vol:0.12,cut:800,cut1:2400,res:11,dly:0.02},
+            {w:"pulse",f0:1560,pw:0.14,dur:0.045,vol:0.08,cut:5200,res:5,dly:0.11}],
   holster: [{w:"noise",f0:1,dur:0.09,vol:0.12,cut:1800,cut1:700,res:8},
             {w:"saw",f0:130,f1:96,dur:0.14,vol:0.1,cut:900,cut1:1800,res:11,dly:0.03}],
   /* melodic cues — seq entries are [semitones from f0, start, length]     */
@@ -331,6 +337,53 @@ const SND=(function(){
       node.connect(flt); flt.connect(env); env.connect(dest||bus);
     }
   }
+  /* Three voices was the machine's whole limit, and it is the limit here: a
+   * melody, a bass or countermelody, and a noise or percussion line. What the
+   * ceiling means is three at the same instant, not three entries — a cue may
+   * lay out a dozen hoofbeats one after another and never break it.
+   *
+   * An alert takes the third: a gunshot over a theme silences the theme's
+   * percussion line for as long as the shot runs, which is the voice a SID
+   * composer would have given up too.
+   */
+  const VOICES=3;
+  function peak(list){
+    const ev=[];
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes){
+        ev.push([(v.dly||0)+n[1],1]); ev.push([(v.dly||0)+n[1]+n[2],-1]);
+      }
+    }
+    ev.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    let c=0,m=0; for(const e of ev){c+=e[1]; if(c>m)m=c;}
+    return m;
+  }
+  /* Every cue runs on its own gain. Nothing that has been started has to be
+   * waited out: muting, backgrounding or an outcome that supersedes this one
+   * takes it down in twenty milliseconds. */
+  let live=[];
+  function reap(c){
+    const t=c.currentTime;
+    live=live.filter(x=>{
+      if(x.ends>t)return true;
+      try{x.g.disconnect();}catch(e){}
+      return false;
+    });
+  }
+  function kill(x,c){
+    try{
+      x.g.gain.cancelScheduledValues(c.currentTime);
+      x.g.gain.setValueAtTime(Math.max(0.0001,x.g.gain.value),c.currentTime);
+      x.g.gain.linearRampToValueAtTime(0,c.currentTime+0.02);
+    }catch(e){}
+    setTimeout(()=>{try{x.g.disconnect();}catch(e){}},200);
+  }
+  function stopAll(){
+    const c=ac; cut();
+    if(!c)  {live=[];return;}
+    live.forEach(x=>kill(x,c)); live=[];
+  }
   /* How long a cue runs, so the theme under it knows how long to get out of
    * its way. */
   function lengthOf(list){
@@ -362,24 +415,57 @@ const SND=(function(){
    * theme never does: it has to stay in tune with itself. */
   const VARIES=new Set(["gunshot","hit","ricochet","graze","click","step","dryfire",
     "wound","cock","holster","reload","patch","creak","select","deny","point"]);
+  /* An alert is loud and sudden and has somewhere to be: it takes the theme's
+   * third voice while it runs. */
+  const ALERTS=new Set(["gunshot","alarm","churchbell","hit","death","tell","robbery"]);
+  /* An outcome is the answer to a shot. A second answer replaces the first
+   * rather than sounding on top of it, and a weightier answer always wins. */
+  const OUTCOME={death:5,disgrace:4,respect:4,wound:3,patch:3,graze:2,ricochet:2,
+                 step:1,thread:1,penalty:2,tipoff:2,point:1,dusk:5,alarm:4,robbery:4};
   function play(name){
     if(!on)return; const list=SOUNDS[name]; if(!list)return;
     const ms=GATE[name];
     if(ms){const t=performance.now(); if(lastAt[name]&&t-lastAt[name]<ms)return; lastAt[name]=t;}
     const c=ctx(); if(!c)return;
+    reap(c);
+    // an answer to a shot names itself: no call site has to know the channel
+    const pri=OUTCOME[name]||0, chan=pri?"outcome":null;
+    if(chan==="outcome"){
+      // the previous answer stands down for this one unless it outranks it
+      for(const x of live.slice())
+        if(x.chan==="outcome"){
+          if(x.pri>pri)return;
+          kill(x,c); live=live.filter(y=>y!==x);
+        }
+    }
+    const len=lengthOf(list);
     const vary=VARIES.has(name)
       ? {f:Math.pow(2,(Math.random()*0.5-0.25)/12), g:0.88+Math.random()*0.24}
       : null;
-    duckFor(c,lengthOf(list));
-    list.forEach(v=>voice(v,c.currentTime,null,vary));
+    const g=c.createGain(); g.gain.value=1; g.connect(bus);
+    live.push({g,ends:c.currentTime+len+0.3,chan:chan||null,pri,name});
+    duckFor(c,len);
+    if(ALERTS.has(name))steal(c,len);
+    list.forEach(v=>voice(v,c.currentTime,g,vary));
   }
   /* A character's theme runs on its own gain so a drawn gun can cut it off
    * mid-bar, which is the one thing an entrance theme has to be able to do.
    * The synthesis is the same; only where the last node connects changes. */
-  let themeGain=null, themeName=null;
+  let themeGain=null, themeName=null, slots=null;
+  /* The third voice of the theme, given up for the length of an alert. */
+  function steal(c,secs){
+    if(!slots||!slots[2])return;
+    const g=slots[2].gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(0.0001,t+0.02);
+      g.linearRampToValueAtTime(1,t+Math.max(0.12,secs)+0.12);
+    }catch(e){}
+  }
   function cut(){
     const c=ctx(); if(!c||!themeGain)return;
-    const g=themeGain; themeGain=null; themeName=null;
+    const g=themeGain; themeGain=null; themeName=null; slots=null;
     try{g.gain.cancelScheduledValues(c.currentTime);
         g.gain.setValueAtTime(Math.max(0.0001,g.gain.value),c.currentTime);
         g.gain.linearRampToValueAtTime(0,c.currentTime+0.05);}catch(e){}
@@ -391,19 +477,32 @@ const SND=(function(){
     cut();
     themeGain=c.createGain(); themeGain.gain.value=1; themeGain.connect(bus);
     themeName=name;
-    const g=themeGain;
-    list.forEach(v=>voice(v,c.currentTime,g));
+    // melody, bass or countermelody, noise and percussion; anything past the
+    // third joins the third, because the third is the one that can be spared
+    slots=[0,1,2].map(()=>{const s=c.createGain(); s.gain.value=1;
+                           s.connect(themeGain); return s;});
+    list.forEach((v,i)=>voice(v,c.currentTime,slots[Math.min(i,VOICES-1)]));
   }
   const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
     get playing(){return themeName;},
-    toggle(){on=!on; if(!on)cut(); else{ctx();play("select");} return on;},
+    /* Silence means silence: what is sounding stops with what was pending, and
+     * turning it back on never resurrects the theme that was playing when it
+     * went off. */
+    toggle(){on=!on; if(!on)stopAll(); else{ctx();play("select");} return on;},
+    stopAll,
+    /* Backgrounding. The context is suspended rather than torn down, and only
+     * another gesture resumes it. */
+    suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    get suspended(){ return !!ac&&ac.state==="suspended"; },
     /* Restoring what the player chose last time must not be the thing that
      * builds an AudioContext: no sound before a gesture, whatever is stored. */
     quiet(){on=false; return on;},
     /* What the mix does, readable from outside so it can be asserted without
      * an AudioContext: which cues are allowed to move, how long one runs, and
      * how far a theme steps back under it. */
-    spec:{varies:n=>VARIES.has(n), lengthOf, duck:DUCK}};
+    spec:{varies:n=>VARIES.has(n), lengthOf, duck:DUCK, peak, voices:VOICES,
+          alerts:n=>ALERTS.has(n), outcomePri:n=>OUTCOME[n]||0,
+          live:()=>live.map(x=>x.name)}};
   Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
   return API;
 })();
