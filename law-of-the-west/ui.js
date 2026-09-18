@@ -21,224 +21,310 @@ function fit(){
   cv.height=Math.max(100,Math.round(r.height*d));
 }
 addEventListener("resize",()=>{fit();paint();});
+/* 320x200 was shown on a 4:3 screen, so the logical picture is stretched into
+ * the largest 4:3 rectangle the canvas holds rather than into a square grid. */
 const sceneGeom=()=>{
-  const sc=Math.min(cv.width/SCENE.w,cv.height/SCENE.h);
-  return {sc,ox:(cv.width-SCENE.w*sc)/2,oy:(cv.height-SCENE.h*sc)/2};
+  const w=Math.min(cv.width,cv.height*4/3), h=w*3/4;
+  return {sx:w/SCENE.w,sy:h/SCENE.h,ox:(cv.width-w)/2,oy:(cv.height-h)/2};
 };
 
-/* ---- the town and the people, built out of blocks ---- *
- * Every figure is a 12x21 grid of 4-pixel cells, written out as rows of
- * characters and painted cell by cell. Nothing is drawn at a fraction of a
- * cell, so the edges stay hard the way a sprite's do. The hitboxes in
- * content.js are read off this same grid.
- *   . nothing   H hat   F face   B dark (eyes, belt, boots)   C coat
- *   K coat shadow   L legs   A skin   G gunmetal   S star   W linen        */
-const BODY=[
-  "......HHHH......",
-  ".....HHHHHH.....",
-  "....HHHHHHHH....",
-  "...HHHHHHHHHH...",
-  "..HHHHHHHHHHHH..",
-  "....FFFFFFFF....",
-  "....FFFFFFFF....",
-  "....FBFFFFBF....",
-  "....FFFFFFFF....",
-  ".....FFFFFF.....",
-  "...CCCCCCCCCC...",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCKKCCCCC..",
-  "..CCCCCKKCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..BBBBBBBBBBBB..",
-  "...CCCCCCCCCC...",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "...BBBB.BBBB...."];
-/* The gun arm is its own overlay so the weapon hitbox can follow it up. */
-const ARM={
-  0:{10:"..C.............",11:"..C.............",12:"..C.............",
-     13:"..C.............",14:"..C.............",15:"..C.............",
-     16:"..A.............",17:".AA.............",18:"GGA.............",
-     19:"GG..............",20:"GG..............",21:"..B............."},
-  1:{10:"..C.............",11:".AA.............",12:"GGA.............",
-     13:"GG..............",14:".AA.............",15:"..C............."},
-  2:{11:"..A.............",12:"GGGA............",13:"GGGA............",
-     14:"..C.............",15:"..C............."}};
-/* What makes one visitor look unlike another, on the same frame. */
-const VARIANT={
-  skirt:{19:"...CCCCCCCCCC...",20:"..LLLLLLLLLLLL..",21:"..LLLLLLLLLLLL..",
-         22:".LLLLLLLLLLLLLL.",23:".LLLLLLLLLLLLLL.",24:".LLLLLLLLLLLLLL.",
-         25:"...BBB....BBB...",
-         0:"......HHHH......",1:".....HHHHHH.....",2:".....HHHHHH.....",
-         3:"....HHHHHHHH....",4:"...HHHHHHHHHH..."},
-  collar:{10:"...CCCWWWWCCC...",4:"..HHHHHHHHHHHH.."},
-  cap:{0:"................",1:"................",2:"......HHHH......",
-       3:".....HHHHHH.....",4:"....HHHHHHHH...."},
-  flathat:{0:"................",1:"....HHHHHHHH....",2:"...HHHHHHHHHH...",
-           3:"..HHHHHHHHHHHH..",4:".HHHHHHHHHHHHHH."}};
-const LOOK_BY_ID={
-  deputy:  {C:"#41506b",K:"#33405a",H:"#20283a",L:"#2b3448",S:true},
-  rainmaker:{C:"#241f22",K:"#19161a",H:"#141215",L:"#1d1a1d",variant:"collar"},
-  surveyor:{C:"#55654f",K:"#44513f",H:"#d8cfb4",L:"#3f4a3c",variant:"flathat"},
-  widow:   {C:"#4a3a44",K:"#3a2c34",H:"#2a2028",L:"#33262e",variant:"skirt"},
-  tuner:   {C:"#6a5a3a",K:"#544628",H:"#3a2f1e",L:"#4a3f28",variant:"flathat"},
-  locket:  {C:"#9a7a4a",K:"#7d6138",H:"#7a5a30",L:"#5f4c2e",variant:"cap"}};
-const PAL={sky:["#f2c988","#e8b46a","#dda059","#c9813f"],hill:"#9c6a3c",hill2:"#8a5c33",
-  dust:"#c49a63",road:"#a87f4e",rut:"#9a713f",wood:"#6b4a2a",wood2:"#54381f",
-  dark:"#2a1c10",glass:"#3b2a18",lit:"#e8cf6a",sign:"#e8cf6a",
-  skin:"#e0ac7a",steel:"#9aa0a8",ink:"#f2e6d2",cuff:"#41506b",star:"#e8cf6a",linen:"#e8e0cc"};
+/* The sheriff's own shoulder, arm, hand and revolver, 44x34 cells generated as
+ * a silhouette with a one-cell contour and then frozen here as the art. */
+const OWN={
+  holstered:[
+    "BBBB........................................",
+    "CCCCBBB.....................................",
+    "CCCCCCCBB...................................",
+    "CCCCCCCCCBB.................................",
+    "CCCCCFFFCCCBB...............................",
+    "CCCCCFFFCCCCCB..............................",
+    "CCCCCFFFCCCCCCBB............................",
+    "CCCCCFFFCCCCCCCCB...........................",
+    "CCCCCFFFCCCCCCCCCB..........................",
+    "CCCCCFFFCCCCCCCCCCBB........................",
+    "CCCCCFFFCCCCCCCCCCCCBB......................",
+    "CCCCCFFFCCCCCCCCCCCCCCBB....................",
+    "CCCCCFFFCCCCCCCCCCCCCCCCBB..................",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKBB................",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKB...............",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKBB.............",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKBB...........",
+    "CCCCCFFFCCCCCCCCCCCGGGGCCKKKKKKKKB..........",
+    "CCCCCFFFCCCCCCCCCCGGGGGGCKKKKKKKKKBB........",
+    "CCCCCFFFCCCCCCCCCCGGGGGGCKKKKKKKKKKKBB......",
+    "CCCCCFFFCCCCCCCCCCGGGGGGCKKKKKKKKKKKKKB.....",
+    "CCCCCFFFCCCCCCCCCCGGGGGGCKKKKKKKKKKKKKKBB...",
+    "CCCCCFFFCCCCCCCCCHGGGGGGHKKKKKKKKKKKKKKKKB..",
+    "CCCCCFFFCCCCCCCHHHGGGGGGHHKKKKKKKKKKKKKKKKB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKKKKKKKKKKB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKWWWWWWWWWWKB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKWWWWWWWWWWWB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKAAAAAAAAAAAB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKAAAAAAAAAAAAAB",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKAAAAAAAAAAAAAB",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKAAAAAAAAAAAB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKAAAAAAAAAKB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKKKKKKKKKKB.",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKKKKBBBBBB.."
+  ],
+  drawn:[
+    "BBBB.....................................BBK",
+    "CCCCBBB................................BBGGG",
+    "CCCCCCCBB.............................BGGGGG",
+    "CCCCCCCCCBB..........................BGGGGGG",
+    "CCCCCFFFCCCBB.......................BAAAAAAA",
+    "CCCCCFFFCCCCCB.....................BAAAAAAAA",
+    "CCCCCFFFCCCCCCBB...................BAAAAAAAK",
+    "CCCCCFFFCCCCCCCCB..................BWWWWWWWK",
+    "CCCCCFFFCCCCCCCCCB................BWWWWWWWKK",
+    "CCCCCFFFCCCCCCCCCCBB.............BKKKKKKKKKK",
+    "CCCCCFFFCCCCCCCCCCCCBB..........BKKKKKKKKKKK",
+    "CCCCCFFFCCCCCCCCCCCCCCBB.......BKKKKKKKKKKKB",
+    "CCCCCFFFCCCCCCCCCCCCCCCCBB....BKKKKKKKKKKKB.",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKBB.BKKKKKKKKKKKKB.",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKBKKKKKKKKKKKKB..",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKKKB...",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKKB....",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKKB....",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKB.....",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKKB......",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKB.......",
+    "CCCCCFFFCCCCCCCCCCCCCCCCCKKKKKKKKKKKB.......",
+    "CCCCCFFFCCCCCCCCCHHHHHHHHKKKKKKKKKKB........",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKKB.........",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKKB.........",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKKB..........",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKKB...........",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKB............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKKB............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKKB.............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKKB..............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKB...............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKKB...............",
+    "CCCCCFFFCCCCCCCHHHHHHHHHHHKB................"
+  ]
+};
+/* ---- the town, in perspective, out of blocks ---- *
+ * Everything is stepped by hand rather than filled as a polygon: a column at a
+ * time with integer edges, so the diagonals stair the way a bitmap's do and
+ * nothing on screen has a soft edge. The C64's sixteen colours are the whole
+ * palette. */
+const C64={blk:"#000000",wht:"#ffffff",red:"#68372b",cyn:"#70a4b2",pur:"#6f3d86",
+  grn:"#588d43",blu:"#352879",yel:"#b8c76f",org:"#6f4f25",brn:"#433900",
+  lrd:"#9a6759",dgy:"#444444",gry:"#6c6c6c",lgn:"#9ad284",lbl:"#6c5eb5",lgy:"#959595"};
+const VP={x:150,y:118};                  // where the street runs out
+const px=(x,y,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),
+  Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));};
+/* A shape given as a top and a bottom edge over a span of columns. */
+function columns(x0,x1,top,bot,col){
+  ctx.fillStyle=col;
+  for(let x=Math.round(x0);x<Math.round(x1);x++){
+    const a=Math.round(top(x)), b=Math.round(bot(x));
+    if(b>a)ctx.fillRect(x,a,1,b-a);
+  }
+}
+const lerp=(x,x0,y0,x1,y1)=>y0+(y1-y0)*(x-x0)/(x1-x0||1);
+
+/* ---- figures ---- *
+ * A caller is a 24x20 grid painted two pixels to a cell, with a one-pixel dark
+ * rim on every edge that meets the air. The rim is what keeps a figure legible
+ * against a lit window or a dark doorway. */
 function cellColour(ch,look){
   switch(ch){
-    case "H":return look.H; case "C":return look.C; case "K":return look.K||look.C;
-    case "L":return look.L||look.C; case "F":return PAL.skin; case "A":return PAL.skin;
-    case "B":return PAL.dark;  case "G":return PAL.steel;
-    case "S":return PAL.star;  case "W":return PAL.linen;
+    case "H":return look.H; case "R":return look.R||look.H;
+    case "C":return look.C; case "K":return look.K||look.C;
+    case "L":return look.L||look.C; case "W":return look.W||C64.wht;
+    case "F":return look.F||C64.lrd; case "A":return look.F||C64.lrd;
+    case "E":return C64.blk; case "B":return C64.blk;
+    case "G":return C64.lgy; case "S":return C64.yel;
+    case "P":return look.P||C64.brn;
     default:return null;
   }
 }
-/* Paint a grid of rows at a cell origin. Rows may be sparse (an overlay). */
-function blocks(rows,x0,y0,look,cell){
-  const k=cell||CELL;                         // the foreground is drawn in bigger blocks
-  for(const key of Object.keys(rows)){
-    const r=+key, line=rows[r];
-    for(let c=0;c<line.length;c++){
-      const col=cellColour(line[c],look);
-      if(!col)continue;
-      ctx.fillStyle=col;
-      ctx.fillRect(x0+c*k,y0+r*k,k,k);
+const LOOK={
+  stranger:{H:C64.brn,C:C64.dgy,K:"#2e2e2e",L:C64.dgy,W:C64.lgy},
+  rose:    {H:C64.brn,R:C64.brn,C:C64.red,K:"#54291f",L:C64.red,W:C64.wht},
+  kid:     {H:C64.org,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.yel},
+  doctor:  {H:C64.blk,C:C64.blu,K:"#241a54",L:C64.blu,W:C64.wht,P:C64.brn},
+  shotgun: {H:C64.lrd,C:C64.lgn,K:C64.grn,L:C64.blu,W:C64.lgn},
+  willie:  {H:C64.grn,C:C64.yel,K:C64.grn,L:C64.brn,W:C64.yel},
+  april:   {H:C64.brn,R:C64.brn,C:C64.grn,K:"#3e6330",L:C64.grn,W:C64.wht,P:C64.dgy},
+  gambler: {H:C64.blk,C:C64.pur,K:"#4c2a5c",L:C64.blk,W:C64.wht,P:C64.wht},
+  deputy:  {H:C64.org,C:C64.lbl,K:"#4a4080",L:C64.blu,W:C64.lgy},
+  belle:   {H:C64.lrd,R:C64.brn,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.cyn,P:C64.yel},
+  lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
+  robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.brn,W:C64.gry}
+};
+function figureRows(fig,pose){
+  const rows=fig.rows.slice();
+  const over=pose==="raise"?fig.raise:(pose==="surrender"?SURRENDER:null);
+  if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
+  return rows;
+}
+/* The rim: for each filled cell, a one-pixel line on every side facing air. */
+function drawFigure(rows,x0,y0,look,cell){
+  const k=cell||FIGCELL, at=(r,c)=>(rows[r]&&rows[r][c])||".";
+  for(let r=0;r<rows.length;r++)for(let c=0;c<SPR.w;c++){
+    const col=cellColour(at(r,c),look); if(!col)continue;
+    px(x0+c*k,y0+r*k,k,k,col);
+  }
+  ctx.fillStyle=C64.blk;
+  for(let r=0;r<rows.length;r++)for(let c=0;c<SPR.w;c++){
+    if(cellColour(at(r,c),look)===null)continue;
+    const X=Math.round(x0+c*k), Y=Math.round(y0+r*k);
+    if(cellColour(at(r-1,c),look)===null)ctx.fillRect(X,Y,k,1);
+    if(cellColour(at(r+1,c),look)===null)ctx.fillRect(X,Y+k-1,k,1);
+    if(cellColour(at(r,c-1),look)===null)ctx.fillRect(X,Y,1,k);
+    if(cellColour(at(r,c+1),look)===null)ctx.fillRect(X+k-1,Y,1,k);
+  }
+}
+function visitor(enc,pose){
+  const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
+  const rows=figureRows(fig,pose);
+  let lowest=0;
+  for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow, on the grid
+  ctx.fillRect(SPRX+4*FIGCELL,SPRY+(lowest+1)*FIGCELL,16*FIGCELL,FIGCELL);
+  drawFigure(rows,SPRX,SPRY,look);
+}
+
+/* ---- the sheriff, nearest the camera and biggest on the screen ---- *
+ * 44x34 cells at three pixels each: a hundred and thirty across the left third
+ * of the frame, from his shoulder down past his holster. He is the only figure
+ * the player never sees the face of. */
+const OWN_CELL=3, OWN_X=0, OWN_Y=98;
+/* His coat is the darkest blue on the screen and nothing else in the town is
+ * that colour, so the foreground never reads as part of the boardwalk. */
+const OWN_LOOK={C:"#2d3c66",K:"#1d2846",F:"#41548a",W:C64.lgy};
+function ownGun(out){
+  const rows=out?OWN.drawn:OWN.holstered;
+  const at=(r,c)=>(rows[r]&&rows[r][c])||".";
+  const col=ch=>({".":null,H:C64.brn,C:OWN_LOOK.C,K:OWN_LOOK.K,F:OWN_LOOK.F,
+    W:OWN_LOOK.W,A:C64.lrd,G:C64.lgy,B:C64.blk}[ch]||null);
+  for(let r=0;r<rows.length;r++)for(let c=0;c<rows[r].length;c++){
+    const ch=at(r,c); const k=col(ch); if(!k)continue;
+    px(OWN_X+c*OWN_CELL,OWN_Y+r*OWN_CELL,OWN_CELL,OWN_CELL,k);
+  }
+  // the light off the street catches the top edge of him, one pixel wide, which
+  // is what keeps a mass this size from reading as a hole in the picture
+  for(let c=0;c<44;c++){
+    let top=-1;
+    for(let r=0;r<rows.length;r++)if(col(at(r,c))&&at(r,c)!=="B"){top=r;break;}
+    if(top<0)continue;
+    px(OWN_X+c*OWN_CELL,OWN_Y+top*OWN_CELL,OWN_CELL,1,"#6f7ea8");
+  }
+}
+
+/* ---- the street ---- */
+const PEOPLE=[{x:196,w:4,h:10},{x:206,w:4,h:9},{x:126,w:4,h:10}];
+function town(now,armed){
+  // sky, in four bands, and the rim of hills behind the town
+  const sky=[[0,12,C64.lbl],[12,24,C64.cyn],[24,34,C64.lgy],[34,44,C64.lrd]];
+  for(const [a,b,c] of sky)px(0,a,SCENE.w,b-a,c);
+  for(let x=0;x<SCENE.w;x++){
+    const h=Math.round(44+6*Math.sin(x/37)+4*Math.sin(x/11));
+    px(x,h,1,58-h,C64.brn);
+  }
+  // the ground: the far haze first, then the street, so nothing shows through
+  px(0,56,SCENE.w,VP.y-56,"#8a6050");                     // dust hanging at the far end
+  for(let i=0;i<6;i++){                                   // the rest of the town, far off
+    const x=102+i*20, h=30+((i*7)%16), w=18;
+    px(x,VP.y-h,w,h,i%2?"#3a3020":"#4a3d28");
+    px(x-1,VP.y-h,w+2,3,C64.brn);                         // the roof
+    px(x+5,VP.y-h+8,5,6,C64.blk); px(x+6,VP.y-h+9,3,4,i%3?C64.yel:C64.blk);
+  }
+  px(0,VP.y,SCENE.w,SCENE.h-VP.y,C64.lrd);
+  for(let i=1;i<7;i++){                                   // ruts, converging on the gap
+    const t=i/7;
+    for(let y=VP.y+2;y<SCENE.h;y+=4){
+      const u=(y-VP.y)/(SCENE.h-VP.y);
+      px(VP.x+(t*2-1)*u*230,y,Math.max(1,Math.round(u*3)),1,i%2?C64.org:C64.brn);
     }
   }
-}
-function visitor(enc,armState){
-  const look=LOOK_BY_ID[enc.id]||LOOK_BY_ID.deputy;
-  ctx.fillStyle="rgba(60,40,22,.30)";                     // his shadow, also in cells
-  for(let c=3;c<13;c++)ctx.fillRect(SPRX+c*CELL,SPRY+SPR.h*CELL,CELL,CELL);
-  const body=Object.fromEntries(BODY.map((line,i)=>[i,line]));
-  if(look.variant)Object.assign(body,VARIANT[look.variant]);
-  blocks(body,SPRX,SPRY,look);
-  blocks(ARM[armState]||ARM[0],SPRX,SPRY,look);
-  if(look.S)blocks({14:"....S..........."},SPRX,SPRY,look);   // a star, on the one who wears one
-}
-/* The sheriff's own hand and gun, across the low corner, on the same grid. */
-/* The sheriff's own forearm and revolver across the low right corner: his hand
- * is the only part of him the player ever sees. 16 cells wide, 10 tall. */
-/* The sheriff fills the bottom of the frame: his shoulder, his forearm and his
- * revolver, seen from just behind his own hip. 22 cells across, 13 down. */
-const OWN={
-  holstered:[
-    "...................BBB",
-    "................BBBCCC",
-    "............BBBCCCCCCC",
-    "............CCCCCCCCCC",
-    ".........CCCAAAAACCCCC",
-    "......CCCCAAAAAAAACCCC",
-    "....CCCCAAAAAAAAAACCCC",
-    "...BBBGGGGGAAAAAACCCCC",
-    "..BBGGGGGGGBBBBBBCCCCC",
-    "..BBGGGGGBBBBBBBBBBBBB",
-    "...BBBBBBBBBBBBBBBBBBB",
-    "....BBBBBBBBBBBBBBBBBB",
-    ".....BBBBBBBBBBBBBBBBB"],
-  drawn:[
-    "BBBBB.................",
-    "GGGGGBB...............",
-    "GGGGGGGBB.............",
-    ".BBGGGGGGGGG..........",
-    "...BAAAAAGGGGG........",
-    "..BAAAAAAAAGGGG.......",
-    "..BCCAAAAAAAAGG.......",
-    "..BCCCCAAAAAAAAB......",
-    "...BCCCCCCAAAAAAB.....",
-    "....BCCCCCCCCAAAAB....",
-    ".....BCCCCCCCCCCCCB...",
-    "......BCCCCCCCCCCCCCB.",
-    ".......BCCCCCCCCCCCCCB"]};
-/* He is nearest the camera, so his blocks are the biggest thing on screen:
- * seven scene-pixels to a cell against the street's four. */
-const OWN_CELL=CELL*1.5;
-function ownGun(out){
-  const rows=Object.fromEntries((out?OWN.drawn:OWN.holstered).map((l,i)=>[i,l]));
-  const x0=SCENE.w-20*OWN_CELL, y0=SCENE.h-12*OWN_CELL;
-  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff},OWN_CELL);
-}
-/* A reticle of blocks, with a dark cell behind every light one so it reads
- * over a white shirt or a black doorway alike. */
-const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
-function crosshair(){
-  const a=G.aim;
-  const x=Math.round(a.x*SCENE.w/CELL)*CELL, y=Math.round(a.y*SCENE.h/CELL)*CELL;
-  ctx.fillStyle="rgba(20,14,8,.85)";
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL+1,y+dy*CELL+1,CELL,CELL);
-  ctx.fillStyle=G.duel&&G.duel.drawn?"#ffe9a8":PAL.ink;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL,y+dy*CELL,CELL,CELL);
-}
-const grid=v=>Math.round(v/CELL)*CELL;                     // nothing lands off the grid
-function facade(name){
-  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(40),SCENE.w,grid(96));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(40),SCENE.w,CELL*2);
-  for(let y=grid(52);y<grid(136);y+=CELL*3){
-    ctx.fillStyle="rgba(0,0,0,.10)"; ctx.fillRect(0,y,SCENE.w,CELL);
+  // the block on the left: front corner at the frame, far edge toward the gap
+  const lBoard=x=>lerp(x,0,168,108,VP.y+2);
+  columns(0,108,()=>16,lBoard,C64.brn);
+  columns(0,108,x=>lerp(x,0,16,108,60),x=>lerp(x,0,28,108,66),C64.org);    // roof line
+  for(const [wx,wy,ww] of [[10,52,22],[46,56,18],[78,64,12]]){
+    px(wx,wy,ww,Math.round(ww*0.9),C64.blk);
+    px(wx+2,wy+2,ww-4,Math.round(ww*0.9)-4,C64.yel);
   }
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(64),grid(48),grid(48));
-  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(68),grid(40),grid(40));
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(64),grid(48),grid(36));
-  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(60),grid(40),grid(76));
-  ctx.fillStyle=PAL.sign;  ctx.font="700 12px monospace";
+  px(22,100,26,44,C64.blk); px(24,102,22,42,"#1d1508");                     // a doorway
+  columns(0,108,lBoard,x=>lBoard(x)+lerp(x,0,10,108,3),C64.dgy);            // boardwalk edge
+  // the block on the right, larger and nearer
+  const rBoard=x=>lerp(x,212,VP.y+4,SCENE.w,180);
+  columns(212,SCENE.w,()=>2,rBoard,C64.brn);
+  columns(212,SCENE.w,x=>lerp(x,212,50,SCENE.w,2),x=>lerp(x,212,58,SCENE.w,16),C64.org);
+  for(const [wx,wy,ww] of [[220,70,14],[244,76,20],[276,84,26]]){
+    px(wx,wy,ww,Math.round(ww*0.9),C64.blk);
+    px(wx+2,wy+2,ww-4,Math.round(ww*0.9)-4,C64.yel);
+  }
+  px(286,116,32,56,C64.blk); px(288,118,28,54,"#1d1508");
+  columns(212,SCENE.w,rBoard,x=>rBoard(x)+lerp(x,212,3,SCENE.w,14),C64.dgy);
+  for(let i=0;i<6;i++){                                   // porch posts, thickening forward
+    const x=216+i*20, w=1+Math.round(i*0.7), top=lerp(x,212,48,SCENE.w,0);
+    px(x,top,w,rBoard(x)-top,C64.brn);
+  }
+  // hitching rail, trough and barrels along the near right
+  px(214,138,92,2,C64.brn); px(222,140,2,14,C64.brn); px(280,142,3,20,C64.brn);
+  px(196,150,34,12,C64.brn); px(198,152,30,8,C64.blu);
+  for(const [bx,by,bw,bh] of [[246,150,14,20],[266,156,16,24]]){
+    px(bx,by,bw,bh,C64.org); px(bx,by,bw,2,C64.brn); px(bx,by+bh-3,bw,3,C64.brn);
+  }
+  // people on the far boardwalk, who do not stay for gunplay
+  if(!armed)for(const p of PEOPLE){
+    px(p.x,VP.y-p.h,p.w,p.h,C64.dgy); px(p.x,VP.y-p.h,p.w,2,C64.blk);
+  }
+  // the sign over the door of wherever this is
+  const enc=who(G), name=(enc&&enc.place)||"GOLD GULCH";
+  px(228,54,84,13,C64.brn); px(230,56,80,9,C64.blk);
+  ctx.fillStyle=C64.yel; ctx.font="700 8px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(name,SCENE.w/2,grid(46));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(136),SCENE.w,CELL*2);   // boardwalk
-  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(68),CELL,grid(68));}
+  ctx.fillText(name,270,61);
 }
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
-  for(let i=0;i<5;i++){ctx.fillStyle=PAL.sky[Math.min(3,i)];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
-  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(40),SCENE.w,grid(12));
-  for(let i=0;i<6;i++){                                    // hills, stepped in cells
-    ctx.fillStyle=PAL.hill2;
-    for(let k=0;k<4;k++)
-      ctx.fillRect(grid(i*56+k*CELL*2),grid(52)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
-  }
-  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(52),SCENE.w,SCENE.h-grid(52));
+  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
+  const armed=G.mode==="gun"||(G.duel&&G.duel.drawn)||G.phase==="tell";
+  town(now,armed);
   const enc=who(G);
-  if(enc)facade(enc.place||"STREET");
-  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(140),SCENE.w,SCENE.h-grid(140));
-  for(let i=0;i<26;i++){                                   // ruts, one cell each
-    ctx.fillStyle=i%3?PAL.rut:"#cdaa7a";
-    ctx.fillRect(grid((i*47)%SCENE.w),grid(146+((i*37)%40)),CELL,CELL);
-  }
   if(enc&&build.rows>=6){
-    const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
-    if(G.outcome==="killed_him"||G.outcome==="murder"){
+    const pose=(G.outcome==="surrendered")?"surrender"
+      :(G.duel&&(G.duel.drawn||G.phase==="tell"))?"raise":"idle";
+    if(G.outcome==="killed_him"||G.outcome==="innocent_killed"){
       ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(Math.min(1.4,bodyFall));
-      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,0);ctx.restore();
-    } else visitor(enc,arm);
+      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
+    } else visitor(enc,pose);
   }
   ownGun(G.mode==="gun");
   if(G.mode==="gun"&&build.rows>=6)crosshair();
-  if(flash>0){ctx.fillStyle="rgba(255,242,192,"+Math.min(1,flash*6)+")";
+  if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
   if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
-  ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-CELL*3,SCENE.w,CELL*3);
-  ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
+  px(0,0,SCENE.w,9,"rgba(0,0,0,.72)");
+  ctx.fillStyle=C64.yel; ctx.font="700 8px monospace";
   ctx.textAlign="left"; ctx.textBaseline="middle";
   const counted=Math.min(G.encounter+1,CAST.length);
   ctx.fillText(G.phase==="summary"?"GOLD GULCH   SUNDOWN"
-    :((enc?enc.name.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+CAST.length),
-    4,SCENE.h-6);
-  ctx.textAlign="right";
-  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-4,SCENE.h-6);
+    :((enc?enc.name.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+CAST.length),4,5);
+  ctx.textAlign="right"; ctx.fillStyle=G.wounds?C64.red:C64.lgy;
+  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-4,5);
   ctx.restore();
+}
+/* A reticle of blocks, dark behind light, so it reads over a lit window or a
+ * black doorway alike. */
+const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
+function crosshair(){
+  const a=G.aim;
+  const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
+  ctx.fillStyle=C64.blk;
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2+1,y+dy*2+1,2,2);
+  ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2,y+dy*2,2,2);
 }
 
 /* ---- the five-line matrix ---- *

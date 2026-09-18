@@ -12,7 +12,7 @@ const RULES={
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
   REFLEX_MIN:1500, REFLEX_MAX:2600,
-  AIM_STEP:0.04, AIM_FLOOR:120, AIM_CEIL:500,
+  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2
@@ -153,16 +153,19 @@ function tick(G,nowMs){
   return null;
 }
 const inBox=(px,py,b)=>px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;
-const weaponBox=G=>(G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?HITBOX.weaponRaised:HITBOX.weapon;
+/* Every caller has his own boxes, off his own grid: the boy's are low and the
+ * man with the long gun carries his across his chest. */
+const weaponBox=G=>{const b=boxesFor(who(G));
+  return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?b.weaponRaised:b.weapon;};
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
   if(inBox(px,py,weaponBox(G)))return "weapon";
-  if(inBox(px,py,HITBOX.lethal))return "lethal";
+  if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
 }
 const boxCentre=b=>({x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h});
 function aimAt(G,zone){
-  G.aim=boxCentre(zone==="arm"?weaponBox(G):HITBOX.lethal);
+  G.aim=boxCentre(zone==="arm"?weaponBox(G):boxesFor(who(G)).lethal);
   if(G.duel)G.duel.zone=zone;
   return zone;
 }
