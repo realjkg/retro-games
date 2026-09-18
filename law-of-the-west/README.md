@@ -94,9 +94,10 @@ boardwalk who leave the moment a gun comes out.
 with spoked wheels, a locomotive with its smokebox door and cowcatcher and the
 rails running out of frame, barrels, crates, or a corral fence in perspective.
 
-**The sheriff's own arm is the foreground.** A mottled sleeve billows in from
-the left edge at the height of the caller's chest, into a dark cuff, a black
-fist and the revolver — cylinder, hammer and a level barrel reaching most of the
+**The sheriff's own arm is the foreground.** A sleeve billows in from the left
+edge at the height of the caller's chest — shaded as cloth, with the light along
+the top of the arm, the shadow beneath it and folds running its length — into a
+dark cuff, a black fist and the revolver — cylinder, hammer and a level barrel reaching most of the
 way across to the man he is talking to. 44×26 cells at three pixels each, the
 largest thing on the screen. His face is the one part of him the player never
 sees; when the gun is holstered the same arm holds it muzzle-down.
@@ -104,8 +105,11 @@ sees; when the gun is holstered the same arm holds it muzzle-down.
 Everything is stepped a column at a time with integer edges, so the diagonals
 stair the way a bitmap's do, and the palette is the C64's sixteen colours.
 
-**Eleven figures, no template.** Each caller is his own 24×20 grid painted two
-pixels to a cell with a one-pixel dark contour: the Kid's sombrero, Rose's
+**Eleven figures, no template.** Each caller is his own 24×28 grid, one pixel
+across and two down — 24 by 56 on screen, the proportions a man has at this
+distance rather than the squat block a square cell gave. The silhouette is
+stamped a pixel larger in black and the colours laid over it, which gives a
+one-pixel rim at any size: the Kid's sombrero, Rose's
 skirt, the Doctor's bag, the new gun carried across the chest, Willy's height,
 April's slate, the Gambler's tails, the Deputy's long gun, Belle's rope, and the
 last man in black. Each carries its own hitboxes, so the bullet finds what the

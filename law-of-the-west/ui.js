@@ -80,55 +80,55 @@ const OWN={
     "................BB..........................",
     ".............BBBLLBBBBBBB...................",
     "............BLLLLLLLLLWWWB..................",
-    "....B.....BBSLLLLLLLLLWWWBBBBB..............",
-    "BBBBDBBBBBSSSSLLLLLLLLWWWBBBBBB.............",
-    "DDDDDDDDDDSSSSSSSSSSSSWBBBBBBBB.............",
-    "DDDDDDDDDDDSSSSSSSSSSSWBBBBBBBBBB...........",
-    "DDDDDDDDDDDSSSSSSSDDDDWBBBBBBBBBBB..........",
-    "DDDDDDDDDDSSSSSDDDDDDDBBBBBBBBBBBB..........",
-    "DDDDDDDSSSSSSSDDDDDDDBBBBBBBBBBBBBB.........",
-    "DSSSSSSSSSSSSSDDDDDDSBBBBBBBBBBBBBB.........",
-    "SSSSSSSSSSSSSSDDDDDSSBBBBBBBBBBBBBB.........",
-    "LLLLLLLLSSSSSSDDDSSSSBBBBBBBBBBBBBB.........",
-    "LLLLLLLLSSSSSDDDSSSSSBBBBBBBBBBBBBB.........",
-    "LLLLLLLSSSSSSDDSSSSSSSBBBBBBBBBBBGB.........",
-    "LLLLLLSSSSSDDDDSSSSSSSWBBBBBBBBBBGB.........",
-    "LLLLLSSSSSDDDDSSSSSSSSWBBBBBBBBGGGB.........",
-    "LLSSSSSSDDDDDSSSSSSSSDWBBBBBBBMGGGGB........",
-    "SSSSSSDDDDDSSSSSSSSSDDWBBBBB.BMGGGGB........",
-    "SSSSSDDDSSSSSSSSSBBBDDWWWB....BMGGGGB.......",
-    "SSSSSSSSSSSSSSSBB...BBWWWB....BMGGGGB.......",
-    "SSSSSSSSSSLLLLB......BWWWB.....BMGGGGB......",
-    "SSSSSSSLLLLLLB........BBB......BMGGGGB......",
-    "SSSSSLLLBLBBB...................BMGGGGB....."
+    "....B.....BBLLLLLLLLLLWWWBBBBB..............",
+    "BBBBLBBBBBLLLLLLSSLLLLWWWBBBBBB.............",
+    "LLLLLLLLLLLLLLSSSSSSSSWBBBBBBBB.............",
+    "LLLLLLLLLLLLLSSSSSSSSSWBBBBBBBBBB...........",
+    "LLLLLLLLLLSSSSSSSSSSSSWBBBBBBBBBBB..........",
+    "SLLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBB..........",
+    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBB.........",
+    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBB.........",
+    "LLLLSSSSSSSSDDSSSSSSSBBBBBBBBBBBBBB.........",
+    "LLLSSSSSSSDDDDSSSSSSSBBBBBBBBBBBBBB.........",
+    "SSSSSSSSSSDDDSSSSSSSSBBBBBBBBBBBBBB.........",
+    "SSSSSSSSDDDDDSSSSSSSSSBBBBBBBBBBBGB.........",
+    "SSSSSSSDDDDDDSSSSDDDSSWBBBBBBBBBBGB.........",
+    "SSSSSSSDDDDDSSSDDDDDDDWBBBBBBBBGGGB.........",
+    "SSSSSSDDDDDSSSDDDDDDDDWBBBBBBBMGGGGB........",
+    "SSSSSDDDDDSSSDDDDDDDDDWBBBBB.BMGGGGB........",
+    "SSSSSDDDDDDDDDDDDBBBDDWWWB....BMGGGGB.......",
+    "DDDDDDDDDDDDDDDBB...BBWWWB....BMGGGGB.......",
+    "DDDDDDDDDDDDDDB......BWWWB.....BMGGGGB......",
+    "DDDDDDDDDDDDDB........BBB......BMGGGGB......",
+    "DDDDDDDDBDBBB...................BMGGGGB....."
   ],
   drawn:[
     "................BB..........................",
-    ".............BBBSSBBBBBBB...................",
-    "............BSLLLLLLLLWWWB..................",
-    "....B.....BBSLLLLLLLLLWWWB....BBBB..........",
-    "BBBBSBBBBBSSSLLLLLLLLLWWWB.B.BGGGGB.........",
-    "SSSSSSSSSSSSSLLLLLLLLLWBBBBBBBGGGGGBB.......",
-    "SSDDDDDDDDSSSSLLLLLLLLWBBBBBBBBGMMMMGB......",
-    "DDDDDDDDDDSSSSSSSSSSSSWBBBBBBBBBBGGGGBBBBBBB",
-    "DDDDDDDDDDDSSSSSSSSSSSBBBBBBBBBBBGGGMMMMMMMM",
-    "DDDDDDDDDDDSSSSSSSDDDBBBBBBBBBBBBBGGGGGGGGGG",
-    "DDDDDDDDDDSSSSSDDDDDDBBBBBBBBBBBBBGGGGGGGGGG",
-    "DDDDDDDSSSSSSSDDDDDDDBBBBBBBBBBBBBGGGGGGGGGG",
-    "DSSSSSSSSSSSSSDDDDDDSBBBBBBBBBBBBBGGGBBBBBBB",
-    "SSSSSSSSSSSSSSDDDDDSSBBBBBBBBBBBBBGGGB......",
-    "LLLLLLLLSSSSSSDDDSSSSSBBBBBBBBBBBBBBB.......",
-    "LLLLLLLLSSSSSDDDSSSSSLWBBBBBBBBBBBBB........",
-    "LLLLLLLSSSSSSDDSSSSSSSWBBBBBBBBBBBB.........",
-    "LLLLLLSSSSSDDDDSSSSSSSWBBBBBBBBBB...........",
-    "LLLLLSSSSSDDDDSSSSSSSSWBBBBBBBBBB...........",
-    "LLSSSSSSDDDDDSSSSBBBSDWWWBBBBBBBB...........",
-    "SSSSSSDDDDDSSSSBB...BBWWWBBBBBBBB...........",
-    "SSSSSDDDSSSSSSB......BWWWBBBBBBBB...........",
-    "SSSSSSSSSSSSSB........BBBBBBBBBBB...........",
-    "SSSSSSSSBSBBB............BBBBBBB............",
-    "SSSSSSBB.B..................................",
-    "SSSSBB......................................"
+    ".............BBBLLBBBBBBB...................",
+    "............BLLLLLLLLLWWWB..................",
+    "....B.....BBLLLLLLLLLLWWWB....BBBB..........",
+    "BBBBLBBBBBLLLLLLSSLLLLWWWB.B.BGGGGB.........",
+    "LLLLLLLLLLLLLLSSSSSSSSWBBBBBBBGGGGGBB.......",
+    "LLLLLLLLLLLLLSSSSSSSSSWBBBBBBBBGMMMMGB......",
+    "LLLLLLLLLLSSSSSSSSSSSSWBBBBBBBBBBGGGGBBBBBBB",
+    "LLLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBGGGMMMMMMMM",
+    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
+    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
+    "LLLLSSSSSSSSDDSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
+    "LLLLSSSSSSDDDDSSSSSSSBBBBBBBBBBBBBGGGBBBBBBB",
+    "LLLSSSSSSSDDDSSSSSSSSBBBBBBBBBBBBBGGGB......",
+    "SSSSSSSSDDDDDSSSSSSSSSBBBBBBBBBBBBBBB.......",
+    "SSSSSSSDDDDDDSSSSDDDSSWBBBBBBBBBBBBB........",
+    "SSSSSSSDDDDDSSSDDDDDDDWBBBBBBBBBBBB.........",
+    "SSSSSSDDDDDSSSDDDDDDDDWBBBBBBBBBB...........",
+    "SSSSSDDDDDSSSDDDDDDDDDWBBBBBBBBBB...........",
+    "SSSSSDDDDDDDDDDDDBBBDDWWWBBBBBBBB...........",
+    "SSSSSDDDDDDDDDDBB...BBWWWBBBBBBBB...........",
+    "SSSSDDDDDDDDDDB......BWWWBBBBBBBB...........",
+    "DDDDDDDDDDDDDB........BBBBBBBBBBB...........",
+    "DDDDDDDDBDBBB............BBBBBBB............",
+    "DDDDDDBB.B..................................",
+    "DDDDBB......................................"
   ]
 };
 function figureRows(fig,pose){
@@ -137,21 +137,19 @@ function figureRows(fig,pose){
   if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
   return rows;
 }
-/* The rim: for each filled cell, a one-pixel line on every side facing air. */
-function drawFigure(rows,x0,y0,look,cell){
-  const k=cell||FIGCELL, at=(r,c)=>(rows[r]&&rows[r][c])||".";
-  for(let r=0;r<rows.length;r++)for(let c=0;c<SPR.w;c++){
-    const col=cellColour(at(r,c),look); if(!col)continue;
-    px(x0+c*k,y0+r*k,k,k,col);
-  }
+/* The silhouette is stamped a pixel larger in black first and the colours laid
+ * over it, which gives a one-pixel rim at any cell size: that rim is what keeps
+ * a figure legible against a lit window or a dark doorway. */
+function drawFigure(rows,x0,y0,look,cw,ch){
+  const w=cw||FIGCW, h=ch||FIGCH, at=(r,c)=>(rows[r]&&rows[r][c])||".";
   ctx.fillStyle=C64.blk;
   for(let r=0;r<rows.length;r++)for(let c=0;c<SPR.w;c++){
     if(cellColour(at(r,c),look)===null)continue;
-    const X=Math.round(x0+c*k), Y=Math.round(y0+r*k);
-    if(cellColour(at(r-1,c),look)===null)ctx.fillRect(X,Y,k,1);
-    if(cellColour(at(r+1,c),look)===null)ctx.fillRect(X,Y+k-1,k,1);
-    if(cellColour(at(r,c-1),look)===null)ctx.fillRect(X,Y,1,k);
-    if(cellColour(at(r,c+1),look)===null)ctx.fillRect(X+k-1,Y,1,k);
+    ctx.fillRect(Math.round(x0+c*w)-1,Math.round(y0+r*h)-1,w+2,h+2);
+  }
+  for(let r=0;r<rows.length;r++)for(let c=0;c<SPR.w;c++){
+    const col=cellColour(at(r,c),look); if(!col)continue;
+    px(x0+c*w,y0+r*h,w,h,col);
   }
 }
 function visitor(enc,pose){
@@ -160,7 +158,7 @@ function visitor(enc,pose){
   let lowest=0;
   for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
   ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow, on the grid
-  ctx.fillRect(SPRX+4*FIGCELL,SPRY+(lowest+1)*FIGCELL,16*FIGCELL,FIGCELL);
+  ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
   drawFigure(rows,SPRX,SPRY,look);
 }
 
