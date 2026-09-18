@@ -10,7 +10,7 @@ A self-contained browser recreation, with the **Commodore 64 release** as the re
 
 - Board: arrows and Z/Enter to select; X to cancel. Touch the board or use the on-screen pad.
 - Combat: **hold fire and a direction to aim/shoot; release fire to move**. All eight directions work, including the corner buttons on touch devices.
-- Second player: WASD and Shift/F, or the upper touch pad.
+- Second player: WASD and Shift/F, or their own touch pad — see **Two players on one device**.
 - Sound starts after a tap/key press. SOUND ON/OFF mutes or enables it. A high recharge bell belongs to Light; a low bell belongs to Dark.
 - A finger may **slide across the d-pad** to change direction without lifting, and fire stays held even if the thumb drifts off its button. Each touch is tracked separately, so one thumb can hold fire while the other aims.
 - **Gamepads**: the first connected pad drives Light and a second drives Dark. D-pad or left stick moves, A/right trigger fires and confirms, B/left trigger cancels, X opens spells, Y or Start returns to the menu.
@@ -34,6 +34,23 @@ start in full game mode.
 
 On iPhone, Safari allows no element fullscreen; the immersive layout still applies, and
 adding the page to the Home Screen removes the browser's own chrome.
+
+## Two players on one device
+
+A hot seat game gives each player their own pad, and each pad drives only its own side:
+
+- **Light is pad 1, Dark is pad 2.** On the board, the pad whose turn it is not goes quiet and
+  dims, so nobody moves the other player's cursor and nobody has to ask whose turn it is. Both
+  pads are live at once inside a duel, which is the only moment both players act together.
+- **Dark's pad carries its own SPELL, A and B**, so the Dark player never has to reach across
+  for the seven one-shot spells or to cancel a selection. A second gamepad works the same way.
+- **The second pad is on screen for the whole game.** It used to appear only when a duel
+  started, which left the Dark player with nothing to move icons with on the board.
+- Choosing 1P vs 2P asks **where the other player is sitting**, and remembers the answer:
+  *side by side*, where both pads read the right way up and take an edge of the screen each in
+  landscape, or *facing each other*, for a device lying flat between you, where Dark's pad is
+  turned around. The original played side by side on two joysticks; the flat-table arrangement
+  is the one a phone adds.
 
 ## Full game mode, and playing it as an app
 
@@ -87,4 +104,4 @@ This is **not a C64 emulator or an exact reproduction**. The effects are new Web
 
 ## Verification
 
-Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
+Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the hot seat rules — each pad on its own side, Dark's own spell button, the second pad present for the whole game, the idle marking, and the seating switch — and the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
