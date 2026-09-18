@@ -16,7 +16,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `index.html` | The deliverable: one self-contained page, everything inline, 133 KB |
 | `page.html` | The markup and CSS shell, with a `/* SCRIPTS */` marker |
 | `sid-audio.js` | The SID-idiom synth, 54 cues; the synthesis is untouched |
-| `content.js` | The eleven callers, the three robberies, the figures and the hitboxes |
+| `content.js` | The eleven callers, the three robberies, the figure builder and the hitboxes |
 | `engine.js` | Rules only: the day, the trees, the duel, the doctor, the reckoning |
 | `ui.js` | The street, the figures, the five-line matrix, the input, one rAF loop |
 | `tools/assemble.js` | Writes `index.html` from the shell and the four scripts |
@@ -134,17 +134,50 @@ are nearest of all, go back to one, so the cylinder is round and fluted, the
 barrel has a rib and a front sight, the hammer is drawn back over the frame, and
 the fingers have knuckles.
 
-**Eleven figures, no template.** Each caller is his own 24×28 grid, one pixel
-across and two down — 24 by 56 on screen, the proportions a man has at this
-distance rather than the squat block a square cell gave. The silhouette is
-stamped a pixel larger in black and the colours laid over it, which gives a
-one-pixel rim at any size: the Kid's sombrero, Rose's
-skirt, the Doctor's bag, the new gun carried across the chest, Willy's height,
-April's slate, the Gambler's tails, the Deputy's long gun, Belle's rope, and the
-last man in black. Each carries its own hitboxes, so the bullet finds what the
-crosshair is over whether a man keeps his gun on his hip or across his chest,
-and its own overlay for the hand coming up. Hands-up is an overlay any of them
-can wear.
+**Twelve figures, one draughtsman.** They used to be twelve hand-cut grids
+twenty-four cells across, and at that size a man is a torso-shaped blob with two
+dots on it: no neck, no sleeve, no hand, no lapel, and whatever anatomy each
+grid happened to get on the day it was cut. Beside the sheriff — who is a
+painting — they read as a different game.
+
+They are now laid out on one skeleton, 48×84 cells at one pixel to the cell:
+the same head on the same neck on the same sloping shoulders, the same sleeve
+hung from the same joint, the same belt, the same boots, the same brow, nose and
+mouth. `buildFigure` draws all of them, and a caller's whole difference is his
+spec — hat, hair, what the coat is cut like, what he carries, how tall and how
+wide he is built. One draughtsman means one standard: nobody is drawn worse than
+anybody else. So the Kid's Stetson, Rose's skirt, the Doctor's bag and derby,
+the new gun carried across the chest, Willy's height and a boy's head on it,
+April's bonnet and slate, the Gambler's tails and cards, the Deputy's star,
+Belle's rope, and the last man in black are all the same hand.
+
+48×84 is not a taste either. The horizon is at 118 and a caller's boots are at
+150; the sheriff's are at 200 and his own drawing is 129×200. A man that size
+standing that much nearer the horizon comes out 50×78, and 48×84 is the nearest
+round figure. Drawn at 24×56 he was a doll on the same street as a painting.
+
+The same builder makes the drawn-gun and hands-up poses, so an arm that comes up
+is that figure's own arm rather than a shared overlay, and the three hitboxes
+are then **read off the drawing that was just made**: the weapon box is where
+the gunmetal actually is, the raised box is where the gunmetal goes when he
+draws, and the lethal box is the torso between them. The holster hangs clear of
+the hip and the drawn gun comes out clear of the chest, so no two of the three
+ever overlap and a shot is one answer, never two.
+
+**Painted, not stamped.** The letters say only what a part is made of. When a
+figure is put on the screen the silhouette is smoothed, so a jaw stops being a
+staircase; the light comes from the left the way it does in the sheriff's own
+drawing, and every run of one material on a scanline is turned on its own — the
+coat rounds, the sleeve rounds inside it, each leg rounds separately, the shirt
+between the lapels keeps its own light — with a gentle tilt over the whole body
+so the parts still belong to one lit man; the steps between tones are dithered
+on the same ordered matrix the town is drawn with, so a chest turns instead of
+banding; a face takes half of all that, because a hard shadow across a cheek at
+this size reads as dirt rather than form; and every pixel of air touching him is
+put down in black first, which is the rim that keeps him legible against a lit
+window or a dark doorway. It is worked out once per pose, mood and blink and
+kept, so a frame costs a few hundred horizontal runs rather than four thousand
+single pixels.
 
 The five-line matrix fills the rest, set the way the machine set it: upper case,
 one width per character, tightly stacked, the caller's line in its own colour
@@ -246,7 +279,7 @@ From `node --test test/*.test.js` and 500 simulated days:
 - **The doctor**, all five states: civil survives two wounds, neutral and drunk
   survive one and not two, hostile and dead make the first one fatal, and
   shooting him takes the town's only rescue with him.
-- **The figures.** Eleven grids, no two alike, every hitbox on the grid, every
+- **The figures.** Twelve figures, no two alike, every hitbox on the grid, every
   lethal box over the man and every weapon box over actual gunmetal, and no box
   overlapping another.
 - **Audio.** 54 cues through the runtime with no non-finite, negative or

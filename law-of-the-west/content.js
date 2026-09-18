@@ -572,438 +572,288 @@ const written=e=>!!(e.rounds&&e.rounds.opening);
 const SCENE={w:320,h:200};
 const CELL=2;                            // the block the street furniture is built on
 
-/* ============ the eleven figures ============
- * Each caller is his own 24x20 grid, painted two scene-pixels to a cell with a
- * one-pixel dark contour round the silhouette. No two share a grid: the hats,
- * the coat length, the skirt, the boy's height and the gambler's tails are what
- * tell them apart at this size, not the colours.
+/* ============ the twelve figures ============
+ * These are not twelve drawings. They are one draughtsman.
+ *
+ * They used to be twelve hand-cut grids, twenty-four cells across, and at that
+ * size a man is a torso-shaped blob with two dots on it: no neck, no sleeve, no
+ * hand, no lapel, and whatever anatomy each grid happened to get on the day it
+ * was cut. Standing beside the sheriff - who is a painting - they read as a
+ * different game, which is exactly the complaint.
+ *
+ * So every caller is now laid out on one skeleton, forty-eight cells across and
+ * eighty-four down, one cell to the screen pixel: the same head on the same
+ * neck on the same shoulders, the same sleeve hung from the same joint, the
+ * same belt, the same boots. What differs between them is what the parts are
+ * made of and how they are cut - a frock coat's tails, a skirt's flare, a
+ * child's proportions, a bonnet instead of a Stetson - which is what tells one
+ * caller from another at this distance anyway. One draughtsman means one
+ * standard; nobody is drawn worse than anybody else.
+ *
+ * The letters say only what a part is made of. The light, the rounding and the
+ * dithered tone steps are worked out per pixel when it is painted.
  *   . nothing  H hat   R hair  F face  E eye     C coat   K coat shadow
  *   W linen    L legs and skirts       A skin    G gunmetal
  *   B dark (belts, boots, bags)        S star    P prop (bag, slate, cards, rope)
- * `raise` is the sparse overlay for the hand coming up, and `box` gives the
- * cells the bullet has to find: torso, weapon at rest, weapon raised.        */
-/* A caller is 24 pixels across and 28 cells tall drawn two pixels to the row:
- * 24 by 56 on the screen, the proportions a man has at this distance rather
- * than the squat block a square cell gave. */
-const SPR={w:24,h:28}, FIGCW=1, FIGCH=2, FIGCELL=FIGCW;
-const DEFAULT_BOX={lethal:[7,6,16,13], weapon:[2,12,5,15], raised:[1,6,5,9]};
-const FIGURES={
-  stranger:{rows:[
-  ".........HHHHHH.........",
-  "........HHHHHHHH........",
-  "......HHHHHHHHHHHH......",
-  ".......FFFFFFFFFF.......",
-  "........FFEFFEFF........",
-  ".........FFFFFF.........",
-  "......CCCCWWWWCCCC......",
-  ".....CCCCCWWWWCCCCC.....",
-  "....CCCCCCWWWWCCCCCC....",
-  "....CCCCCCCWWCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCBBBBBBBBCCCC....",
-  "...ACCCCCCCCCCCCCCCCA...",
-  "...AGCCCCCCCCCCCCCCAA...",
-  "...GGCCCCCCCCCCCCCCC....",
-  "...GGCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  ".....CCCCCC..CCCCCC.....",
-  ".....CCCCCC..CCCCCC.....",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  ".....BBBB......BBBB.....",
-  ".....BBBB......BBBB....."],
-  raise:{6:"...AGCCCCWWWWCCCC......",
-         7:"...GGCCCCWWWWCCCCC.....",
-         12:"....CCCCCCCCCCCCCCCCA...",
-         13:"....CCCCCCCCCCCCCCCAA...",
-         14:"....CCCCCCCCCCCCCCCC....",
-         15:"....CCCCCCCCCCCCCCCC...."},
-  box:{lethal:[7,6,16,13], weapon:[2,12,5,17], raised:[1,6,5,9]}},
-  rose:{rows:[
-  "........RRRRRR..........",
-  ".......RRRRRRRR.........",
-  "......RRRRRRRRRR........",
-  ".......RFFFFFFR.........",
-  "........FFEFFEF.........",
-  ".........FFFFF..........",
-  "........AAAAAAA.........",
-  ".......AAWWWWAAA........",
-  "......AWWWWWWWWA........",
-  "......WWWWWWWWWW........",
-  ".....WWWWWWWWWWWW.......",
-  ".....KKKKKKKKKKKK.......",
-  "....LLLLLLLLLLLLLL......",
-  "...LLLLLLLLLLLLLLLL.....",
-  "..LLLLLLLLLLLLLLLLLL....",
-  "..LLLLLLLLLLLLLLLLLL....",
-  "..LLLLLLLLLLLLLLLLLL....",
-  "..LLLLLLLLLLLLLLLLLL....",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  ".LLLLLLLLLLLLLLLLLLLL...",
-  "...BBBB........BBBB.....",
-  "...BBBB........BBBB....."],
-  box:{lethal:[6,6,15,12], weapon:[2,12,5,17], raised:[1,6,5,9]}},
-  kid:{rows:[
-  ".........HHHHHH.........",
-  "........HHHHHHHH........",
-  "...HHHHHHHHHHHHHHHHH....",
-  "..HHHHHHHHHHHHHHHHHHH...",
-  ".......FFFFFFFF.........",
-  "......FFFEFFEFFF........",
-  ".......FFFFFFFF.........",
-  "......CCCCCCCCCC........",
-  ".....CCGCCCCGCCCC.......",
-  "....CCCGCCCCGCCCCC......",
-  "....CCCCGCCGCCCCCC......",
-  "....CCCCCGGCCCCCCC......",
-  "...ACCCBBBBBBBBCCCA.....",
-  "...AGCCCCCCCCCCCCAA.....",
-  "...GGCCCCCCCCCCCCC......",
-  "...GGCCCCCCCCCCCCC......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "....LLLLLL..LLLLLL......",
-  "...BBBBBB....BBBBBB.....",
-  "...BBBBBB....BBBBBB.....",
-  "...BBBBBB....BBBBBB.....",
-  "...BBBBBB....BBBBBB.....",
-  "...BBBBBB....BBBBBB....."],
-  raise:{6:"...AGCFFFFFFFF.........",
-         7:"...GGCCCCCCCCCC........",
-         12:"....CCCBBBBBBBBCCCA.....",
-         13:"....CCCCCCCCCCCCCAA.....",
-         14:"....CCCCCCCCCCCCCC......",
-         15:"....CCCCCCCCCCCCCC......"},
-  box:{lethal:[7,6,16,13], weapon:[2,12,5,17], raised:[1,6,5,9]}},
-  doctor:{rows:[
-  "........BBBBBB..........",
-  ".......BBBBBBBB.........",
-  "......BBBBBBBBBB........",
-  ".......FFFFFFFF.........",
-  "......FEFFFFFEF.........",
-  ".......FFFFFFF..........",
-  "......CCWWWWWWCC........",
-  ".....CCCWWWWWWCCC.......",
-  ".....CCCWKKKKWCCC.......",
-  ".....CCCWWWWWWCCC.......",
-  ".....CCCCWWWWCCCC.......",
-  ".....CCCBBBBBBCCC.......",
-  "....ACCCCCCCCCCCCA......",
-  "....ACCCCCCCCCCCAA......",
-  "...PPPPPCCCCCCCCC.......",
-  "...PPPPPCCCCCCCCC.......",
-  "...PPPPPLLLLLLLL........",
-  "...PPPPPLLLLLLLL........",
-  "...PPPPPLLL..LLL........",
-  "...PPPPPLLL..LLL........",
-  "........LLL..LLL........",
-  "........LLL..LLL........",
-  "........LLL..LLL........",
-  "........LLL..LLL........",
-  "........LLL..LLL........",
-  "........LLL..LLL........",
-  ".......BBBB..BBBB.......",
-  ".......BBBB..BBBB......."],
-  box:{lethal:[6,6,16,13], weapon:[3,14,7,22], raised:[3,14,7,22]}},
-  shotgun:{rows:[
-  ".........HHHHHH.........",
-  "........HHHHHHHH........",
-  ".......HHHHHHHHHH.......",
-  "........FFFFFFFF........",
-  ".......FFFEFFEFF........",
-  "........FFFFFFF.........",
-  "......WWWWWWWWWWW.......",
-  ".....WWWWWWWWWWWWW......",
-  "....WWWWWWWWWWWWWWW.....",
-  "..GGGGGGGGGGGGGGWWW.....",
-  "..GGGGGGGGGGGGGGGGG.....",
-  "...AAWWWWWWWWWAAWWW.....",
-  "....WWWWBBBBBWWWWW......",
-  "....LLLLLLLLLLLLL.......",
-  "....LLLLLLLLLLLLL.......",
-  "....LLLLLLLLLLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "....LLLLLL..LLLLL.......",
-  "...BBBBBB....BBBBB......",
-  "...BBBBBB....BBBBB......",
-  "...BBBBBB....BBBBB......",
-  "...BBBBBB....BBBBB......",
-  "...BBBBBB....BBBBB......"],
-  raise:{7:"..GGGGGGGGGGGGGWWW......",
-         8:"..GGGGGGGGGGGGGGGGG.....",
-         9:"...AAWWWWWWWWWAAWWW.....",
-         10:"....WWWWWWWWWWWWWWW.....",
-         11:"....WWWWWWWWWWWWWWW....."},
-  box:{lethal:[8,6,16,8], weapon:[2,9,7,11], raised:[2,7,7,9]}},
-  willie:{rows:[
-  "........................",
-  "........................",
-  "........................",
-  "........................",
-  "........................",
-  "........................",
-  "........................",
-  ".........HHHHH..........",
-  "........HHHHHHH.........",
-  ".........FFFFF..........",
-  "........FFEFFEF.........",
-  ".........FFFFF..........",
-  ".......WWWWWWWWW........",
-  "......WWWWWWWWWWW.......",
-  "......AWWWWWWWWWA.......",
-  "......AWWWWWWWWWA.......",
-  "......AWWWWWWWWWA.......",
-  "......AWWWWWWWWWA.......",
-  ".......LLLLLLLLL........",
-  ".......LLLLLLLLL........",
-  ".......LLLL.LLLL........",
-  ".......LLLL.LLLL........",
-  ".......LLLL.LLLL........",
-  ".......LLLL.LLLL........",
-  ".......LLLL.LLLL........",
-  ".......LLLL.LLLL........",
-  "......AAAA...AAAA.......",
-  "......AAAA...AAAA......."],
-  box:{lethal:[8,12,15,22], weapon:[5,14,7,17], raised:[5,14,7,17]}},
-  april:{rows:[
-  "........RRRRRR..........",
-  ".......RRRRRRRR.........",
-  ".......RRRRRRRRR........",
-  "........FFFFFF..........",
-  ".......FFEFFEFF.........",
-  "........FFFFFF..........",
-  ".......WWWWWWWW.........",
-  "......CCWWWWWWCC........",
-  "......CCCCCCCCCC........",
-  "......CCCCCCCCCC........",
-  "......CCCCCCCCCC........",
-  "......CCCCCCCCCC........",
-  "...PPPCCCCCCCCCCA.......",
-  "...PPPCCCCCCCCCAA.......",
-  "...PPPLLLLLLLLLL........",
-  "...PPPLLLLLLLLLL........",
-  "......LLLLLLLLLL........",
-  "......LLLLLLLLLL........",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  ".....LLLLLLLLLLLL.......",
-  "......BBB....BBB........",
-  "......BBB....BBB........"],
-  box:{lethal:[6,6,15,13], weapon:[3,12,5,15], raised:[3,12,5,15]}},
-  gambler:{rows:[
-  ".......HHHHHHHH.........",
-  ".......HHHHHHHH.........",
-  ".......HHHHHHHH.........",
-  ".....HHHHHHHHHHHH.......",
-  "........FFFFFF..........",
-  ".......FFEFFEFF.........",
-  "........FFFFFF..........",
-  "......CCCWWWWCCC........",
-  ".....CCCCWWWWCCCC.......",
-  ".....CCCCWPPWCCCC.......",
-  ".....CCCCWWWWCCCC.......",
-  ".....CCCBBBBBBCCC.......",
-  "..AGCCCCCCCCCCCPPPPP....",
-  "..GGCCCCCCCCCCCCPPP.....",
-  "...CCCCCCCCCCCCCCP......",
-  "...CCCCCCCCCCCCCCP......",
-  "....CCCCCCCCCCCCC.......",
-  "....CCCCCCCCCCCCC.......",
-  "....CCCCC..CCCCCC.......",
-  "....CCCCC..CCCCCC.......",
-  ".....LLL....LLLL........",
-  ".....LLL....LLLL........",
-  ".....LLL....LLLL........",
-  ".....LLL....LLLL........",
-  ".....LLL....LLLL........",
-  ".....LLL....LLLL........",
-  "....BBBB....BBBBB.......",
-  "....BBBB....BBBBB......."],
-  raise:{7:"..AGCCCCWWWWCCC.........",
-         8:"..GGCCCCWWWWCCCC........",
-         12:"....CCCCCCCCCCCPPPPP....",
-         13:"....CCCCCCCCCCCCPPP.....",
-         14:"....CCCCCCCCCCCCCP......",
-         15:"....CCCCCCCCCCCCCP......"},
-  box:{lethal:[7,6,16,11], weapon:[2,12,5,15], raised:[2,7,5,9]}},
-  deputy:{rows:[
-  ".........HHHHH..........",
-  "........HHHHHHH.........",
-  ".......HHHHHHHHH........",
-  "......HHHHHHHHHHH.......",
-  "........FFFFFF..........",
-  ".......FFEFFEFF.........",
-  "........FFFFFF..........",
-  "......CCCWWWWCCC........",
-  ".....CCCCWWWWCCCC.......",
-  ".....CCSCWWWWCCCC.......",
-  ".....CCCCWWWWCCCC.......",
-  ".....CCCBBBBBBCCC.......",
-  "...ACCCCCCCCCCCCA.......",
-  "...AGCCCCCCCCCCAA.......",
-  "...GGCCCCCCCCCCC........",
-  "...GGCCCCCCCCCCC........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "...GGLLLLL.LLLLL........",
-  "..BBBBBBB...BBBBB.......",
-  "..BBBBBBB...BBBBB.......",
-  "..BBBBBBB...BBBBB.......",
-  "..BBBBBBB...BBBBB.......",
-  "..BBBBBBB...BBBBB......."],
-  raise:{6:"...AGCCFFFFFF...........",
-         7:"...GGCCCWWWWCCC.........",
-         8:"...GGCCCCWWWWCCCC.......",
-         12:"....CCCCCCCCCCCA.......",
-         13:"....CCCCCCCCCCAA.......",
-         16:".....LLLLL.LLLLL........",
-         17:".....LLLLL.LLLLL........",
-         18:".....LLLLL.LLLLL........",
-         19:".....LLLLL.LLLLL........",
-         20:".....LLLLL.LLLLL........",
-         21:".....LLLLL.LLLLL........",
-         22:".....LLLLL.LLLLL........"},
-  box:{lethal:[7,6,16,13], weapon:[2,13,5,22], raised:[2,6,5,9]}},
-  belle:{rows:[
-  "......HHHHHHHHHH........",
-  ".....HHHHHHHHHHHH.......",
-  "........RRRRRR..........",
-  ".......RFFFFFFR.........",
-  "........FFEFFEF.........",
-  ".........FFFFF..........",
-  "......WWWWWWWWWW........",
-  ".....WWWWWWWWWWWW.......",
-  ".....WWWWWWWWWWWW.......",
-  ".....WWWWWWWWWWWW.......",
-  "....PPWWWWWWWWWWW.......",
-  "...PPPPBBBBBBBWWW.......",
-  "...PPPPCCCCCCCCCA.......",
-  "...AGCCCCCCCCCCAA.......",
-  "...GGCCCCCCCCCCC........",
-  "...GGCCCCCCCCCCC........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "....LLLLLL.LLLLL........",
-  "...BBBBBB...BBBBB.......",
-  "...BBBBBB...BBBBB.......",
-  "...BBBBBB...BBBBB.......",
-  "...BBBBBB...BBBBB.......",
-  "...BBBBBB...BBBBB......."],
-  raise:{6:"...AGCWWWWWWWWWW........",
-         7:"...GGCWWWWWWWWWWW.......",
-         13:"....CCCCCCCCCCCAA.......",
-         14:"....CCCCCCCCCCCC........",
-         15:"....CCCCCCCCCCCC........"},
-  box:{lethal:[6,6,16,12], weapon:[2,12,5,17], raised:[1,6,5,8]}},
-  lastgun:{rows:[
-  "........HHHHHH..........",
-  ".......HHHHHHHH.........",
-  ".....HHHHHHHHHHHH.......",
-  "....HHHHHHHHHHHHHH......",
-  "........FFFFFF..........",
-  ".......FFEFFEFF.........",
-  "........FFFFFF..........",
-  "......KKKKKKKKKK........",
-  ".....KKKKKKKKKKKK.......",
-  "....KKKKKKKKKKKKKK......",
-  "....KKKKKKKKKKKKKK......",
-  "....KKKKKKKKKKKKKK......",
-  "..AKKKKKKKKKKKKKKA......",
-  "..AGKKKKKKKKKKKKAA......",
-  "..GGKKKKKKKKKKKKKK......",
-  "..GGKKKKKKKKKKKKKK......",
-  "...KKKKKKKKKKKKKK.......",
-  "...KKKKKKKKKKKKKK.......",
-  "...KKKKKK..KKKKKKK......",
-  "...KKKKKK..KKKKKKK......",
-  "....LLLL....LLLLL.......",
-  "....LLLL....LLLLL.......",
-  "....LLLL....LLLLL.......",
-  "....LLLL....LLLLL.......",
-  "....LLLL....LLLLL.......",
-  "....LLLL....LLLLL.......",
-  "...BBBB......BBBBB......",
-  "...BBBB......BBBBB......"],
-  raise:{6:"..AGKKKKKKKKKKKK........",
-         7:"..GGKKKKKKKKKKKKKK......",
-         12:"...KKKKKKKKKKKKKKA......",
-         13:"...KKKKKKKKKKKKKAA......",
-         14:"...KKKKKKKKKKKKKKK......",
-         15:"...KKKKKKKKKKKKKKK......"},
-  box:{lethal:[6,6,17,13], weapon:[1,12,4,17], raised:[1,6,4,8]}},
-  robber:{rows:[
-  ".........HHHHHH.........",
-  "........HHHHHHHH........",
-  "......HHHHHHHHHHHH......",
-  ".......KKKKKKKKKK.......",
-  "........KKEKKEKK........",
-  ".........KKKKKK.........",
-  "......CCCCCCCCCCCC......",
-  ".....CCCCCCCCCCCCCC.....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCBBBBBBBBCCCC....",
-  "..AGCCCCCCCCCCCCCCCCA...",
-  "..GGCCCCCCCCCCCCCCCAA...",
-  "..GGCCCCCCCCCCCCCCCC....",
-  "..GGCCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  "....CCCCCCCCCCCCCCCC....",
-  ".....CCCCCC..CCCCCC.....",
-  ".....CCCCCC..CCCCCC.....",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  "......LLLL....LLLL......",
-  ".....BBBB......BBBB.....",
-  ".....BBBB......BBBB....."],
-  raise:{6:"..AGCCCCCCCCCCCCCC......",
-         7:"..GGCCCCCCCCCCCCCCCC....",
-         12:"....CCCCCCCCCCCCCCCCA...",
-         13:"....CCCCCCCCCCCCCCCAA..."},
-  box:{lethal:[7,6,16,13], weapon:[1,12,4,17], raised:[1,6,4,8]}}
-};
-/* Hands up: an overlay any figure can wear, so surrender reads at a glance. */
-const SURRENDER={0:"..AAA..............AAA..",1:"..AAA..............AAA..",
-  2:"..AAA..HHHHHH......AAA..",3:"..AAA..FFFFFF......AAA..",
-  4:"..AAA..FFEFFE......AAA..",5:"...AA...FFFFF.......AA.."};
+ *
+ * 48 by 84 is not a taste either: the horizon is at 118 and a caller's boots
+ * are at 150, the sheriff's are at 200, and a man the sheriff's size standing
+ * that much nearer the horizon comes out 0.39 of him. His own drawing is 129 by
+ * 200, so the caller is 50 by 78, and 48 by 84 is the nearest round figure. */
+const SPR={w:48,h:84}, FIGCW=1, FIGCH=1, FIGCELL=FIGCW;
 
+/* ---- the skeleton, in rows and widths, at full height ---- */
+const BONE={
+  crown:0, brim:6, brimEnd:8, faceTop:4, eye:10, faceBot:16,
+  neck:16, shoulder:19, chest:26, waist:43, beltEnd:47, hip:52,
+  thigh:53, knee:65, ankle:76, ground:83,
+  elbow:33, wrist:46, hand:51,
+  hatCrown:13, hatBrim:23, faceW:11, neckW:6,
+  shoulderW:21, chestW:20, waistW:15, hipW:18,
+  upperArm:6, foreArm:5, handW:5, thighW:9, calfW:7, bootW:9
+};
+const CX=24;                                      // he stands on the middle of it
+
+/* ---- a very small drawing hand ---- */
+function figGrid(){const g=[];for(let r=0;r<SPR.h;r++)g.push(new Array(SPR.w).fill("."));return g;}
+function figPut(g,x,y,ch){x=Math.round(x);y=Math.round(y);
+  if(y>=0&&y<SPR.h&&x>=0&&x<SPR.w)g[y][x]=ch;}
+function figSpan(g,y,cx,w,ch){
+  if(w<=0)return;
+  const a=Math.round(cx-w/2), b=Math.round(cx+w/2)-1;
+  for(let x=a;x<=b;x++)figPut(g,x,y,ch);
+}
+/* A limb, a torso or a skirt: both the width and the centre travel down it. */
+function figTaper(g,y0,y1,cx0,w0,cx1,w1,ch){
+  y0=Math.round(y0); y1=Math.round(y1);
+  for(let y=y0;y<=y1;y++){
+    const t=(y1===y0)?0:(y-y0)/(y1-y0);
+    figSpan(g,y,cx0+(cx1-cx0)*t,w0+(w1-w0)*t,ch);
+  }
+}
+function figDisc(g,cx,cy,rx,ry,ch){
+  for(let y=Math.round(cy-ry);y<=Math.round(cy+ry);y++)
+    for(let x=Math.round(cx-rx);x<=Math.round(cx+rx);x++){
+      const u=(x-cx)/rx, v=(y-cy)/ry;
+      if(u*u+v*v<=1.02)figPut(g,x,y,ch);
+    }
+}
+/* A seam of coat-shadow laid down the join between a sleeve and the body, and
+ * round a hem. Without it a sleeve and the chest it hangs against are one run
+ * of one colour and the light models them as one barrel. */
+function figSeam(g,x,y0,y1,ch){for(let y=Math.round(y0);y<=Math.round(y1);y++)
+  if(g[y]&&g[y][Math.round(x)]&&g[y][Math.round(x)]!==".")figPut(g,x,y,ch);}
+
+/* ---- the builder ---- *
+ * Every landmark row is measured up from the ground, so shortening a figure
+ * keeps his boots on the street; widths take their own scale, because a boy is
+ * not a small man - his head is nearly a man's on a much smaller frame. */
+function figLayout(S){
+  const hs=S.tall===undefined?1:S.tall, ws=S.wide===undefined?1:S.wide;
+  const hw=S.headWide===undefined?ws:S.headWide;
+  const G=BONE.ground;
+  const R={}, Wd={};
+  for(const k of Object.keys(BONE)){
+    if(/W$|^hat|Arm$/.test(k))continue;      // those are widths, not rows
+    R[k]=Math.round(G-(G-BONE[k])*hs);
+  }
+  const head=["hatCrown","hatBrim","faceW","neckW"];
+  for(const k of ["hatCrown","hatBrim","faceW","neckW","shoulderW","chestW","waistW",
+                  "hipW","upperArm","foreArm","handW","thighW","calfW","bootW"])
+    Wd[k]=BONE[k]*(head.indexOf(k)>=0?hw:ws);
+  // The arm hangs outside the chest, not inside it: a sleeve buried in the
+  // torso is what made him a slab with a head on it.
+  const armX=(Wd.chestW/2+Wd.upperArm/2-1.5);
+  return {R:R, Wd:Wd, armX:armX, elbowX:armX+1, wristX:armX+0.5,
+          gunSide:-1, holsterX:CX-(Wd.waistW/2+2.5)};
+}
+function buildFigure(S,pose){
+  const P=figLayout(S), R=P.R, Wd=P.Wd;
+  const g=figGrid();
+  const dress=S.coat==="dress";
+  const gunSide=P.gunSide;                // his gun hand is the one nearest us
+  const armX=P.armX, elbowX=P.elbowX, wristX=P.wristX;
+
+  /* legs, or a skirt over them */
+  if(dress){
+    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX,Wd.hipW*1.75,"L");
+    figTaper(g,R.ankle+5,R.ground,CX-Wd.thighW*0.45,Wd.bootW*0.8,
+             CX-Wd.thighW*0.45,Wd.bootW*0.8,"B");
+    figTaper(g,R.ankle+5,R.ground,CX+Wd.thighW*0.45,Wd.bootW*0.8,
+             CX+Wd.thighW*0.45,Wd.bootW*0.8,"B");
+  }else{
+    for(const s of [-1,1]){
+      const hipC=CX+s*Wd.thighW*0.52, ankC=CX+s*Wd.thighW*0.58;
+      figTaper(g,R.hip,R.knee,hipC,Wd.thighW,ankC,Wd.calfW+1,"L");
+      figTaper(g,R.knee+1,R.ankle,ankC,Wd.calfW+1,ankC,Wd.calfW,"L");
+      figTaper(g,R.ankle+1,R.ground,ankC,Wd.bootW*0.85,ankC+s*1.2,Wd.bootW,"B");
+    }
+  }
+  /* the body: shoulders down to the waist, then the coat's own cut */
+  const bodyBot=dress?R.waist:(S.coat==="frock"?R.hip+10:R.hip+2);
+  // shoulders slope off the neck; they do not start at their full width
+  figTaper(g,R.shoulder,R.shoulder+4,CX,Wd.neckW+4,CX,Wd.shoulderW,"C");
+  figTaper(g,R.shoulder+5,R.chest,CX,Wd.shoulderW,CX,Wd.chestW,"C");
+  figTaper(g,R.chest+1,R.waist,CX,Wd.chestW,CX,Wd.waistW,"C");
+  if(!dress)figTaper(g,R.waist+1,bodyBot,CX,Wd.waistW,CX,Wd.hipW,"C");
+  if(S.coat==="frock"){                  // the tails, split up the back seam
+    figSpan(g,bodyBot,CX,1,".");
+    for(let y=R.hip;y<=bodyBot;y++)figPut(g,CX,y,"K");
+  }
+  /* linen between the lapels, and the lapels themselves */
+  // A coat opens on linen in a long V; a bodice closes at the throat on a
+  // collar and no more, so the women are not walking about in a man's shirt.
+  const vTop=R.shoulder+1;
+  const vBot=dress?R.chest-1:R.chest+Math.round((R.waist-R.chest)*0.55);
+  const vw0=Wd.neckW*0.55, vw1=dress?Wd.chestW*0.3:Wd.chestW*0.58;
+  figTaper(g,vTop,vBot,CX,vw0,CX,vw1,S.linen||"W");
+  for(let y=vTop;y<=vBot;y++){                       // the lapels, two cells of them
+    const t=(y-vTop)/(vBot-vTop||1), w=(vw0+(vw1-vw0)*t)/2;
+    for(const x of [CX-w-1,CX-w-2,CX+w,CX+w+1])
+      if(g[y]&&g[y][Math.round(x)]==="C")figPut(g,x,y,"K");
+  }
+  if(S.coat==="vest"){                   // shirtsleeves: the linen runs the whole torso
+    figTaper(g,vBot+1,R.waist,CX,Wd.chestW*0.42,CX,Wd.waistW*0.4,S.linen||"W");
+  }
+  /* the belt, and what hangs off it */
+  if(!dress){
+    for(let y=R.waist+1;y<=R.beltEnd;y++)figSpan(g,y,CX,Wd.waistW+1,"B");
+  }else{
+    for(let y=R.waist-1;y<=R.waist+1;y++)figSpan(g,y,CX,Wd.hipW,"B");
+  }
+  if(S.gun==="holster"){                   // the holster hangs clear of his hip,
+    const hx=P.holsterX;                   // so the gun is its own target
+    figTaper(g,R.beltEnd+1,R.beltEnd+9,hx,5,hx-1,5,"B");
+    figTaper(g,R.waist,R.beltEnd+2,hx-1,3,hx-1,3,"G");
+  }
+  /* arms. The near one is the gun arm and it is the one that moves. */
+  const raised=pose==="raise", up=pose==="surrender";
+  for(const s of [1,-1]){
+    const sx=CX+s*armX, ex=CX+s*elbowX, wx=CX+s*wristX;
+    const sleeve=(S.coat==="vest")?(S.linen||"W"):"C";
+    figDisc(g,sx,R.shoulder+3,Wd.upperArm/2,2,(S.coat==="vest")?(S.linen||"W"):"C");
+    if(up||(raised&&s===gunSide)){
+      // forearm up: the elbow stays where it is and the hand goes over the hat
+      const topY=up?R.crown+(S.tall?2:2):R.chest-2;
+      figTaper(g,R.shoulder+2,R.elbow,sx,Wd.upperArm,ex,Wd.upperArm*0.92,sleeve);
+      figTaper(g,topY+4,R.elbow,ex,Wd.foreArm,ex,Wd.upperArm*0.92,sleeve);
+      figDisc(g,ex,topY+2,Wd.handW/2,Wd.handW/2+0.5,"A");
+      // the drawn gun comes out well clear of him: what the crosshair finds
+      // there is the weapon, and never the man behind it
+      if(raised&&s===gunSide&&S.gun!=="none")
+        figTaper(g,topY,topY+3,ex-6,9,ex-7,7,"G");
+    }else{
+      figTaper(g,R.shoulder+2,R.elbow,sx,Wd.upperArm,ex,Wd.upperArm*0.92,sleeve);
+      figTaper(g,R.elbow+1,R.wrist,ex,Wd.foreArm+1,wx,Wd.foreArm,sleeve);
+      figDisc(g,wx,R.hand,Wd.handW/2,Wd.handW/2+1,"A");
+    }
+    figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
+  }
+  // A brand new shotgun, carried across him for everyone to see. It is drawn
+  // in the prop colour, not in gunmetal: the gun the crosshair is looking for
+  // is the one on his hip, and two of them on one man is two answers.
+  if(S.longgun&&!up)for(let i=0;i<22;i++)
+    figPut(g,CX-9+i,raised?R.chest+1:R.chest+9-Math.round(i*0.55),"P");
+  /* neck, head, hair, hat */
+  if(!up)figTaper(g,R.neck-1,R.shoulder,CX,Wd.neckW,CX,Wd.neckW+1,"A");
+  figDisc(g,CX,(R.faceTop+R.faceBot)/2,Wd.faceW/2,(R.faceBot-R.faceTop)/2+1,"F");
+  if(S.hair==="long"){
+    figDisc(g,CX,(R.faceTop+R.faceBot)/2-1,Wd.faceW/2+2,(R.faceBot-R.faceTop)/2+2,"R");
+    figTaper(g,R.faceTop+2,R.neck+4,CX,Wd.faceW+4,CX,Wd.faceW+2,"R");
+    figDisc(g,CX,(R.faceTop+R.faceBot)/2,Wd.faceW/2,(R.faceBot-R.faceTop)/2+1,"F");
+  }else if(S.hair==="short"){
+    figDisc(g,CX,R.faceTop+2,Wd.faceW/2+1,3,"R");
+  }
+  if(S.hat==="stetson"){
+    figDisc(g,CX,R.brim-2,Wd.hatCrown/2,(R.brim-R.crown)/2+1,"H");
+    figTaper(g,R.brim,R.brimEnd-1,CX,Wd.hatBrim,CX,Wd.hatBrim*0.86,"H");
+  }else if(S.hat==="derby"){
+    figDisc(g,CX,R.brim-1,Wd.hatCrown/2*0.88,(R.brim-R.crown)/2+1,"H");
+    figTaper(g,R.brim,R.brim+1,CX,Wd.hatBrim*0.76,CX,Wd.hatBrim*0.7,"H");
+  }else if(S.hat==="cap"){
+    figDisc(g,CX,R.brim,Wd.hatCrown/2*0.85,(R.brim-R.crown)/2,"H");
+    figSpan(g,R.brim+1,CX-2,Wd.hatBrim*0.5,"H");
+  }else if(S.hat==="bonnet"){
+    figDisc(g,CX,R.brim-1,Wd.hatCrown/2+1,(R.brim-R.crown)/2+2,"H");
+    figTaper(g,R.brim,R.brim+2,CX,Wd.hatBrim*0.62,CX,Wd.hatBrim*0.5,"H");
+  }
+  /* eyes: two of them, and they are the only cells named E on that row */
+  if(!0){
+    const ey=R.eye, ex=Math.max(2,Math.round(Wd.faceW*0.22));
+    for(const s of [-1,1])for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++)
+      if(g[ey+dy]&&g[ey+dy][CX+s*ex+dx-(s<0?1:0)]==="F")
+        figPut(g,CX+s*ex+dx-(s<0?1:0),ey+dy,"E");
+  }
+  // a brow, the shadow down one side of the nose, and a mouth: at eleven rows
+  // of face there is room for all three, and without them he is an egg
+  {
+    const ey=R.eye, mid=Math.round((R.faceTop+R.faceBot)/2);
+    for(let x=CX-3;x<=CX+2;x++)if(g[ey-2]&&g[ey-2][x]==="F")figPut(g,x,ey-2,"R");
+    for(let y=ey+2;y<=ey+4;y++)if(g[y]&&g[y][CX-1]==="F")figPut(g,CX-1,y,"R");
+    for(let x=CX-2;x<=CX+1;x++)if(g[mid+4]&&g[mid+4][x]==="F")figPut(g,x,mid+4,"R");
+  }
+  if(S.star)for(let y=R.chest;y<R.chest+3;y++)figSpan(g,y,CX-Wd.chestW*0.28,3,"S");
+  if(S.prop==="bag")figTaper(g,R.hand-1,R.hand+7,CX+wristX+1,9,CX+wristX+1,9,"P");
+  if(S.prop==="cards")figTaper(g,R.hand-3,R.hand+1,CX+wristX,6,CX+wristX,6,"P");
+  if(S.prop==="slate")figTaper(g,R.chest+1,R.chest+11,CX+wristX,9,CX+wristX,9,"P");
+  if(S.prop==="rope")figDisc(g,CX+wristX,R.hand,4,4,"P");
+  return g.map(r=>r.join(""));
+}
+
+/* What each of them is made of. The spec is the whole difference between one
+ * caller and the next; everything else about them is the same draughtsman. */
+const FIGSPEC={
+  stranger:{hat:"stetson", coat:"jacket",              gun:"holster"},
+  rose:    {hat:"none", hair:"long", coat:"dress",     gun:"none", wide:0.94},
+  kid:     {hat:"stetson", coat:"jacket",              gun:"holster", wide:0.94},
+  doctor:  {hat:"derby", coat:"frock",                 gun:"none", prop:"bag"},
+  shotgun: {hat:"stetson", coat:"vest", longgun:true,  gun:"holster"},
+  willie:  {hat:"cap", hair:"short", coat:"vest",      gun:"none",
+            tall:0.7, wide:0.76, headWide:0.92},
+  april:   {hat:"bonnet", hair:"long", coat:"dress",   gun:"none", wide:0.92,
+            prop:"slate"},
+  gambler: {hat:"derby", coat:"frock",                 gun:"holster", prop:"cards"},
+  deputy:  {hat:"stetson", coat:"jacket",              gun:"holster", star:true},
+  belle:   {hat:"none", hair:"long", coat:"dress",     gun:"holster", wide:0.96,
+            prop:"rope"},
+  lastgun: {hat:"stetson", coat:"frock",               gun:"holster", wide:1.06},
+  robber:  {hat:"stetson", coat:"jacket",              gun:"holster", wide:1.04}
+};
+/* The bullet's three targets are not guessed and not hand-tuned per figure:
+ * they are read off the drawing that was just made. The weapon box is where
+ * the gunmetal actually is, the raised box is where the gunmetal goes when he
+ * draws, and the lethal box is his torso between them. Because the gun hangs
+ * clear of his hip and the drawn gun comes out clear of his chest, no two of
+ * the three ever overlap - a shot is one answer, never two. */
+function figInk(rows,ch,r0,r1){
+  let c0=SPR.w, cr0=SPR.h, c1=-1, cr1=-1;
+  for(let r=Math.max(0,r0);r<=Math.min(rows.length-1,r1);r++)
+    for(let c=0;c<rows[r].length;c++)if(rows[r][c]===ch){
+      if(c<c0)c0=c; if(c>c1)c1=c; if(r<cr0)cr0=r; if(r>cr1)cr1=r;
+    }
+  return c1<0?null:[c0,cr0,c1,cr1];
+}
+function figBoxes(S,stand,up){
+  const P=figLayout(S), R=P.R, Wd=P.Wd;
+  const half=Math.max(3,Math.round(Wd.chestW*0.42));
+  const lethal=[CX-half,R.shoulder+2,CX+half,R.waist-1];
+  const gone=[Math.max(0,CX-half-9),R.waist,CX-half-2,Math.min(SPR.h-1,R.beltEnd+9)];
+  const rgone=[Math.max(0,CX-half-14),R.chest-4,CX-half-2,R.chest+3];
+  return {lethal:lethal,
+          weapon:figInk(stand,"G",R.waist-2,SPR.h-1)||gone,
+          raised:figInk(up,"G",0,R.waist-1)||rgone};
+}
+const FIGURES={};
+for(const k of Object.keys(FIGSPEC)){
+  const S=FIGSPEC[k], stand=buildFigure(S,"stand");
+  const up=buildFigure(S,"raise"), hands=buildFigure(S,"surrender");
+  const sparse=(a,b)=>{const o={};for(let i=0;i<a.length;i++)if(a[i]!==b[i])o[i]=a[i];return o;};
+  FIGURES[k]={rows:stand, raise:sparse(up,stand), surrender:sparse(hands,stand),
+              box:figBoxes(S,stand,up)};
+}
+const DEFAULT_BOX=FIGURES.robber.box;
+/* Hands up: kept as a name for anything that asks for it generically. */
+const SURRENDER=FIGURES.robber.surrender;
 const FIG={cx:190, ground:150};          // the caller, in the middle of the street
 const SPRX=FIG.cx-(SPR.w/2)*FIGCW;
 const SPRY=FIG.ground-SPR.h*FIGCH;

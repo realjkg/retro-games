@@ -94,7 +94,7 @@ const LOOK={
   rose:    {H:C64.brn,R:C64.brn,C:C64.red,K:"#54291f",L:C64.red,W:C64.wht},
   kid:     {H:C64.org,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.yel},
   doctor:  {H:C64.blk,C:C64.blu,K:"#241a54",L:C64.blu,W:C64.wht,P:C64.brn},
-  shotgun: {H:C64.lrd,C:C64.lgn,K:C64.grn,L:C64.blu,W:C64.lgn},
+  shotgun: {H:C64.lrd,C:C64.lgn,K:C64.grn,L:C64.blu,W:C64.lgn,P:C64.lgy},
   willie:  {H:C64.grn,C:C64.yel,K:C64.grn,L:C64.brn,W:C64.yel},
   april:   {H:C64.brn,R:C64.brn,C:C64.grn,K:"#3e6330",L:C64.grn,W:C64.wht,P:C64.dgy},
   gambler: {H:C64.blk,C:C64.pur,K:"#4c2a5c",L:C64.blk,W:C64.wht,P:C64.wht},
@@ -105,35 +105,135 @@ const LOOK={
 };
 function figureRows(fig,pose){
   const rows=fig.rows.slice();
-  const over=pose==="raise"?fig.raise:(pose==="surrender"?SURRENDER:null);
+  const over=pose==="raise"?fig.raise:(pose==="surrender"?(fig.surrender||SURRENDER):null);
   if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
   return rows;
 }
-/* The silhouette is stamped a pixel larger in black and the colours laid over
- * it, which gives a one-pixel rim at any cell size: that rim is what keeps a
- * figure legible against a lit window or a dark doorway. */
-function drawFigure(rows,x0,y0,look,cw,ch){
-  const w=cw||FIGCW, h=ch||FIGCH, at=(r,c)=>(rows[r]&&rows[r][c])||".";
+/* ---- how a caller is painted ---- *
+ * The sheriff is a painting: a hundred and twenty-nine pixels of him, sixty-
+ * four colours, light turning across a shoulder. A caller drawn as flat blocks
+ * of one colour per cell stands next to that and reads as a different game.
+ * So the letter grid is no longer the picture - it is the pattern the picture
+ * is cut from. What a cell says is only what that part of him is made of; the
+ * rounding of his outline, the turn of the light across his chest, the rim
+ * where the sun catches his near arm and the dithered step from one tone to
+ * the next are all worked out a screen pixel at a time, at the cell's own
+ * scale, in the same visual grammar the town is drawn in.
+ *
+ * It is worked out once and kept. A figure only changes when his pose, his
+ * mood or his blink does, so a few dozen sheets cover a whole day, and a frame
+ * costs a few hundred horizontal runs instead of four thousand single pixels.
+ */
+const TONES=[-0.34,-0.17,0,0.15,0.30];    // five steps of light, dark to lit
+const LOOKID=new Map();
+const lookId=l=>{let i=LOOKID.get(l); if(i===undefined){i=LOOKID.size;LOOKID.set(l,i);} return i;};
+const FIGRUNS=new Map(), FIGRUNS_MAX=96;
+function figureRuns(rows,look,w,h){
+  const key=lookId(look)+"/"+w+"x"+h+"/"+rows.join("|");
+  const hit=FIGRUNS.get(key); if(hit)return hit;
   let cols=0; for(const r of rows)if(r.length>cols)cols=r.length;
-  ctx.fillStyle=C64.blk;
-  for(let r=0;r<rows.length;r++)for(let c=0;c<cols;c++){
-    if(cellColour(at(r,c),look)===null)continue;
-    ctx.fillRect(Math.round(x0+c*w)-1,Math.round(y0+r*h)-1,w+2,h+2);
-  }
-  // The light comes from the left, as it does in the sheriff's own drawing, so
-  // each row is lit along the edge it turns toward the light and dropped a step
-  // along the edge it turns away. A flat silhouette becomes a body.
-  for(let r=0;r<rows.length;r++){
-    let l=-1,rt=-1;
-    for(let c=0;c<cols;c++)if(cellColour(at(r,c),look)!==null){if(l<0)l=c;rt=c;}
-    const round=rt-l>2;
-    for(let c=0;c<cols;c++){
-      const col=cellColour(at(r,c),look); if(!col)continue;
-      let k=col;
-      if(round&&rt-c<=1)k=shade(col,-0.24);
-      else if(round&&c-l<=0)k=shade(col,0.18);
-      px(x0+c*w,y0+r*h,w,h,k);
+  const nr=rows.length, W=cols*w, H=nr*h;
+  const letter=(r,c)=>((r>=0&&r<nr&&c>=0&&c<cols&&rows[r]&&rows[r][c])||".");
+  const colOf=(r,c)=>cellColour(letter(r,c),look);
+  const occ=(r,c)=>colOf(r,c)?1:0;
+  const inside=new Uint8Array(W*H), soft=new Uint8Array(W*H);
+  const tone=new Uint8Array(W*H), pix=new Array(W*H).fill(null);
+  /* 1. The silhouette, smoothed. A pixel belongs to the body when the cells
+   *    around it mostly do, which rounds a stepped corner off and fills a
+   *    stepped notch in - a jaw stops being a staircase. The colour is the
+   *    nearest cell that has one, so a one-cell eye survives the smoothing. */
+  for(let Y=0;Y<H;Y++)for(let X=0;X<W;X++){
+    const fx=(X+0.5)/w-0.5, fy=(Y+0.5)/h-0.5;
+    const c0=Math.floor(fx), r0=Math.floor(fy), tx=fx-c0, ty=fy-r0;
+    const cov=occ(r0,c0)*(1-tx)*(1-ty)+occ(r0,c0+1)*tx*(1-ty)
+             +occ(r0+1,c0)*(1-tx)*ty+occ(r0+1,c0+1)*tx*ty;
+    if(cov<0.5)continue;
+    let best=null, bw=-1, bl=".";
+    const R=[r0,r0,r0+1,r0+1], C=[c0,c0+1,c0,c0+1];
+    const WT=[(1-tx)*(1-ty),tx*(1-ty),(1-tx)*ty,tx*ty];
+    for(let k=0;k<4;k++){
+      const col=colOf(R[k],C[k]);
+      if(col&&WT[k]>bw){bw=WT[k];best=col;bl=letter(R[k],C[k]);}
     }
+    if(!best)continue;
+    const i=Y*W+X;
+    inside[i]=1; pix[i]=best; soft[i]=(bl==="F"||bl==="A"||bl==="E")?1:0;
+  }
+  /* 2. The light comes from the left, as it does in the sheriff's own drawing.
+   *    It is not one ramp across the whole man - that models him as a barrel.
+   *    Each scanline is cut into the runs of one material it is made of, and
+   *    every run is turned on its own: the coat rounds, the near sleeve rounds
+   *    inside the coat, each leg rounds separately, and the shirt between the
+   *    lapels keeps its own light. Over the top of that goes a gentle tilt
+   *    across the whole body, so the parts still belong to one lit man, and a
+   *    little of the sky the higher up he is. The step between two tones is
+   *    dithered on the same ordered matrix the town is drawn with, so a chest
+   *    turns instead of banding. A face takes half of it: a hard shadow across
+   *    a man's cheek at this size reads as dirt, not as form. */
+  for(let Y=0;Y<H;Y++){
+    let l=-1, rt=-1;
+    for(let X=0;X<W;X++)if(inside[Y*W+X]){if(l<0)l=X;rt=X;}
+    if(l<0)continue;
+    const span=rt-l+1, sky=0.05*(1-Y/H);
+    for(let X=l;X<=rt;){
+      const i0=Y*W+X;
+      if(!inside[i0]){X++;continue;}
+      let e=X;                                   // the run of one material
+      while(e+1<=rt&&inside[Y*W+e+1]&&pix[Y*W+e+1]===pix[i0])e++;
+      const rw=e-X+1;
+      // a run only a cell or two wide has no room to be round; one four cells
+      // and wider is turned the whole way
+      const depth=Math.min(1,(rw-w)/(3*w));
+      for(let x=X;x<=e;x++){
+        const i=Y*W+x;
+        let s=sky+0.10-0.20*((x-l)/(span-1||1));
+        if(depth>0)s+=(0.26-0.58*Math.pow((x-X)/(rw-1||1),0.85))*depth;
+        if(soft[i])s*=0.5;
+        s+=(((BAYER[(Y&3)*4+(x&3)]+0.5)/16)-0.5)*0.15;
+        let k=0, bd=9;
+        for(let t=0;t<TONES.length;t++){const d=Math.abs(TONES[t]-s); if(d<bd){bd=d;k=t;}}
+        tone[i]=k;
+      }
+      X=e+1;
+    }
+  }
+  /* 3. The rim, and then the runs. Every pixel of air that touches him is put
+   *    down in black first: that one pixel is what keeps him legible against a
+   *    lit window or a dark doorway, at any cell size. */
+  const SH=new Map(), toned=(col,t)=>{
+    const k=col+"@"+t; let v=SH.get(k);
+    if(v===undefined){v=t?shade(col,TONES[t+2]):col;SH.set(k,v);}
+    return v;
+  };
+  const runs=[];
+  for(let Y=-1;Y<=H;Y++){
+    let run=null;
+    for(let X=-1;X<=W;X++){
+      let c=null;
+      if(X>=0&&X<W&&Y>=0&&Y<H&&inside[Y*W+X]){
+        c=toned(pix[Y*W+X],tone[Y*W+X]-2);
+      }else{
+        for(let dy=-1;dy<=1&&!c;dy++)for(let dx=-1;dx<=1;dx++){
+          const x=X+dx, y=Y+dy;
+          if(x>=0&&x<W&&y>=0&&y<H&&inside[y*W+x]){c=C64.blk;break;}
+        }
+      }
+      if(run&&run.c===c)run.w++;
+      else{ if(run)runs.push(run); run=c?{x:X,y:Y,w:1,c:c}:null; }
+    }
+    if(run)runs.push(run);
+  }
+  if(FIGRUNS.size>=FIGRUNS_MAX)FIGRUNS.delete(FIGRUNS.keys().next().value);
+  FIGRUNS.set(key,runs);
+  return runs;
+}
+function drawFigure(rows,x0,y0,look,cw,ch){
+  const runs=figureRuns(rows,look,cw||FIGCW,ch||FIGCH);
+  const X0=Math.round(x0), Y0=Math.round(y0);
+  for(let i=0;i<runs.length;i++){
+    const r=runs[i];
+    ctx.fillStyle=r.c;
+    ctx.fillRect(X0+r.x,Y0+r.y,r.w,1);
   }
 }
 
@@ -165,6 +265,7 @@ function headOf(fig){
   const head=(body>eye+1)?body:eye+2;
   return HEADOF[key]={eye:eye, head:head};
 }
+const GEST=2;                            // one unit of body language, in pixels
 const MOODS={
   warm:   {brow:0, mouth:"soft", lean: 0, rise: 0},
   neutral:{brow:0, mouth:"set",  lean: 0, rise: 0},
@@ -229,8 +330,11 @@ function visitor(enc,pose,now){
   const t=(now||0)/1000, ph=phaseOf(enc.figure||enc.id||"x");
   const mood=MOODS[moodNow()]||MOODS.neutral;
   // breath, and the weight going from one hip to the other
+  // He is twice the man he was, so every one of these carries that with it: a
+  // pixel of sway on a 48-pixel figure is not the gesture it was on a 24-pixel
+  // one. GEST is what one unit of body language is worth in screen pixels.
   const breath=Math.sin(t*1.7+ph)>0.55?-1:0;
-  const sway=Math.round(Math.sin(t*0.63+ph)*1.2);
+  const sway=Math.round(Math.sin(t*0.63+ph)*1.2)*GEST;
   // an eye shuts for a moment, on his own clock and not on anyone else's
   const cyc=3.1+((ph*7)%2.4), blink=(t+ph)%cyc<0.13;
   // and he answers before he answers: a flinch back, a nod in, a beat taken
@@ -238,14 +342,16 @@ function visitor(enc,pose,now){
   let rdx=0, rdy=0;
   if(since>=0&&since<RE){
     const u=1-since/RE, e=u*u;
-    if(reactKind==="flinch"){rdx=-Math.round(2.6*e); rdy=-Math.round(e);}
-    else if(reactKind==="nod"){rdy=Math.round(1.6*e);}
-    else rdx=Math.round(1.2*e);
+    if(reactKind==="flinch"){rdx=-Math.round(2.6*e)*GEST; rdy=-Math.round(1.6*e);}
+    else if(reactKind==="nod"){rdy=Math.round(2.4*e);}
+    else rdx=Math.round(1.2*e)*GEST;
   }
   const walk=walkNow(now||0);
-  const bdx=sway+mood.lean+(walk?walk.dx:0), bdy=breath+mood.rise+(walk?walk.bob:0);
+  const lean=mood.lean*GEST, rise=mood.rise*2;
+  const bdx=sway+lean+(walk?walk.dx:0), bdy=breath+rise+(walk?walk.bob:0);
   ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow goes with him
-  ctx.fillRect(SPRX+4*FIGCW+(walk?walk.dx:0),SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
+  ctx.fillRect(SPRX+Math.round(SPR.w*0.24)+(walk?walk.dx:0),
+               SPRY+(lowest+1)*FIGCH,Math.round(SPR.w*0.52),2*FIGCH);
   const cut=headOf(fig);
   const body=rows.map((r,i)=>i>=cut.head?r:"");
   const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
@@ -253,11 +359,11 @@ function visitor(enc,pose,now){
     // his legs go under him: the lower third takes the stride, the rest rides it
     const knee=Math.round(rows.length*0.68);
     drawFigure(rows.map((r,i)=>(i>=cut.head&&i<knee)?r:""),SPRX+bdx,SPRY+bdy,look);
-    drawFigure(rows.map((r,i)=>i>=knee?r:""),SPRX+bdx+walk.boot,SPRY+bdy,look);
+    drawFigure(rows.map((r,i)=>i>=knee?r:""),SPRX+bdx+walk.boot*GEST,SPRY+bdy,look);
   } else drawFigure(body,SPRX+bdx,SPRY+bdy,look);
   // The shoulders come up, the head stays where it was: that is what hunching
   // is. Letting the rise carry the head too only opens a gap at his neck.
-  drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-mood.rise+rdy,look);
+  drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-rise+rdy,look);
 }
 
 /* ---- the sheriff ---- *
@@ -970,7 +1076,7 @@ function drawScene(now){
       // everything else in the picture sitting on it.
       const turn=Math.min(1.4,bodyFall), lay=turn/1.4;
       ctx.fillStyle="rgba(0,0,0,"+(0.34*lay+0.06).toFixed(3)+")";
-      ctx.fillRect(FIG.cx-6,FIG.ground-1,Math.round(12+40*lay),2);
+      ctx.fillRect(FIG.cx-8,FIG.ground-1,Math.round(16+68*lay),2);
       ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(turn);
       ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle",now);ctx.restore();
     } else visitor(enc,pose,now);
