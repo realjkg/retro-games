@@ -716,15 +716,35 @@ function paintSound(){
   const list=CUES(), name=list[cueAt];
   lineEls[0].className="npc";
   lineEls[0].textContent=(cueAt+1)+" of "+list.length+" \u00b7 "+name+" \u00b7 "+cueKind(name);
-  ["1. Play it","2. Next","3. Previous","4. Back to the street"].forEach((t,i)=>{
-    lineEls[i+1].textContent=t;
-    lineEls[i+1].className="choice"+(i===0?" sel":"");
-  });
+  ["Play it","Next","Previous","Back to the street"].forEach((t,i)=>
+    setChoice(lineEls[i+1],i+1,t,i===0?"sel":""));
   modeEl.textContent="GOLD GULCH \u00b7 SOUND TEST";
   scoreEl.textContent=name;
   fitText();
 }
 
+/* A reply is written as two elements — the number and the words — so the words
+ * can hang under themselves when they wrap. An empty slot collapses. */
+function setChoice(el,n,text,cls){
+  el.className="choice"+(cls?" "+cls:"")+(text?"":" empty");
+  while(el.firstChild)el.removeChild(el.firstChild);
+  if(!text)return;
+  const num=document.createElement("b"); num.className="num"; num.textContent=n+". ";
+  const txt=document.createElement("span"); txt.className="txt"; txt.textContent=text;
+  el.appendChild(num); el.appendChild(txt);
+}
+/* Name on the left, count on the right, one to a row. */
+function setTable(el,rows){
+  el.className="choice table";
+  while(el.firstChild)el.removeChild(el.firstChild);
+  const t=document.createElement("div"); t.className="tbl";
+  for(const [k,v] of rows){
+    const a=document.createElement("span"); a.className="k"; a.textContent=k;
+    const b=document.createElement("span"); b.className="v"; b.textContent=String(v);
+    t.appendChild(a); t.appendChild(b);
+  }
+  el.appendChild(t);
+}
 function beat(){return nodeOf(G);}
 /* Who is in front of you, where you are in the day, and how it is going. It
  * lives above the picture rather than over it: the 320x200 frame carries no
@@ -741,8 +761,8 @@ function hud(){
   scoreEl.textContent=G.phase==="intro"?""
     :"auth "+G.authority+dot+"arr "+G.arrests+(G.wounds?dot+"WOUNDED":"");
 }
-const JOB_PROMPT={stage:"1. Ride for the ford",train:"1. Get down to the cut",
-  bank:"1. Round the back of the bank"};
+const JOB_PROMPT={stage:"Ride for the ford",train:"Get down to the cut",
+  bank:"Round the back of the bank"};
 function paint(){
   if(screen==="sound")return paintSound();
   const b=beat(), live=build.rows>=10;
@@ -750,30 +770,28 @@ function paint(){
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
     lineEls[0].className="npc";
-    lineEls[1].textContent="1. Pin on the badge";
-    lineEls[1].className="choice sel";
-    lineEls[2].textContent="2. Sound test";
-    lineEls[2].className="choice";
+    setChoice(lineEls[1],1,"Pin on the badge","sel");
+    setChoice(lineEls[2],2,"Sound test");
+    lineEls[3].className="choice dim note";
     lineEls[3].textContent="An original recreation inspired by the 1985 game.";
-    lineEls[3].className="choice dim";
+    lineEls[4].className="choice dim note";
     lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
-    lineEls[4].className="choice dim";
     hud(); fitText(); return;
   }
   lineEls[0].className="npc";
   if(G.phase==="interlude"){
     const job=JOBS[G.interlude]||{};
     lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
-    lineEls[1].textContent=G.tips[G.interlude]?(JOB_PROMPT[G.interlude]||"1. Go"):"1. Hear it out";
-    lineEls[1].className="choice sel";
-    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    setChoice(lineEls[1],1,G.tips[G.interlude]
+      ?(JOB_PROMPT[G.interlude]||"Go"):"Hear it out","sel");
+    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
     hud(); fitText(); return;
   }
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
-    lineEls[1].textContent=(G.encounter>=CAST.length-1)?"1. End the day":"1. Walk on down the street";
-    lineEls[1].className="choice sel";
-    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    setChoice(lineEls[1],1,(G.encounter>=CAST.length-1)
+      ?"End the day":"Walk on down the street","sel");
+    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
     hud(); fitText(); return;
   }
   const him=who(G);
@@ -783,10 +801,9 @@ function paint(){
     :"Nobody is saying anything. The street has gone quiet.";
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
-    const r=replies[i];
-    lineEls[i+1].textContent=r?(i+1)+". "+r.text:"";
-    lineEls[i+1].className="choice"+(live&&G.mode==="talk"&&cursor===i?" sel":"")+
-      (G.mode==="gun"?" dim":"");
+    // the cursor stays visible with the gun out, so holstering does not lose your place
+    setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
+      (live&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
   }
   hud(); fitText();
 }
@@ -815,11 +832,9 @@ function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
   lineEls[0].textContent=(o.alive?"SUNDOWN":"THE STREET KEPT YOU")+" — "+o.score+" points";
-  const cats=Object.entries(o.categories);
-  lineEls[1].className="choice dim"; lineEls[1].textContent=cats.slice(0,3).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[2].className="choice dim"; lineEls[2].textContent=cats.slice(3,5).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[3].className="choice dim"; lineEls[3].textContent=cats.slice(5).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
+  setTable(lineEls[1],Object.entries(o.categories));
+  setChoice(lineEls[2],2,""); setChoice(lineEls[3],3,"");
+  setChoice(lineEls[4],1,"Ride in again","sel act");
   hud(); fitText();
 }
 
