@@ -103,7 +103,7 @@ test('8c. up draws, the crosshair moves, down holsters, fire shoots', {skip:jsdo
   p.tap('[data-cmd="up"]');
   assert.equal(p.G().mode,'gun','up did not draw');
   assert.equal(p.G().phase,'aiming');
-  assert.match(p.el('mode').textContent,/GUN DRAWN/);
+  assert.match(p.el('mode').textContent,/\bGUN\b/);
   const aim={...p.G().aim};
   p.tap('[data-cmd="left"]');
   assert.notEqual(p.G().aim.x,aim.x,'left did not move the crosshair');

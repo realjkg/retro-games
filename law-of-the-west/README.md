@@ -13,7 +13,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The deliverable: one self-contained page, everything inline, 125 KB |
+| `index.html` | The deliverable: one self-contained page, everything inline, 128 KB |
 | `page.html` | The markup and CSS shell, with a `/* SCRIPTS */` marker |
 | `sid-audio.js` | The SID-idiom synth, 54 cues; the synthesis is untouched |
 | `content.js` | The eleven callers, the three robberies, the figures and the hitboxes |
@@ -80,18 +80,29 @@ missed, plus a total. No rating titles, no percentages.
 ## How it looks
 
 A 320×200 logical picture presented in 4:3, the way the machine was, scaled with
-nearest neighbour. It is a street rather than a wall: a vanishing point up the
-middle, blocks either side drawn in perspective with signage, lit windows and
-boardwalks, a hitching rail, a trough and barrels on the near right, the rest of
-the town in the haze at the end of it, and three people on the far boardwalk who
-leave the moment a gun comes out. Everything is stepped a column at a time with
-integer edges, so the diagonals stair the way a bitmap's do, and the palette is
-the C64's sixteen colours.
+nearest neighbour, and framed the way the 1985 game framed it.
 
-**The sheriff is the foreground.** A 44×34 grid at three pixels a cell fills the
-left third from his shoulder down past his holster, with a one-pixel rim where
-the light off the street catches him. His gun leaves the leather and the arm
-comes up across the frame. His face is the one thing the player never sees.
+**A flat row of storefronts across the back**, under a dark sky with stepped
+cloud banks and a ridge of hills: five false fronts of differing heights and
+colours, upstairs windows lit or dark, awnings, doors, a boardwalk along the
+whole run and a tree standing out of it. The middle front carries the sign for
+wherever this caller has come to — SALOON, JAIL, SCHOOL, CORRAL, BANK. In front
+of it the street is grey dirt with stones and ruts, and three people on the
+boardwalk who leave the moment a gun comes out.
+
+**One large thing parked in the near right**, chosen by the place: a stagecoach
+with spoked wheels, a locomotive with its smokebox door and cowcatcher and the
+rails running out of frame, barrels, crates, or a corral fence in perspective.
+
+**The sheriff's own arm is the foreground.** A mottled sleeve billows in from
+the left edge at the height of the caller's chest, into a dark cuff, a black
+fist and the revolver — cylinder, hammer and a level barrel reaching most of the
+way across to the man he is talking to. 44×26 cells at three pixels each, the
+largest thing on the screen. His face is the one part of him the player never
+sees; when the gun is holstered the same arm holds it muzzle-down.
+
+Everything is stepped a column at a time with integer edges, so the diagonals
+stair the way a bitmap's do, and the palette is the C64's sixteen colours.
 
 **Eleven figures, no template.** Each caller is his own 24×20 grid painted two
 pixels to a cell with a one-pixel dark contour: the Kid's sombrero, Rose's
@@ -102,10 +113,12 @@ crosshair is over whether a man keeps his gun on his hip or across his chest,
 and its own overlay for the hand coming up. Hands-up is an overlay any of them
 can wear.
 
-The five-line matrix fills the rest: the caller's line in its own colour, then
-four replies. Nothing a character says may be cut off or hidden behind a scroll,
-so the type steps down until all five fit, and a content check caps line lengths
-at the source.
+The five-line matrix fills the rest, set the way the machine set it: upper case,
+one width per character, tightly stacked, the caller's line in its own colour
+above four replies. Nothing a character says may be cut off or hidden behind a
+scroll, so the type steps down until all five fit, and a content check caps line
+lengths at the source. The picture itself carries no chrome — who is in front of
+you, where you are in the day and how it is going live in a strip above it.
 
 ## How it plays
 

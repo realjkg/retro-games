@@ -877,7 +877,7 @@ const SURRENDER={0:"..AAA..............AAA..",1:"..AAA..............AAA..",
   2:"..AAA..HHHHHH......AAA..",3:"..AAA..FFFFFF......AAA..",
   4:"..AAA..FFEFFE......AAA..",5:"...AA...FFFFF.......AA.."};
 
-const FIG={cx:176, ground:146};          // the visitor, up the street and right of centre
+const FIG={cx:158, ground:150};          // the caller, in the middle of the street
 const SPRX=FIG.cx-(SPR.w/2)*FIGCELL;
 const SPRY=FIG.ground-SPR.h*FIGCELL;
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*FIGCELL,y:SPRY+r0*FIGCELL,
