@@ -287,3 +287,14 @@ test('The idle pad is marked while the other side is to move',()=>{
  assert.equal(r.el('pad1').idle,false,'both pads are live in a duel');
  assert.equal(r.el('pad2').idle,false);
 });
+
+test('Both pads label the same buttons the same way',()=>{
+ // A selects, confirms and fires on either pad; B cancels. The second pad used to
+ // say FIRE, from when it only existed inside a duel.
+ const btn=k=>{const m=HTML.match(new RegExp('data-k="'+k+'">([^<]*)<'));return m&&m[1].trim();};
+ assert.equal(btn('1A'),'A');
+ assert.equal(btn('2A'),'A');
+ assert.equal(btn('1B'),'B');
+ assert.equal(btn('2B'),'B');
+ assert.equal(btn('SPELL'),btn('2SPELL'),'and both spell buttons read alike');
+});
