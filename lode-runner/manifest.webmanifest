@@ -1,0 +1,39 @@
+{
+  "name": "Lode Runner — Bungeling Empire",
+  "short_name": "Lode Runner",
+  "description": "A browser recreation of the 1983 platform puzzler: dig, run and outwit the guards for every piece of gold.",
+  "id": "/retro-games/lode-runner/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#04040a",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -11,6 +11,15 @@
 <meta name="theme-color" content="#120d09">
 <meta name="description" content="Law of the West: a browser recreation of the 1985 Commodore 64 western. Ten people come up the street of Gold Gulch and you wear the only badge.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23120d09'/%3E%3Cpath d='M50 16l8 22h23l-18 14 7 22-20-14-20 14 7-22-18-14h23z' fill='%23d8a441'/%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#1a1008">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gold Gulch">
 <style>
 :root{
   --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
@@ -134,7 +143,7 @@ body.gamemode .abtn{width:68px;height:68px}
      opened full screen: a picture letterboxed into a wide short box was the
      worst of both, black down each side and the street too small to read. */
   #app{flex-direction:row;align-items:center}
-  #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
+  #top{flex:0 1 auto;width:min(62%,calc((100svh - 6px) * 4 / 3));
     height:auto;aspect-ratio:4/3}
   #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
     border-top:0;border-left:2px solid var(--line)}
@@ -3761,6 +3770,23 @@ function frame(now){
 }
 globalThis.__frame=frame;
 fit(); paint(); if(RAF)RAF(frame);
+
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout; the worker keeps the game playable without a signal. */
+function isStandaloneApp(){
+  try{
+    if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+    if(typeof matchMedia!=="function")return false;
+    return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+  }catch(e){return false;}
+}
+if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
+   typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('gamemode');}
 
 </script>
 </body>
