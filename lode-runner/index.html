@@ -6,6 +6,15 @@
 <title>Lode Runner — Bungeling Empire</title>
 <meta name="description" content="Lode Runner: a browser recreation of Doug Smith's 1983 Broderbund classic. Dig through the brick, outwit the guards, take back the gold — with the level generator the original was famous for.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#04040a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lode Runner">
 <style>
 :root{--bg:#0a0a12;--panel:#14141f;--panel2:#1e1e2d;--ink:#e6e6f2;--dim:#9a9ab4;--gold:#e8c63a;
   --line:#2e2e42;--hi:#5ad1e6}
@@ -86,13 +95,17 @@ body.editing #pads{display:none}
   -webkit-user-select:text;user-select:text}
 /* Full screen: the tower and the controls, nothing else. The page goes black in
    both colour schemes so there is no doubt which mode you are in. */
-body.fs{padding:0;height:100dvh;overflow:hidden;background:#04040a;color:#e6e6f2}
+/* svh is the viewport with the browser's toolbars showing. Sizing to it means a
+   toolbar sliding in or out no longer resizes the game mid-play; the strip the
+   bars vacate just stays dark. dvh and vh are there for older browsers. */
+body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow:hidden;
+  background:#04040a;color:#e6e6f2}
 body.fs .btn{background:#14141f;border-color:#2e2e42;color:#e6e6f2}
 body.fs .btn:active,body.fs .btn.on{background:#e8c63a;color:#16130a;border-color:#e8c63a}
 body.fs .btn.lit{border-color:#e8c63a;color:#e8c63a}
 body.fs #sound,body.fs #fs{background:#14141f;border-color:#2e2e42;color:#e6e6f2}
 body.fs #fs{border-color:#e8c63a;color:#e8c63a}
-body.fs #wrap{max-width:none;height:100dvh;gap:4px;
+body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
   padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
@@ -113,7 +126,7 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,46px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100dvh - 12px) * 7 / 4));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 7 / 4));max-width:60vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px;font-size:10px}
   body.fs .sbtn{width:66px;height:34px;font-size:10px}
@@ -1752,6 +1765,23 @@ sizeCanvas();
 say('The Bungeling Empire took the gold. Press START to go and get it.');
 showMenu('title');
 if(typeof requestAnimationFrame==='function')requestAnimationFrame(frame);
+
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout; the worker keeps the game playable without a signal. */
+function isStandaloneApp(){
+  try{
+    if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+    if(typeof matchMedia!=="function")return false;
+    return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+  }catch(e){return false;}
+}
+if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
+   typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('fs');}
 
 </script>
 </body>

@@ -82,6 +82,9 @@ the letterboxed space beside it, the screen is kept awake, and the choice is rem
 next time. Where the browser has the Fullscreen API — Android, and desktop — that call is made
 too, so the browser's own chrome goes as well.
 
+The layout is sized in `svh` — the viewport height with the browser's toolbars showing — so a
+toolbar sliding in or out no longer resizes the board mid-move.
+
 **iOS Safari has no Fullscreen API at all.** `requestFullscreen` simply does not exist on an
 iPhone, so a tab keeps its address bar and toolbar no matter what the page asks for. The way to
 a real full screen there is to install the game:

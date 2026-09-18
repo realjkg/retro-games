@@ -218,3 +218,16 @@ amplitude, and one footstep click per tile crossed with silence while falling.
 
 The tests verify audio events and mute, not subjective sound authenticity. Browser smoke testing
 separately verifies menus, touch controls, rendering and audio activation.
+
+## Full screen without the browser in the way
+
+Mobile browsers slide their toolbars in and out while you play, and anything sized to the
+current viewport resizes with them — the game jumping mid-move. Two things keep that out:
+
+- The full-screen layout is sized in **`svh`**, the viewport height with the toolbars showing,
+  so it does not move when they do. The strip the bars vacate simply stays dark. (`dvh` and
+  `vh` are declared first for browsers without `svh`.)
+- **Install it** and there are no toolbars at all: on iPhone or iPad, Share ▸ **Add to Home
+  Screen**; on Android or desktop Chrome, the browser's own install offer. A launch from the
+  icon opens straight into the full-screen layout, and `sw.js` — a small network-first service
+  worker — keeps the game playable with no signal while still picking up new deploys.

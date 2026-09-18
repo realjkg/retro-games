@@ -86,12 +86,22 @@ canvas{image-rendering:pixelated}
 #install[hidden]{display:none}
 
 /* ---- full game mode: the page gets out of the way and the machine fills the screen ---- */
-body.gamemode{position:fixed;inset:0;padding:0;background:#000;overflow:hidden;
+body.gamemode{position:fixed;top:0;left:0;right:0;padding:0;background:#000;overflow:hidden;
+  /* Not inset:0 - that ties the game to the window, which grows and shrinks as
+     the browser's toolbars slide. svh is the height with the bars showing and
+     does not move when they do. */
+  height:100vh;height:100dvh;height:100svh;min-height:0;
   touch-action:none;user-select:none;-webkit-user-select:none;
   /* the board is lit by its own luminance, so the chrome around it stays dark
      even on a phone set to the light colour scheme */
   --panel:#171b26;--panel2:#1f2534;--ink:#e9edf6;--dim:#97a1b8;--line:#2a3145}
-body.gamemode #wrap{position:relative;max-width:none;width:100%;height:100%;gap:0;padding:0}
+/* Mobile browsers slide their toolbars in and out as you play, and anything
+   sized to the current viewport resizes with them - the board jumping mid-move.
+   svh is the viewport with the toolbars showing, so it does not move when they
+   do: the game is laid out once for the smaller height and the strip the bars
+   vacate simply stays black. */
+body.gamemode #wrap{position:relative;max-width:none;width:100%;gap:0;padding:0;
+  flex:1;min-height:0;height:auto}
 body.gamemode #status{position:absolute;left:0;right:0;top:0;z-index:3;height:26px;min-height:0;
   padding:5px 168px 5px 8px;border:0;border-radius:0;background:rgba(8,10,16,.72);color:#e9edf6;
   font-size:12px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
@@ -1004,7 +1014,12 @@ function layout(){
     st.style.width=st.style.height=st.style.left=st.style.top="";
     SAFE.top=SAFE.right=SAFE.bottom=SAFE.left=0; fit(); return;
   }
-  const vw=typeof innerWidth==="number"?innerWidth:0, vh=typeof innerHeight==="number"?innerHeight:0;
+  // Measure the laid-out wrapper rather than the window, so the canvas follows
+  // the stable svh box above instead of every toolbar slide.
+  const wrapEl=document.getElementById("wrap");
+  const wrapBox=gameMode&&wrapEl?.getBoundingClientRect?.();
+  const vw=Math.round(wrapBox?.width||(typeof innerWidth==="number"?innerWidth:0));
+  const vh=Math.round(wrapBox?.height||(typeof innerHeight==="number"?innerHeight:0));
   if(!vw||!vh){fit();return;}
   const landscape=vw>vh;
   const pad1=document.getElementById("pad1"), pad2=document.getElementById("pad2");
@@ -1493,7 +1508,10 @@ function loop(now){
   }catch(err){console.error(err);}
   requestAnimationFrame(loop);
 }
-layout(); applySeating(); applyControls(); mainMenu(); requestAnimationFrame(loop);
+layout(); applySeating(); applyControls();
+// A home-screen launch has no browser chrome to hide behind: it opens as the game.
+if(isStandalone())setGameMode(true);
+mainMenu(); requestAnimationFrame(loop);
 </script>
 </body>
 </html>
