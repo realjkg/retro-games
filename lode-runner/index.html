@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Lode Runner — Bungeling Empire</title>
+<meta name="description" content="Lode Runner: a browser recreation of Doug Smith's 1983 Broderbund classic. Dig through the brick, outwit the guards, take back the gold — with the level generator the original was famous for.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0a0a12;--panel:#14141f;--panel2:#1e1e2d;--ink:#e6e6f2;--dim:#9a9ab4;--gold:#e8c63a;
+  --line:#2e2e42;--hi:#5ad1e6}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#e9e9f2;--panel:#fff;--panel2:#f2f2f8;--ink:#16161f;
+    --dim:#5c5c74;--line:#d2d2e0}
+}
+:root[data-theme="dark"]{--bg:#0a0a12;--panel:#14141f;--panel2:#1e1e2d;--ink:#e6e6f2;--dim:#9a9ab4;
+  --line:#2e2e42}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise iOS Safari's selection handles and its Copy callout. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,#fs,.soundrow,canvas,#editbar,.pal{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:620px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:7/4;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#16130a;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.btn.lit{border-color:var(--gold);color:var(--gold)}
+.acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
+.abtn{width:70px;height:70px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:.02em}
+.sbtn{width:70px;height:38px;border-radius:10px;font-size:11px;font-weight:700}
+#overlay{position:absolute;inset:0;background:rgba(6,6,12,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Over the title art the overlay is only a scrim, so the tower shows through. */
+#overlay.splash{background:linear-gradient(rgba(4,4,10,0) 0%,rgba(4,4,10,0) 40%,rgba(4,4,10,.92) 66%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:16px;margin-bottom:2px;text-shadow:0 1px 3px #000}
+#overlay.splash .menuitem{width:min(280px,80%);padding:9px;background:rgba(20,20,34,.92);
+  border-color:#4a4a6a;color:#e6e6f2}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#16130a}
+#overlay.splash .sub,#overlay.splash small.tip{color:#c9c9e0;text-shadow:0 1px 2px #000}
+#overlay.splash small.tip{font-size:10px}
+#overlay.splash.card{background:linear-gradient(rgba(4,4,10,.66),rgba(4,4,10,.93) 58%);
+  justify-content:center}
+h1{font-size:22px;margin:0;letter-spacing:.16em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:380px;line-height:1.45}
+.menuitem{width:min(320px,88%);padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#16130a;font-weight:700}
+.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,94%)}
+.row2 .menuitem,.row3 .menuitem{width:auto}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(340px,94%)}
+small.tip{color:var(--dim);font-size:11px;max-width:380px;line-height:1.5}
+button{font:inherit;cursor:pointer}
+.soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
+#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;min-height:40px}
+/* The generator's palette and its buttons stand in for the pads while editing. */
+#editbar{display:none;flex-direction:column;gap:6px;margin-top:auto}
+body.editing #editbar{display:flex}
+body.editing #pads{display:none}
+.pal{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.pal .btn{height:46px;font-size:11px;font-weight:700}
+.editrow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.editrow .btn{height:40px;font-size:11px;font-weight:700}
+#slug{width:100%;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);
+  color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px;height:52px;resize:none;
+  -webkit-user-select:text;user-select:text}
+/* Full screen: the tower and the controls, nothing else. The page goes black in
+   both colour schemes so there is no doubt which mode you are in. */
+body.fs{padding:0;height:100dvh;overflow:hidden;background:#04040a;color:#e6e6f2}
+body.fs .btn{background:#14141f;border-color:#2e2e42;color:#e6e6f2}
+body.fs .btn:active,body.fs .btn.on{background:#e8c63a;color:#16130a;border-color:#e8c63a}
+body.fs .btn.lit{border-color:#e8c63a;color:#e8c63a}
+body.fs #sound,body.fs #fs{background:#14141f;border-color:#2e2e42;color:#e6e6f2}
+body.fs #fs{border-color:#e8c63a;color:#e8c63a}
+body.fs #wrap{max-width:none;height:100dvh;gap:4px;
+  padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
+body.fs #status{display:none}
+/* The screen takes as much room as its own shape allows and no more, so the
+   space the page chrome gave back goes to the pads instead of to black bars. */
+body.fs #stage{width:min(100%,calc(58dvh * 7 / 4));max-width:100%;margin:0 auto;border-radius:0;
+  border-left:0;border-right:0}
+body.fs canvas{object-fit:contain;background:#000}
+body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
+  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .abtn{width:clamp(60px,20vw,92px);height:clamp(60px,20vw,92px);font-size:12px}
+body.fs .sbtn{width:clamp(60px,20vw,92px);height:clamp(34px,9vw,44px);font-size:12px}
+body.fs .soundrow{margin:2px 0 0;gap:8px}
+body.fs #audio-status{display:none}
+@media (orientation:landscape) and (max-height:560px){
+  /* Held sideways there is no room below the screen, so the pads flank it the
+     way a handheld does: pad under the left thumb, digs under the right. */
+  body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
+    gap:6px;padding:4px 8px}
+  body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .dpad{order:1;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,46px)}
+  body.fs #stage{order:2;width:min(60vw,calc((100dvh - 12px) * 7 / 4));max-width:60vw;margin:0}
+  body.fs .acts{order:3}
+  body.fs .abtn{width:66px;height:66px;font-size:10px}
+  body.fs .sbtn{width:66px;height:34px;font-size:10px}
+  body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
+    margin:0;z-index:5;font-size:10px}
+  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status" role="status">Loading…</div>
+  <div id="stage"><canvas id="cv" width="448" height="256"></canvas><div id="overlay"></div></div>
+  <div id="pads">
+    <div class="padrow">
+      <div class="dpad">
+        <div></div>
+        <button class="btn" id="k-up" aria-label="Up">▲<small>climb</small></button>
+        <div></div>
+        <button class="btn" id="k-left" aria-label="Left">◀</button>
+        <button class="btn" id="k-menu" aria-label="Menu">≡<small>menu</small></button>
+        <button class="btn" id="k-right" aria-label="Right">▶</button>
+        <div></div>
+        <button class="btn" id="k-down" aria-label="Down">▼<small>climb</small></button>
+        <div></div>
+      </div>
+      <div class="acts">
+        <button class="btn abtn" id="k-digl">DIG<br>◀</button>
+        <button class="btn abtn" id="k-digr">DIG<br>▶</button>
+        <button class="btn sbtn" id="k-restart">RESTART</button>
+        <button class="btn sbtn" id="k-pause">PAUSE</button>
+      </div>
+    </div>
+  </div>
+  <div id="editbar">
+    <div class="pal" id="palette"></div>
+    <div class="editrow">
+      <button class="btn" id="e-test">TEST</button>
+      <button class="btn" id="e-save">SAVE</button>
+      <button class="btn" id="e-clear">CLEAR</button>
+      <button class="btn" id="e-exit">DONE</button>
+    </div>
+    <div class="editrow">
+      <button class="btn" id="e-prev">◀ SLOT</button>
+      <button class="btn" id="e-slot">1 / 1</button>
+      <button class="btn" id="e-next">SLOT ▶</button>
+      <button class="btn" id="e-copy">COPY TEXT</button>
+    </div>
+    <textarea id="slug" spellcheck="false" aria-label="Level text"></textarea>
+  </div>
+  <div class="soundrow">
+    <button id="sound">SOUND ON</button>
+    <button id="fs">FULL SCREEN</button>
+    <span id="audio-status">Sound starts after a tap or key press.</span>
+  </div>
+</div>
+<script>
+'use strict';
+/* Lode Runner — a browser recreation of the 1983 Broderbund game by Doug Smith.
+   The playfield is the original's 28 x 16 grid of tiles and the level text uses
+   the character set the Lode Runner level archives settled on, so a level
+   written here reads the same way one written in 1983 does. */
+
+const COLS=28, ROWS=16;
+const EMPTY=0, BRICK=1, SOLID=2, LADDER=3, BAR=4, TRAP=5, GOLD=6;
+// '&' is the runner, '0' a guard and 'S' a ladder that stays hidden until the
+// last chest is taken; none of the three is a tile the map keeps.
+const CHARS={' ':EMPTY,'.':EMPTY,'#':BRICK,'@':SOLID,'H':LADDER,'-':BAR,'X':TRAP,'$':GOLD,
+  'S':EMPTY,'&':EMPTY,'0':EMPTY};
+const GLYPH=[' ','#','@','H','-','X','$'];
+
+/* Speeds are tiles per second. The runner is quicker than a guard, which is the
+   only advantage he has, and everything falls at the same rate. */
+const RUN_WALK=7.4, RUN_CLIMB=5.6, RUN_BAR=7.4, FALL=12.5;
+const GUARD_WALK=5.0, GUARD_CLIMB=4.4;
+const DIG_TIME=0.40;      // the runner is rooted while the brick comes out
+const HOLE_TIME=6.2;      // how long a hole stays open before the brick returns
+const FILL_TIME=1.0;      // the closing part of HOLE_TIME, drawn growing back
+const GUARD_STUCK=2.4;    // a guard flounders this long before climbing out
+const SPAWN_WAIT=1.6;     // and reappears at the top this long after being buried
+const SC_GOLD=250, SC_TRAP=75, SC_LEVEL=1500, SC_EXTRA=15000;
+const LIVES=5;
+
+const LEVELS=[
+{name:'FIRST DIG',rows:[
+  '              S',
+  '              S',
+  '        $     S   $    H',
+  '  #####################H##',
+  '                       H',
+  '    H  $   -------  $  H',
+  '  ##H#######     #########',
+  '    H',
+  '    H     $     $   0  H',
+  '  #####################H##',
+  '                       H',
+  '    H $              $ H',
+  '  ##H#####################',
+  '    H',
+  '  & H       $    $       0',
+  '############################']},
+{name:'DOWN THE SHAFT',rows:[
+  '             S',
+  '             S',
+  '     $       S        $  H',
+  ' ########################H#',
+  '                         H',
+  '  H    $------------$    H',
+  ' #H########################',
+  '  H',
+  '  H 0   ------------     H',
+  ' ########################H#',
+  '                         H',
+  '  H  $     $$$ $      $  H',
+  ' #H########################',
+  '  H',
+  ' &H          $            0',
+  '############################']},
+{name:'THE LONG ROPE',rows:[
+  '              S',
+  '              S',
+  '              S',
+  '     H$     $$S$     $H',
+  '    #H################H#',
+  '     H                H',
+  '  H  H----------------H  H',
+  '##H####              ####H##',
+  '  H                      H',
+  '  H                      H',
+  '  HH    $ -------- $    HH',
+  '###H#######      #######H###',
+  '   H                    H',
+  '   H                    H',
+  ' & H $       0        $ H 0',
+  '############################']},
+{name:'TWO GUARDS',rows:[
+  '                           S',
+  '                           S',
+  '   H $   $        $   $ H SS',
+  '  #H####################H###',
+  '   H                    H',
+  '   H0 $      HH      $  H',
+  '  ###########HH###########',
+  '             HH',
+  '   H  -------HH------- 0H',
+  '  #H####################H#',
+  '   H                    H',
+  '   H    $    HH    $    H',
+  '  ###########HH###########',
+  '             HH',
+  '  &        $ HH $        0',
+  '############################']},
+{name:'FALSE FLOOR',rows:[
+  '                          S',
+  '                          S',
+  '                          S',
+  '  H  $      $     -------HS',
+  ' #H##########X###########H#',
+  '  H                      H',
+  '  H                      H',
+  ' $H------ 0 H$       $$  H',
+  ' #H######X##H####X#######H#',
+  '  H         H            H',
+  '  H         H            H',
+  '  H   $     H   ---------H',
+  ' #H##########X###########H#',
+  '  H                      H',
+  ' &H $             $    $ H0',
+  '############################']},
+{name:'POURED CONCRETE',rows:[
+  '              S',
+  '              S',
+  '     H   $   $S   $   H',
+  '    #H################H#',
+  '     H                H',
+  '  H  H$ ------------0$H  H',
+  '  H@@@@@@@@@#####@@@@@@@@H',
+  '  H                      H',
+  '  HH    ------------    HH',
+  '  #H####################H#',
+  '   H         0          H',
+  '   H  $   $  H   $   $  H',
+  '@@@@@####@@@@H@@@@@####@@@@@',
+  '             H',
+  ' 0$          H            &',
+  '############################']},
+{name:'THE PIT',rows:[
+  '                           S',
+  '             $             S',
+  '      $      HH      $     S',
+  '     ########HH############H',
+  '             HH',
+  '    H0$------HH------$ H',
+  ' ###H###   ######   ###H###',
+  '    H                  H',
+  '    H                  H',
+  '    H$H  $0-H---- $  H$H',
+  '   ###H#####H   #####H###',
+  '      H     H        H',
+  ' &    H     H        H    0',
+  '######      H         ######',
+  '######### $ H  $   #########',
+  '############################']},
+{name:'HAND OVER HAND',rows:[
+  '  S',
+  '  S',
+  '  S         H$ H',
+  '  ##########H##H##########',
+  '            H  H',
+  ' H      $   H0 H   $      H',
+  ' H########################H',
+  ' H                        H',
+  ' H 0$    $ $----  $    $  H',
+  '#H##########    ##########H#',
+  ' H      ------------      H',
+  '#H######            ######H#',
+  ' H  --------------------  H',
+  '#H##                    ##H#',
+  '&H   $$              $$   H0',
+  '############################']},
+{name:'THE STAIRCASE',rows:[
+  '             S',
+  '             S',
+  '             H',
+  '            #H##',
+  '           H$H',
+  '          #H######',
+  '         H H$ $',
+  '        #H##########',
+  '       H H$ 0   $',
+  '      #H##############',
+  '     H H$         $',
+  '    #H##################',
+  '   H H$             $ 0',
+  '  #H######################',
+  '& $H                    $  0',
+  '############################']},
+{name:'BURIED TREASURE',rows:[
+  '                          S',
+  '                          S',
+  '    H   $    H    $   H   S',
+  '####H########H########H#####',
+  '    H        H        H',
+  '   0H   $    H    $   H',
+  '####H########H########H#####',
+  '    H        H        H',
+  '    H   $    H    $   H',
+  '####H########H########H#####',
+  '    H        H        H',
+  '    H   $    H    $   H',
+  '####H########H########H#####',
+  '    H        H        H',
+  ' &  H        H        H  $0',
+  '############################']},
+{name:'THE GAUNTLET',rows:[
+  '              S',
+  '              S',
+  '  H  $  $   0$S $  $     H',
+  ' #H###############@@@####H#',
+  '  H                      H',
+  '  H  ------------------  H',
+  ' #H####@@@###############H#',
+  '  H                      H',
+  '  H  ------------------0 H',
+  ' #H###############@@@####H#',
+  '  H                      H',
+  '  H 0------------------  H',
+  ' #H####@@@###############H#',
+  '  H                      H',
+  ' &H  $  $   $$     $  $  H0',
+  '############################']},
+{name:'TRAPDOORS',rows:[
+  '                           S',
+  '                           S',
+  '                           S',
+  ' H$-----0   $ H $       $ HS',
+  '#H#######X####H####X######H#',
+  ' H            H           H',
+  ' H            H           H',
+  ' H $   $-----HH $      $  H',
+  '#H###X#######H####X#######H#',
+  ' H           H            H',
+  ' H           H            H',
+  ' H  $   0----H   $      $ H',
+  '#H#####X############X#####H#',
+  ' H                        H',
+  '&H         $             0H',
+  '############################']},
+{name:'THE VAULT',rows:[
+  '',
+  '  H          HH          S',
+  '  H##########HH##########S',
+  '  H          HH          S',
+  '  H    $0  $ HH $   $    S',
+  '  H @@@@@@@@@HH@@@@@@@@@ S',
+  '  H @        HH        @ S',
+  '  H @ -------HH------- @ S',
+  '  H @ #######HH####### @ S',
+  '  H @        HH        @ S',
+  '  H @$-------HH-------$@ S',
+  '  H @@@@@@@@@HH@@@@@@@@@ S',
+  '  H          HH          S',
+  '  H          HH          S',
+  '& H  $     $ HH $  0  $  S 0',
+  '############################']},
+{name:'CROSSFIRE',rows:[
+  '         S',
+  '         S',
+  '         S  $HH$',
+  '        #####HH#####',
+  '     H      $HH       H',
+  '   ##H################H##',
+  ' H   H  $  ------  $  H 0 H',
+  '#H#########      #########H#',
+  ' H 0 H    $      $    H   H',
+  ' H ##H################H## H',
+  ' H   H  $  ------  $  H   H',
+  '#H#########      #########H#',
+  ' H   H    $  0   $    H   H',
+  ' H ##H################H## H',
+  '&H$  H                H  $H0',
+  '############################']},
+{name:'THE WELL',rows:[
+  '              S',
+  '              S',
+  '             HS         H',
+  '############ H  ########H###',
+  '   H   $    -H--    $   H',
+  '###H######## H  ############',
+  '   H   $    -H--   0$   H',
+  '############ H  ########H###',
+  '   H   $    -H--    $   H',
+  '###H######## H  ############',
+  '   H   $0   -H--    $   H',
+  '############ H  ########H###',
+  '   H   $    -H--    $   H',
+  '###H######## H  ############',
+  ' & H     $   H    $       0',
+  '############################']},
+{name:'MOTHER LODE',rows:[
+  '             SS',
+  '             SS',
+  '        H $  SS  $ H',
+  '      ##H##########H##',
+  '  H     H -------- H     H',
+  ' #H######################H#',
+  '  H   $    $ HH      $0  H',
+  ' @@@@@@@@@@@#HH#@@@@@@@@@@@',
+  '  H -------$ HH $------- H',
+  ' #H######################H#',
+  '  H 0H$              $H  H',
+  ' @@@#H##@@@@@@@@@@@@##H#@@@',
+  '  H  H  $----------$  H  H',
+  ' #H#######X######X#######H#',
+  ' &H $        0         $ H0',
+  '############################']}
+];
+
+/* ---------------------------------------------------------------- levels --- */
+
+function parseLevel(spec){
+  const rows=spec.rows, name=spec.name||'';
+  const map=[], hidden=[], guards=[];
+  let start={x:1,y:ROWS-2}, gold=0;
+  for(let x=0;x<COLS;x++){map[x]=new Array(ROWS).fill(EMPTY);}
+  for(let y=0;y<ROWS;y++){
+    const line=(rows[y]||'').padEnd(COLS,' ');
+    for(let x=0;x<COLS;x++){
+      const ch=line[x];
+      const t=CHARS[ch];
+      map[x][y]=t===undefined?EMPTY:t;
+      if(ch==='S')hidden.push({x,y});
+      else if(ch==='&')start={x,y};
+      else if(ch==='0')guards.push({x,y});
+      else if(ch==='$')gold++;
+    }
+  }
+  return {name,map,hidden,guards,start,gold};
+}
+
+// The level as text again, in the same character set, for the generator.
+function levelText(L){
+  const out=[];
+  for(let y=0;y<ROWS;y++){
+    let line='';
+    for(let x=0;x<COLS;x++){
+      if(L.start.x===x&&L.start.y===y){line+='&';continue;}
+      if(L.guards.some(g=>g.x===x&&g.y===y)){line+='0';continue;}
+      if(L.hidden.some(h=>h.x===x&&h.y===y)){line+='S';continue;}
+      line+=GLYPH[L.map[x][y]];
+    }
+    out.push(line.replace(/\s+$/,''));
+  }
+  return out.join('\n');
+}
+
+function blankLevel(name){
+  const rows=new Array(ROWS).fill('');
+  rows[ROWS-1]='#'.repeat(COLS);
+  rows[ROWS-2]='&';
+  return parseLevel({name:name||'NEW LEVEL',rows});
+}
+
+/* ------------------------------------------------------------ world rules --- */
+
+const G={};
+
+function inB(x,y){return x>=0&&x<COLS&&y>=0&&y<ROWS;}
+function tile(x,y){
+  if(x<0||x>=COLS)return SOLID;      // the walls of the shaft
+  if(y<0)return EMPTY;
+  if(y>=ROWS)return SOLID;           // and its floor
+  return G.map[x][y];
+}
+// A false brick looks like brick and is drawn like brick, but nothing rests on it.
+function passable(x,y){const t=tile(x,y);return t!==BRICK&&t!==SOLID;}
+function blocks(x,y){const t=tile(x,y);return t===BRICK||t===SOLID||t===LADDER;}
+
+function holeAt(x,y){return G.holes.find(h=>h.x===x&&h.y===y&&h.open)||null;}
+
+// A guard floundering in a hole is a floor: the runner is meant to walk over him.
+function guardFloorAt(x,y){
+  return G.guards.some(g=>!g.gone&&g.stuck>0&&g.x===x&&g.y===y);
+}
+
+function supported(a){
+  const x=a.x,y=a.y,t=tile(x,y);
+  if(t===LADDER||t===BAR)return true;
+  if(y+1>=ROWS)return true;
+  if(blocks(x,y+1))return true;
+  return guardFloorAt(x,y+1);
+}
+
+function canUp(x,y){return tile(x,y)===LADDER&&y>0&&passable(x,y-1);}
+function canDown(x,y){return y+1<ROWS&&passable(x,y+1)&&!guardFloorAt(x,y+1);}
+function canSide(x,y,d){const nx=x+d;return nx>=0&&nx<COLS&&passable(nx,y);}
+
+/* ---------------------------------------------------------------- actors --- */
+
+function mkActor(x,y,guard){
+  return {x,y,mx:0,my:0,p:0,face:1,guard:!!guard,anim:0,gold:0,stuck:0,
+    respawn:0,gone:false,mode:'stand'};
+}
+const rx=a=>a.x+a.mx*a.p, ry=a=>a.y+a.my*a.p;
+// The cell an actor counts as being in: the one it is closest to.
+const cellX=a=>a.p<0.5?a.x:a.x+a.mx, cellY=a=>a.p<0.5?a.y:a.y+a.my;
+
+function speedOf(a){
+  if(a.mode==='fall')return FALL;
+  if(a.guard)return a.my?GUARD_CLIMB:GUARD_WALK;
+  if(a.my)return RUN_CLIMB;
+  return tile(a.x,a.y)===BAR?RUN_BAR:RUN_WALK;
+}
+
+// Walks an actor for dt seconds, asking decide() for a direction each time it
+// comes to rest on a cell. Distance left over at the end of a tile carries into
+// the next one, so a frame boundary never costs a step.
+function advance(a,dt,decide){
+  let t=dt,spin=0;
+  while(t>1e-7&&spin++<24){
+    if(!a.mx&&!a.my){
+      if(!decide(a)){a.p=0;break;}
+      if(!a.mx&&!a.my){a.p=0;break;}
+    }
+    const spd=speedOf(a), need=(1-a.p)/spd;
+    if(t<need){a.p+=spd*t;t=0;}
+    else{t-=need;a.x+=a.mx;a.y+=a.my;a.p=0;a.mx=0;a.my=0;arrive(a);}
+  }
+  a.anim+=dt*(a.mx||a.my?1:0.35);
+}
+
+function arrive(a){
+  if(a.guard)guardArrived(a);
+  else heroArrived(a);
+}
+
+/* ----------------------------------------------------------------- runner --- */
+
+const keys={up:false,down:false,left:false,right:false,digL:false,digR:false};
+
+function decideHero(a){
+  if(!supported(a)){a.mode='fall';a.my=1;return true;}
+  a.mode=tile(a.x,a.y)===BAR?'hang':'stand';
+  if(keys.up&&canUp(a.x,a.y)){a.my=-1;a.mode='climb';return true;}
+  if(keys.down&&canDown(a.x,a.y)){a.my=1;a.mode='climb';return true;}
+  if(keys.left&&canSide(a.x,a.y,-1)){a.mx=-1;a.face=-1;return true;}
+  if(keys.right&&canSide(a.x,a.y,1)){a.mx=1;a.face=1;return true;}
+  if(keys.left)a.face=-1;
+  if(keys.right)a.face=1;
+  return false;
+}
+
+function heroArrived(a){
+  if(tile(a.x,a.y)===GOLD){
+    G.map[a.x][a.y]=EMPTY;
+    G.taken++;
+    addScore(SC_GOLD);
+    sfx('gold');
+    if(G.taken>=G.goldTotal)revealExit();
+  }
+}
+
+function revealExit(){
+  if(G.exitOpen)return;
+  G.exitOpen=true;
+  for(const h of G.hidden)if(G.map[h.x][h.y]===EMPTY)G.map[h.x][h.y]=LADDER;
+  sfx('reveal');
+  say('The last chest is yours — the ladder out of here is showing. Climb to the top.');
+}
+
+/* A dig takes the brick diagonally below and in front of the runner. It needs
+   real brick (never the poured blocks), nothing sitting on top of it, and the
+   runner standing on something — you cannot dig from a rope or in mid-air. */
+function canDig(dir){
+  const a=G.hero;
+  if(G.state!=='play'||a.digT>0||a.mx||a.my)return false;
+  const x=a.x+dir,y=a.y+1;
+  if(!inB(x,y)||G.map[x][y]!==BRICK)return false;
+  if(tile(x,y-1)!==EMPTY)return false;
+  if(holeAt(x,y))return false;
+  const here=tile(a.x,a.y);
+  if(here===BAR||here===LADDER)return false;
+  if(!blocks(a.x,a.y+1)&&!guardFloorAt(a.x,a.y+1))return false;
+  if(G.guards.some(g=>!g.gone&&cellX(g)===x&&cellY(g)===y-1))return false;
+  return true;
+}
+
+function tryDig(dir){
+  if(!canDig(dir))return false;
+  const a=G.hero;
+  a.digT=DIG_TIME;a.digAt={x:a.x+dir,y:a.y+1};a.face=dir;a.mode='dig';
+  sfx('dig');
+  return true;
+}
+
+function openHole(x,y){
+  G.map[x][y]=EMPTY;
+  G.holes.push({x,y,t:HOLE_TIME,open:true});
+}
+
+function stepHoles(dt){
+  for(let i=G.holes.length-1;i>=0;i--){
+    const h=G.holes[i];
+    h.t-=dt;
+    if(h.t>0)continue;
+    G.map[h.x][h.y]=BRICK;
+    h.open=false;
+    G.holes.splice(i,1);
+    sfx('fill');
+    for(const g of G.guards){
+      if(!g.gone&&cellX(g)===h.x&&cellY(g)===h.y)buryGuard(g);
+    }
+    const a=G.hero;
+    if(G.state==='play'&&cellX(a)===h.x&&cellY(a)===h.y)killHero('You were still in the hole when the brick came back.');
+  }
+}
+
+/* ----------------------------------------------------------------- guards --- */
+
+/* The guards do not take the shortest path. They look along the floor they are
+   on for the column that brings them nearest the runner's row and commit to
+   that direction, which is why they run past you, bunch up and drop into your
+   holes. This is a reimplementation of the behaviour the original is described
+   as having, not a disassembly of it. */
+
+function vertReach(x,y,ty){
+  let cy=y;
+  if(ty<cy){while(cy>ty&&tile(x,cy)===LADDER&&passable(x,cy-1))cy--;}
+  else if(ty>cy){while(cy<ty&&passable(x,cy+1)&&!guardFloorAt(x,cy+1))cy++;}
+  return Math.abs(cy-ty);
+}
+
+function standable(x,y){
+  const t=tile(x,y);
+  return t===LADDER||t===BAR||blocks(x,y+1)||y+1>=ROWS||guardFloorAt(x,y+1);
+}
+
+function scanFloor(x,y,d,ty){
+  let best=999,cx=x;
+  for(let i=0;i<COLS;i++){
+    const s=vertReach(cx,y,ty)*COLS+i;
+    if(s<best)best=s;
+    if(!standable(cx,y))break;          // walking off here means falling
+    const nx=cx+d;
+    if(!inB(nx,y)||!passable(nx,y))break;
+    cx=nx;
+  }
+  return best;
+}
+
+function guardBusy(g){return g.stuck>0||g.respawn>0||g.gone;}
+
+function decideGuard(g){
+  if(guardBusy(g))return false;
+  if(!supported(g)){g.mode='fall';g.my=1;return true;}
+  g.mode='walk';
+  const a=G.hero, ty=cellY(a), tx=cellX(a);
+  if(g.y===ty){
+    const d=tx<g.x?-1:1;
+    if(tx!==g.x&&guardCanSide(g,d)){g.mx=d;g.face=d;return true;}
+  }
+  if(vertReach(g.x,g.y,ty)===0){
+    if(ty<g.y&&canUp(g.x,g.y)&&!guardBlocked(g.x,g.y-1)){g.my=-1;g.mode='climb';return true;}
+    if(ty>g.y&&canDown(g.x,g.y)&&!guardBlocked(g.x,g.y+1)){g.my=1;g.mode='climb';return true;}
+  }
+  const left=scanFloor(g.x,g.y,-1,ty), right=scanFloor(g.x,g.y,1,ty);
+  let d=left<right?-1:right<left?1:(tx<g.x?-1:1);
+  if(!guardCanSide(g,d))d=-d;
+  if(!guardCanSide(g,d))return false;
+  g.mx=d;g.face=d;
+  return true;
+}
+
+function guardBlocked(x,y){
+  return G.guards.some(o=>!o.gone&&o.stuck<=0&&(o.x===x&&o.y===y||o.x+o.mx===x&&o.y+o.my===y));
+}
+function guardCanSide(g,d){
+  const nx=g.x+d;
+  if(!canSide(g.x,g.y,d))return false;
+  return !G.guards.some(o=>o!==g&&!o.gone&&(o.x===nx&&o.y===g.y||o.x+o.mx===nx&&o.y+o.my===g.y));
+}
+
+function guardArrived(g){
+  // Gold on the floor goes in a guard's pocket, one bar at a time.
+  if(tile(g.x,g.y)===GOLD&&!g.gold){G.map[g.x][g.y]=EMPTY;g.gold=1;}
+  else if(g.gold&&tile(g.x,g.y)===EMPTY&&G.rng()<0.06&&standable(g.x,g.y)){
+    g.gold=0;G.map[g.x][g.y]=GOLD;
+  }
+  const h=holeAt(g.x,g.y);
+  if(h&&supported(g)&&g.stuck<=0){
+    g.stuck=GUARD_STUCK;g.mode='stuck';
+    addScore(SC_TRAP);
+    sfx('trap');
+    if(g.gold)dropGold(g);
+  }
+}
+
+// What a guard is carrying pops out of the hole he fell into, which is the only
+// way to get that chest back.
+function dropGold(g){
+  g.gold=0;
+  const spots=[[g.x,g.y-1],[g.x-1,g.y-1],[g.x+1,g.y-1],[g.x,g.y]];
+  for(const [x,y] of spots){
+    if(inB(x,y)&&tile(x,y)===EMPTY&&!holeAt(x,y)){G.map[x][y]=GOLD;return;}
+  }
+  G.stash++;   // nowhere to put it; it comes back with him
+}
+
+function buryGuard(g){
+  g.gone=true;g.respawn=SPAWN_WAIT;g.stuck=0;g.mx=0;g.my=0;g.p=0;
+  addScore(SC_TRAP);
+  sfx('bury');
+  if(g.gold||G.stash>0){
+    if(G.stash>0)G.stash--;
+    g.gold=0;g.carryBack=true;
+  }
+}
+
+function respawnGuard(g){
+  const cols=[];
+  for(let x=0;x<COLS;x++)for(let y=0;y<3;y++){
+    if(tile(x,y)===EMPTY&&!G.guards.some(o=>o!==g&&!o.gone&&o.x===x&&o.y===y))cols.push([x,y]);
+  }
+  if(!cols.length)cols.push([Math.floor(COLS/2),0]);
+  const pick=cols[Math.floor(G.rng()*cols.length)];
+  g.x=pick[0];g.y=pick[1];g.gone=false;g.stuck=0;g.mx=0;g.my=0;g.p=0;g.mode='walk';
+  if(g.carryBack){g.carryBack=false;g.gold=1;}
+}
+
+function stepGuards(dt){
+  const many=Math.max(0,G.guards.length-1);
+  const slow=Math.max(0.72,1-0.05*many);
+  for(const g of G.guards){
+    if(g.gone){
+      g.respawn-=dt;
+      if(g.respawn<=0)respawnGuard(g);
+      continue;
+    }
+    if(g.stuck>0){
+      g.stuck-=dt;
+      if(g.stuck<=0&&!climbOut(g))g.stuck=0.35;   // hemmed in; try again shortly
+      continue;
+    }
+    advance(g,dt*slow,decideGuard);
+  }
+}
+
+// Out of the hole and onto the floor beside it, heading for the runner first.
+function climbOut(g){
+  if(!holeAt(g.x,g.y))return true;
+  const toward=cellX(G.hero)<g.x?-1:1;
+  for(const d of [toward,-toward]){
+    const nx=g.x+d,ny=g.y-1;
+    if(!inB(nx,ny)||!passable(nx,ny))continue;
+    if(!G.guards.some(o=>o!==g&&!o.gone&&o.x===nx&&o.y===ny)){
+      g.mx=d;g.my=-1;g.p=0;g.face=d;g.mode='walk';
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------- game flow --- */
+
+function mulberry(seed){
+  let a=seed>>>0;
+  return function(){
+    a=(a+0x6D2B79F5)>>>0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=(t+Math.imul(t^t>>>7,61|t))^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+function levelSet(){return G.custom&&G.customSet.length?G.customSet:LEVELS;}
+
+function loadLevel(i){
+  const set=levelSet();
+  const spec=set[((i%set.length)+set.length)%set.length];
+  const L=parseLevel(spec);
+  G.level=i;
+  G.name=L.name;
+  G.map=L.map;
+  G.hidden=L.hidden;
+  G.goldTotal=L.gold;
+  G.taken=0;
+  G.stash=0;
+  G.exitOpen=false;
+  G.holes=[];
+  G.hero=mkActor(L.start.x,L.start.y,false);
+  G.hero.digT=0;G.hero.digAt=null;
+  G.guards=L.guards.map(g=>mkActor(g.x,g.y,true));
+  G.state='play';
+  G.clearT=0;
+  say('Level '+(i+1)+(L.name?' — '+L.name:'')+'. '+L.gold+' chest'+(L.gold===1?'':'s')+' to lift.');
+  return L;
+}
+
+function newGame(startLevel,seed){
+  G.rng=mulberry(seed===undefined?(Date.now()&0xffff):seed);
+  G.score=0;
+  G.lives=LIVES;
+  G.nextExtra=SC_EXTRA;
+  G.started=true;
+  loadLevel((startLevel||1)-1);
+}
+
+function addScore(n){
+  G.score+=n;
+  if(G.score>=G.nextExtra){G.nextExtra+=SC_EXTRA;G.lives++;sfx('extra');}
+}
+
+function killHero(why){
+  if(G.state!=='play')return;
+  G.state='dead';
+  G.deadT=1.3;
+  G.lives--;
+  sfx('death');
+  say(why||'A guard had you.');
+}
+
+function completeLevel(){
+  if(G.state!=='play')return;
+  G.state='clear';
+  G.clearT=1.8;
+  addScore(SC_LEVEL);
+  sfx('clear');
+  say('Level '+(G.level+1)+' cleared. '+SC_LEVEL+' points.');
+}
+
+function touchedGuard(){
+  const a=G.hero;
+  if(a.digT>0)return false;
+  const ax=rx(a),ay=ry(a);
+  for(const g of G.guards){
+    if(g.gone||g.stuck>0)continue;
+    if(Math.abs(rx(g)-ax)<0.62&&Math.abs(ry(g)-ay)<0.62)return true;
+  }
+  return false;
+}
+
+function stepGame(dt){
+  if(dt>0.05)dt=0.05;
+  G.t=(G.t||0)+dt;
+  if(G.state==='play'){
+    const a=G.hero;
+    if(a.digT>0){
+      a.digT-=dt;
+      if(a.digT<=0){
+        if(a.digAt&&G.map[a.digAt.x][a.digAt.y]===BRICK)openHole(a.digAt.x,a.digAt.y);
+        a.digAt=null;a.mode='stand';
+      }
+    }else{
+      advance(a,dt,decideHero);
+    }
+    stepGuards(dt);
+    stepHoles(dt);
+    if(touchedGuard())killHero('A guard had you.');
+    else if(G.exitOpen&&cellY(a)<=0)completeLevel();
+  }else if(G.state==='dead'){
+    stepHoles(dt);
+    G.deadT-=dt;
+    if(G.deadT<=0){
+      if(G.lives<=0){G.state='over';say('Out of men. Final score '+G.score+'.');}
+      else loadLevel(G.level);
+    }
+  }else if(G.state==='clear'){
+    G.clearT-=dt;
+    if(G.clearT<=0){
+      const set=levelSet();
+      if(G.level+1>=set.length){G.state='won';say('Every level cleared. Final score '+G.score+'.');}
+      else loadLevel(G.level+1);
+    }
+  }
+}
+
+function restartLevel(){
+  if(G.state!=='play')return;
+  killHero('You gave yourself up and started the level again.');
+}
+
+/* --------------------------------------------------------- level checking --- */
+
+/* Which cells can the runner get to, allowing for digging? A level whose gold
+   or whose way out is outside this set cannot be finished, so both the tests
+   and the generator's CHECK button ask this question. */
+function reachable(spec){
+  const L=spec.map?spec:parseLevel(spec);
+  const m=L.map;
+  const T=(x,y)=>(x<0||x>=COLS?SOLID:y<0?EMPTY:y>=ROWS?SOLID:m[x][y]);
+  const pass=(x,y)=>{const t=T(x,y);return t!==BRICK&&t!==SOLID;};
+  const hid=new Set(L.hidden.map(h=>h.x+','+h.y));
+  // With the gold gone the hidden ladders are real, so reachability is judged
+  // with them in place.
+  const passX=(x,y)=>pass(x,y)||hid.has(x+','+y);
+  const ladder=(x,y)=>T(x,y)===LADDER||hid.has(x+','+y);
+  const rest=(x,y)=>{
+    if(y+1>=ROWS)return true;
+    const t=T(x,y);
+    if(t===LADDER||t===BAR||ladder(x,y))return true;
+    const b=T(x,y+1);
+    return b===BRICK||b===SOLID||b===LADDER||ladder(x,y+1);
+  };
+  const seen=new Set(), q=[[L.start.x,L.start.y]];
+  const key=(x,y)=>x+','+y;
+  seen.add(key(L.start.x,L.start.y));
+  while(q.length){
+    const [x,y]=q.pop();
+    const push=(nx,ny)=>{
+      if(nx<0||nx>=COLS||ny<0||ny>=ROWS)return;
+      if(!passX(nx,ny))return;
+      const k=key(nx,ny);
+      if(seen.has(k))return;
+      seen.add(k);q.push([nx,ny]);
+    };
+    if(!rest(x,y)){push(x,y+1);continue;}          // falling: straight down only
+    if(ladder(x,y))push(x,y-1);
+    push(x,y+1);
+    push(x-1,y);push(x+1,y);
+    // Digging opens a way down through real brick with a clear cell above it.
+    for(const d of [-1,1]){
+      const bx=x+d;
+      if(bx<0||bx>=COLS)continue;
+      if(T(bx,y+1)===BRICK&&T(bx,y)===EMPTY&&rest(x,y))push(bx,y+1);
+    }
+  }
+  return seen;
+}
+
+const topReached=seen=>{for(let x=0;x<COLS;x++)if(seen.has(x+',0'))return true;return false;};
+
+/* A level is sound when the runner can get to every chest AND get back out from
+   each of them. Checking only the way there would pass a pit you can fall into
+   and never climb out of. */
+function checkLevel(spec){
+  const L=spec.map?spec:parseLevel(spec);
+  const seen=reachable(L);
+  const bad=[];
+  if(!L.gold)bad.push('no gold');
+  for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++){
+    if(L.map[x][y]!==GOLD)continue;
+    if(!seen.has(x+','+y)){bad.push('gold at '+x+','+y+' cannot be reached');continue;}
+    const out=reachable({map:L.map,hidden:L.hidden,start:{x,y}});
+    if(!topReached(out))bad.push('there is no way back to the top from the gold at '+x+','+y);
+  }
+  if(!topReached(seen))bad.push('the top row cannot be reached');
+  return bad;
+}
+
+/* ------------------------------------------------------------- rendering --- */
+
+const cv=document.getElementById('cv');
+const ctx=cv?cv.getContext('2d'):null;
+const V={ts:16,ox:0,oy:0,w:448,h:256};
+
+function sizeCanvas(){
+  if(!cv)return;
+  const box=cv.getBoundingClientRect?cv.getBoundingClientRect():{width:448,height:256};
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=Math.max(1,Math.round((box.width||448)*dpr)), h=Math.max(1,Math.round((box.height||256)*dpr));
+  if(cv.width!==w)cv.width=w;
+  if(cv.height!==h)cv.height=h;
+  V.w=w;V.h=h;
+  // The board keeps its shape whatever shape the box is: the tile size is
+  // whatever fits, and what is left over is black margin.
+  V.ts=Math.max(4,Math.floor(Math.min(w/COLS,h/(ROWS+1))));
+  V.ox=Math.floor((w-V.ts*COLS)/2);
+  V.oy=Math.floor((h-V.ts*(ROWS+1))/2)+V.ts;
+}
+
+const C={brick:'#b4522a',brickDark:'#6d2f16',mortar:'#2a1409',solid:'#7b8aa0',solidDark:'#41506a',
+  ladder:'#d8c84a',bar:'#d8c84a',gold:'#e8c63a',goldDark:'#8a6f12',hero:'#4fd8e8',heroDark:'#1d7f92',
+  guard:'#e2564a',guardDark:'#8c231c',ink:'#e6e6f2',dim:'#8a8aa8'};
+
+function px(x){return V.ox+x*V.ts;}
+function py(y){return V.oy+y*V.ts;}
+
+function drawBrick(x,y,cut){
+  const s=V.ts,X=px(x),Y=py(y);
+  const top=cut===undefined?0:cut;               // how much of the brick is gone
+  ctx.fillStyle=C.mortar;ctx.fillRect(X,Y,s,s);
+  ctx.fillStyle=C.brick;
+  const hh=Math.max(1,Math.floor(s/2)-1);
+  const rows=[[Y+1,hh,0],[Y+1+hh+1,s-hh-3,1]];
+  for(const [ry0,rh,off] of rows){
+    if(rh<=0)continue;
+    if(ry0-Y<top*s)continue;                     // the dug part is not drawn
+    const half=Math.floor(s/2);
+    ctx.fillRect(X+1,ry0,half-1,rh);
+    ctx.fillRect(X+half+1,ry0,s-half-2,rh);
+    if(off){
+      ctx.fillStyle=C.brickDark;
+      ctx.fillRect(X+1,ry0+rh-1,s-2,1);
+      ctx.fillStyle=C.brick;
+    }
+  }
+}
+
+function drawSolid(x,y){
+  const s=V.ts,X=px(x),Y=py(y);
+  ctx.fillStyle=C.solidDark;ctx.fillRect(X,Y,s,s);
+  ctx.fillStyle=C.solid;ctx.fillRect(X+1,Y+1,s-2,s-3);
+  ctx.fillStyle=C.solidDark;ctx.fillRect(X+1,Y+Math.floor(s/2),s-2,1);
+}
+
+function drawLadder(x,y){
+  const s=V.ts,X=px(x),Y=py(y),w=Math.max(1,Math.round(s/10));
+  ctx.fillStyle=C.ladder;
+  ctx.fillRect(X+Math.round(s*0.2),Y,w,s);
+  ctx.fillRect(X+Math.round(s*0.8)-w,Y,w,s);
+  for(let i=0;i<2;i++){
+    ctx.fillRect(X+Math.round(s*0.2),Y+Math.round(s*(0.22+i*0.42)),Math.round(s*0.6),w);
+  }
+}
+
+function drawBar(x,y){
+  const s=V.ts,X=px(x),Y=py(y),w=Math.max(1,Math.round(s/10));
+  ctx.fillStyle=C.bar;
+  ctx.fillRect(X,Y+Math.round(s*0.18),s,w);
+}
+
+function drawGold(x,y){
+  const s=V.ts,X=px(x),Y=py(y);
+  const gy=Y+Math.round(s*0.28),gh=Math.round(s*0.58),gw=Math.round(s*0.76);
+  const gx=X+Math.round((s-gw)/2);
+  ctx.fillStyle=C.goldDark;ctx.fillRect(gx,gy,gw,gh);
+  ctx.fillStyle=C.gold;ctx.fillRect(gx+1,gy+1,gw-2,gh-2);
+  ctx.fillStyle=C.goldDark;ctx.fillRect(gx+1,gy+Math.round(gh*0.45),gw-2,Math.max(1,Math.round(s/12)));
+  ctx.fillStyle='#fff6c0';ctx.fillRect(gx+2,gy+2,Math.max(1,Math.round(gw/4)),Math.max(1,Math.round(s/10)));
+}
+
+function drawField(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,V.w,V.h);
+  const fill=new Map();
+  for(const h of G.holes)fill.set(h.x+','+h.y,h.t);
+  for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++){
+    const t=G.map[x][y];
+    if(t===BRICK)drawBrick(x,y);
+    else if(t===TRAP)drawBrick(x,y);          // a false brick gives nothing away
+    else if(t===SOLID)drawSolid(x,y);
+    else if(t===LADDER)drawLadder(x,y);
+    else if(t===BAR)drawBar(x,y);
+    else if(t===GOLD)drawGold(x,y);
+    else{
+      const left=fill.get(x+','+y);
+      if(left!==undefined&&left<FILL_TIME)drawBrick(x,y,left/FILL_TIME);
+    }
+  }
+  // The runner's own dig, mid-swing.
+  const a=G.hero;
+  if(a&&a.digT>0&&a.digAt){
+    const f=1-a.digT/DIG_TIME;
+    drawBrick(a.digAt.x,a.digAt.y,f);
+  }
+}
+
+function limb(X,Y,s,dx,dy,w){ctx.fillRect(X+Math.round(dx*s),Y+Math.round(dy*s),Math.max(1,Math.round(w*s)),Math.max(1,Math.round(s/8)));}
+
+function drawMan(a,body,dark){
+  const s=V.ts,X=px(rx(a)),Y=py(ry(a));
+  const f=Math.floor(a.anim*7)%2;
+  ctx.fillStyle=dark;
+  ctx.fillRect(X+Math.round(s*0.3),Y+Math.round(s*0.08),Math.round(s*0.4),Math.round(s*0.26));
+  ctx.fillStyle=body;
+  ctx.fillRect(X+Math.round(s*0.33),Y+Math.round(s*0.11),Math.round(s*0.34),Math.round(s*0.2));
+  const bw=Math.max(1,Math.round(s*0.2));
+  ctx.fillRect(X+Math.round(s*0.4),Y+Math.round(s*0.32),bw,Math.round(s*0.32));
+  const m=a.mode;
+  if(m==='climb'){
+    limb(X,Y,s,0.18+0.14*f,0.30,0.3);
+    limb(X,Y,s,0.5-0.14*f,0.30,0.3);
+    limb(X,Y,s,0.22+0.1*f,0.72,0.28);
+    limb(X,Y,s,0.5-0.1*f,0.72,0.28);
+  }else if(m==='hang'){
+    limb(X,Y,s,0.2,0.2,0.6);
+    limb(X,Y,s,0.24+0.16*f,0.68,0.24);
+    limb(X,Y,s,0.5-0.12*f,0.74,0.24);
+  }else if(m==='fall'){
+    limb(X,Y,s,0.08,0.26,0.32);
+    limb(X,Y,s,0.6,0.26,0.32);
+    limb(X,Y,s,0.24,0.7,0.24);
+    limb(X,Y,s,0.5,0.76,0.24);
+  }else if(m==='dig'){
+    limb(X,Y,s,a.face>0?0.56:0.1,0.42,0.34);
+    limb(X,Y,s,0.24,0.74,0.22);
+    limb(X,Y,s,0.5,0.74,0.22);
+  }else if(m==='stuck'){
+    limb(X,Y,s,0.1,0.22,0.3);
+    limb(X,Y,s,0.6,0.22,0.3);
+    limb(X,Y,s,0.3,0.78,0.36);
+  }else{
+    limb(X,Y,s,a.face>0?0.5:0.16,0.36,0.34);
+    limb(X,Y,s,0.2+(f?0.02:0.16),0.72,0.26);
+    limb(X,Y,s,0.5-(f?0.02:0.16),0.72,0.26);
+  }
+}
+
+function drawActors(){
+  for(const g of G.guards){
+    if(g.gone)continue;
+    drawMan(g,C.guard,C.guardDark);
+    if(g.gold){
+      const s=V.ts,X=px(rx(g)),Y=py(ry(g));
+      ctx.fillStyle=C.gold;
+      ctx.fillRect(X+Math.round(s*0.38),Y+Math.round(s*0.4),Math.round(s*0.24),Math.round(s*0.18));
+    }
+  }
+  const a=G.hero;
+  if(a&&G.state!=='dead')drawMan(a,C.hero,C.heroDark);
+  else if(a){
+    const s=V.ts,X=px(rx(a)),Y=py(ry(a));
+    ctx.fillStyle=C.heroDark;
+    ctx.fillRect(X+Math.round(s*0.15),Y+Math.round(s*0.6),Math.round(s*0.7),Math.round(s*0.2));
+  }
+}
+
+function drawHUD(){
+  const s=V.ts, y=V.oy-Math.round(s*0.25);
+  ctx.fillStyle=C.dim;
+  ctx.font=Math.max(8,Math.round(s*0.62))+'px ui-monospace,Menlo,Consolas,monospace';
+  ctx.textBaseline='alphabetic';
+  ctx.textAlign='left';
+  ctx.fillStyle=C.ink;
+  ctx.fillText('SCORE '+String(G.score).padStart(6,'0'),px(0),y);
+  ctx.textAlign='center';
+  ctx.fillText('MEN '+Math.max(0,G.lives),px(COLS/2),y);
+  ctx.textAlign='right';
+  ctx.fillStyle=G.exitOpen?C.gold:C.ink;
+  ctx.fillText('LEVEL '+(G.level+1)+'  GOLD '+(G.goldTotal-G.taken),px(COLS),y);
+  ctx.textAlign='left';
+}
+
+/* The title screen is the tower itself, drawn and running: a runner crossing a
+   rope, guards on the floors below, and the gold he is here for. */
+function drawTitle(t){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,V.w,V.h);
+  const s=V.ts;
+  for(let y=4;y<ROWS;y+=3){
+    for(let x=2;x<COLS-2;x++){
+      if(y===10&&x>12&&x<17)continue;
+      drawBrick(x,y);
+    }
+  }
+  for(let y=5;y<=7;y++)drawLadder(6,y);
+  for(let y=8;y<=10;y++)drawLadder(21,y);
+  for(let x=11;x<18;x++)drawBar(x,9);
+  for(const gx of [4,10,19,25])drawGold(gx,y0(gx)-1);
+  const phase=(t*0.9)%1;
+  const man={x:11+phase*6,y:9,mx:0,my:0,p:0,face:1,anim:t,mode:'hang'};
+  drawMan(man,C.hero,C.heroDark);
+  const g1={x:5+((t*0.5)%1)*6,y:6,mx:0,my:0,p:0,face:1,anim:t*0.8,mode:'walk'};
+  const g2={x:20-((t*0.4)%1)*7,y:12,mx:0,my:0,p:0,face:-1,anim:t*0.7,mode:'walk'};
+  drawMan(g1,C.guard,C.guardDark);
+  drawMan(g2,C.guard,C.guardDark);
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,V.w,V.h);
+}
+function y0(x){return x<8?6:x<14?3:x<22?12:9;}
+
+/* ----------------------------------------------------------------- sound --- */
+
+/* Nothing here is transcribed. The 1983 release carries no music or sound
+   credit in any source reachable from here, so there was no score to arrange;
+   what plays is new writing in the idiom of the machines the game ran on. */
+
+const A={ctx:null,on:true,music:true,master:null,next:0,step:0};
+
+function audioReady(){
+  if(A.ctx||!A.on)return A.ctx;
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)return null;
+  A.ctx=new AC();
+  A.master=A.ctx.createGain();
+  A.master.gain.value=0.5;
+  A.master.connect(A.ctx.destination);
+  return A.ctx;
+}
+
+function blip(freq,dur,type,vol,slideTo){
+  const c=A.on?audioReady():null;
+  if(!c)return;
+  const o=c.createOscillator(),g=c.createGain();
+  o.type=type||'square';
+  o.frequency.setValueAtTime(freq,c.currentTime);
+  if(slideTo)o.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo),c.currentTime+dur);
+  g.gain.setValueAtTime(vol===undefined?0.16:vol,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0008,c.currentTime+dur);
+  o.connect(g);g.connect(A.master);
+  o.start();o.stop(c.currentTime+dur+0.02);
+}
+
+function noise(dur,vol){
+  const c=A.on?audioReady():null;
+  if(!c||!c.createBuffer)return;
+  const n=Math.max(1,Math.floor(c.sampleRate*dur));
+  const buf=c.createBuffer(1,n,c.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  const src=c.createBufferSource(),g=c.createGain();
+  src.buffer=buf;g.gain.value=vol===undefined?0.2:vol;
+  src.connect(g);g.connect(A.master);
+  src.start();
+}
+
+const SFX={
+  gold(){blip(880,0.07,'square',0.16);setTimeout(()=>blip(1320,0.1,'square',0.14),60);},
+  dig(){noise(0.16,0.22);blip(180,0.14,'sawtooth',0.1,90);},
+  fill(){noise(0.1,0.12);blip(140,0.1,'square',0.08,70);},
+  trap(){blip(300,0.12,'square',0.15,140);},
+  bury(){noise(0.26,0.26);blip(120,0.3,'sawtooth',0.14,45);},
+  death(){blip(440,0.5,'sawtooth',0.2,60);noise(0.3,0.16);},
+  clear(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,0.16,'square',0.16),i*90));},
+  reveal(){[392,523,659].forEach((f,i)=>setTimeout(()=>blip(f,0.12,'triangle',0.14),i*70));},
+  extra(){[659,880,1319].forEach((f,i)=>setTimeout(()=>blip(f,0.14,'triangle',0.16),i*80));}
+};
+function sfx(n){if(A.on&&SFX[n])SFX[n]();}
+
+/* Three voices, sixteenth by sixteenth, scheduled ahead of the audio clock so a
+   busy frame cannot make the tune stumble. E minor, because the Bungeling
+   Empire is not a cheerful place. */
+const TUNES={
+  title:{bpm:132,lead:'e4 . g4 . b4 . a4 g4 . e4 . d4 e4 . . . c4 . e4 . g4 . f4 e4 . d4 . b3 c4 . . .',
+         bass:'e2 . . . e2 . . . c2 . . . c2 . . . a2 . . . a2 . . . b2 . . . b2 . . .',
+         drum:'x . . x . . x . x . . x . . x . x . . x . . x . x . . x . x x .'},
+  play:{bpm:118,lead:'e4 . . . b3 . . . e4 . . . g4 . f4 . e4 . . . b3 . . . d4 . . . c4 . b3 .',
+        bass:'e2 . e2 . e2 . e2 . c2 . c2 . c2 . c2 . a2 . a2 . a2 . a2 . b2 . b2 . b2 . b2 .',
+        drum:'x . . . x . . . x . . . x . . x x . . . x . . . x . . . x . x .'},
+  run:{bpm:158,lead:'e5 d5 b4 d5 e5 . b4 . c5 b4 g4 b4 c5 . g4 . a4 g4 e4 g4 a4 . e4 . b4 a4 f4 a4 b4 . f4 .',
+       bass:'e2 e3 e2 e3 c2 c3 c2 c3 a2 a3 a2 a3 b2 b3 b2 b3 e2 e3 e2 e3 c2 c3 c2 c3 a2 a3 a2 a3 b2 b3 b2 b3',
+       drum:'x . x . x . x x x . x . x . x x x . x . x . x x x . x . x . x x'}
+};
+const NOTE={c:0,d:2,e:4,f:5,g:7,a:9,b:11};
+function hz(tok){
+  if(!tok||tok==='.')return 0;
+  const m=/^([a-g])(#?)(\d)$/.exec(tok);
+  if(!m)return 0;
+  const n=NOTE[m[1]]+(m[2]?1:0)+(parseInt(m[3],10)+1)*12;
+  return 440*Math.pow(2,(n-69)/12);
+}
+function tuneFor(){
+  if(!G.started||G.state==='title')return 'title';
+  if(G.exitOpen)return 'run';
+  return 'play';
+}
+function musicTick(){
+  const c=(A.on&&A.music)?audioReady():null;
+  if(!c)return;
+  const T=TUNES[tuneFor()];
+  const spb=60/T.bpm/4;
+  const quiet=G.state==='dead'||G.state==='over'||G.paused;
+  if(A.next<c.currentTime)A.next=c.currentTime+0.05;
+  while(A.next<c.currentTime+0.3){
+    const i=A.step%32;
+    if(!quiet){
+      const lead=hz(T.lead.split(/\s+/)[i]);
+      const bass=hz(T.bass.split(/\s+/)[i]);
+      if(lead)voice(lead,spb*1.6,'square',0.07,A.next);
+      if(bass)voice(bass,spb*1.4,'triangle',0.1,A.next);
+      if(T.drum.split(/\s+/)[i]==='x')voice(70,spb*0.8,'sawtooth',0.06,A.next);
+    }
+    A.next+=spb;A.step++;
+  }
+}
+function voice(f,dur,type,vol,at){
+  const c=A.ctx;
+  if(!c)return;
+  const o=c.createOscillator(),g=c.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,at);
+  g.gain.setValueAtTime(vol,at);
+  g.gain.exponentialRampToValueAtTime(0.0008,at+dur);
+  o.connect(g);g.connect(A.master);
+  o.start(at);o.stop(at+dur+0.02);
+}
+
+/* ----------------------------------------------------------------- shell --- */
+
+const $=id=>document.getElementById(id);
+const overlay=$('overlay'), statusEl=$('status');
+function say(s){if(statusEl)statusEl.innerHTML=s;}
+
+function setSoundLabel(){
+  const b=$('sound');
+  if(b)b.textContent=A.on?'SOUND ON':'SOUND OFF';
+}
+function unlockAudio(){
+  if(!A.on)return;
+  const c=audioReady();
+  if(c&&c.state==='suspended'&&c.resume)c.resume();
+  const s=$('audio-status');
+  if(s&&c)s.textContent='';
+}
+
+let menuMode='title';
+function showMenu(mode){
+  menuMode=mode;
+  G.paused=(mode==='pause');
+  if(!overlay)return;
+  overlay.classList.remove('hidden');
+  const splash=(mode==='title'||mode==='over'||mode==='won');
+  overlay.className=splash?'splash':'splash card';
+  const set=levelSet();
+  const parts=[];
+  if(mode==='title'){
+    parts.push('<h1>LODE RUNNER</h1>');
+    parts.push('<p class="sub">The Bungeling Empire took the gold. You are one runner with a shovel that only points down, and the guards do not stop coming.</p>');
+    parts.push(btn('start','START AT LEVEL '+G.startLevel));
+    parts.push('<div class="row3">'+btn('lvdown','◀ LEVEL')+btn('lvup','LEVEL ▶')+btn('editor','GENERATOR')+'</div>');
+    parts.push('<div class="row2">'+btn('custom',(G.custom?'✓ ':'')+'MY LEVELS ('+G.customSet.length+')')+btn('help','HOW TO PLAY')+'</div>');
+    parts.push('<small class="tip">Arrows or I J K L to move · U and O dig · tap DIG on a phone.</small>');
+  }else if(mode==='pause'){
+    parts.push('<h1>PAUSED</h1>');
+    parts.push(btn('resume','RESUME'));
+    parts.push('<div class="row2">'+btn('again','RESTART LEVEL')+btn('quit','QUIT TO TITLE')+'</div>');
+    parts.push('<div class="row2">'+btn('music',(A.music?'MUSIC ON':'MUSIC OFF'))+btn('help','HOW TO PLAY')+'</div>');
+  }else if(mode==='help'){
+    parts.push('<h1>HOW TO PLAY</h1>');
+    parts.push('<small class="tip">Take every chest on the level, then climb to the very top: the ladder out only appears once the last one is yours.<br><br>'+
+      'You cannot jump and you cannot kill a guard. What you can do is dig the brick diagonally below you, left or right. A guard who falls in is stuck long enough to run over his head, and if he was carrying a chest he drops it. The brick grows back — be somewhere else when it does, and so much the worse for him.<br><br>'+
+      'Poured blocks cannot be dug. Some bricks are false and drop you straight through. Ropes are crossed hand over hand; press down to let go.<br><br>'+
+      '<b>Keys</b> — arrows or I J K L to move, U dig left, O dig right, Z and X also dig, R gives yourself up and restarts the level, Esc or P pauses.</small>');
+    parts.push(btn('back','BACK'));
+  }else if(mode==='over'||mode==='won'){
+    parts.push('<h1>'+(mode==='won'?'ALL LEVELS CLEARED':'GAME OVER')+'</h1>');
+    parts.push('<p class="sub">Score '+G.score+'.</p>');
+    parts.push(btn('start','PLAY AGAIN'));
+    parts.push(btn('quit','TITLE'));
+  }
+  overlay.innerHTML=parts.join('');
+  wireMenu();
+}
+function btn(id,label){return '<button class="menuitem" data-m="'+id+'">'+label+'</button>';}
+function hideMenu(){
+  if(overlay)overlay.classList.add('hidden');
+  G.paused=false;
+  menuMode='';
+}
+
+function wireMenu(){
+  if(!overlay||!overlay.querySelectorAll)return;
+  overlay.querySelectorAll('[data-m]').forEach(b=>{
+    b.addEventListener('click',()=>{unlockAudio();menuAction(b.dataset.m);});
+  });
+}
+
+function menuAction(a){
+  const set=levelSet();
+  if(a==='start'){hideMenu();newGame(Math.min(G.startLevel,set.length));}
+  else if(a==='lvup'){G.startLevel=Math.min(set.length,G.startLevel+1);showMenu('title');}
+  else if(a==='lvdown'){G.startLevel=Math.max(1,G.startLevel-1);showMenu('title');}
+  else if(a==='custom'){
+    if(!G.customSet.length){say('The generator has no levels saved yet. Open GENERATOR and build one.');return;}
+    G.custom=!G.custom;G.startLevel=1;showMenu('title');
+  }
+  else if(a==='editor'){hideMenu();openEditor();}
+  else if(a==='help'){showMenu('help');}
+  else if(a==='back'){showMenu(G.started&&G.state!=='title'?'pause':'title');}
+  else if(a==='resume'){hideMenu();}
+  else if(a==='again'){hideMenu();loadLevel(G.level);}
+  else if(a==='quit'){G.started=false;G.state='title';showMenu('title');}
+  else if(a==='music'){A.music=!A.music;showMenu('pause');}
+}
+
+/* ------------------------------------------------------------- generator --- */
+
+/* The 1983 box called it "an action game and game generator": the level editor
+   was half the product. This is that half. */
+const ED={on:false,tile:'#',slot:0,paint:null};
+const PAL=[['#','BRICK'],['@','BLOCK'],['H','LADDER'],['-','ROPE'],['$','GOLD'],
+  ['X','FALSE'],['S','EXIT'],['0','GUARD'],['&','RUNNER'],[' ','ERASE']];
+
+function loadCustom(){
+  try{
+    const raw=localStorage.getItem('lode-runner-levels');
+    G.customSet=raw?JSON.parse(raw):[];
+  }catch(e){G.customSet=[];}
+  if(!Array.isArray(G.customSet))G.customSet=[];
+}
+function saveCustom(){
+  try{localStorage.setItem('lode-runner-levels',JSON.stringify(G.customSet));}catch(e){}
+}
+
+function openEditor(){
+  loadCustom();
+  ED.on=true;
+  G.state='editor';
+  if(document.body&&document.body.classList)document.body.classList.add('editing');
+  if(!G.customSet.length)G.customSet.push({name:'MY LEVEL 1',rows:levelText(blankLevel()).split('\n')});
+  ED.slot=Math.min(ED.slot,G.customSet.length-1);
+  editLoad();
+  buildPalette();
+  say('Generator: tap the board to lay tiles. TEST plays what you have, SAVE keeps it.');
+}
+function closeEditor(){
+  ED.on=false;
+  if(document.body&&document.body.classList)document.body.classList.remove('editing');
+  G.state='title';
+  showMenu('title');
+}
+function editLoad(){
+  const spec=G.customSet[ED.slot];
+  const L=parseLevel(spec);
+  G.map=L.map;G.hidden=L.hidden;G.guards=L.guards.map(g=>mkActor(g.x,g.y,true));
+  G.hero=mkActor(L.start.x,L.start.y,false);
+  G.hero.digT=0;
+  G.goldTotal=L.gold;G.taken=0;G.exitOpen=false;G.holes=[];G.level=ED.slot;G.name=spec.name;
+  editSlugOut();
+  const s=$('e-slot');
+  if(s)s.textContent=(ED.slot+1)+' / '+G.customSet.length;
+}
+function editSlugOut(){
+  const t=$('slug');
+  if(t)t.value=levelText(currentEdit());
+}
+function currentEdit(){
+  return {map:G.map,hidden:G.hidden,guards:G.guards.map(g=>({x:g.x,y:g.y})),
+    start:{x:G.hero.x,y:G.hero.y},gold:G.goldTotal,name:G.name};
+}
+function editCommit(){
+  const L=currentEdit();
+  G.customSet[ED.slot]={name:L.name||('MY LEVEL '+(ED.slot+1)),rows:levelText(L).split('\n')};
+}
+function buildPalette(){
+  const p=$('palette');
+  if(!p||p.innerHTML===undefined)return;
+  p.innerHTML=PAL.map(([ch,name])=>
+    '<button class="btn'+(ch===ED.tile?' on':'')+'" data-t="'+(ch===' '?'_':ch)+'">'+name+'</button>').join('');
+  if(p.querySelectorAll)p.querySelectorAll('[data-t]').forEach(b=>{
+    b.addEventListener('click',()=>{ED.tile=b.dataset.t==='_'?' ':b.dataset.t;buildPalette();});
+  });
+}
+function editPaint(cx,cy){
+  if(!inB(cx,cy))return;
+  const ch=ED.tile;
+  G.guards=G.guards.filter(g=>!(g.x===cx&&g.y===cy));
+  G.hidden=G.hidden.filter(h=>!(h.x===cx&&h.y===cy));
+  if(G.hero.x===cx&&G.hero.y===cy&&ch!=='&'){G.hero.x=-1;G.hero.y=-1;}
+  if(ch==='0'){G.map[cx][cy]=EMPTY;G.guards.push(mkActor(cx,cy,true));}
+  else if(ch==='&'){G.map[cx][cy]=EMPTY;G.hero=mkActor(cx,cy,false);G.hero.digT=0;}
+  else if(ch==='S'){G.map[cx][cy]=EMPTY;G.hidden.push({x:cx,y:cy});}
+  else G.map[cx][cy]=CHARS[ch];
+  G.goldTotal=0;
+  for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++)if(G.map[x][y]===GOLD)G.goldTotal++;
+  editCommit();
+  editSlugOut();
+}
+
+/* ------------------------------------------------------------ input, run --- */
+
+function pointerCell(ev){
+  const box=cv.getBoundingClientRect();
+  const x=(ev.clientX-box.left)*(cv.width/box.width)-V.ox;
+  const y=(ev.clientY-box.top)*(cv.height/box.height)-V.oy;
+  return {x:Math.floor(x/V.ts),y:Math.floor(y/V.ts)};
+}
+
+function hold(id,on,off){
+  const b=$(id);
+  if(!b||!b.addEventListener)return;
+  const down=e=>{if(e.preventDefault)e.preventDefault();unlockAudio();b.classList.add('on');on();};
+  const up=e=>{if(e&&e.preventDefault)e.preventDefault();b.classList.remove('on');if(off)off();};
+  b.addEventListener('pointerdown',down);
+  b.addEventListener('pointerup',up);
+  b.addEventListener('pointercancel',up);
+  b.addEventListener('pointerleave',up);
+}
+
+const KEYMAP={
+  ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',
+  w:'up',s:'down',a:'left',d:'right',
+  i:'up',k:'down',j:'left',l:'right',
+  u:'digL',o:'digR',z:'digL',x:'digR',',':'digL','.':'digR'
+};
+
+function keyName(e){
+  if(e.key&&e.key.length===1)return e.key.toLowerCase();
+  return e.key;
+}
+
+function toggleFull(){
+  const b=document.body;
+  const want=!(b.classList.contains&&b.classList.contains('fs'));
+  b.classList.toggle('fs',want);
+  const f=$('fs');
+  if(f)f.textContent=want?'EXIT FULL SCREEN':'FULL SCREEN';
+  const el=document.documentElement;
+  try{
+    if(want&&el.requestFullscreen)el.requestFullscreen();
+    else if(!want&&document.exitFullscreen&&document.fullscreenElement)document.exitFullscreen();
+  }catch(e){}
+  sizeCanvas();
+}
+
+let last=0;
+function frame(ts){
+  const now=ts/1000;
+  let dt=last?now-last:0;
+  last=now;
+  if(dt>0.1)dt=0.1;
+  sizeCanvas();
+  if(ctx){
+    if(ED.on){drawField();drawActors();drawEditGrid();}
+    else if(!G.started||G.state==='title'){drawTitle(now);}
+    else{drawField();drawActors();drawHUD();}
+  }
+  if(!G.paused&&!ED.on&&G.started&&G.state!=='title')stepGame(dt);
+  if(!ED.on&&!menuMode&&(G.state==='over'||G.state==='won'))showMenu(G.state);
+  musicTick();
+  requestAnimationFrame(frame);
+}
+
+function drawEditGrid(){
+  ctx.strokeStyle='rgba(120,120,170,.25)';
+  ctx.lineWidth=1;
+  for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(px(x)+0.5,py(0));ctx.lineTo(px(x)+0.5,py(ROWS));ctx.stroke();}
+  for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(px(0),py(y)+0.5);ctx.lineTo(px(COLS),py(y)+0.5);ctx.stroke();}
+  for(const h of G.hidden){
+    ctx.strokeStyle='rgba(216,200,74,.8)';
+    ctx.strokeRect(px(h.x)+1.5,py(h.y)+1.5,V.ts-3,V.ts-3);
+  }
+}
+
+/* ------------------------------------------------------------------ boot --- */
+
+G.score=0;G.lives=LIVES;G.level=0;G.state='title';G.started=false;G.paused=false;
+G.startLevel=1;G.custom=false;G.customSet=[];G.holes=[];G.hidden=[];G.guards=[];
+G.map=[];G.goldTotal=0;G.taken=0;G.exitOpen=false;G.stash=0;G.nextExtra=SC_EXTRA;
+G.rng=mulberry(1);G.hero=mkActor(1,ROWS-2,false);G.hero.digT=0;G.t=0;
+for(let x=0;x<COLS;x++)G.map[x]=new Array(ROWS).fill(EMPTY);
+loadCustom();
+
+hold('k-up',()=>keys.up=true,()=>keys.up=false);
+hold('k-down',()=>keys.down=true,()=>keys.down=false);
+hold('k-left',()=>keys.left=true,()=>keys.left=false);
+hold('k-right',()=>keys.right=true,()=>keys.right=false);
+hold('k-digl',()=>tryDig(-1));
+hold('k-digr',()=>tryDig(1));
+hold('k-restart',()=>restartLevel());
+hold('k-pause',()=>showMenu('pause'));
+hold('k-menu',()=>showMenu(G.started&&G.state!=='title'?'pause':'title'));
+
+const soundBtn=$('sound');
+if(soundBtn&&soundBtn.addEventListener)soundBtn.addEventListener('click',()=>{
+  A.on=!A.on;
+  setSoundLabel();
+  if(A.master)A.master.gain.value=A.on?0.5:0;
+  if(A.on)unlockAudio();
+});
+const fsBtn=$('fs');
+if(fsBtn&&fsBtn.addEventListener)fsBtn.addEventListener('click',toggleFull);
+
+['e-test','e-save','e-clear','e-exit','e-prev','e-next','e-copy'].forEach(id=>{
+  const b=$(id);
+  if(!b||!b.addEventListener)return;
+  b.addEventListener('click',()=>{
+    unlockAudio();
+    if(id==='e-test'){
+      const bad=checkLevel(G.customSet[ED.slot]);
+      if(bad.length){say('This level will not do: '+bad.join('; ')+'.');return;}
+      ED.on=false;
+      if(document.body&&document.body.classList)document.body.classList.remove('editing');
+      G.custom=true;G.started=true;
+      G.rng=mulberry(7);G.score=0;G.lives=LIVES;G.nextExtra=SC_EXTRA;
+      loadLevel(ED.slot);
+    }
+    else if(id==='e-save'){editCommit();saveCustom();say('Saved to slot '+(ED.slot+1)+'. '+
+      (checkLevel(G.customSet[ED.slot]).length?'Careful: '+checkLevel(G.customSet[ED.slot]).join('; ')+'.':'It checks out: every chest and the way out can be reached.'));}
+    else if(id==='e-clear'){G.customSet[ED.slot]={name:'MY LEVEL '+(ED.slot+1),rows:levelText(blankLevel()).split('\n')};editLoad();}
+    else if(id==='e-exit'){editCommit();saveCustom();closeEditor();}
+    else if(id==='e-prev'){editCommit();ED.slot=(ED.slot-1+G.customSet.length)%G.customSet.length;editLoad();}
+    else if(id==='e-next'){
+      editCommit();
+      if(ED.slot===G.customSet.length-1&&G.customSet.length<30)
+        G.customSet.push({name:'MY LEVEL '+(G.customSet.length+1),rows:levelText(blankLevel()).split('\n')});
+      ED.slot=(ED.slot+1)%G.customSet.length;
+      editLoad();
+    }
+    else if(id==='e-copy'){
+      const t=$('slug');
+      if(t&&t.select){t.select();try{document.execCommand('copy');}catch(e){}}
+      say('The level text is in the box below. Copy it to keep, or paste one in and tap outside the box to load it.');
+    }
+  });
+});
+
+const slug=$('slug');
+if(slug&&slug.addEventListener)slug.addEventListener('change',()=>{
+  const rows=String(slug.value||'').split('\n').slice(0,ROWS);
+  G.customSet[ED.slot]={name:G.name||('MY LEVEL '+(ED.slot+1)),rows};
+  editLoad();
+});
+
+if(cv&&cv.addEventListener){
+  cv.addEventListener('pointerdown',e=>{
+    unlockAudio();
+    if(!ED.on)return;
+    if(e.preventDefault)e.preventDefault();
+    ED.paint=true;
+    const c=pointerCell(e);
+    editPaint(c.x,c.y);
+  });
+  cv.addEventListener('pointermove',e=>{
+    if(!ED.on||!ED.paint)return;
+    const c=pointerCell(e);
+    editPaint(c.x,c.y);
+  });
+  cv.addEventListener('pointerup',()=>{ED.paint=false;});
+  cv.addEventListener('pointercancel',()=>{ED.paint=false;});
+}
+
+addEventListener('keydown',e=>{
+  unlockAudio();
+  const k=keyName(e);
+  if(k==='Escape'||k==='p'){
+    if(ED.on)return;
+    if(menuMode)hideMenu();
+    else showMenu(G.started&&G.state!=='title'?'pause':'title');
+    if(e.preventDefault)e.preventDefault();
+    return;
+  }
+  if(k==='r'&&!ED.on){restartLevel();return;}
+  if(k==='Enter'&&(!G.started||G.state==='title')&&!ED.on){hideMenu();newGame(G.startLevel);return;}
+  const m=KEYMAP[k];
+  if(!m)return;
+  if(e.preventDefault)e.preventDefault();
+  if(m==='digL')tryDig(-1);
+  else if(m==='digR')tryDig(1);
+  else keys[m]=true;
+});
+addEventListener('keyup',e=>{
+  const m=KEYMAP[keyName(e)];
+  if(m&&m!=='digL'&&m!=='digR')keys[m]=false;
+});
+addEventListener('resize',sizeCanvas);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&G.started&&G.state!=='title'&&!ED.on&&!G.paused)showMenu('pause');
+});
+
+setSoundLabel();
+sizeCanvas();
+say('The Bungeling Empire took the gold. Press START to go and get it.');
+showMenu('title');
+if(typeof requestAnimationFrame==='function')requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
