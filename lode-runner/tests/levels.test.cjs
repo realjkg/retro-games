@@ -181,7 +181,7 @@ test('The page carries the controls it promises, and both dig buttons',()=>{
 
 test('The music follows the game and answers both switches',()=>{
   const r=runtime();
-  r.run('A.on=true;A.music=true;audioReady();');
+  r.run('A.on=true;A.music=true;unlockAudio();');
   assert.equal(r.run('tuneFor()'),'title','the title screen has its own tune');
   r.run('newGame(1,4);');
   assert.equal(r.run('tuneFor()'),'play');
@@ -200,7 +200,7 @@ test('The music follows the game and answers both switches',()=>{
 
 test('The effects are one bit of audio, the way the Apple II made them',()=>{
   const r=runtime();
-  r.run('A.on=true;audioReady();');
+  r.run('A.on=true;unlockAudio();');
   // Every sound the original could make came from flipping the speaker in or
   // out, so every sample of every effect must be fully out or fully in. A
   // sample anywhere in between means something rounded the edges off.
@@ -222,7 +222,7 @@ test('The effects are one bit of audio, the way the Apple II made them',()=>{
 
 test('A quieter one-bit sound is a narrower pulse, not a smaller one',()=>{
   const r=runtime();
-  r.run('A.on=true;audioReady();');
+  r.run('A.on=true;unlockAudio();');
   // The machine had no volume control, so a decay has to be duty cycle. The
   // tail of a fading effect should spend far less time flipped out than its head.
   r.run('speaker([{f0:600,f1:600,dur:0.3,d0:0.5,d1:0.04}],0.2);');
@@ -236,7 +236,7 @@ test('A quieter one-bit sound is a narrower pulse, not a smaller one',()=>{
 
 test('The runner ticks once per tile, and not while he is falling',()=>{
   const r=runtime();
-  r.run('newGame(1,5);A.on=true;audioReady();');
+  r.run('newGame(1,5);A.on=true;unlockAudio();');
   clearRoom(r,10);
   const before=r.played.length;
   r.run('keys.right=true;');step(r,60);r.run('keys.right=false;');
@@ -258,4 +258,31 @@ test('Sound and music switches still silence everything',()=>{
   const n=r.played.length;
   r.run('sfx("gold");sfx("death");');
   assert.equal(r.played.length,n,'SOUND OFF means no speaker at all');
+});
+
+test('Nothing makes a sound before the visitor has touched the page',()=>{
+  const r=runtime();
+  // Browsers refuse audio started without a gesture, and Safari leaves such a
+  // context suspended for good, so the page must not build one at load.
+  assert.equal(r.run('A.unlocked'),false);
+  assert.equal(r.run('audioReady()'),null,'no context, no matter what asks for one');
+  r.run('sfx("gold");musicTick();');
+  assert.equal(r.run('A.ctx'),null,'effects and music alike wait');
+  assert.equal(r.notes.length,0);
+  assert.equal(r.played.length,0);
+  // A tap, a key, or the sound button is the permission.
+  for(const ev of ['pointerdown','keydown'])
+    assert.ok(r.docEvents.includes(ev),ev+' unlocks audio like every other game here');
+  r.run('unlockAudio();');
+  assert.equal(r.run('A.unlocked'),true);
+  assert.ok(r.run('!!A.ctx'),'and then the context exists');
+  r.run('sfx("gold");');
+  assert.ok(r.played.length>0,'and sound follows');
+  // Muting still silences it, and unmuting brings it back.
+  r.run('A.on=false;');
+  const quiet=r.played.length;
+  r.run('sfx("gold");musicTick();');
+  assert.equal(r.played.length,quiet,'SOUND OFF stops everything');
+  r.run('A.on=true;sfx("gold");');
+  assert.ok(r.played.length>quiet,'SOUND ON brings it back');
 });

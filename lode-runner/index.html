@@ -1226,10 +1226,14 @@ function y0(x){return x<8?6:x<14?3:x<22?12:9;}
    credit in any source reachable from here, so there was no score to arrange;
    what plays is new writing in the idiom of the machines the game ran on. */
 
-const A={ctx:null,on:true,music:true,master:null,next:0,step:0};
+// unlocked: no browser lets a page make a sound before the visitor has touched
+// it, so nothing here builds an AudioContext until a gesture has said it may.
+// Safari is the strict case: a context built outside a gesture stays suspended
+// until something resumes it from inside one.
+const A={ctx:null,on:true,music:true,master:null,next:0,step:0,unlocked:false};
 
 function audioReady(){
-  if(A.ctx||!A.on)return A.ctx;
+  if(A.ctx||!A.on||!A.unlocked)return A.ctx;
   const AC=window.AudioContext||window.webkitAudioContext;
   if(!AC)return null;
   A.ctx=new AC();
@@ -1386,6 +1390,7 @@ function setSoundLabel(){
   if(b)b.textContent=A.on?'SOUND ON':'SOUND OFF';
 }
 function unlockAudio(){
+  A.unlocked=true;                       // the gesture itself is the permission
   if(!A.on)return;
   const c=audioReady();
   if(c&&c.state==='suspended'&&c.resume)c.resume();
@@ -1641,10 +1646,14 @@ hold('k-restart',()=>restartLevel());
 hold('k-pause',()=>showMenu('pause'));
 hold('k-menu',()=>showMenu(G.started&&G.state!=='title'?'pause':'title'));
 
+document.addEventListener('pointerdown',unlockAudio,{capture:true});
+document.addEventListener('keydown',unlockAudio,{capture:true});
+
 const soundBtn=$('sound');
 if(soundBtn&&soundBtn.addEventListener)soundBtn.addEventListener('click',()=>{
   A.on=!A.on;
   setSoundLabel();
+  soundBtn.setAttribute&&soundBtn.setAttribute('aria-pressed',String(A.on));
   if(A.master)A.master.gain.value=A.on?0.5:0;
   if(A.on)unlockAudio();
 });
