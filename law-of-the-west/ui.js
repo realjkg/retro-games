@@ -646,7 +646,8 @@ function signboard(text){
     let best=1e9,cut=1;
     for(let i=1;i<words.length;i++){
       const m=Math.max(words.slice(0,i).join(" ").length,words.slice(i).join(" ").length);
-      if(m<best){best=m;cut=i;}
+      // On a tie take the later break: GOLD GULCH / JAIL, never GOLD / GULCH JAIL
+      if(m<=best){best=m;cut=i;}
     }
     lines=[words.slice(0,cut).join(" "),words.slice(cut).join(" ")];
   }
@@ -784,6 +785,10 @@ function propAt(kind){
   } else {
     for(let i=0;i<4;i++){
       const x=244+i*26, y=110+i*12, h=76-i*8;
+      // every other thing standing in this street casts where it meets the dirt;
+      // without it a post reads as hanging in the air rather than sunk in it
+      ctx.fillStyle="rgba(0,0,0,.38)"; ctx.fillRect(x-3,y+h-1,15,2);
+      ctx.fillStyle="rgba(0,0,0,.18)"; ctx.fillRect(x-5,y+h+1,19,1);
       px(x,y,9,h,T.trunk); px(x,y,3,h,"#8a6a3a"); px(x,y,9,2,T.board);
     }
     for(let k=0;k<3;k++)for(let i=0;i<3;i++){
@@ -854,7 +859,13 @@ function drawScene(now){
     const pose=(G.outcome==="surrendered")?"surrender"
       :(G.duel&&(G.duel.drawn||G.phase==="tell"))?"raise":"idle";
     if(G.outcome==="killed_him"||G.outcome==="innocent_killed"){
-      ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(Math.min(1.4,bodyFall));
+      // He turns about his own boots. The shadow he was standing in has to come
+      // round with him and lie flat, or he ends up floating over the plaza with
+      // everything else in the picture sitting on it.
+      const turn=Math.min(1.4,bodyFall), lay=turn/1.4;
+      ctx.fillStyle="rgba(0,0,0,"+(0.34*lay+0.06).toFixed(3)+")";
+      ctx.fillRect(FIG.cx-6,FIG.ground-1,Math.round(12+40*lay),2);
+      ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(turn);
       ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
     } else visitor(enc,pose);
   }
