@@ -1,355 +1,60 @@
 {
-  "authored": [
-    "faithful: 0/11",
-    "remix: 3/6"
+  "written": [
+    "stranger",
+    "rose",
+    "kid",
+    "doctor"
   ],
-  "runs": {
-    "brass": {
-      "escorted": 85,
-      "forgery": 135,
-      "duel:killed_him": 61,
-      "duel:wound_consequence": 68,
-      "duel:disarmed": 79,
-      "standoff": 27,
-      "handover": 45
-    },
-    "rainmaker": {
-      "revival_watched": 146,
-      "run_off": 209,
-      "revival_free": 145
-    },
-    "rainmaker with warrant": {
-      "collection_named": 135,
-      "revival_watched": 22,
-      "run_off": 24,
-      "revival_free": 19
-    },
-    "widow": {
-      "widow_favour": 152,
-      "closed_book": 138,
-      "debt_voided": 200,
-      "secret_exposed": 10
-    },
-    "widow with warrant": {
-      "debt_voided": 65,
-      "same_hand": 56,
-      "closed_book": 54,
-      "widow_favour": 19,
-      "secret_exposed": 6
-    }
-  },
-  "variance": {
-    "brass": {
-      "conciliate": {
-        "top": 79,
-        "counts": {
-          "escorted": 79,
-          "duel:killed_him": 1,
-          "duel:wound_consequence": 3,
-          "duel:disarmed": 7,
-          "handover": 10
-        }
-      },
-      "probe": {
-        "top": 65,
-        "counts": {
-          "forgery": 65,
-          "duel:killed_him": 9,
-          "handover": 14,
-          "duel:wound_consequence": 6,
-          "duel:disarmed": 6
-        }
-      },
-      "command": {
-        "top": 27,
-        "counts": {
-          "escorted": 25,
-          "duel:killed_him": 25,
-          "standoff": 2,
-          "duel:wound_consequence": 27,
-          "duel:disarmed": 21
-        }
-      },
-      "threaten": {
-        "top": 37,
-        "counts": {
-          "duel:wound_consequence": 37,
-          "duel:disarmed": 32,
-          "duel:killed_him": 31
-        }
-      }
-    },
-    "rainmaker": {
-      "conciliate": {
-        "top": 72,
-        "counts": {
-          "revival_watched": 72,
-          "revival_free": 28
-        }
-      },
-      "probe": {
-        "top": 99,
-        "counts": {
-          "revival_free": 99,
-          "revival_watched": 1
-        }
-      },
-      "command": {
-        "top": 68,
-        "counts": {
-          "revival_watched": 68,
-          "run_off": 24,
-          "revival_free": 8
-        }
-      },
-      "threaten": {
-        "top": 100,
-        "counts": {
-          "run_off": 100
-        }
-      }
-    },
-    "surveyor": {
-      "conciliate": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "probe": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "command": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "threaten": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      }
-    },
-    "widow": {
-      "conciliate": {
-        "top": 79,
-        "counts": {
-          "widow_favour": 79,
-          "debt_voided": 21
-        }
-      },
-      "probe": {
-        "top": 50,
-        "counts": {
-          "widow_favour": 50,
-          "debt_voided": 38,
-          "secret_exposed": 12
-        }
-      },
-      "command": {
-        "top": 98,
-        "counts": {
-          "debt_voided": 98,
-          "widow_favour": 2
-        }
-      },
-      "threaten": {
-        "top": 100,
-        "counts": {
-          "closed_book": 100
-        }
-      }
-    },
-    "tuner": {
-      "conciliate": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "probe": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "command": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "threaten": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      }
-    },
-    "locket": {
-      "conciliate": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "probe": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "command": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      },
-      "threaten": {
-        "top": 100,
-        "counts": {
-          "fixture_settled": 100
-        }
-      }
-    }
-  },
-  "rigidPaths": [
-    "rainmaker/probe 99%",
-    "rainmaker/threaten 100%",
-    "surveyor/conciliate 100%",
-    "surveyor/probe 100%",
-    "surveyor/command 100%",
-    "surveyor/threaten 100%",
-    "widow/command 98%",
-    "widow/threaten 100%",
-    "tuner/conciliate 100%",
-    "tuner/probe 100%",
-    "tuner/command 100%",
-    "tuner/threaten 100%",
-    "locket/conciliate 100%",
-    "locket/probe 100%",
-    "locket/command 100%",
-    "locket/threaten 100%"
+  "order": [
+    "stranger",
+    "rose",
+    "kid",
+    "doctor",
+    "shotgun",
+    "willie",
+    "april",
+    "gambler",
+    "deputy",
+    "belle",
+    "lastgun"
   ],
-  "duel": {
-    "100ms": {
-      "hit": 55,
-      "kill": 31,
-      "disarm": 24,
-      "miss": 45,
-      "slow": 0,
-      "n": 96
+  "doctor": {
+    "civil": {
+      "outcome": "doctor_saved",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 1
     },
-    "200ms": {
-      "hit": 59,
-      "kill": 33,
-      "disarm": 27,
-      "miss": 41,
-      "slow": 0,
-      "n": 160
+    "insulted": {
+      "outcome": null,
+      "phase": "summary",
+      "alive": false,
+      "wounds": 1
     },
-    "300ms": {
-      "hit": 66,
-      "kill": 30,
-      "disarm": 36,
-      "miss": 34,
-      "slow": 0,
-      "n": 160
+    "drunk": {
+      "outcome": "wounded",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 1
     },
-    "400ms": {
-      "hit": 79,
-      "kill": 46,
-      "disarm": 33,
-      "miss": 21,
-      "slow": 0,
-      "n": 158
-    },
-    "500ms": {
-      "hit": 81,
-      "kill": 49,
-      "disarm": 32,
-      "miss": 19,
-      "slow": 0,
-      "n": 155
-    },
-    "600ms": {
-      "hit": 82,
-      "kill": 52,
-      "disarm": 30,
-      "miss": 16,
-      "slow": 2,
-      "n": 155
-    },
-    "700ms": {
-      "hit": 75,
-      "kill": 42,
-      "disarm": 33,
-      "miss": 13,
-      "slow": 12,
-      "n": 155
-    },
-    "800ms": {
-      "hit": 63,
-      "kill": 32,
-      "disarm": 30,
-      "miss": 10,
-      "slow": 27,
-      "n": 155
-    },
-    "900ms": {
-      "hit": 47,
-      "kill": 25,
-      "disarm": 22,
-      "miss": 7,
-      "slow": 46,
-      "n": 155
-    },
-    "1000ms": {
-      "hit": 30,
-      "kill": 12,
-      "disarm": 17,
-      "miss": 5,
-      "slow": 66,
-      "n": 155
-    },
-    "1100ms": {
-      "hit": 10,
-      "kill": 6,
-      "disarm": 5,
-      "miss": 1,
-      "slow": 88,
-      "n": 155
-    },
-    "1200ms": {
-      "hit": 2,
-      "kill": 1,
-      "disarm": 1,
-      "miss": 0,
-      "slow": 98,
-      "n": 155
-    },
-    "1300ms": {
-      "hit": 0,
-      "kill": 0,
-      "disarm": 0,
-      "miss": 0,
-      "slow": 100,
-      "n": 155
-    },
-    "1400ms": {
-      "hit": 0,
-      "kill": 0,
-      "disarm": 0,
-      "miss": 0,
-      "slow": 100,
-      "n": 31
+    "dead": {
+      "outcome": "wounded",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 1
     }
   },
-  "wounds": "one wound carries, a banked favour patches it, the second kills",
-  "audioCoverage": "41 of 42 cues played; reserved: romance"
+  "themesPending": [
+    "stranger",
+    "rose",
+    "kid",
+    "doctor",
+    "shotgun",
+    "willie",
+    "april",
+    "gambler",
+    "deputy",
+    "belle",
+    "lastgun"
+  ]
 }

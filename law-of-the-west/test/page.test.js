@@ -13,7 +13,6 @@ const fs=require('fs'), path=require('path');
  * clone can run every other test without installing anything. */
 let JSDOM=null, jsdomMissing=false;
 try{ JSDOM=require('jsdom').JSDOM; }catch(e){ jsdomMissing=true; }
-const {fillUnwritten}=require('./fixture-content.js');
 const ROOT=path.join(__dirname,'..');
 const HTML=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
 const open_pages=[];
@@ -37,9 +36,6 @@ function openPage(){
   // window properties, so the page's scope is reached through its own eval
   const ev=code=>w.eval(code);
   assert.ok(ev('typeof SND')==='object','the page did not build SND');
-  // the page tests drive the day that has scenes in it; the rest get fixture turns
-  ev('selectMode("remix")');
-  fillUnwritten(ev('ENCOUNTERS'),ev('DIALOGUE'),ev('INTENTS'),ev('RULES').TURNS);
   return {dom,w,errors,ev,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
     ready(){ev('build').rows=10;ev('paint()');},
@@ -73,7 +69,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE did not start the day');
-  assert.equal(p.ev('ENCOUNTERS')[p.G().slot].id,'brass');   // the remix day's first caller
+  assert.equal(p.ev('CAST')[p.G().encounter].id,'stranger');   // the day's first caller
   p.ready();                                           // skip the block-load cadence
 
   const texts=[1,2,3,4].map(i=>p.el('line'+i).textContent);
@@ -86,15 +82,15 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   for(let i=0;i<4;i++){
     const q=openPage();
     q.tap('[data-cmd="fire"]'); q.ready();
-    const turn0=q.G().turn, risk0=q.G().S.drawRisk;
+    const node0=q.G().node, round0=q.G().round;
     q.tap('#line'+(i+1));
-    assert.ok(q.G().turn>turn0||q.G().phase!=='dialogue'||q.G().S.drawRisk!==risk0,
+    assert.ok(q.G().round>round0||q.G().node!==node0||q.G().phase!=='dialogue',
       'tapping choice '+(i+1)+' changed nothing');
     const r=openPage();
     r.tap('[data-cmd="fire"]'); r.ready();
-    const b0=r.G().turn;
+    const b0=r.G().round;
     r.press(String(i+1));
-    assert.ok(r.G().turn>b0||r.G().phase!=='dialogue',
+    assert.ok(r.G().round>b0||r.G().phase!=='dialogue',
       'key '+(i+1)+' changed nothing');
     assert.deepEqual(r.errors,[]);
   }
@@ -174,12 +170,12 @@ test('8f. a whole day can be played through to the summary and restarted', {skip
     else break;
   }
   assert.equal(p.G().phase,'summary','the day never reached sundown (stuck in '+p.G().phase+')');
-  assert.ok(p.G().over.rating>=1&&p.G().over.rating<=12,'rating out of range: '+p.G().over.rating);
-  assert.equal(Object.keys(p.G().over.categories).length,7,'expected a 7-category matrix');
-  assert.match(p.el('line0').textContent,/RATING \d+ OF 12/);
+  assert.ok(Number.isFinite(p.G().over.score),'no score at sundown: '+p.G().over.score);
+  assert.equal(Object.keys(p.G().over.categories).length,7,'expected the seven dimensions');
+  assert.match(p.el('line0').textContent,/(SUNDOWN|THE STREET KEPT YOU) — -?\d+ points/);
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE on the summary did not start a new day');
-  assert.equal(p.G().slot,0);
+  assert.equal(p.G().encounter,0);
   assert.deepEqual(p.errors,[]);
 });
 

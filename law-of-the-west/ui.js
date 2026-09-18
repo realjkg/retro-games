@@ -10,7 +10,7 @@ const scoreEl=document.getElementById("score");
 const modeEl=document.getElementById("mode");
 const muteBtn=document.getElementById("mute");
 
-let G=newGame({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
+let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
 let build={at:0,rows:0};            // the block-load cadence
 let flash=0, bodyFall=0, said="", react="";
 
@@ -82,7 +82,7 @@ const VARIANT={
        3:".....HHHHHH.....",4:"....HHHHHHHH...."},
   flathat:{0:"................",1:"....HHHHHHHH....",2:"...HHHHHHHHHH...",
            3:"..HHHHHHHHHHHH..",4:".HHHHHHHHHHHHHH."}};
-const LOOK={
+const LOOK_BY_ID={
   deputy:  {C:"#41506b",K:"#33405a",H:"#20283a",L:"#2b3448",S:true},
   rainmaker:{C:"#241f22",K:"#19161a",H:"#141215",L:"#1d1a1d",variant:"collar"},
   surveyor:{C:"#55654f",K:"#44513f",H:"#d8cfb4",L:"#3f4a3c",variant:"flathat"},
@@ -116,7 +116,7 @@ function blocks(rows,x0,y0,look,cell){
   }
 }
 function visitor(enc,armState){
-  const look=LOOK[enc.id]||LOOK.deputy;
+  const look=LOOK_BY_ID[enc.id]||LOOK_BY_ID.deputy;
   ctx.fillStyle="rgba(60,40,22,.30)";                     // his shadow, also in cells
   for(let c=3;c<13;c++)ctx.fillRect(SPRX+c*CELL,SPRY+SPR.h*CELL,CELL,CELL);
   const body=Object.fromEntries(BODY.map((line,i)=>[i,line]));
@@ -232,12 +232,12 @@ function drawScene(now){
   ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-CELL*3,SCENE.w,CELL*3);
   ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
   ctx.textAlign="left"; ctx.textBaseline="middle";
-  const counted=Math.min(G.slot+1,ENCOUNTERS.length);
+  const counted=Math.min(G.encounter+1,CAST.length);
   ctx.fillText(G.phase==="summary"?"GOLD GULCH   SUNDOWN"
-    :((enc?enc.title.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+ENCOUNTERS.length),
-    CELL,SCENE.h-CELL*1.5);
+    :((enc?enc.name.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+CAST.length),
+    4,SCENE.h-6);
   ctx.textAlign="right";
-  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-CELL,SCENE.h-CELL*1.5);
+  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-4,SCENE.h-6);
   ctx.restore();
 }
 
@@ -255,22 +255,20 @@ function fitText(){
   }
 }
 
-function beat(){const e=who(G);return e?turnFor(e.id,G.turn):null;}
+function beat(){return nodeOf(G);}
 function paint(){
   const b=beat(), live=build.rows>=10;
   if(G.phase==="summary"){return paintSummary();}
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
     lineEls[0].className="npc";
-    const count=id=>{const m=MODES[id];
-      return m.encounters.filter(e=>Array.isArray(m.dialogue[e.id])).length+" of "+m.encounters.length;};
-    [["faithful",1],["remix",2]].forEach(([id,line])=>{
-      lineEls[line].textContent=line+". "+MODES[id].title+" — "+MODES[id].note+
-        "  ("+count(id)+" written)";
-      lineEls[line].className="choice"+(MODE===id?" sel":"");
-    });
-    lineEls[3].textContent="";
-    lineEls[3].className="choice";
+    lineEls[1].textContent="1. Pin on the badge";
+    lineEls[1].className="choice sel";
+    const done=CAST.filter(written).length;
+    lineEls[2].textContent=done+" of "+CAST.length+" callers written so far.";
+    lineEls[2].className="choice dim";
+    lineEls[3].textContent="An original recreation inspired by the 1985 game.";
+    lineEls[3].className="choice dim";
     lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
     lineEls[4].className="choice dim";
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
@@ -279,64 +277,68 @@ function paint(){
   lineEls[0].className="npc";
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
-    lineEls[1].textContent=(G.slot>=ENCOUNTERS.length-1)?"1. End the day":"1. Walk on down the street";
+    lineEls[1].textContent=(G.encounter>=CAST.length-1)?"1. End the day":"1. Walk on down the street";
     lineEls[1].className="choice sel";
     for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
-    scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;
-    modeEl.textContent=who(G)?who(G).title.toUpperCase():"";
+    scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests;
+    modeEl.textContent=who(G)?who(G).name.toUpperCase():"";
     fitText(); return;
   }
-  lineEls[0].textContent=!b?"["+(who(G)?who(G).title:"this encounter")+" is not written yet]"
-    :(react||said||b.say);
+  lineEls[0].textContent=!b?"["+(who(G)?who(G).name:"this caller")+" is not written yet]"
+    :b.npc;
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
     const r=replies[i];
-    const locked=r&&!available(G,r);
-    lineEls[i+1].textContent=r?(i+1)+". "+r.t+(locked?"   (you would have to know)":""):"";
+    lineEls[i+1].textContent=r?(i+1)+". "+r.text:"";
     lineEls[i+1].className="choice"+(live&&G.mode==="talk"&&cursor===i?" sel":"")+
-      (G.mode==="gun"?" dim":"")+(locked?" locked":"");
+      (G.mode==="gun"?" dim":"");
   }
   modeEl.textContent=G.mode==="gun"?"GUN DRAWN — down to holster":"TALKING — up to draw";
-  scoreEl.textContent="Standing "+G.points+"   clues "+G.clues.length;
+  scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests+
+    (G.wounds?"   wounded":"");
   fitText();
 }
 const OUTCOME_LINES={
   disarmed:"His gun is in the dust and his wrists are in irons.",
-  killed_him:"He is dead on the boardwalk, and the street saw who fired.",
-  murder:"You shot a man whose hand never moved. The street saw that too.",
+  killed_him:"He is dead in the street, and the street saw who fired.",
+  innocent_killed:"He never went for a gun. Gold Gulch watched you shoot him anyway.",
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
-  wound_consequence:"You are hit. It will keep until sundown, and no longer.",
-  rescued_from_street:"A wagon you did not send comes up the street. Somebody who owes you a favour gets you off it and closes the hole.",
-  walked_away:"He looks at the gun in your hand, decides against all of it, and leaves.",
-  unwritten:"[this encounter has no authored ending yet]"
+  wounded:"You are hit, and on your feet, which is more than some manage.",
+  doctor_saved:"The doctor has you inside and the ball out before the dust settles.",
+  doctor_came:"The doctor comes, unhurried, and does the work without looking at you.",
+  turns_away:"He turns and walks, which is not the same as leaving.",
+  surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
+  departed:"He goes, and the street closes behind him.",
+  walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  job_stopped:"You were waiting for them. It was over before the horses were tied.",
+  job_missed:"It happened while you were up the street, and nobody had told you it would.",
+  unwritten:"[this caller is not written yet]"
 };
 const outcomeLine=()=>OUTCOME_LINES[G.outcome]||"The matter settles.";
 function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
-  lineEls[0].textContent="RATING "+o.rating+" OF 12 — "+o.verdict.toUpperCase();
-  const show=v=>v==null?"—":v;                    // a category nobody earned, not "null"
-  const cats=Object.entries(o.categories).map(([k,v])=>k+" · "+show(v));
-  lineEls[1].className="choice dim"; lineEls[1].textContent=cats.slice(0,3).join("     ");
-  lineEls[2].className="choice dim"; lineEls[2].textContent=cats.slice(3,5).join("     ");
-  lineEls[3].className="choice dim"; lineEls[3].textContent=cats.slice(5).join("     ")+
-    (o.clues.length?"     learned · "+o.clues.map(c=>c.replace(/_/g," ")).join(", "):"");
+  lineEls[0].textContent=(o.alive?"SUNDOWN":"THE STREET KEPT YOU")+" — "+o.score+" points";
+  const cats=Object.entries(o.categories);
+  lineEls[1].className="choice dim"; lineEls[1].textContent=cats.slice(0,3).map(([k,v])=>k+" · "+v).join("     ");
+  lineEls[2].className="choice dim"; lineEls[2].textContent=cats.slice(3,5).map(([k,v])=>k+" · "+v).join("     ");
+  lineEls[3].className="choice dim"; lineEls[3].textContent=cats.slice(5).map(([k,v])=>k+" · "+v).join("     ");
   lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
-  scoreEl.textContent="Standing "+o.points;
+  scoreEl.textContent=o.score+" points";
   modeEl.textContent="SUNDOWN";
   fitText();
 }
 
-/* ---- full game mode ---- */
+/* ---- full screen ---- *
+ * The game is meant to be launched in it: pinning on the badge is a gesture,
+ * which is the only moment a browser grants fullscreen. EXIT, g or F11 stays
+ * in the page, and that choice is the one remembered. */
 const NAV=typeof navigator==="object"&&navigator?navigator:null;
 const bodyEl=document.body||{classList:{add(){},remove(){}}};
 const fullBtn=document.getElementById("full");
 let gameMode=false, wakeLock=null;
-/* Full screen is how the game is meant to be launched, so it is the default:
- * the first gesture - pinning on the badge - asks for it. EXIT or g turns it
- * off and that choice is what gets remembered. */
 function readGameModePref(){
-  let want=true;                        // full screen unless told otherwise
+  let want=true;
   try{const pref=localStorage.getItem("lotw.gamemode"); if(pref!==null)want=pref==="1";}
   catch(e){}                            // private windows and blocked storage
   return want;
@@ -362,8 +364,6 @@ function setGameMode(on){
   if(gameMode)keepAwake(); else releaseAwake();
   fit(); paint();
 }
-/* Fullscreen is only granted inside a user gesture, so every caller is a tap
- * or a key. Where the API is missing - iPhone Safari - the layout still goes. */
 function toggleGameMode(){
   if(gameMode){exitFS();setGameMode(false);}
   else{setGameMode(true);requestFS();}
@@ -389,8 +389,8 @@ function firstGesture(){
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
   SND.dawn();
-  G=newGame({mode:MODE}); cursor=0; said=""; react="";
-  beginSlot(G); openDialogue(G); newScene();
+  G=newDay({}); cursor=0; said=""; react="";
+  beginEncounter(G); openDialogue(G); newScene();
   SND.badge();
 }
 /* Each visitor is audible before he is visible: his own arrival over the door
@@ -440,21 +440,15 @@ function fire(){
   }
   if(G.phase!=="dialogue"||build.rows<10)return;
   const b=beat(); if(!b){SND.deny();return;}
-  const replies=b.replies.filter(r=>r.tone!=="draw");
-  const chosen=replies[cursor]; if(!chosen){SND.deny();return;}
-  if(!available(G,chosen)){SND.deny();return;}          // you would have to know
+  const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
-  const r=respond(G,b.replies.indexOf(chosen));
-  react=r&&r.react?r.react:"";
+  say(G,cursor);
   if(G.phase==="tell"){G.tell.at=performance.now();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
   paint();
 }
 function choose(i){                       // the 1-4 keys and the tapped lines
-  if(G.phase==="intro"){                  // on the title screen they pick the day
-    const id=i===1?"remix":"faithful";
-    selectMode(id); startDay(); paint(); return;
-  }
+  if(G.phase==="intro"){startDay();paint();return;}
   if(G.phase!=="dialogue"||G.mode!=="talk")return;
   cursor=Math.max(0,Math.min(3,i)); fire();
 }
@@ -467,33 +461,31 @@ function afterShot(before){
 }
 function settleSound(){
   const o=G.outcome;
-  if(G.ending){                                   // an authored ending
-    if(G.ending.sound&&typeof SND[G.ending.sound]==="function")SND[G.ending.sound]();
-    if(G.ending.award==="arrest"){SND.thread();SND.respect();}
-    else if(G.ending.award==="talked"){SND.clue();SND.point();}
-    else if(G.ending.points<0){SND.alarm();SND.penalty();}
-    else SND.clock();
-    if(G.ending.fx&&G.ending.fx.clue)SND.clue();
-  }
+  const flags=(G.ending&&G.ending.flags)||[];
+  if(flags.indexOf("offended")>=0)SND.penalty();
+  if(flags.some(f=>f.indexOf("tip_")===0)){SND.clue();SND.point();}
+  else if(o==="surrendered"){SND.respect();SND.thread();}
+  else if(o==="departed"||o==="walked_away"||o==="turns_away")SND.step();
   else if(o==="disarmed"){SND.ricochet();SND.wound();}
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
-  else if(o==="murder"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
+  else if(o==="innocent_killed"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
   else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
-  else if(o==="wound_consequence"){SND.gunshot();SND.hit();}
-  else if(o==="rescued_from_street"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
-  else if(o==="walked_away")SND.step();
+  else if(o==="wounded"){SND.gunshot();SND.hit();}
+  else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
+  else if(o==="job_stopped"){SND.thread();SND.respect();}
+  else if(o==="job_missed"){SND.alarm();SND.robbery();}
   else SND.clock();
-  if(o==="killed_him"||o==="murder")setTimeout(()=>SND.churchbell(),900);
+  if(o==="killed_him"||o==="innocent_killed")setTimeout(()=>SND.churchbell(),900);
   if(G.duel&&G.duel.fired)setTimeout(()=>SND.reload(),1200);
   if(G.phase==="summary")endSound();
 }
 function endSound(){
   SND.dusk();
-  setTimeout(()=>{(G.over&&G.over.rating>=7)?SND.respect():SND.disgrace();},700);
+  setTimeout(()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();},700);
 }
 function advance(){
   if(G.phase==="summary")return;
-  const r=nextSlot(G);
+  const r=nextEncounter(G);
   if(G.phase==="summary"){endSound();paint();return;}
   openDialogue(G); newScene(); SND.clock(); SND.wind(); paint();
 }

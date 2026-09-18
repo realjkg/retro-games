@@ -1,402 +1,240 @@
 /* ============ content ============
- * Two modes, and the difference between them is stated on the title screen.
+ * An original recreation of the 1985 game's structure, not a port and not a
+ * copy: eleven callers over one day, in the documented order, each a tree of
+ * three exchanges with one visitor line and four replies at every node. Every
+ * word here is newly written; no dialogue, artwork or music of the original is
+ * reproduced.
  *
- *   faithful  The day as the 1985 release ran it: the same cast in the same
- *             order, three rounds of four answers, the same event classes -
- *             a secret about a robbery, romance, a surrender, a departure, a
- *             duel, a draw that comes after the goodbye, a false exit, an
- *             ambush - the doctor deciding whether a bullet is survivable,
- *             and the bank, train and stage jobs following up at the end.
- *             The structure is reconstructed; every line of dialogue here is
- *             newly written, and none of the original's script, artwork or
- *             audio is reproduced.
+ * A node is either a round - {npc, replies:[4]} - or a terminal in `ends`.
+ * A reply carries exactly one of:
+ *   next    another round node, one exchange deeper (three at most)
+ *   end     a terminal in this encounter's `ends`
+ *   action  "draw"      he goes for it now
+ *           "ambush"    he was never going to talk
+ *           "delayed"   he walks, then turns and fires
+ *           "surrender" hands up, arrest available
+ *           "depart"    he leaves, and that is that
+ * Drawing your own gun is always available and is not a menu line.
  *
- *   remix     Six original encounters of our own on the same machinery,
- *             labelled as what it is rather than passed off as the original.
- *
- * Intents, not wordings, are what the engine reads:
- *   conciliate  lowers tension, and invites being handled
- *   probe       buys information, at the cost of insult or suspicion
- *   command     asserts the badge, and provokes proud men
- *   threaten    ends a scene fast, at a price in reputation and draw risk
+ * A terminal emits flags the day counts: tip_train, tip_stage, tip_bank, date,
+ * arrest, surrender, depart, offended, doctor_civil, doctor_insulted.
  */
-const INTENTS=["conciliate","probe","command","threaten"];
-/* Per-encounter state, reset at each arrival, plus the town ledger that
- * carries across the day: safety, clues and the sheriff's standing. */
-const VARS=["respect","fear","suspicion","evidence","drawRisk"];
+const LIMITS={NPC:150,REPLY:92,ROUNDS:3,REPLIES:4};
+const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
+  "depart","offended","doctor_civil","doctor_insulted","warned_bank"];
 
-const REMIX=[
- {id:"brass", title:"The Brass-Button Deputy", place:"JAIL",
-  surface:"A territorial deputy demands custody of a prisoner",
-  hidden:"His warrant may be fabricated",
-  core:"authority", armed:true, nerve:2, drawAt:6, hostile:0.12,
-  arrive:["hooves","spurs"],
-  /* First match wins, so the specific outcomes sit above the fallback. */
-  endings:[
-   {id:"forgery",   when:[["evidence",">=",2]], chance:0.85,
-    text:"The seal is a county seal, and the county it names has no such court. He goes into his own cell, and the prisoner stays in the next one.",
-    fx:{safety:+1,clue:"warrant"}, award:"arrest", points:180},
-   {id:"escorted",  when:[["respect",">=",2],["suspicion","<=",1]], chance:0.85,
-    text:"He signs for the prisoner in front of two witnesses and rides out at a walk. Whatever he is, he is now a man on paper.",
-    fx:{clue:"escort"}, award:"talked", points:120},
-   {id:"standoff",  when:[["drawRisk",">=",4]],
-    text:"Neither of you touches leather, and neither of you looks away. He backs off the boardwalk and leaves the prisoner where he lies, for now.",
-    fx:{}, award:null, points:40},
-   {id:"handover",  when:[],
-    text:"You hand the prisoner over to a warrant you did not read closely. By evening the deputy and the prisoner are both gone, and so is the payroll box.",
-    fx:{safety:-1}, award:"lost", points:-60, sound:"robbery"}
-  ]},
- /* The rest of the anthology, written to the same grammar. Metadata stands;
-  * their dialogue is not authored yet, and the engine says so rather than
-  * inventing any. */
- {id:"rainmaker", title:"The Rainmaker", place:"STREET",
-  surface:"A travelling preacher wants permission to hold a revival",
-  hidden:"He is collecting money for someone dangerous",
-  core:"trust", armed:false, nerve:0, drawAt:99, hostile:0.00,
-  arrive:["wagon","crowd"],
-  endings:[
-   /* Cross-scene: the hand on the forged warrant and the name on his
-    * subscription book belong to the same outfit. */
-   {id:"collection_named", when:[["clue:warrant",">=",1],["suspicion",">=",2]],
-    text:"He gives up the name in the subscription book rather than the name in the sermon, and it is the one off the warrant. The revival goes ahead. The collection goes into the safe at the jail.",
-    fx:{safety:+1,clue:"collection"}, award:"talked", points:190, sound:"thread"},
-   {id:"revival_watched", when:[["respect",">=",2],["suspicion",">=",1]], chance:0.82,
-    text:"He may have the lot behind the livery, on the condition that you stand at the back with your hat off and your eyes open. He agrees a shade too easily.",
-    fx:{clue:"revival"}, award:"talked", points:130},
-   {id:"run_off", when:[["fear",">=",3]],
-    text:"The wagon is turned around before the canvas is out of it. Whoever the money was for will send somebody less nervous next time.",
-    fx:{}, award:null, points:40},
-   {id:"revival_free", when:[],
-    text:"Three nights of singing, a full collection plate, and a wagon gone by Sunday. Nobody in Gold Gulch can say where the money went, least of all the sheriff.",
-    fx:{safety:-1}, award:"lost", points:-30, sound:"penalty"}
-  ]},
- {id:"surveyor", title:"The Quiet Surveyor", place:"RECORDS",
-  surface:"A polite land agent requests town records",
-  hidden:"He is scouting properties for a railroad takeover",
-  core:"suspicion", armed:false, nerve:0, drawAt:99, hostile:0.00,
-  arrive:["crowd"], endings:[]},
- {id:"widow", title:"The Widow's Ledger", place:"RANCH",
-  surface:"A ranch widow says her husband's debt was forged",
-  hidden:"Her own books contain a damaging secret",
-  core:"evidence", armed:false, nerve:0, drawAt:99, hostile:0.00,
-  arrive:["wagon"],
-  endings:[
-   /* The one durable favour in the anthology. Shown her the courtesy and read
-    * the ledger properly and she owes the sheriff something worth having; make
-    * her afraid and she owes him nothing. */
-   /* Cross-scene: whoever forged the deputy's warrant forged this too, and a
-    * sheriff who has seen the one recognises the other. */
-   {id:"same_hand", when:[["clue:warrant",">=",1],["evidence",">=",2],["fear","<=",1]], chance:0.7,
-    text:"You have seen that downstroke before, on a warrant a man in brass buttons was carrying. The same hand wrote them both, and now there is a pattern instead of a grievance.",
-    fx:{safety:+1,clue:"same_hand",favour:1}, award:"arrest", points:210, sound:"thread"},
-   {id:"widow_favour", when:[["evidence",">=",2],["respect",">=",1],["fear","<=",1]], chance:0.78,
-    text:"Mrs. Vale closes the ledger, then presses the sheriff's hand. \u201cIf this town ever leaves you in the dust, send word to my place.\u201d",
-    fx:{favour:1,safety:+1,clue:"ledger"}, award:"talked", points:160},
-   {id:"secret_exposed", when:[["suspicion",">=",4]], chance:0.8,
-    text:"You read far enough to find what she was hiding: four years of quiet payments to a name she will not say aloud. The debt was forged, and so was her good standing.",
-    fx:{safety:+1,clue:"payments"}, award:"clue", points:-20, sound:"penalty"},
-   {id:"debt_voided", when:[["evidence",">=",2]],
-    text:"Two hands wrote that signature and neither of them was her husband's. The debt is void, and the man who drew it up has a week's head start.",
-    fx:{clue:"ledger"}, award:"talked", points:110},
-   {id:"closed_book", when:[],
-    text:"She closes the ledger, thanks you for your time in the voice people use on tax collectors, and drives the wagon home.",
-    fx:{}, award:null, points:-20}
-  ]},
- {id:"tuner", title:"The Piano Tuner", place:"SALOON",
-  surface:"A musician says someone stole his instrument case",
-  hidden:"The case holds coded messages, not tools",
-  core:"perception", armed:false, nerve:1, drawAt:99, hostile:0.00,
-  arrive:["piano","bottle"], endings:[]},
- {id:"locket", title:"The Boy With the Locket", place:"STREET",
-  surface:"A teenager asks the sheriff to find a missing parent",
-  hidden:"The missing person may be fleeing a crime",
-  core:"mercy", armed:false, nerve:0, drawAt:99, hostile:0.00,
-  arrive:["crowd"], endings:[]}
+const CAST=[
+ /* 1 ---------------------------------------------------------------- */
+ {id:"stranger", name:"A Stranger", place:"STREET", theme:"stranger",
+  armed:true, arrive:["wagon","crowd"],
+  rounds:{
+   opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
+    replies:[
+     {text:"\"Newer, anyway. What brings you to Gold Gulch?\"", next:"cordial"},
+     {text:"\"They talk. You listen. What have you heard?\"", next:"business"},
+     {text:"\"You've been looking up this street a while, mister.\"", next:"wary"},
+     {text:"\"State your business or move along.\"", next:"prickly"}]},
+   cordial:{npc:"Passing through. I came up on the westbound and I'd as soon not go back down on it.",
+    replies:[
+     {text:"\"Trouble on the line?\"", next:"train"},
+     {text:"\"Room at the hotel, if you're staying.\"", end:"peaceful"},
+     {text:"\"What's wrong with the westbound?\"", next:"train"},
+     {text:"\"Then buy a horse and stop loitering.\"", end:"offended"}]},
+   business:{npc:"I heard a sheriff here lasted eleven days. I heard some other things I'd want a reason to repeat.",
+    replies:[
+     {text:"\"The reason is the badge. Say it plain.\"", next:"train"},
+     {text:"\"I'll take it kindly, and remember who told me.\"", next:"train"},
+     {text:"\"Then keep them. I've enough to do.\"", end:"peaceful"},
+     {text:"\"Repeat them now or in a cell.\"", end:"offended"}]},
+   wary:{npc:"A man can look at a street. There's no law against standing still that I know of.",
+    replies:[
+     {text:"\"None at all. Stand somewhere I can see you.\"", end:"peaceful"},
+     {text:"\"There's none. There's a law about what you're not saying.\"", next:"train"},
+     {text:"\"Empty your coat pockets for me.\"", end:"offended"},
+     {text:"\"Move.\"", end:"offended"}]},
+   prickly:{npc:"You've a hard way with a stranger who's done nothing. That's how the last one started, I'd guess.",
+    replies:[
+     {text:"\"You're right. Start again — what did you hear?\"", next:"train"},
+     {text:"\"The last one is why I'm careful.\"", end:"peaceful"},
+     {text:"\"Done nothing yet. I'm early, that's all.\"", action:"delayed"},
+     {text:"\"Then we'll see how you finish.\"", action:"draw"}]},
+   train:{npc:"…There's men meaning to take the westbound where it slows at the cut. Payroll car. That's all I know and it's more than I should say.",
+    replies:[
+     {text:"\"Much obliged. Nobody hears it from me.\"", end:"tip"},
+     {text:"\"Names.\"", end:"tip_hard"},
+     {text:"\"Why tell me at all?\"", end:"tip"},
+     {text:"\"If you're in it, say so now.\"", action:"delayed"}]}},
+  ends:{
+   tip:{text:"He tells it once, quietly, and is gone up the street before you have thanked him twice.",
+        flags:["tip_train","depart"], authority:1},
+   tip_hard:{text:"He gives you the cut, the hour and no names at all, and makes it clear that is the whole of it.",
+        flags:["tip_train"], authority:0},
+   peaceful:{text:"He touches his hat and goes on up the boardwalk, and the street closes behind him.",
+        flags:["depart"], authority:0},
+   offended:{text:"He looks at you the way a man looks at weather, and walks away without another word.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 2 ---------------------------------------------------------------- */
+ {id:"rose", name:"Miss Rose", place:"SALOON", theme:"rose",
+  armed:false, arrive:["piano","bottle"],
+  rounds:{
+   opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
+    replies:[
+     {text:"\"Coffee, if the pot's honest.\"", next:"easy"},
+     {text:"\"Who's been drinking here that shouldn't be?\"", next:"askers"},
+     {text:"\"You see everyone who comes through that door.\"", next:"askers"},
+     {text:"\"I'm working, Miss Rose.\"", next:"cool"}]},
+   easy:{npc:"Honest as anything in this town. Sit long enough and the room will tell you things it wouldn't tell a stranger.",
+    replies:[
+     {text:"\"Then I'll sit. What's the room saying?\"", next:"stage"},
+     {text:"\"You could tell me quicker.\"", next:"stage"},
+     {text:"\"I'd rather hear what you think.\"", next:"warm"},
+     {text:"\"I haven't the afternoon.\"", end:"ordinary"}]},
+   askers:{npc:"Two men, three nights, one table. They asked what day the coach runs heavy. I told them I pour whiskey, not timetables.",
+    replies:[
+     {text:"\"Did they take that for an answer?\"", next:"stage"},
+     {text:"\"You told them right. What else?\"", next:"stage"},
+     {text:"\"Describe them.\"", next:"stage"},
+     {text:"\"And you waited until now to mention it?\"", end:"ordinary"}]},
+   cool:{npc:"Everybody's working. I've been working since five and I'll be working when you're asleep with your boots on.",
+    replies:[
+     {text:"\"Fair. Start again — sit with me a minute.\"", next:"warm"},
+     {text:"\"Then work, and tell me what you've seen.\"", next:"stage"},
+     {text:"\"I'll come back when there's less noise.\"", end:"ordinary"},
+     {text:"\"Mind your tone with the law.\"", end:"cold"}]},
+   warm:{npc:"You're better company than the badge suggested. There's a supper at the hotel Saturday, and nobody has asked me to it.",
+    replies:[
+     {text:"\"Then nobody has any sense. Saturday.\"", end:"date"},
+     {text:"\"Saturday, if the town lets me.\"", end:"date"},
+     {text:"\"Ask me again when the streets are quiet.\"", end:"ordinary"},
+     {text:"\"I don't keep company in this town.\"", end:"cold"}]},
+   stage:{npc:"Thursday's coach carries the mine's money. They knew that before they asked. Whoever told them drinks here too.",
+    replies:[
+     {text:"\"Thursday. I'm obliged to you.\"", end:"tip"},
+     {text:"\"Point him out when he comes in.\"", end:"tip"},
+     {text:"\"Anything else about Thursday?\"", end:"tip"},
+     {text:"\"Keep your voice down and keep pouring.\"", end:"ordinary"}]}},
+  ends:{
+   tip:{text:"She wipes the bar where it is already clean, and says Thursday once more, quietly, in case you missed it.",
+        flags:["tip_stage"], authority:1},
+   date:{text:"\"Saturday,\" she says, and goes back down the bar with the particular walk of a woman who has won something.",
+        flags:["date"], authority:1},
+   ordinary:{text:"She nods, unsurprised, and the saloon closes over the conversation like water.",
+        flags:["depart"], authority:0},
+   cold:{text:"She turns to the next man at the bar and does not turn back.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 3 ---------------------------------------------------------------- */
+ {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"kid",
+  armed:true, arrive:["hooves","spurs"],
+  rounds:{
+   opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
+    replies:[
+     {text:"\"A cell, three meals, and a judge in the spring.\"", next:"terms"},
+     {text:"\"Four hundred says somebody wants you badly.\"", next:"talk"},
+     {text:"\"Take your hand away from your belt first.\"", next:"belt"},
+     {text:"\"I'll offer what you're standing on.\"", action:"draw"}]},
+   terms:{npc:"A judge. In the spring. And between now and the spring I'd be in that little room of yours with the one window.",
+    replies:[
+     {text:"\"It's a poor room. It's better than the alternative.\"", next:"yield"},
+     {text:"\"You'd be alive in it.\"", next:"yield"},
+     {text:"\"Walk in on your own and I'll say so to the judge.\"", next:"yield"},
+     {text:"\"Or you can try the street. Your choice.\"", action:"draw"}]},
+   talk:{npc:"Wanting and having are two horses, Sheriff. Nobody has ever had me.",
+    replies:[
+     {text:"\"There's a first day for everything.\"", next:"yield"},
+     {text:"\"Then ride on before somebody tries.\"", next:"leave"},
+     {text:"\"Four hundred buys a lot of men willing to try.\"", next:"leave"},
+     {text:"\"Today's the day, Kid.\"", action:"draw"}]},
+   belt:{npc:"My hand is where my hand lives. You're the one who keeps looking at it.",
+    replies:[
+     {text:"\"Then we'll both look somewhere else.\"", next:"leave"},
+     {text:"\"Move it, slowly, and we'll talk about the spring.\"", next:"yield"},
+     {text:"\"You came a long way to be careful.\"", next:"leave"},
+     {text:"\"Move it or use it.\"", action:"draw"}]},
+   leave:{npc:"Ride on. That's the first sensible thing said to me in this county.",
+    replies:[
+     {text:"\"Then take it and go.\"", action:"depart"},
+     {text:"\"Go south. Don't come back through here.\"", action:"depart"},
+     {text:"\"Go — but the four hundred rides with you.\"", action:"delayed"},
+     {text:"\"You'll go in irons or not at all.\"", action:"draw"}]},
+   yield:{npc:"…The spring, then. On your word, Sheriff, and your word had better be worth the ride.",
+    replies:[
+     {text:"\"It is. Hands where I can see them.\"", action:"surrender"},
+     {text:"\"You have it. Walk ahead of me.\"", action:"surrender"},
+     {text:"\"My word, and the judge's mercy after.\"", action:"surrender"},
+     {text:"\"My word is a cell. Nothing after it.\"", action:"draw"}]}},
+  ends:{}},
+
+ /* 4 ---------------------------------------------------------------- */
+ {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"doctor",
+  armed:false, arrive:["crowd"], doctor:true,
+  rounds:{
+   opening:{npc:"Sheriff. I dug a ball out of a freighter's shoulder at four this morning and I'd like to know whether I'll be doing it again tonight.",
+    replies:[
+     {text:"\"Not if the day goes the way I mean it to.\"", next:"civil"},
+     {text:"\"You hear things in that surgery. What have you heard?\"", next:"listen"},
+     {text:"\"That depends on who walks up this street.\"", next:"civil"},
+     {text:"\"Doctors bury opinions with the patients, Doc.\"", next:"sour"}]},
+   civil:{npc:"Then we understand each other. I've no objection to the law. I object to sewing up what it leaves behind.",
+    replies:[
+     {text:"\"So do I. I'd rather arrest than shoot.\"", next:"listen"},
+     {text:"\"Keep your kit ready anyway.\"", next:"listen"},
+     {text:"\"You'd rather I let men walk?\"", end:"grudging"},
+     {text:"\"Stick to your trade and I'll keep to mine.\"", end:"insulted"}]},
+   listen:{npc:"A man under laudanum says what he wouldn't say sober. One of them said a good deal about the bank's back wall.",
+    replies:[
+     {text:"\"Go on. I'll keep his name out of it.\"", end:"bank"},
+     {text:"\"When was this?\"", end:"bank"},
+     {text:"\"That's worth knowing. Thank you.\"", end:"bank"},
+     {text:"\"You should have come to me at four this morning.\"", end:"grudging"}]},
+   sour:{npc:"My trade is what's left of men like you when the day is over. I'd remember that, if I were the one wearing the star.",
+    replies:[
+     {text:"\"You're right, and I'm sorry for it. Say your piece.\"", next:"listen"},
+     {text:"\"I'll remember. I'd still take a warning if you have one.\"", next:"listen"},
+     {text:"\"Remember it yourself. I've a street to walk.\"", end:"insulted"},
+     {text:"\"Keep your sermon for the ones who don't make it.\"", end:"insulted"}]}},
+  ends:{
+   bank:{text:"He tells you the hour and the wall, and then goes back inside to boil his instruments, which is his way of ending a conversation.",
+         flags:["tip_bank","doctor_civil"], authority:1},
+   grudging:{text:"\"At four this morning I had my hands inside a man,\" he says, and shuts the door. He will still come if you are shot, but he will not hurry.",
+         flags:["tip_bank"], authority:0},
+   insulted:{text:"\"Then don't send for me,\" he says, loud enough for the street. Several people hear him say it.",
+         flags:["doctor_insulted","offended"], authority:-1}}},
+
+ /* 5-11: the rest of the day, not yet written ------------------------ */
+ {id:"shotgun", name:"The Shotgun Owner", place:"STREET", theme:"shotgun",
+  armed:true, arrive:["spurs","crowd"], rounds:{}, ends:{}},
+ {id:"willie", name:"Little Willie", place:"STREET", theme:"willie",
+  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
+ {id:"april", name:"Miss April", place:"SCHOOL", theme:"april",
+  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
+ {id:"gambler", name:"The Gambler", place:"SALOON", theme:"gambler",
+  armed:true, arrive:["piano","crowd"], rounds:{}, ends:{}},
+ {id:"deputy", name:"The Deputy", place:"JAIL", theme:"deputy",
+  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
+ {id:"belle", name:"Belle", place:"CORRAL", theme:"belle",
+  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
+ {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"lastgun",
+  armed:true, arrive:["spurs"], forcedDuel:true, rounds:{}, ends:{}}
 ];
+const written=e=>!!(e.rounds&&e.rounds.opening);
 
 /* ============ the pixel grid ============
- * Everything in the scene is built out of blocks on one coarse grid, the way
- * the machine did it: a 4-pixel cell inside a 320x200 screen, every figure a
- * 12x21 grid of those cells, nothing drawn at a fraction of one. The hitboxes
- * below are read off the same grid, so what the crosshair is over is what the
- * bullet finds.
+ * A 320x200 logical screen, drawn at one scene pixel per unit and scaled with
+ * nearest-neighbour. The sheriff stands in the left foreground, seen from
+ * behind; the visitor stands deeper in the street.
  */
-const SCENE={w:320,h:240};               // 4:3, the shape the machine drew on
-const CELL=4;                            // one "pixel" of the machine
-const SPR={w:16,h:26};                   // a figure, in cells
-const FIG={cx:148,ground:188};           // where he stands, snapped to the grid           // where he stands, snapped to the grid
-const SPRX=FIG.cx-(SPR.w/2)*CELL;        // 124: his left edge
-const SPRY=FIG.ground-SPR.h*CELL;        // 86: the top of his hat
+const SCENE={w:320,h:200};
+const CELL=2;                            // fine enough for one-pixel contours
+const FIG={cx:196,ground:150};           // the visitor, up the street and right of centre
+const SPR={w:16,h:26};
+const SPRX=FIG.cx-(SPR.w/2)*CELL;
+const SPRY=FIG.ground-SPR.h*CELL;
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
   w:(c1-c0+1)*CELL,h:(r1-r0+1)*CELL});
 const HITBOX={
-  lethal:      cellsBox(4,5,11,18),      // head and centre mass: a killing shot
-  weapon:      cellsBox(0,17,3,20),      // the gun at his hip while it is holstered
-  weaponRaised:cellsBox(0,11,3,14)       // and once his hand has come up with it
+  lethal:      cellsBox(4,5,11,18),
+  weapon:      cellsBox(0,17,3,20),
+  weaponRaised:cellsBox(0,11,3,14)
 };
-
-/* ============ dialogue ============
- * Keyed by encounter and turn, separate from the engine, so lines can be
- * rewritten without touching a rule. Three turns; four intents per turn; fx is
- * what the reply does to the state.
- */
-const REMIX_DIALOGUE={
- rainmaker:[
-  {say:"Sheriff. Brother Amos Teague, of no fixed pulpit. Three nights on the lot behind the livery, a tent, and a hymn or two. The town keeps the peace and heaven keeps the accounts.",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Three nights, and I'll keep the drunks off your canvas myself.\"",
-     react:"\"A man who offers before he is asked.\" He writes something small in a book he does not offer to show you.",
-     fx:{respect:+2,fear:-1}},
-    {intent:"probe",
-     t:"\"Whose accounts, Brother? Heaven's, or the ones in that book?\"",
-     react:"The book shuts. \"A subscription list. Names of the faithful, and what the faithful can spare.\"",
-     fx:{suspicion:+2,respect:-1}},
-    {intent:"command",
-     t:"\"You'll hold it on the lot, off the street, and be quiet by ten.\"",
-     react:"\"Ten o'clock.\" He inclines his head. \"The Lord has kept worse hours.\"",
-     fx:{respect:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"I've run four of your trade out of this town. Give me a reason not to make it five.\"",
-     react:"He smiles as though you had complimented the tent. \"Four. And did any of them leave poorer than they came?\"",
-     fx:{fear:+2,suspicion:+1,respect:-1}}]},
-
-  {say:"\"The collection is for the mission at Sand Fork. Orphans, mostly. I carry it in myself, which is why I travel light and sleep badly.\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Then sleep in a cell with the door open. It's the safest room in town for a man carrying money.\"",
-     react:"\"In a cell.\" He laughs, and then stops laughing, and then considers it seriously. \"You are a strange sort of lawman.\"",
-     fx:{respect:+2,fear:-1}},
-    {intent:"probe",
-     t:"\"Sand Fork burned out two summers ago. Who is taking delivery?\"",
-     react:"There is a pause of exactly the wrong length. \"The mission moved. Missions do.\"",
-     fx:{suspicion:+2}},
-    {intent:"command",
-     t:"\"You'll count it in front of me before you leave, and I'll write the figure down.\"",
-     react:"\"Count it.\" His hand goes flat on the book, which is answer enough about where the figure would differ.",
-     fx:{respect:+1,suspicion:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"If one cent of that plate ends up with the men I think it ends up with, I'll take the tent down with you inside it.\"",
-     react:"\"With me inside it.\" He looks up the street, at nothing, for a good while. \"You have somebody in mind. That is a comfort and a worry both.\"",
-     fx:{fear:+3,suspicion:+1,respect:-2}}]},
-
-  {say:"\"So. Do I put up the canvas, or do I drive on and let the next town have the singing?\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Put it up. I'll be at the back on the first night, and I'll pass the plate myself.\"",
-     react:"\"You will pass it.\" He hesitates over the book. \"…Then it had better be an honest plate.\"",
-     fx:{respect:+2,suspicion:+1}},
-    {intent:"probe", needs:["clue:warrant"],
-     t:"\"Open the subscription book to the back page. I took a forged warrant off a man this morning and I want to compare a name.\"",
-     react:"He opens it to the back page himself, slowly, the way a man does when he has decided which side to be on. \"Then you already know who I am collecting for.\"",
-     fx:{suspicion:+2,respect:+1}},
-    {intent:"command",
-     t:"\"Canvas up, plate counted, and you'll be gone by Monday.\"",
-     react:"\"Monday.\" He writes that down too, in the same small hand.",
-     fx:{respect:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"Drive on, Brother. Tonight, while the road is still light.\"",
-     react:"\"Tonight.\" He does not argue, which is the first thing all morning that has not sounded rehearsed.",
-     fx:{fear:+3,respect:-1}}]}],
-
- widow:[
-  {say:"Sheriff. My husband is eight weeks in the ground and a man from the bank says he signed for four hundred dollars the month he was too sick to hold a cup. I have the ledger. I want somebody to look at it.",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Sit down, Mrs. Vale. Nobody takes a ranch off a widow in my town on a piece of paper.\"",
-     react:"She sits, and the ledger stays shut on her knees. \"That is more than the bank said, and it said a great deal.\"",
-     fx:{respect:+2,fear:-1}},
-    {intent:"probe",
-     t:"\"Open it to the month he took ill. I want the page before and the page after.\"",
-     react:"She turns to it without looking down, which means she has turned to it often. The hand in the margin is not the hand on the line.",
-     fx:{evidence:+1,suspicion:+1}},
-    {intent:"command",
-     t:"\"Leave the ledger with me and go home. I'll send word when I know something.\"",
-     react:"\"Leave it.\" Her hands close on the cover. \"It is the only thing in the house that is still mine.\"",
-     fx:{respect:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"If you've written a line of that yourself, I'll know it by supper.\"",
-     react:"The colour goes out of her face in a way that tells you something, though not the thing you asked about.",
-     fx:{fear:+2,respect:-2,suspicion:+1}}]},
-
-  {say:"\"The bank's man says the debt was witnessed. He named two riders who left the county before the funeral.\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Then we'll write to the county they left for, and until it answers, nobody touches your fences.\"",
-     react:"\"You would put that in writing?\" \u2014 and for the first time she opens the ledger the rest of the way.",
-     fx:{respect:+2,evidence:+1,fear:-1}},
-    {intent:"probe", needs:["clue:warrant"],
-     t:"\"Hold it to the light. I took a forged warrant off a man this morning \u2014 I want to see whether the same hand wrote your husband's name.\"",
-     react:"She holds the page up herself, and her hands are steadier than they have been since she walked in. \"Then it is not only me.\"",
-     fx:{evidence:+2,respect:+1}},
-    {intent:"command",
-     t:"\"Names, dates, and what you paid out. All of it, Mrs. Vale, or the bank's story is the only one I have.\"",
-     react:"\"All of it.\" She reads the room, then the ledger, then the room again.",
-     fx:{respect:+1,evidence:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"Widows have forged a signature before now. Give me a reason to believe you did not.\"",
-     react:"\"A reason.\" She stands up with the ledger against her chest. \"I brought you the reason. You would rather have a confession.\"",
-     fx:{fear:+3,respect:-2}}]},
-
-  {say:"\"So. Do I drive home and wait for men with a wagon, or is there law in this town for a woman who owns a fence line somebody wants?\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"There's law. Leave your name on my book and the bank can come and argue with me.\"",
-     react:"She writes her name in a round, careful hand, and puts the pen down straight.",
-     fx:{respect:+2,evidence:+1,fear:-1}},
-    {intent:"probe",
-     t:"\"One more question, and I want the pencil column answered. Who were you paying?\"",
-     react:"\"Somebody who stopped asking when my husband died,\" she says, and closes the book on her own hand.",
-     fx:{evidence:+2,suspicion:+2}},
-    {intent:"command",
-     t:"\"You'll drive home, and you'll leave the ledger where the court can find it. That is the law, and it is on your side today.\"",
-     react:"\"On my side.\" She nods slowly, the way people do when they are deciding whether to believe a man.",
-     fx:{respect:+1,evidence:+1,fear:+1}},
-    {intent:"threaten",
-     t:"\"Drive home. If any of this is your doing, I'll be out at your place before the week is up.\"",
-     react:"\"Then come out,\" she says, and the wagon is moving before you have finished the sentence.",
-     fx:{fear:+3,respect:-1}}]}],
-
- brass:[
-  {say:"Sheriff. Deputy Marsh, territorial office. I'm here for the man you're holding — Coyle. Warrant's made out and my horse is tired.",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Long ride. Coffee's on the stove and the paperwork can wait ten minutes.\"",
-     react:"He takes the cup with his left hand and keeps his right where it is. \"Ten minutes. Then Coyle rides with me.\"",
-     fx:{respect:+1,drawRisk:-1}},
-    {intent:"probe",
-     t:"\"Territorial office out of which court? I'll want to read the warrant twice.\"",
-     react:"\"Read it as many times as you like.\" He holds it out flat, and his thumb sits over the lower seal.",
-     fx:{evidence:+1,suspicion:+1}},
-    {intent:"command",
-     t:"\"Coyle stays in my jail until a judge I know of tells me different.\"",
-     react:"\"You'd put yourself between a territorial warrant and a prisoner?\" The brass on his coat catches the light as he squares up.",
-     fx:{respect:+1,drawRisk:+2,fear:+1}},
-    {intent:"threaten",
-     t:"\"Turn that horse around before I decide you're the one I'm holding.\"",
-     react:"He laughs once, without any of it reaching his eyes. \"That's a lot of mouth for one badge and one street.\"",
-     fx:{drawRisk:+3,respect:-1,fear:+1}}]},
-
-  {say:"\"Coyle shot a station agent in Cutter's Bend. My office wants him where the witnesses are. Every hour he sits here is an hour the case gets thinner.\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Then we'll do it properly and fast. Sign the book, name your court, and he's yours by noon.\"",
-     react:"\"By noon.\" He turns the book around and looks at it a while before he touches the pen.",
-     fx:{respect:+2,drawRisk:-1}},
-    {intent:"probe",
-     t:"\"Cutter's Bend has no station. It lost the line three years back — who wrote this for you?\"",
-     react:"Nothing moves in his face, which is the loudest thing in the room. \"A clerk. Clerks get places wrong.\"",
-     fx:{evidence:+2,suspicion:+2,drawRisk:+1}},
-    {intent:"command",
-     t:"\"Witnesses can ride to my jail as easily as Coyle can ride to yours.\"",
-     react:"\"They could. They won't.\" His weight comes forward onto the front foot.",
-     fx:{drawRisk:+2,respect:+1}},
-    {intent:"threaten",
-     t:"\"One more word about my jail and you'll see the inside of it.\"",
-     react:"\"You've got a temper on you for a town this size, Sheriff.\" His hand drifts to his belt buckle, which is near enough to other things.",
-     fx:{drawRisk:+3,fear:+1,respect:-1}}]},
-
-  {say:"\"Last time. The man, or the trouble. I've no appetite for either, but I'll take whichever you hand me.\"",
-   replies:[
-    {intent:"conciliate",
-     t:"\"Nobody's handing anybody trouble. Ride with me to the telegraph and we'll wire your office together.\"",
-     react:"\"The telegraph.\" He looks up the street towards it for a long moment. \"…Fine. We'll wire them.\"",
-     fx:{respect:+2,evidence:+1,drawRisk:-2}},
-    {intent:"probe",
-     t:"\"Take your thumb off the seal and let me see the whole of it.\"",
-     react:"His thumb does not move. \"You've read it.\"",
-     fx:{evidence:+2,suspicion:+1,drawRisk:+1}},
-    {intent:"command",
-     t:"\"You'll wait in the office while I wire the territorial marshal. Sit down, Deputy.\"",
-     react:"\"Sit down.\" He repeats it as though testing how it sounds in a room he does not own.",
-     fx:{respect:+2,drawRisk:+2,fear:+1}},
-    {intent:"threaten",
-     t:"\"Reach for that paper again and I'll take it off you with your hand still on it.\"",
-     react:"\"Then reach,\" he says, very quietly, and stops talking.",
-     fx:{drawRisk:+4,respect:-2,fear:+2}}]}]
-};
-
-/* ============ the faithful day ============
- * Ten callers in the original sequence, then the robbery that the day has been
- * pointing at. Each carries the classes of event it can produce and, where the
- * original gave one, the job its secret concerns.
- */
-const JOBS=["bank","train","stage"];
-const FAITHFUL=[
- {id:"dude", title:"A Dude", place:"STREET", arrive:["wagon","crowd"],
-  surface:"A nervous newcomer stops the sheriff in the street",
-  hidden:"He has heard what the James gang means to do", core:"trust",
-  armed:true, nerve:1, drawAt:7, hostile:0.18, fragment:"train",
-  events:["secret","departure","duel","delayed_draw"], endings:[]},
- {id:"rose", title:"Miss Rose", place:"SALOON", arrive:["piano","bottle"],
-  surface:"The saloon hostess has something to say and takes her time saying it",
-  hidden:"She knows which coach is worth robbing and when", core:"trust",
-  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"stage",
-  events:["secret","romance","departure"], endings:[]},
- {id:"mexicali", title:"The Mexicali Kid", place:"STREET", arrive:["hooves","spurs"],
-  surface:"A fugitive with a price on him, and he knows the sheriff knows it",
-  hidden:"He has decided how this ends before he opens his mouth", core:"nerve",
-  armed:true, nerve:3, drawAt:4, hostile:0.55, fragment:null,
-  events:["duel","surrender","false_exit","ambush"], endings:[]},
- {id:"doctor", title:"The Doctor", place:"DOCTOR", arrive:["crowd"],
-  surface:"The town doctor, sober enough to be useful and sour enough to say so",
-  hidden:"He hears what men say under laudanum, including about the bank",
-  core:"courtesy", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
-  events:["secret","departure"], courtesy:true, endings:[]},
- {id:"newgun", title:"Dude with new Gun", place:"STREET", arrive:["spurs","crowd"],
-  surface:"A man with a new gun and an audience for it",
-  hidden:"He needs to use it in front of somebody", core:"pride",
-  armed:true, nerve:2, drawAt:5, hostile:0.42, fragment:null,
-  events:["duel","surrender","departure","delayed_draw"], endings:[]},
- {id:"willy", title:"Little Willy", place:"STREET", arrive:["crowd"],
-  surface:"A boy with his hands behind his back and a great deal to say",
-  hidden:"He saw who was pacing out the bank's back wall", core:"patience",
-  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
-  events:["secret","departure"], endings:[]},
- {id:"april", title:"Miss April", place:"SCHOOL", arrive:["crowd"],
-  surface:"The schoolteacher, with a picnic in mind and the afternoon free",
-  hidden:"Her brother let something slip about the westbound train",
-  core:"romance", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"train",
-  events:["romance","secret","departure"], costsRomance:true, endings:[]},
- {id:"gambler", title:"The Gambler", place:"SALOON", arrive:["piano","crowd"],
-  surface:"A card player who would rather not be asked about last night",
-  hidden:"His hand is closer to his coat than to the table", core:"nerve",
-  armed:true, nerve:2, drawAt:5, hostile:0.38, fragment:null,
-  events:["duel","surrender","false_exit","departure"], endings:[]},
- {id:"deputy", title:"The Deputy", place:"JAIL", arrive:["hooves"],
-  surface:"Your own deputy, out of breath and short on detail",
-  hidden:"Whatever is happening has already started", core:"authority",
-  armed:true, nerve:1, drawAt:9, hostile:0.05, fragment:null,
-  events:["announce"], triggers:"robbery", endings:[]},
- {id:"belle", title:"Belle", place:"CORRAL", arrive:["hooves"],
-  surface:"A rustler who rode in rather than away, which is its own answer",
-  hidden:"She can be an enemy or a witness, and has not decided which",
-  core:"trust", armed:true, nerve:2, drawAt:6, hostile:0.35, fragment:null,
-  events:["duel","surrender","romance","false_exit","ambush"], endings:[]},
- /* The eleventh is the day's own consequence: whatever the sheriff learned
-  * about the bank, the train and the stage arrives to be used or regretted. */
- {id:"robbery", title:"The Robbery", place:"BANK", arrive:["alarm"],
-  surface:"The job the day has been pointing at",
-  hidden:"Whether it can be stopped was decided in the conversations before it",
-  core:"consequence", armed:true, nerve:3, drawAt:1, hostile:0.00, fragment:null,
-  events:["duel","ambush","consequence"], followUp:true, endings:[]}
-];
-const FAITHFUL_DIALOGUE={};
-
-const MODES={
-  faithful:{id:"faithful",title:"THE DAY AS IT WAS",
-    note:"The original cast and running order, reconstructed. New words, same day.",
-    encounters:FAITHFUL,dialogue:FAITHFUL_DIALOGUE},
-  remix:{id:"remix",title:"GOLD GULCH REMIX",
-    note:"Six encounters of our own on the same machinery.",
-    encounters:REMIX,dialogue:REMIX_DIALOGUE}
-};
-/* The engine and the page read these two; selecting a mode repoints them. */
-let MODE="faithful";
-let ENCOUNTERS=MODES.faithful.encounters;
-let DIALOGUE=MODES.faithful.dialogue;
-function selectMode(id){
-  if(!MODES[id])return MODE;
-  MODE=id; ENCOUNTERS=MODES[id].encounters; DIALOGUE=MODES[id].dialogue;
-  return MODE;
-}

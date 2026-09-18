@@ -1,184 +1,118 @@
 /* ============ engine ============
- * All rules, no DOM and no writing. The state machine the page drives:
- *   intro -> approach -> dialogue -> aiming -> tell -> duel -> resolve -> summary
- * Every random draw goes through G.rng so a test can seed it.               */
+ * The day, the trees, the gun and the reckoning. No DOM, no words.
+ *   intro -> approach -> dialogue -> aiming -> tell -> duel -> resolve
+ *         -> interlude -> summary
+ * Everything random goes through G.rng so a test can seed it.
+ */
 "use strict";
 
 const RULES={
-  TURNS:3,
-  TELL_MIN:400, TELL_MAX:900,        // ms of tell before his hand moves
-  FIRE_MIN:260, FIRE_MAX:420,        // ms from his draw to his shot
-  REFLEX_MIN:1500, REFLEX_MAX:2600,  // how long a drawn gun is tolerated
-  AIM_STEP:0.055,                    // crosshair travel per input step, in scene widths
-  AIM_FLOOR:120, AIM_CEIL:500,       // the latency window aim quality is read from
-  SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42, // shot spread, fast draw to steady draw
-  ZONE_TIGHT:0.30, ZONE_WIDE:0.62,   // < tight hits what you aimed at, < wide the other
-  WOUNDS:2,                          // wounds the sheriff carries before one is too many
-  POINTS:{arrest:120, talked:80, clue:60, disarm:70, kill:20, lost:-60,
-          murder:-260, killed_needless:-90, wounded:-50, drawn_on_unarmed:-120}
+  ROUNDS:3,
+  TELL_MIN:400, TELL_MAX:900,
+  TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
+  FIRE_MIN:260, FIRE_MAX:420,
+  REFLEX_MIN:1500, REFLEX_MAX:2600,
+  AIM_STEP:0.04, AIM_FLOOR:120, AIM_CEIL:500,
+  SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
+  ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
+  WOUNDS:2
 };
+/* Which job comes off after which caller, if the sheriff never heard of it. */
+const INTERLUDES=[{after:3,job:"train"},{after:7,job:"stage"},{after:9,job:"bank"}];
 
 const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
 const rnd=(g,a,b)=>a+(b-a)*g.rng();
-function absNormal(g,sigma){          // folded gaussian: the size of a shot's error
+function absNormal(g,sigma){
   const u=Math.max(1e-9,g.rng()), v=g.rng();
   return Math.abs(Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v))*sigma;
 }
 
-function newGame(opts){
+function newDay(opts){
   const seed=opts&&opts.seed;
-  if(opts&&opts.mode)selectMode(opts.mode);
   return {
-    phase:"intro", slot:0, turn:0, rng:seed==null?Math.random:mulberry32(seed),
-    mode:typeof MODE==="string"?MODE:"faithful",
-    S:blankState(), safety:0, clues:[], favours:0, reputation:0,
-    doctorFavour:0, doctorSpent:false, jobs:{bank:0,train:0,stage:0},
-    pending:null, romance:false, surrenders:[], departures:[],
-    wounds:0, wounded:false, mode:"talk", aim:{x:0.5,y:0.5}, reflex:null,
-    shots:0, hits:0, arrests:[], kills:[], disarms:[], murders:0, needlessKills:0,
-    settled:[], points:0, log:[], results:[],
-    duel:null, tell:null, outcome:null, ending:null, over:null
+    phase:"intro", encounter:0, node:"opening", round:1,
+    rng:seed==null?Math.random:mulberry32(seed),
+    alive:true, wounds:0,
+    authority:0, arrests:0, dates:0, badGuysShot:0, innocentsKilled:0, crimesMissed:0,
+    tips:{train:false,stage:false,bank:false},
+    doctor:{met:false,disposition:0,sober:true,alive:true},
+    met:[], flags:[], log:[], results:[],
+    mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
+    duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
-const blankState=()=>({respect:0,fear:0,suspicion:0,evidence:0,drawRisk:0});
-const who=G=>ENCOUNTERS[G.slot]||null;
-const turnFor=(id,turn)=>(DIALOGUE[id]||[])[turn]||null;
-const authored=id=>Array.isArray(DIALOGUE[id])&&DIALOGUE[id].length===RULES.TURNS;
+const newGame=newDay;                      // the page calls it this
+const who=G=>CAST[G.encounter]||null;
+const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
-function award(G,key,note){
-  const p=RULES.POINTS[key]||0; G.points+=p;
-  G.log.push({slot:G.slot,who:who(G)?who(G).id:null,key,points:p,note:note||""});
-  return p;
-}
-
-/* ---- arrival and dialogue ---- */
-function beginSlot(G){
+/* ---- arrival and conversation ---- */
+function beginEncounter(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
-  G.phase="approach"; G.turn=0; G.S=blankState();
+  G.phase="approach"; G.node="opening"; G.round=1;
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.mood=Math.floor(G.rng()*3)-1;          // what mood he is in today
+  if(e.doctor)G.doctor.met=true;
+  if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
 }
-/* An encounter with no authored dialogue is walked past rather than allowed to
- * dead-end the day: it settles as "unwritten" and the street moves on. */
 function openDialogue(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
-  if(e.followUp)return robbery(G);
-  if(!authored(e.id))return resolve(G,"unwritten");
-  G.phase="dialogue"; return turnFor(e.id,0);
+  if(e.forcedDuel)return theyDraw(G,"draw");           // the last one never talks
+  if(!written(e))return resolve(G,"unwritten");
+  G.phase="dialogue"; return nodeOf(G);
 }
-/* The bank, the train and the stage. Whichever job the sheriff learned least
- * about is the one that comes off, and what he did learn is what stops it. */
-function robbery(G){
-  const ready=JOBS.filter(j=>G.jobs[j]>0);
-  const job=JOBS.find(j=>G.jobs[j]===0)||JOBS[Math.floor(G.rng()*JOBS.length)];
-  G.job=job;
-  if(G.jobs[job]>0||ready.length===JOBS.length){
-    G.safety+=1; award(G,"arrest","stopped the "+job+" job");
-    G.points+=200;
-    return resolve(G,"job_stopped");
-  }
-  if(ready.length){                      // forewarned about the others, not this one
-    G.safety-=1; G.points-=40;
-    return resolve(G,"job_partly");
-  }
-  G.safety-=2; G.points-=120;
-  return resolve(G,"job_done");
-}
-
-/* A reply moves the state by what the writing says it moves, plus a point of
- * temper either way on the draw risk, so the same four answers do not always
- * land on the same side of his patience. */
-function respond(G,index){
+/* One of four replies. Each either goes a round deeper, ends the encounter,
+ * or is answered with a hand rather than a sentence. */
+function say(G,index){
   if(G.phase!=="dialogue")return null;
-  const e=who(G), t=turnFor(e.id,G.turn);
-  if(!t)return null;
-  const reply=t.replies[index];
-  if(!reply)return null;
-  if(!available(G,reply))return {denied:reply.needs};
-  for(const [k,v] of Object.entries(reply.fx||{})){
-    if(k in G.S)G.S[k]+=v; else if(k==="safety")G.safety+=v;
+  const n=nodeOf(G); if(!n)return null;
+  const reply=n.replies[index]; if(!reply)return null;
+  if(reply.action)return act(G,reply.action);
+  if(reply.end)return terminal(G,reply.end);
+  if(reply.next){
+    G.node=reply.next; G.round++;
+    if(G.round>RULES.ROUNDS)return terminal(G,Object.keys(who(G).ends)[0]);
+    return {next:nodeOf(G)};
   }
-  if(e.courtesy){                       // the doctor keeps his own account
-    if(reply.intent==="threaten")G.doctorFavour-=2;
-    else if(reply.intent==="conciliate")G.doctorFavour+=1;
-    else if(reply.intent==="command")G.doctorFavour-=1;
+  return null;
+}
+function act(G,kind){
+  if(kind==="draw")return theyDraw(G,"draw");
+  if(kind==="ambush")return theyDraw(G,"ambush");
+  if(kind==="delayed"){G.pending="delayed";return resolve(G,"turns_away");}
+  if(kind==="surrender"){
+    G.arrests++; G.authority+=1; G.flags.push("surrender","arrest");
+    return resolve(G,"surrendered");
   }
-  /* A point of temper either way each turn, on his patience and on one social
-   * reading of the sheriff. Evidence is never jittered: the ledger says what
-   * it says. */
-  G.S.drawRisk+=Math.floor(G.rng()*3)-1;
-  const social=["respect","fear","suspicion"].filter(k=>k in (reply.fx||{}));
-  if(social.length){
-    const k=social[Math.floor(G.rng()*social.length)];
-    G.S[k]+=Math.floor(G.rng()*3)-1;
+  if(kind==="depart"){G.flags.push("depart");return resolve(G,"departed");}
+  return resolve(G,"nothing");
+}
+function terminal(G,id){
+  const e=who(G), t=e.ends&&e.ends[id];
+  if(!t)return resolve(G,"nothing");
+  G.ending=t;
+  for(const f of t.flags||[]){
+    G.flags.push(f);
+    if(f==="tip_train")G.tips.train=true;
+    if(f==="tip_stage")G.tips.stage=true;
+    if(f==="tip_bank")G.tips.bank=true;
+    if(f==="date")G.dates++;
+    if(f==="arrest")G.arrests++;
+    if(f==="doctor_civil")G.doctor.disposition+=1;
+    if(f==="doctor_insulted")G.doctor.disposition-=2;
   }
-  if(e.armed&&G.S.drawRisk>=e.drawAt+G.mood)return theyDraw(G,"provoked");
-  G.turn++;
-  if(G.turn>=RULES.TURNS)return settle(G);
-  return {react:reply.react,next:turnFor(e.id,G.turn)};
+  G.authority+=t.authority||0;
+  return resolve(G,id);
 }
 
-/* ---- how an encounter lands when nobody has drawn ---- */
-const CMP={">=":(a,b)=>a>=b,"<=":(a,b)=>a<=b,">":(a,b)=>a>b,"<":(a,b)=>a<b,
-  "==":(a,b)=>a===b,"!=":(a,b)=>a!==b};
-function value(G,name){
-  if(name in G.S)return G.S[name];
-  if(name==="safety")return G.safety;
-  if(name==="favours")return G.favours;
-  if(name==="wounds")return G.wounds;
-  if(name==="clues")return G.clues.length;
-  if(name.startsWith("clue:"))return G.clues.includes(name.slice(5))?1:0;
-  return 0;
-}
-/* A reply may need something the sheriff can only have learned earlier. An
- * unmet line is still shown - knowing what you could have said if you had
- * asked the right person is the point - but it cannot be spoken. */
-function available(G,reply){
-  return (reply.needs||[]).every(n=>value(G,n)>0);
-}
-const holds=(G,when)=>(when||[]).every(([n,op,v])=>(CMP[op]||CMP["=="])(value(G,n),v));
-function settle(G){
-  const e=who(G);
-  // even a settled man can turn, and a riled one more easily
-  if(e.armed&&G.rng()<(e.hostile||0)*(G.S.drawRisk>0?1.5:0.7))return theyDraw(G,"turned");
-  /* First ending whose conditions hold, except that an ending may carry a
-   * chance of its own: he nearly told you, and then did not. The fallback has
-   * no chance of its own and always fires. */
-  const ending=(e.endings||[]).find(x=>holds(G,x.when)&&
-    (x.chance==null||G.rng()<x.chance));
-  if(!ending)return resolve(G,"unwritten");
-  G.ending=ending;
-  /* Some outcomes are not outcomes: he says his piece and then goes for it,
-   * turns back from the doorway, or never meant to talk at all. */
-  if(ending.event==="ambush")return theyDraw(G,"ambush");
-  if(ending.event==="delayed_draw"||ending.event==="false_exit")G.pending=ending.event;
-  if(ending.event==="romance")G.romance=true;
-  if(ending.event==="surrender")G.surrenders.push(e.id);
-  if(ending.event==="departure")G.departures.push(e.id);
-  for(const [k,v] of Object.entries(ending.fx||{})){
-    if(k==="safety")G.safety+=v;
-    else if(k==="clue"&&!G.clues.includes(v))G.clues.push(v);
-    else if(k==="favour")G.favours+=1;
-    else if(k==="job"&&G.jobs[v]!=null)G.jobs[v]+=1;      // what he let slip about a job
-    else if(k in G.S)G.S[k]+=v;
-  }
-  if(ending.fx&&ending.fx.clue)award(G,"clue",ending.fx.clue);
-  if(ending.award)award(G,ending.award,ending.id);
-  G.points+=ending.points||0;
-  G.settled.push({slot:G.slot,who:e.id,ending:ending.id});
-  return resolve(G,ending.id);
-}
-
-/* ---- the gun hand ---- */
+/* ---- the gun, which is always available ---- */
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
-  if(G.phase==="dialogue")G.phase="aiming";
+  if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
   return G.mode;
 }
@@ -194,7 +128,6 @@ function moveAim(G,dx,dy){
   G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
   return G.aim;
 }
-/* Called every frame: his patience with a drawn gun, his tell, and his shot. */
 function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
@@ -224,18 +157,13 @@ function aimAt(G,zone){
   if(G.duel)G.duel.zone=zone;
   return zone;
 }
-
-/* ---- duels ---- */
-/* The tell is the warning, and not every draw gives the same one: a man who
- * turns back from the doorway gives less, and an ambush gives almost none. */
-const TELLS={ambush:[120,260], false_exit:[300,600], delayed_draw:[450,900]};
 function theyDraw(G,why){
   const e=who(G);
-  const span=TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
+  const span=RULES.TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
   G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
-  G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",
-    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-(e.nerve||0)*20),
+  G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",why,
+    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)),
     latency:null,error:null,result:null};
   return {tell:G.tell,duel:G.duel};
 }
@@ -243,17 +171,16 @@ function playerDraws(G){
   const e=who(G);
   G.phase="duel";
   G.duel={initiator:"you",drawn:true,fired:false,zone:"torso",unprovoked:true,
-    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-(e.nerve||0)*20),
+    fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)),
     latency:null,error:null,result:null};
   return {duel:G.duel};
 }
-/* Latency and aim are read apart: a fast hand is a wide one, a slow hand is a
- * shot hand. Only a man who drew on you can beat you to it. */
+/* Latency and aim are read apart: fast and wide, or slow and shot. */
 function shoot(G,latencyMs){
   let d=G.duel, e=who(G);
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
-  d.fired=true; d.latency=latencyMs; G.shots++; G.reflex=null;
+  d.fired=true; d.latency=latencyMs; G.reflex=null;
   const box=boxAt(G,G.aim.x,G.aim.y);
   d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
   const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
@@ -265,21 +192,13 @@ function shoot(G,latencyMs){
   const other=d.zone==="torso"?"arm":"torso";
   const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
   if(hit==="miss"){d.result="miss";return theirReply(G);}
-  G.hits++;
   if(hit==="arm"){
-    G.disarms.push(e.id); award(G,"disarm");
-    G.arrests.push(e.id); award(G,"arrest");
-    d.result="disarm"; return resolve(G,"disarmed");
+    d.result="disarm"; G.arrests++; G.authority+=1; G.flags.push("arrest");
+    return resolve(G,"disarmed");
   }
-  G.kills.push(e.id); d.result="kill";
-  if(d.unprovoked){                       // he never went for his gun
-    G.murders++; award(G,!e.armed?"drawn_on_unarmed":"murder");
-    return resolve(G,"murder");
-  }
-  award(G,"kill");
-  if(G.S.drawRisk<4){                     // his hand moved, but a wound would have done
-    G.needlessKills++; award(G,"killed_needless");
-  }
+  d.result="kill";
+  if(d.unprovoked||!e.armed){G.innocentsKilled++;G.authority-=2;return resolve(G,"innocent_killed");}
+  G.badGuysShot++;
   return resolve(G,"killed_him");
 }
 function theirReply(G){
@@ -287,99 +206,79 @@ function theirReply(G){
   if(G.duel.initiator==="you"&&!e.armed)return resolve(G,"missed_him");
   return takeHit(G,"he answered your miss");
 }
-/* A wound is carried, not cured: the day goes on until there is one too many.
- * A favour banked with someone in town buys one of them back. */
-/* "If you were civil to the doctor he patches you up; if you insulted him it is
- * over." His goodwill first, then anybody else who owes the sheriff a favour. */
+/* The doctor is the difference between a wound and a grave:
+ *   insulted        the first ball is the last thing that happens to you
+ *   civil and sober he has you inside and patched, and the day goes on
+ *   otherwise       nobody comes; one wound is survivable, two are not
+ * He must be alive and sober to be any use, however he was spoken to. */
 function takeHit(G,why){
-  G.wounded=true; award(G,"wounded");
-  if(G.doctorFavour<0&&!G.doctorSpent)
+  const doc=G.doctor;
+  if(doc.disposition<0){
+    G.wounds++; G.alive=false;
     return finish(G,"killed",why||"the doctor would not come");
-  if(G.doctorFavour>0&&!G.doctorSpent){
-    G.doctorSpent=true;
-    return resolve(G,"doctor_patched");
-  }
-  if(G.favours>0){                       // somebody else in town owes him, once
-    G.favours--;
-    return resolve(G,"rescued_from_street");
   }
   G.wounds++;
-  if(G.wounds>=RULES.WOUNDS)return finish(G,"killed",why);
-  return resolve(G,"wound_consequence");
+  if(doc.alive&&doc.sober&&doc.disposition>0)return resolve(G,"doctor_saved");
+  if(G.wounds>=RULES.WOUNDS){
+    G.alive=false;
+    return finish(G,"killed",why||"bled out with nobody to send for");
+  }
+  return resolve(G,"wounded");
 }
 
-/* ---- resolution and the day's end ---- */
+/* ---- resolution, interludes and the reckoning ---- */
 function resolve(G,outcome){
   G.phase="resolve"; G.outcome=outcome;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.results.push({slot:G.slot,who:who(G)?who(G).id:null,outcome,
-    duel:G.duel?G.duel.result:null,ending:G.ending?G.ending.id:null});
+  G.results.push({encounter:G.encounter,who:who(G)?who(G).id:null,outcome,
+    duel:G.duel?G.duel.result:null});
   return {outcome,ending:G.ending};
 }
-function nextSlot(G){
+/* A job the sheriff was warned about is one he can be standing in front of. */
+function interludeDue(G){
+  const done=G.encounter+1;
+  return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
+}
+function runInterlude(G,job){
+  G.interlude=job; G.phase="interlude";
+  if(G.tips[job]){
+    G.authority+=1;
+    G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
+    return resolve(G,"job_stopped");
+  }
+  G.crimesMissed++;
+  G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
+  return resolve(G,"job_missed");
+}
+function nextEncounter(G){
   if(G.phase==="summary")return null;
   if(G.pending){                         // he had not finished after all
     const why=G.pending; G.pending=null;
     G.ending=null; G.outcome=null;
     return theyDraw(G,why);
   }
-  G.slot++;
-  if(G.slot>=ENCOUNTERS.length)return finish(G,"dusk");
-  return beginSlot(G);
+  const due=interludeDue(G);
+  if(due&&G.interlude!==due.job)return runInterlude(G,due.job);
+  G.interlude=null;
+  G.encounter++;
+  if(G.encounter>=CAST.length)return finish(G,"dusk");
+  return beginEncounter(G);
 }
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v)));
+/* The seven dimensions the day is judged on. */
 function finish(G,why,how){
-  const acc=G.shots?G.hits/G.shots:null;
-  const done=G.results.filter(r=>r.outcome!=="unwritten").length;
-  /* The faithful day is graded on the dimensions the original graded: what was
-   * solved, who was met, how much was settled without shooting, whether the
-   * shooting that did happen was any good, and how the sheriff behaved. */
-  const cats=G.mode==="faithful"?{
-    "crimes solved":  Math.max(0,G.safety)+(G.outcome==="job_stopped"?1:0),
-    "interactions":   done+"/"+ENCOUNTERS.length,
-    "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60
-                        +G.disarms.length*12+G.surrenders.length*8,0,100),
-    "marksmanship":   acc==null?null:Math.round(acc*100),
-    "courtesy":       clamp(60+G.doctorFavour*12+G.settled.length*6-G.murders*40,0,100),
-    "romance":        G.romance?100:0,
-    "secrets learned":JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0)+"/"+JOBS.length
-  }:{
-    "crimes solved":  G.clues.length+Math.max(0,G.safety),
-    "interactions":   done+"/"+ENCOUNTERS.length,
-    "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
-    "marksmanship":   acc==null?null:Math.round(acc*100),
-    "authority":      clamp(50+G.arrests.length*14+G.settled.length*8-G.murders*40,0,100),
-    "mercy":          clamp(100-G.kills.length*22-G.murders*50+G.disarms.length*8,0,100),
-    "evidence":       G.clues.length
+  const cats={
+    "authority maintained": G.authority,
+    "crooks captured":      G.arrests,
+    "romance":              G.dates,
+    "bad guys shot":        G.badGuysShot,
+    "wounds survived":      G.wounds,
+    "innocents killed":     G.innocentsKilled,
+    "crimes missed":        G.crimesMissed
   };
+  const score=G.authority*40+G.arrests*120+G.dates*60+G.badGuysShot*30
+    -G.innocentsKilled*200-G.crimesMissed*100-G.wounds*40+(G.alive?100:0);
   G.phase="summary";
-  G.over={why,how:how||null,categories:cats,points:G.points,rating:rating(G,why),
-    verdict:verdict(G,why),clues:[...G.clues],safety:G.safety};
+  G.over={why,how:how||null,categories:cats,score,
+    tips:{...G.tips},met:G.met.length,alive:G.alive};
   return G.over;
-}
-/* One to twelve. Duty and crime prevention carry it; a killing costs. */
-function rating(G,why){
-  if(why==="killed")return 1;
-  let r=2;
-  r+=Math.min(3,G.mode==="faithful"?JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0):G.clues.length);
-  r+=G.romance?1:0;
-  r+=Math.min(1,G.surrenders.length);
-  r+=Math.min(2,Math.floor(G.settled.length/2));
-  r+=Math.min(2,Math.floor(G.disarms.length/2));
-  r+=G.arrests.length>=2?1:0;
-  r+=Math.max(0,Math.min(2,G.safety));
-  r+=G.points>=500?1:0;
-  r-=G.murders*3;
-  r-=G.needlessKills;
-  return Math.max(1,Math.min(12,r));
-}
-function verdict(G,why){
-  if(why==="killed")return "buried in Gold Gulch";
-  if(G.murders>=2)return "run out of town";
-  const r=rating(G,why);
-  if(r>=11)return "marshal of the territory";
-  if(r>=9)return "sheriff of Gold Gulch";
-  if(r>=6)return "town constable";
-  if(r>=3)return "deputy on probation";
-  return "run out of town";
 }
