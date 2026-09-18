@@ -131,6 +131,15 @@ function holster(G){
   if(G.phase==="aiming")G.phase="dialogue";
   return G.mode;
 }
+/* Laying the sights straight onto a point, which is what a thumb on the glass
+ * or a mouse over the street means. The same rule as moving them: no sights
+ * unless the gun is out. */
+function setAim(G,x,y){
+  if(G.mode!=="gun")return null;
+  G.aim.x=Math.max(0,Math.min(1,x));
+  G.aim.y=Math.max(0,Math.min(1,y));
+  return G.aim;
+}
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
   G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));

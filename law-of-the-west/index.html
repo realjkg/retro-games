@@ -1692,6 +1692,15 @@ function holster(G){
   if(G.phase==="aiming")G.phase="dialogue";
   return G.mode;
 }
+/* Laying the sights straight onto a point, which is what a thumb on the glass
+ * or a mouse over the street means. The same rule as moving them: no sights
+ * unless the gun is out. */
+function setAim(G,x,y){
+  if(G.mode!=="gun")return null;
+  G.aim.x=Math.max(0,Math.min(1,x));
+  G.aim.y=Math.max(0,Math.min(1,y));
+  return G.aim;
+}
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
   G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
@@ -2875,6 +2884,27 @@ const CONTROL={up,down,left,right,fire,
 const REPEAT_DELAY=320, REPEAT_RATE=90;
 const REPEATS=new Set(["up","down","left","right"]);
 let held=null;                        // {cmd, at, next, el}
+/* With the gun out the directions are not a menu and should not behave like
+ * one. Every held direction, from the pad or from the keys, goes into one set
+ * and the loop integrates them, so two at once give a diagonal and the sights
+ * run instead of stepping on a repeat timer. A duel is scored on how long the
+ * shot took; a control that waits 320ms before it will move twice is a control
+ * that loses it. */
+const DIRV={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+const pressed=new Set();
+let aimRun=0, aimTick=0;
+const aiming=()=>G.mode==="gun"&&G.phase!=="intro"&&screen!=="sound";
+function runAim(now){
+  if(!pressed.size||!aiming()){aimRun=0;aimTick=0;return;}
+  let dx=0,dy=0;
+  for(const c of pressed){const v=DIRV[c]; if(v){dx+=v[0];dy+=v[1];}}
+  if(!dx&&!dy){aimRun=0;return;}
+  const dt=aimTick?Math.min(64,now-aimTick):16; aimTick=now;
+  aimRun=Math.min(1,aimRun+dt/300);            // the sights take a moment to run
+  const m=Math.sqrt(dx*dx+dy*dy);
+  const k=(0.55+aimRun*1.40)*dt/1000/RULES.AIM_STEP;
+  moveAim(G,dx/m*k,dy/m*k);
+}
 function runCmd(cmd,el){
   if(cmd==="choose")choose(+el.dataset.index);
   else if(CONTROL[cmd])CONTROL[cmd]();
@@ -2885,6 +2915,7 @@ function releaseHeld(){
   if(held&&held.el&&held.el.classList)held.el.classList.remove("on");
   held=null;
 }
+function releaseAll(){pressed.clear();aimRun=0;aimTick=0;releaseHeld();}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
     e.preventDefault(); SND.unlock(); firstGesture();
@@ -2892,29 +2923,94 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
     // capture can throw if the pointer has already gone; the press still counts
     try{el.setPointerCapture?.(e.pointerId);}catch(err){}
     runCmd(cmd,el);
-    if(REPEATS.has(cmd))held={cmd,el,next:performance.now()+REPEAT_DELAY};
+    if(REPEATS.has(cmd)){
+      pressed.add(cmd);
+      if(!aiming())held={cmd,el,next:performance.now()+REPEAT_DELAY};
+    }
   });
   for(const t of ["pointerup","pointercancel","lostpointercapture","pointerleave"])
-    el.addEventListener(t,()=>{if(held&&held.el===el)releaseHeld();});
+    el.addEventListener(t,()=>{
+      if(el.dataset.cmd)pressed.delete(el.dataset.cmd);
+      if(held&&held.el===el)releaseHeld();
+    });
 });
 /* Nothing on this page is text to be selected or dragged. */
 document.addEventListener?.("selectstart",e=>{
   if(!e.target?.closest?.("input,textarea"))e.preventDefault?.();
 });
 document.addEventListener?.("dragstart",e=>e.preventDefault?.());
-addEventListener("blur",releaseHeld);
+addEventListener("blur",releaseAll);
+/* The arrows, the same four under the left hand, and the numeric keypad, so a
+ * player reaches for whichever of the three they already use. */
 const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
-  Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
+  w:"up",s:"down",a:"left",d:"right",
+  "8":"up","2":"down","4":"left","6":"right",
+  Enter:"fire"," ":"fire",f:"fire",
+  Escape:"holster",h:"holster",m:"mute",g:"full",F11:"full"};
+function keyCmd(e){
+  // the keypad digits are directions; the row above the letters picks a reply
+  if(e.code&&e.code.indexOf("Numpad")===0)return KEYS[e.code.slice(6)]||null;
+  return KEYS[e.key]||KEYS[(e.key||"").toLowerCase()]||null;
+}
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   SND.unlock(); firstGesture();
-  if(/^[1-4]$/.test(e.key)){e.preventDefault();choose(+e.key-1);paint();return;}
-  const cmd=KEYS[e.key]||KEYS[(e.key||"").toLowerCase()];
+  if(/^[1-4]$/.test(e.key)&&!(e.code&&e.code.indexOf("Numpad")===0)){
+    e.preventDefault();
+    if(!e.repeat){choose(+e.key-1);paint();}
+    return;
+  }
+  const cmd=keyCmd(e);
   if(!cmd)return;
   e.preventDefault();
+  if(DIRV[cmd]&&aiming()){                  // the loop moves the sights, not the OS
+    pressed.add(cmd);
+    if(!e.repeat)CONTROL[cmd]();
+    return;
+  }
+  if(e.repeat&&!DIRV[cmd])return;           // a held FIRE is one shot, not a burst
   CONTROL[cmd]();
   paint();
 });
+addEventListener("keyup",e=>{
+  const cmd=keyCmd(e);
+  if(cmd)pressed.delete(cmd);
+  if(!pressed.size){aimRun=0;aimTick=0;}
+});
+
+/* ---- the street itself, as a sight ---- *
+ * With the gun out, a thumb on the picture lays the sights where it lands and
+ * drags them from there. It does not fire: a shot costs a man's life and an
+ * arrest, so it stays on FIRE and on the keys, where it cannot be an accident.
+ */
+function scenePoint(e){
+  const r=cv.getBoundingClientRect?.();
+  if(!r||!r.width||!r.height)return null;
+  const d=Math.min(devicePixelRatio||1,2.5), g=sceneGeom();
+  const x=(((e.clientX-r.left)*(cv.width/(r.width*d))*d)-g.ox)/g.sx;
+  const y=(((e.clientY-r.top)*(cv.height/(r.height*d))*d)-g.oy)/g.sy;
+  return {x:x/SCENE.w,y:y/SCENE.h};
+}
+let laying=false;
+function layOn(e){
+  if(!aiming())return;
+  const p=scenePoint(e); if(!p)return;
+  if(p.x<-0.04||p.x>1.04||p.y<-0.04||p.y>1.04)return;
+  e.preventDefault?.();
+  setAim(G,p.x,p.y); SND.click(); paint();
+}
+if(cv.addEventListener){
+  cv.addEventListener("pointerdown",e=>{
+    SND.unlock(); firstGesture();
+    if(!aiming())return;
+    laying=true;
+    try{cv.setPointerCapture?.(e.pointerId);}catch(err){}
+    layOn(e);
+  });
+  cv.addEventListener("pointermove",e=>{if(laying)layOn(e);});
+  for(const t of ["pointerup","pointercancel","lostpointercapture"])
+    cv.addEventListener(t,()=>{laying=false;});
+}
 
 /* ---- the loop ----
  * One rAF loop, wrapped. Where there is no rAF - a headless harness - the
@@ -2927,6 +3023,7 @@ function frame(now){
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
+    runAim(now);
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){

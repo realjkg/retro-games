@@ -270,18 +270,35 @@ test('8k. a held control repeats, and nothing on the page is selectable', {skip:
   p.el('line1').dispatchEvent(drag);
   assert.equal(drag.defaultPrevented,true,'dragstart was not prevented');
 
-  // a direction taken and held registers as held, repeats on a frame, and clears
+  // While he is talking the directions are a menu, and a held one repeats
+  const dn=p.tap('[data-cmd="down"]');
+  assert.ok(p.ev('held'),'a held menu direction was not registered');
+  assert.equal(p.ev('held').cmd,'down');
+  dn.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
+  assert.equal(p.ev('held'),null,'the hold did not clear on release');
+
+  // With the gun out they are sights: they run on the loop, not on a repeat
+  // timer, and two held at once give a diagonal.
   p.tap('[data-cmd="up"]');                       // draws the gun
   assert.equal(p.G().mode,'gun');
-  p.tap('[data-cmd="up"]');                       // and now aims
-  assert.ok(p.ev('held'),'a held direction was not registered');
-  assert.equal(p.ev('held').cmd,'up');
+  const upEl=p.tap('[data-cmd="up"]');            // and now aims
+  assert.equal(p.ev('held'),null,'the sights are still on the menu repeat timer');
+  assert.equal(p.ev("pressed.has('up')"),true,'a held direction was not registered');
   const before={...p.G().aim};
-  p.frame(p.ev('held').next+1);                   // one frame past the repeat delay
-  assert.ok(p.G().aim.y<before.y,'holding did not repeat the direction');
-  const el=p.w.document.querySelector('[data-cmd="up"]');
-  el.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
-  assert.equal(p.ev('held'),null,'the hold did not clear on release');
+  p.frame(1000); p.frame(1050);
+  assert.ok(p.G().aim.y<before.y,'holding did not run the sights');
+  const oneWay={...p.G().aim};
+  const leftEl=p.tap('[data-cmd="left"]');
+  p.frame(1100); p.frame(1150);
+  assert.ok(p.G().aim.y<oneWay.y&&p.G().aim.x<oneWay.x,
+    'two directions at once did not give a diagonal');
+  for(const el of [upEl,leftEl])
+    el.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
+  assert.equal(p.ev('pressed.size'),0,'the sights did not stop on release');
+  const still={x:p.G().aim.x,y:p.G().aim.y};
+  p.frame(1200); p.frame(1250);
+  assert.ok(Math.abs(p.G().aim.x-still.x)<1e-9&&Math.abs(p.G().aim.y-still.y)<1e-9,
+    'the sights kept running with nothing held');
   // a non-directional control never repeats
   p.tap('[data-cmd="fire"]');
   assert.equal(p.ev('held'),null,'FIRE should not repeat');
