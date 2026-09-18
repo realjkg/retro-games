@@ -191,6 +191,7 @@ function ownGun(out){
  */
 const GLYPH={
   " ":".....|.....|.....|.....|.....|.....|.....",
+  "$":"..#..|.####|#.#..|.###.|..#.#|####.|..#..",
   "&":".##..|#..#.|#..#.|.##..|#.#.#|#..#.|.##.#",
   "\'":"..#..|..#..|.....|.....|.....|.....|.....",
   "-":".....|.....|.....|#####|.....|.....|.....",
@@ -252,33 +253,121 @@ function stamp(str,x,y,cell,fill,rim,shadow,track){
   each(0,0,(px_,py_,j)=>px(px_,py_,cell,cell,
     typeof fill==="function"?fill(j):fill));
 }
-const TITLE={line1:"LAW OF THE",line2:"WEST",town:"GOLD GULCH"};
+const TITLE={a:"LAW",b:"OF THE",c:"WEST",town:"GOLD GULCH"};
+const TP={                                    /* the title card's own palette */
+  bg:"#0b0b2e", bg2:"#14143f", ink:"#f4efe2", gold:"#e8a13a", gold2:"#b4701a",
+  rim:"#0a0608", vine:"#7fb7d8", vine2:"#c9e6f4", leaf:"#3f8f5c", leaf2:"#69c07f",
+  box:"#2f8f4f", box2:"#1c5c33", boxin:"#07070f",
+  paper:"#e6dcc0", paper2:"#c2b493", red:"#a8352a"};
+/* ---- filigree ---- *
+ * The border on a title screen of this kind is engraved scrollwork, and it was
+ * drawn a pixel at a time because there was no other way to get it. Same here:
+ * a stem that wanders, curls that wind in on themselves, and leaves hung off
+ * the outside of every bend.
+ */
+function spiral(cx,cy,r0,turns,dir,col){
+  const n=Math.max(8,Math.round(turns*54));
+  for(let i=0;i<=n;i++){
+    const t=i/n, a=dir*t*turns*Math.PI*2, r=r0*(1-t*0.84);
+    px(cx+Math.cos(a)*r,cy+Math.sin(a)*r,1,1,col);
+  }
+}
+function leaf(cx,cy,rw,rh,col){
+  for(let y=-rh;y<=rh;y++)for(let x=-rw;x<=rw;x++)
+    if((x/rw)*(x/rw)+(y/rh)*(y/rh)<=1)px(cx+x,cy+y,1,1,col);
+}
+function vine(x0,y0,x1,y1,amp,side){
+  const n=Math.round(Math.hypot(x1-x0,y1-y0));
+  const at=t=>[x0+(x1-x0)*t+Math.sin(t*Math.PI*3.1)*amp, y0+(y1-y0)*t];
+  for(let i=0;i<=n;i++){
+    const t=i/n, [x,y]=at(t);
+    px(x-1,y,1,1,TP.vine); px(x,y,1,1,TP.vine2); px(x+1,y,1,1,TP.vine);
+    // a second stem shadowing the first is what makes an engraving of a line
+    const [x2]=at(Math.min(1,t+0.045));
+    px(x2+side*3,y,1,1,TP.vine);
+  }
+  for(let k=0;k<5;k++){
+    const t=0.09+k*0.205, [x,y]=at(t);
+    spiral(x+side*7,y,6,1.25,(k%2?1:-1)*side,TP.vine2);
+    leaf(x-side*6,y+4,5,2,TP.leaf); leaf(x-side*6,y+3,4,1,TP.leaf2);
+    leaf(x+side*2,y-7,2,4,TP.leaf); leaf(x+side*2,y-8,1,3,TP.leaf2);
+  }
+}
+function corner(x,y,sx,sy){
+  spiral(x+sx*9,y+sy*8,7,1.3,sx*sy,TP.vine2);
+  spiral(x+sx*22,y+sy*5,5,1.1,-sx*sy,TP.vine);
+  leaf(x+sx*16,y+sy*12,4,2,TP.leaf); leaf(x+sx*16,y+sy*11,3,1,TP.leaf2);
+  for(let i=0;i<16;i++)px(x+sx*(26+i),y+sy*2,1,1,i%3?TP.vine:TP.vine2);
+}
+/* ---- the poster the town nails up, and the gun that answers it ---- */
+function poster(x,y,w,h){
+  ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(x+2,y+2,w,h);
+  px(x,y,w,h,TP.paper);
+  dither(x,y,w,h,TP.paper,TP.paper2,0.22);
+  px(x,y,w,1,"#f4ecd6"); px(x,y+h-1,w,1,TP.paper2);
+  px(x+2,y+2,w-4,1,"#8a7a58"); px(x+2,y+h-3,w-4,1,"#8a7a58");
+  const t="REWARD", tw=textWidth(t,2,1);
+  stamp(t,x+Math.round((w-tw)/2),y+5,2,"#231a10",null,null,1);
+  const d="$500", dw=textWidth(d,2,2);
+  stamp(d,x+Math.round((w-dw)/2),y+20,2,TP.red,null,null,2);
+  for(let k=0;k<4;k++){                     // the small print, as much as fits
+    const ly=y+34+k*5; if(ly>y+h-4)break;
+    px(x+5,ly,w-10,1,"#9c8e6e");
+  }
+  for(const [nx,ny] of [[x+1,y+1],[x+w-3,y+1],[x+1,y+h-3],[x+w-3,y+h-3]])
+    px(nx,ny,2,2,"#6b5a3a");
+}
+function titleGun(){
+  // his own revolver, lifted out of the drawing the game already carries
+  if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
+  ctx.imageSmoothingEnabled=false;
+  ctx.save();
+  ctx.translate(308,156); ctx.scale(-1,1);          // pointing back into the card
+  ctx.drawImage(sheriffImg,58,84,68,46,0,0,76,52);
+  ctx.restore();
+}
 function titleCard(now){
-  // the street goes down to a silhouette so the plate has something to sit on
-  ctx.fillStyle="rgba(10,7,16,.62)"; ctx.fillRect(0,0,SCENE.w,SCENE.h);
-  const g=ramp(()=>ctx.createLinearGradient(0,0,0,SCENE.h),
-    [[0,"rgba(232,168,72,.20)"],[0.5,"rgba(0,0,0,0)"],[1,"rgba(12,8,20,.55)"]]);
-  if(g){ctx.fillStyle=g;ctx.fillRect(0,0,SCENE.w,SCENE.h);}
-  const face=j=>j<2?"#f6dc9a":j<4?"#e0a83c":"#b47a1e";
-  const c1=4, c2=6;
-  stamp(TITLE.line1,Math.round((SCENE.w-textWidth(TITLE.line1,c1))/2),16,
-        c1,face,"#140c06","rgba(0,0,0,.55)");
-  stamp(TITLE.line2,Math.round((SCENE.w-textWidth(TITLE.line2,c2))/2),52,
-        c2,face,"#140c06","rgba(0,0,0,.55)");
-  // a rule under the plate, and the town's name on it
-  const y=102;
-  px(46,y,228,2,"#8a5a12"); px(46,y,228,1,"#e0a83c");
-  px(40,y-2,6,6,"#e0a83c"); px(274,y-2,6,6,"#e0a83c");
+  px(0,0,SCENE.w,SCENE.h,TP.bg);
+  dither(0,0,SCENE.w,SCENE.h,TP.bg,TP.bg2,0.4);
+  // the engraved border: a panel down each side, a flourish in each corner
+  vine(14,18,14,SCENE.h-20,6,-1);
+  vine(SCENE.w-14,18,SCENE.w-14,SCENE.h-20,6,1);
+  corner(11,10,1,1); corner(SCENE.w-12,10,-1,1);
+  /* The name is set in three parts and staggered, the way a wood-type poster
+     sets a long title: the first word large and high, the joining words small
+     and tucked in beside it, the last word large and dropped. */
+  const face=j=>j<2?"#ffffff":j<4?"#f4d089":TP.gold2;
+  stamp(TITLE.a,30,12,6,face,TP.rim,"rgba(0,0,0,.6)");
+  stamp(TITLE.b,144,28,2,j=>j<3?TP.gold:TP.gold2,TP.rim,null,2);
+  stamp(TITLE.c,108,52,6,face,TP.rim,"rgba(0,0,0,.6)");
+  // the town, small, on the rule between the name and the credits
   const t=TITLE.town, tw=textWidth(t,2,3);
-  ctx.fillStyle="rgba(10,7,16,.72)";
-  ctx.fillRect((SCENE.w-tw)/2-7,y+8,tw+14,GLYPH_H*2+8);
-  stamp(t,Math.round((SCENE.w-tw)/2),y+12,2,"#efe4c8","#140c06",null,3);
-  // and a line of small type along the foot, which is where 1985 put it
-  const s2="AN ORIGINAL RECREATION", s3="PRESS FIRE";
-  stamp(s2,Math.round((SCENE.w-textWidth(s2,1,2))/2),SCENE.h-13,1,"#a89878",null,null,2);
+  px(34,102,SCENE.w-68,1,TP.gold2);
+  px(30,100,4,5,TP.gold); px(SCENE.w-34,100,4,5,TP.gold);
+  ctx.fillStyle=TP.bg; ctx.fillRect((SCENE.w-tw)/2-6,97,tw+12,12);
+  stamp(t,Math.round((SCENE.w-tw)/2),99,2,TP.ink,null,null,3);
+  // the credit box, bordered the way the original bordered its own, and saying
+  // who this is after rather than claiming to be them
+  const bx=10,by=114,bw=SCENE.w-20,bh=44;
+  px(bx,by,bw,bh,TP.box); px(bx+2,by+2,bw-4,bh-4,TP.box2);
+  px(bx+4,by+4,bw-8,bh-8,TP.boxin);
+  const centred=(str,cell,y2,col,track)=>{
+    const wdt=textWidth(str,cell,track);
+    stamp(str,Math.round((SCENE.w-wdt)/2),y2,cell,col,null,null,track);
+    return wdt;
+  };
+  centred("INSPIRED BY ALAN MILLER",2,by+7,TP.ink,2);
+  centred("ORIGINAL MUSIC BY ED BOGAS",1,by+24,TP.gold,2);
+  centred("AN INDEPENDENT UNOFFICIAL RECREATION",1,by+33,"#8f9fb8",2);
+  poster(6,SCENE.h-40,68,38);
+  titleGun();
   const blink=Math.floor(now/560)%2===0;
-  if(blink)stamp(s3,Math.round((SCENE.w-textWidth(s3,2,3))/2),SCENE.h-34,2,
-                 "#e8cf6a","#140c06",null,3);
+  if(blink){
+    const s3="PRESS FIRE", w3=textWidth(s3,2,3), sx=145-Math.round(w3/2);
+    ctx.fillStyle="rgba(8,6,14,.78)";
+    ctx.fillRect(sx-7,SCENE.h-38,w3+14,GLYPH_H*2+7);
+    stamp(s3,sx,SCENE.h-35,2,"#e8cf6a",TP.rim,null,3);
+  }
 }
 
 /* ---- the street ---- *
@@ -707,6 +796,12 @@ function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
+  if(G.phase==="intro"){
+    if(build.rows>=10)titleCard(now);
+    if(build.rows<10){ctx.fillStyle="#000";
+      ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));}
+    ctx.restore(); return;
+  }
   const armed=G.mode==="gun"||(G.duel&&G.duel.drawn)||G.phase==="tell";
   town(now,armed);
   const enc=who(G);
@@ -721,7 +816,6 @@ function drawScene(now){
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
   grade();
-  if(G.phase==="intro"&&build.rows>=10)titleCard(now);
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";

@@ -783,7 +783,10 @@ test('9q. the title is a drawn plate and its music comes round again',
   const p=openPage();
   // the letters are drawn, not set: every character the card uses has a glyph
   const T=p.ev('TITLE');
-  const used=[T.line1,T.line2,T.town,'AN ORIGINAL RECREATION','PRESS FIRE'].join('');
+  const used=[T.a,T.b,T.c,T.town,'PRESS FIRE','REWARD','$500',
+    'INSPIRED BY THE 1985 GAME','DESIGNED BY ALAN MILLER',
+    'ORIGINAL MUSIC BY ED BOGAS','AN INDEPENDENT UNOFFICIAL RECREATION']
+    .join('');
   for(const ch of used)
     assert.ok(p.ev(`!!GLYPH[${JSON.stringify(ch)}]`),'no glyph for '+JSON.stringify(ch));
   assert.equal(p.ev('GLYPH.A.split("|").length'),p.ev('GLYPH_H'),'a glyph is the wrong height');
@@ -791,7 +794,7 @@ test('9q. the title is a drawn plate and its music comes round again',
     for(const row of p.ev(`GLYPH[${JSON.stringify(k)}].split("|")`))
       assert.equal(row.length,p.ev('GLYPH_W'),'glyph '+k+' is ragged');
   // and the plate fits the picture it is painted on
-  for(const [line,cell] of [[T.line1,4],[T.line2,6]])
+  for(const [line,cell] of [[T.a,8],[T.c,8]])
     assert.ok(p.ev(`textWidth(${JSON.stringify(line)},${cell})`)<=320,
       JSON.stringify(line)+' is wider than the frame');
 
