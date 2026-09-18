@@ -27,12 +27,24 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 canvas{width:100%;height:100%;display:block}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .padrow.flip{transform:rotate(180deg)}
-.dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,44px);gap:4px}
+/* Every control is sized from one scale so the same pads fit a phone in landscape,
+   a phone in portrait with two of them on screen, and a desktop window. */
+#pads{--ps:1;display:flex;flex-direction:column;gap:6px}
+.dpad{display:grid;grid-template-columns:repeat(3,calc(48px*var(--ps)));
+  grid-template-rows:repeat(3,calc(44px*var(--ps)));gap:calc(4px*var(--ps))}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:17px;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer}
 .btn:active,.btn.on{background:var(--gold);color:#10131c;border-color:var(--gold)}
-.abtn{width:60px;height:60px;border-radius:50%;font-size:14px;font-weight:700}
-.sbtn{padding:8px 12px;border-radius:10px;font-size:13px;height:40px}
+.abtn{width:calc(60px*var(--ps));height:calc(60px*var(--ps));border-radius:50%;
+  font-size:calc(14px*var(--ps));font-weight:700}
+.sbtn{padding:calc(8px*var(--ps)) calc(12px*var(--ps));border-radius:10px;
+  font-size:calc(13px*var(--ps));height:calc(40px*var(--ps))}
+.btn{font-size:calc(17px*var(--ps))}
+/* Side-by-side seating: player one keeps the left of the screen, player two the right,
+   both reading the board the same way up. */
+#pads.sbs{flex-direction:row;justify-content:space-between;align-items:flex-start}
+#pads.sbs #pad1{order:0}
+#pads.sbs #pad2{order:1}
 #overlay{position:absolute;inset:0;background:rgba(8,10,16,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:9px;padding:16px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
@@ -51,7 +63,7 @@ button{font:inherit;cursor:pointer}
 #stage{border-radius:0;background:#000}
 canvas{image-rendering:pixelated}
 .btn{touch-action:none}
-#full{background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:9px 12px;min-height:40px;border-radius:10px}
+#full,#seat{background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:9px 12px;min-height:40px;border-radius:10px}
 
 /* ---- full game mode: the page gets out of the way and the machine fills the screen ---- */
 body.gamemode{position:fixed;inset:0;padding:0;background:#000;overflow:hidden;
@@ -66,12 +78,17 @@ body.gamemode .padrow{position:absolute;left:0;right:0;pointer-events:none;
   padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
 body.gamemode .padrow>*{pointer-events:auto}
 body.gamemode #pad1{bottom:calc(env(safe-area-inset-bottom) + 6px);align-items:flex-end}
-body.gamemode #pad2{top:calc(env(safe-area-inset-top) + 6px);align-items:flex-start}
+body.gamemode #pad2{top:calc(env(safe-area-inset-top) + 32px);align-items:flex-start}
+/* Landscape, side by side: a column of controls down each edge, the board between them. */
+body.gamemode #pads.sbs .padrow{top:26px;bottom:calc(env(safe-area-inset-bottom) + 4px);
+  left:auto;right:auto;flex-direction:column;justify-content:center;gap:calc(10px*var(--ps))}
+body.gamemode #pads.sbs #pad1{left:max(4px,env(safe-area-inset-left));align-items:center;padding:0}
+body.gamemode #pads.sbs #pad2{right:max(4px,env(safe-area-inset-right));align-items:center;padding:0}
 body.gamemode .btn{background:rgba(31,37,52,.82)}
 body.gamemode .btn:active,body.gamemode .btn.on{background:var(--gold);color:#10131c}
 body.gamemode .soundrow{position:absolute;right:6px;top:2px;z-index:4;margin:0;gap:6px}
 body.gamemode #audio-status{display:none}
-body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:10px;opacity:.85;border-radius:7px}
+body.gamemode #sound,body.gamemode #full,body.gamemode #seat{padding:2px 7px;min-height:0;font-size:10px;opacity:.85;border-radius:7px}
 </style>
 </head>
 <body>
@@ -79,13 +96,20 @@ body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:
   <div id="status" role="status">Loading…</div>
   <div id="stage"><canvas id="cv"></canvas><div id="overlay"></div></div>
   <div id="pads">
-    <div class="padrow flip" id="pad2" style="display:none">
+    <div class="padrow" id="pad2" style="display:none">
       <div class="dpad">
         <div class="btn" data-k="2U,2L">↖</div><div class="btn" data-k="2U">▲</div><div class="btn" data-k="2U,2R">↗</div>
-        <div class="btn" data-k="2L">◀</div><div></div><div class="btn" data-k="2R">▶</div>
+        <div class="btn" data-k="2L">◀</div><div class="btn" data-k="2C">●</div><div class="btn" data-k="2R">▶</div>
         <div class="btn" data-k="2D,2L">↙</div><div class="btn" data-k="2D">▼</div><div class="btn" data-k="2D,2R">↘</div>
       </div>
-      <div><div class="btn abtn" data-k="2A">FIRE</div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="display:flex;gap:8px">
+          <div class="btn abtn" data-k="2A">A</div><div class="btn abtn" data-k="2B">B</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <div class="btn sbtn" data-k="2SPELL">SPELL</div><div class="btn sbtn" data-k="2MENU">MENU</div>
+        </div>
+      </div>
     </div>
     <div class="padrow" id="pad1">
       <div class="dpad">
@@ -103,7 +127,7 @@ body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><button id="seat" type="button">SEATING: SIDE BY SIDE</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
@@ -339,7 +363,7 @@ function newGame(){
   Object.assign(G,{turn:"L",lum:3,lumDir:1,sel:null,moves:[],spells:{L:{},D:{}},
     dead:{L:[],D:[]},target:null,anim:null,combat:null,over:null,round:1,quiet:0,phase:"play"});
   clearKeys();
-  hideOverlay(); document.getElementById("pad2").style.display="none";layout();
+  hideOverlay(); syncPads();
   beginTurn();
 }
 
@@ -417,7 +441,7 @@ function checkWin(){
   return null;
 }
 function gameOver(w){
-  G.phase="over"; G.over=w; document.getElementById("pad2").style.display="none";layout();
+  G.phase="over"; G.over=w; syncPads();
   showOverlay(`<h1>${w==="tie"?"A DRAW":(w==="L"?"LIGHT PREVAILS":"DARKNESS PREVAILS")}</h1>
   <p class="sub">${w==="tie"?"The last two icons destroyed each other.":"The board is claimed."}</p>
   <div class="menuitem sel" data-act="again">Play again</div>
@@ -476,7 +500,7 @@ function startCombat(att,def,x,y){
   clearKeys();
   G.combat={a,b,bg,lum,x,y,shots:[],barriers:makeBarriers(x,y),t0:performance.now(),time:0,over:0,p1:lightF,p2:darkF};
   G.phase="combat";G.turnPhase="combat";
-  document.getElementById("pad2").style.display=G.mode==="pvp"?"flex":"none";layout();
+  syncPads();
   tone(220,880,.25,"triangle",.4);
 }
 function barrierState(b,c=G.combat){
@@ -559,8 +583,12 @@ function combatStep(dt,now){
   const cmd=pair.map((f,i)=>{
     if(isCPU(f.side))return aiInput(f,snap[1-i],c.time);
     const prefix=G.mode!=="pvp"||f===c.p1?"1":"2";
-    return [(keys[prefix+"R"]?1:0)-(keys[prefix+"L"]?1:0),
-      (keys[prefix+"D"]?1:0)-(keys[prefix+"U"]?1:0),!!(keys[prefix+"A"]||(prefix==="1"&&keys["1C"]))];
+    // Face-to-face seating turns player two's half of the table upside down, so their
+    // stick is read the same way: push towards the board's far edge and the icon goes there.
+    const inv=(prefix==="2"&&seating==="face")?-1:1;
+    return [((keys[prefix+"R"]?1:0)-(keys[prefix+"L"]?1:0))*inv,
+      ((keys[prefix+"D"]?1:0)-(keys[prefix+"U"]?1:0))*inv,
+      !!(keys[prefix+"A"]||keys[prefix+"C"])];
   });
   pair.forEach((f,i)=>{
     const [ix,iy,fire]=cmd[i];
@@ -596,7 +624,6 @@ function combatStep(dt,now){
 function finishCombat(){
   const c=G.combat, {x,y}=c, att=c.a.p, def=c.b.p;
   const aAlive=c.a.hp>0, bAlive=c.b.hp>0;
-  document.getElementById("pad2").style.display="none";
   let msg;
   if(aAlive&&!bAlive){
     att.hp=Math.min(maxHP(att.t),Math.max(1,c.a.hp/c.a.healthScale));
@@ -612,7 +639,7 @@ function finishCombat(){
     if(att.t!=="elemental")G.dead[att.side].push(att.t);
     G.dead[def.side].push(def.t); msg="Both icons fall on "+sqName(x,y)+".";
   }
-  G.combat=null; G.phase="play"; G.quiet=0; layout(); completeTurn(msg);
+  G.combat=null; G.phase="play"; G.quiet=0; syncPads(); completeTurn(msg);
 }
 
 /* ============ spells ============ */
@@ -758,26 +785,44 @@ function cpuMove(){
 let menuSel=0;
 function menuKey(k){
   const items=[...ov.querySelectorAll(".menuitem")]; if(!items.length)return;
-  if(k==="1U"||k==="1L")menuSel=(menuSel-1+items.length)%items.length;
-  if(k==="1D"||k==="1R")menuSel=(menuSel+1)%items.length;
+  if(k==="U"||k==="L")menuSel=(menuSel-1+items.length)%items.length;
+  if(k==="D"||k==="R")menuSel=(menuSel+1)%items.length;
   items.forEach((el,i)=>el.classList.toggle("sel",i===menuSel));
-  if(k==="1A"||k==="1C")items[menuSel].click();
+  if(k==="A"||k==="C")items[menuSel].click();
 }
+const FLIPDIR={U:"D",D:"U",L:"R",R:"L"};
+/* Every control arrives here labelled with the pad it came from: "1A", "2SPELL", or a
+   bare "MENU" from the keyboard. The prefix is stripped, and in a hot seat it decides
+   which side the press speaks for, so each player drives the board on their own turn. */
 function press(k){
   if(k==="FULL"){toggleGameMode();return;}
-  if(G.phase==="menu"||G.phase==="over"||G.turnPhase==="spellmenu"||G.turnPhase==="revivemenu"){menuKey(k);return;}
+  if(k==="SEAT"){toggleSeating();return;}
+  if(k.charAt(0)==="2"){
+    if(G.mode!=="pvp")return;                       // the second pad only exists in a hot seat
+    let m=k.slice(1);
+    if(seating==="face")m=FLIPDIR[m]||m;            // their view of the board is upside down
+    act(m,"D"); return;
+  }
+  act(k.charAt(0)==="1"?k.slice(1):k,"L");
+}
+function act(k,side){
+  if(G.phase==="menu"||G.phase==="over"){menuKey(k);return;}
+  if(G.turnPhase==="spellmenu"||G.turnPhase==="revivemenu"){
+    if(G.mode==="pvp"&&side!==G.turn)return;
+    menuKey(k);return;}
   if(G.phase==="combat")return;
   if(k==="MENU"){mainMenu();return;}
+  if(G.mode==="pvp"&&side!==G.turn)return;          // hot seat: your pad moves on your turn
   if(k==="SPELL"){openSpells();return;}
   if(G.phase!=="play"||G.turnPhase!=="select"||!G.human[G.turn])return;
   const c=G.cursor;
-  if(k==="1U")c.y=Math.max(0,c.y-1);
-  if(k==="1D")c.y=Math.min(N-1,c.y+1);
-  if(k==="1L")c.x=Math.max(0,c.x-1);
-  if(k==="1R")c.x=Math.min(N-1,c.x+1);
-  if(k==="1B"){ if(G.target){G.target=null;G.msg="Spell cancelled.";}
+  if(k==="U")c.y=Math.max(0,c.y-1);
+  if(k==="D")c.y=Math.min(N-1,c.y+1);
+  if(k==="L")c.x=Math.max(0,c.x-1);
+  if(k==="R")c.x=Math.min(N-1,c.x+1);
+  if(k==="B"){ if(G.target){G.target=null;G.msg="Spell cancelled.";}
                 else {G.sel=null;G.moves=[];G.msg="Select an icon, then its destination.";} }
-  if(k==="1A"||k==="1C"){
+  if(k==="A"||k==="C"){
     if(G.target){spellTarget(c.x,c.y);return;}
     if(G.sel&&G.moves.some(m=>m[0]===c.x&&m[1]===c.y)){startMove(G.sel.x,G.sel.y,c.x,c.y);return;}
     const p=G.grid[c.x][c.y];
@@ -796,7 +841,14 @@ function press(k){
 const NAV=typeof navigator==="object"&&navigator?navigator:null;
 const bodyEl=document.body||{classList:{add(){},remove(){}}};
 const stageEl=document.getElementById("stage"), fullBtn=document.getElementById("full");
+const seatBtn=document.getElementById("seat"), padsBox=document.getElementById("pads");
 let gameMode=false, wakeLock=null, wantGameMode=false;
+/* Two people round one screen sit one of two ways. "side" is two players shoulder to
+   shoulder, both reading the board the same way up, a column of controls at each edge.
+   "face" is the tablet flat on the table between them: player two's pad is turned round
+   and so is their stick. */
+let seating="side";
+try{const v=localStorage.getItem("archon.seating"); if(v==="face"||v==="side")seating=v;}catch(e){}
 const SAFE={top:0,right:0,bottom:0,left:0};   // CSS px of canvas reserved for chrome and pads
 const BAR=26;   // height of the game-mode status strip, matching the stylesheet
 try{wantGameMode=localStorage.getItem("archon.gamemode")==="1";}catch(e){}
@@ -823,6 +875,24 @@ function setGameMode(on){
   if(gameMode)keepAwake(); else releaseAwake();
   layout();
 }
+function setSeating(v){
+  seating=(v==="face")?"face":"side";
+  document.getElementById("pad2")?.classList?.toggle?.("flip",seating==="face");
+  if(seatBtn)seatBtn.textContent="SEATING: "+(seating==="face"?"FACE TO FACE":"SIDE BY SIDE");
+  try{localStorage.setItem("archon.seating",seating);}catch(e){}
+  layout();
+}
+function toggleSeating(){setSeating(seating==="face"?"side":"face");}
+seatBtn?.addEventListener?.("click",toggleSeating);
+setSeating(seating);
+/* The second pad belongs on screen for the whole of a hot seat game, not just the duels:
+   in a hot seat each player drives the board from their own controls too. */
+function syncPads(){
+  const p2=document.getElementById("pad2");
+  const show=G.mode==="pvp"&&(G.phase==="play"||G.phase==="combat");
+  if(p2&&p2.style)p2.style.display=show?"flex":"none";
+  layout();
+}
 /* Fullscreen only succeeds inside a user gesture, so every caller is a tap or a key. */
 function toggleGameMode(){
   if(gameMode){exitFS();setGameMode(false);}
@@ -837,6 +907,8 @@ function layout(){
   if(!st?.style){fit();return;}
   if(!gameMode){
     st.style.width=st.style.height=st.style.left=st.style.top="";
+    padsBox?.style?.setProperty?.("--ps",1);
+    padsBox?.classList?.remove?.("sbs");
     SAFE.top=SAFE.right=SAFE.bottom=SAFE.left=0; fit(); return;
   }
   const vw=typeof innerWidth==="number"?innerWidth:0, vh=typeof innerHeight==="number"?innerHeight:0;
@@ -844,6 +916,15 @@ function layout(){
   const landscape=vw>vh;
   const pad1=document.getElementById("pad1"), pad2=document.getElementById("pad2");
   const shown=el=>el&&el.style?.display!=="none";
+  // Controls shrink only as far as the screen makes them: a pad row is about 280x140
+  // at full size, and landscape wants a column of them beside a board at least 320 wide.
+  const two=shown(pad2), rows=two?2:1;
+  const clamp=v=>Math.max(.6,Math.min(1,v));
+  const ps=landscape?clamp(Math.min((vw-320)/304,(vh-BAR)/(rows*140)))
+                    :clamp(Math.min((vw-10)/280,(vh-BAR-vw)/(rows*140)));
+  padsBox?.style?.setProperty?.("--ps",Math.round(ps*100)/100);
+  // Columns down each edge only fit a screen that is wider than it is tall.
+  padsBox?.classList?.toggle?.("sbs",seating==="side"&&two&&landscape);
   const h=el=>shown(el)?(el.getBoundingClientRect?.().height||0):0;
   // Widest single control column in a pad row (the d-pad or the button cluster).
   const colW=el=>shown(el)?Array.prototype.reduce.call(el.children||[],
@@ -851,7 +932,7 @@ function layout(){
   // Landscape puts the pads in the letterbox either side of the play area;
   // portrait stacks them under it (and above it, for the second player).
   const cols=landscape?Math.round(Math.max(colW(pad1),colW(pad2)))+10:0;
-  const top=BAR+(!landscape&&shown(pad2)?Math.round(h(pad2))+8:0);
+  const top=BAR+(!landscape&&shown(pad2)?Math.round(h(pad2))+16:0);
   const bottom=landscape?0:Math.round(h(pad1))+10;
   const band=Math.max(120,vh-top-bottom);
   const avail=Math.max(160,vw-2*cols);
@@ -909,12 +990,12 @@ if(padsEl?.addEventListener){
   padsEl.addEventListener("lostpointercapture",padUp);
 }
 const KMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A"," ":"1A",
-  z:"1A",x:"1B",Backspace:"1B",w:"2U",s:"2D",a:"2L",d:"2R",Shift:"2A",f:"2A",q:"SPELL",Escape:"MENU",
-  g:"FULL",F11:"FULL"};
+  z:"1A",x:"1B",Backspace:"1B",w:"2U",s:"2D",a:"2L",d:"2R",Shift:"2A",f:"2A",r:"2B",e:"2SPELL",
+  q:"SPELL",Escape:"MENU",g:"FULL",F11:"FULL"};
 /* e.code first so the physical key works on non-QWERTY layouts. */
 const CODEMAP={ArrowUp:"1U",ArrowDown:"1D",ArrowLeft:"1L",ArrowRight:"1R",Enter:"1A",NumpadEnter:"1A",
   Space:"1A",KeyZ:"1A",KeyX:"1B",Backspace:"1B",KeyW:"2U",KeyS:"2D",KeyA:"2L",KeyD:"2R",
-  ShiftLeft:"2A",ShiftRight:"2A",KeyF:"2A",KeyQ:"SPELL",Escape:"MENU",KeyG:"FULL",F11:"FULL"};
+  ShiftLeft:"2A",ShiftRight:"2A",KeyF:"2A",KeyR:"2B",KeyE:"2SPELL",KeyQ:"SPELL",Escape:"MENU",KeyG:"FULL",F11:"FULL"};
 const mapKey=e=>CODEMAP[e.code]||KMAP[e.key]||KMAP[(e.key||"").toLowerCase()]||null;
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;          // leave browser shortcuts alone
@@ -928,11 +1009,12 @@ cv.addEventListener("pointerdown",e=>{
   const r=cv.getBoundingClientRect(), g=boardGeom(), d=r.width?cv.width/r.width:1;
   const x=Math.floor(((e.clientX-r.left)*d-g.ox)/g.s), y=Math.floor(((e.clientY-r.top)*d-g.oy)/g.s);
   if(x<0||y<0||x>=N||y>=N)return;
-  G.cursor={x,y}; press("1A");
+  G.cursor={x,y}; act("A",G.turn);
 });
 ov.addEventListener("click",e=>{
   const el=e.target.closest("[data-mode],[data-side],[data-act],[data-spell],[data-revive]"); if(!el)return;
   if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
+  if(el.dataset.act==="seat"){toggleSeating();mainMenu();return;}
   // A click is a user gesture, which is the only moment fullscreen can be requested.
   if(el.dataset.mode||el.dataset.side)enterGameModeIfWanted();
   if(el.dataset.mode){
@@ -961,16 +1043,20 @@ function sideMenu(){
 }
 function mainMenu(){
   G.phase="menu"; G.turnPhase="select"; G.combat=null;
-  document.getElementById("pad2").style.display="none";layout();
+  syncPads();
   showOverlay(`<h1>ARCHON</h1><p class="sub">The Light and the Dark — a 9×9 board of shifting luminance
   where landing on an enemy starts a real-time duel. Take all five power points or destroy every enemy icon.</p>
   <div class="menuitem sel" data-mode="pvp">1P vs 2P &nbsp;<span style="opacity:.7">hot seat</span></div>
   <div class="menuitem" data-mode="pvc">1P vs CPU</div>
   <div class="menuitem" data-mode="cvc">CPU vs CPU &nbsp;<span style="opacity:.7">demo</span></div>
   <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
+  <div class="menuitem" data-act="seat">SEATING: ${seating==="face"?"FACE TO FACE":"SIDE BY SIDE"}</div>
   <small class="tip">D-pad moves the cursor · A selects and confirms · B cancels · SPELL opens the seven
-  one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready. 1P vs 2P adds a second pad at the top for Dark.
-  Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
+  one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready.
+  1P vs 2P gives Dark a full pad of their own — d-pad, A, B, SPELL and MENU — and each player moves on their own turn.
+  Seating puts those controls down the sides for two players sitting together, or turns Dark's pad
+  (and stick) round for a device lying flat between you.
+  Keyboard: arrows + Z/X/Q for Light, WASD + Shift/R/E for Dark. G toggles full screen.
   A connected gamepad drives Light; a second one drives Dark.</small>
   <small class="tip"><a href="../" style="color:#ffd27f">← More retro games</a></small>`);
 }
@@ -1061,7 +1147,11 @@ function drawBoard(){
    side's fallen icons instead of sitting empty. */
 /* Portrait leaves a band over and under the board rather than beside it. */
 function drawBands(g){
-  const rows=[{side:"L",y:g.oy-1,dir:-1,h:g.oy},{side:"D",y:g.oy+g.S+1,dir:1,h:cv.height-g.oy-g.S}];
+  // In a hot seat the roster sits beside the pad that owns it: Dark's above the board
+  // with Dark's controls, Light's below with Light's.
+  const two=gameMode&&document.getElementById("pad2")?.style?.display!=="none";
+  const top=two?"D":"L", bot=two?"L":"D";
+  const rows=[{side:top,y:g.oy-1,dir:-1,h:g.oy},{side:bot,y:g.oy+g.S+1,dir:1,h:cv.height-g.oy-g.S}];
   for(const r of rows){
     if(r.h<g.s*.9)continue;
     const pad=Math.max(6,g.s*.1), label=r.y+r.dir*pad;
@@ -1084,9 +1174,12 @@ function drawMargins(g){
   const pad=Math.max(8,g.s*.12);
   const cols=[{side:"L",x:0,w:g.ox},{side:"D",x:g.ox+g.S,w:cv.width-g.ox-g.S}];
   if(cols[0].w<g.s*1.4){drawBands(g);return;}      // portrait: the room is above and below
+  // Face-to-face seating parks the second pad across the top of both margins,
+  // so the rosters start below it rather than underneath it.
+  const stacked=gameMode&&seating==="face"&&document.getElementById("pad2")?.style?.display!=="none";
   for(const c of cols){
     if(c.w<g.s*1.4)continue;                       // too narrow to read
-    const cx=c.x+c.w/2, top=g.oy+pad;
+    const cx=c.x+c.w/2, top=g.oy+pad+(stacked?Math.min(g.S*.42,g.s*3.6):0);
     ctx.fillStyle=INK[c.side];
     ctx.font=`700 ${Math.round(g.s*.24)}px sans-serif`;
     ctx.textAlign="center"; ctx.textBaseline="top";
@@ -1174,6 +1267,7 @@ function padState(gp,pre){
   now[pre+"A"]=on(0)||on(7)||on(5);            // A / triggers: fire and confirm
   now[pre+"B"]=on(1)||on(6)||on(4);            // B / shoulders: cancel
   if(pre==="1"){now.SPELL=on(2);now.MENU=on(3)||on(9);now.FULL=on(8);}
+  else{now["2SPELL"]=on(2);now["2MENU"]=on(3)||on(9);}
   return now;
 }
 function pollGamepads(){

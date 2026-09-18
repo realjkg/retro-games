@@ -10,11 +10,31 @@ A self-contained browser recreation, with the **Commodore 64 release** as the re
 
 - Board: arrows and Z/Enter to select; X to cancel. Touch the board or use the on-screen pad.
 - Combat: **hold fire and a direction to aim/shoot; release fire to move**. All eight directions work, including the corner buttons on touch devices.
-- Second player: WASD and Shift/F, or the upper touch pad.
+- Second player: WASD to move, Shift/F to select and fire, R to cancel, E for spells — or a
+  full second touch pad with its own d-pad, A, B, SPELL and MENU.
+- In a hot seat each pad drives the board on its own side's turn, so neither player has to
+  hand the device over between moves. A tap on the board itself always belongs to whoever
+  has the turn.
 - Sound starts after a tap/key press. SOUND ON/OFF mutes or enables it. A high recharge bell belongs to Light; a low bell belongs to Dark.
 - A finger may **slide across the d-pad** to change direction without lifting, and fire stays held even if the thumb drifts off its button. Each touch is tracked separately, so one thumb can hold fire while the other aims.
 - **Gamepads**: the first connected pad drives Light and a second drives Dark. D-pad or left stick moves, A/right trigger fires and confirms, B/left trigger cancels, X opens spells, Y or Start returns to the menu.
 - Keys map by physical position, so Z/X and WASD sit in the same place on a non-QWERTY layout.
+
+## Two players, one screen
+
+`SEATING` chooses how the pair are sitting, and is remembered:
+
+- **Side by side** (the default): both players read the board the same way up. In landscape
+  the controls become a column down each edge — player one on the left, player two on the
+  right — with the board between them; in portrait player two's pad sits above the board and
+  player one's below, and each side's roster is drawn next to its own pad.
+- **Face to face**: for a device lying flat on the table between the players. Player two's
+  pad is turned round, and so is their stick, so pushing away from themselves moves away
+  from themselves on the board.
+
+Control size follows the screen rather than the other way round: a pad row is measured
+against the space left once the board has its share, and shrinks only as far as it must —
+never below 60% — so two pads and a board fit a phone in either orientation.
 
 ## Full game mode
 

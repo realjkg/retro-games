@@ -154,3 +154,76 @@ test('Sliding across the d-pad hands the direction over without lifting',()=>{
  assert.equal(r.run('keys["1U"]'),false); assert.equal(r.run('keys["1R"]'),false);
  r.run('padUp({pointerId:1});'); assert.equal(r.run('holders.size'),0);
 });
+
+/* ---- two players, one screen ---- */
+test('The second pad is a full pad: it moves, selects, cancels and casts on its own turn',()=>{
+ const r=runtime();
+ r.run('G.turnPhase="select";G.turn="D";G.cursor={x:4,y:4};press("2R");press("2D");');
+ assert.deepEqual(r.run('JSON.stringify(G.cursor)'),'{"x":5,"y":5}');
+ r.run('G.cursor={x:8,y:1};press("2A");');                   // a Dark icon on its home rank
+ assert.equal(r.run("G.sel&&G.sel.x"),8);
+ r.run('press("2B");'); assert.equal(r.run('G.sel'),null);   // B cancels, as A's partner
+ r.run('press("2SPELL");'); assert.equal(r.run('G.turnPhase'),'spellmenu');
+});
+test('In a hot seat each pad moves only on its own turn',()=>{
+ const r=runtime();
+ r.run('G.turnPhase="select";G.turn="D";G.cursor={x:4,y:4};press("1R");');
+ assert.equal(r.run('G.cursor.x'),4);                        // Light may not move Dark's turn
+ r.run('G.turn="L";press("2R");'); assert.equal(r.run('G.cursor.x'),4);
+ r.run('press("1R");'); assert.equal(r.run('G.cursor.x'),5);
+ // One player against the machine keeps the single pad whichever side they chose.
+ r.run('G.mode="pvc";G.human={L:false,D:true};G.turn="D";press("1R");');
+ assert.equal(r.run('G.cursor.x'),6);
+});
+test('A tap on the board belongs to whoever has the turn',()=>{
+ const r=runtime();
+ r.run('G.turnPhase="select";G.turn="D";G.cursor={x:8,y:1};act("A",G.turn);');
+ assert.equal(r.run("G.sel&&G.sel.y"),1);
+});
+test('Face-to-face seating reverses player two, side-by-side leaves them alone',()=>{
+ const r=runtime();
+ r.run('setSeating("face");G.turnPhase="select";G.turn="D";G.cursor={x:4,y:4};press("2U");press("2L");');
+ assert.deepEqual(r.run('JSON.stringify(G.cursor)'),'{"x":5,"y":5}');   // up reads as down
+ r.run('setSeating("side");press("2U");press("2L");');
+ assert.deepEqual(r.run('JSON.stringify(G.cursor)'),'{"x":4,"y":4}');
+ assert.equal(r.run('seating'),'side');
+});
+test('The same reversal applies to player two\'s stick in a duel',()=>{
+ const r=duel();
+ r.run('setSeating("face");G.mode="pvp";G.human={L:true,D:true};keys["2U"]=true;');
+ const y0=r.run('G.combat.b.y'); r.run('combatStep(.05,50);');
+ assert.ok(r.run('G.combat.b.y')>y0);                        // their "up" is the board's down
+ r.run('setSeating("side");G.combat.b.y='+y0+';combatStep(.05,100);');
+ assert.ok(r.run('G.combat.b.y')<y0);
+ r.run('keys["2U"]=false;keys["2C"]=true;combatStep(.05,150);');
+ assert.ok(r.run('G.combat.shots.length')>0);                // the d-pad centre fires as well
+});
+test('Player two keeps a pad for the whole hot seat game, and never outside one',()=>{
+ const r=runtime();
+ const shown=()=>r.run('document.getElementById("pad2").style.display');
+ assert.equal(shown(),'flex');                               // runtime() starts a pvp game
+ r.run('startCombat(mk("archer","L"),mk("manticore","D"),4,4);');
+ assert.equal(shown(),'flex');
+ r.run('mainMenu();'); assert.equal(shown(),'none');
+ r.run('G.mode="pvc";G.human={L:true,D:false};newGame();');
+ assert.equal(shown(),'none');
+});
+test('Keys and a second gamepad reach every one of player two\'s buttons',()=>{
+ const r=runtime();
+ assert.equal(r.run('mapKey({code:"KeyR"})'),'2B');
+ assert.equal(r.run('mapKey({code:"KeyE"})'),'2SPELL');
+ assert.equal(r.run('mapKey({code:"ShiftLeft"})'),'2A');
+ r.pads.push(gamepad({}),gamepad({buttons:[1,2]}));           // B and the spell button
+ r.run('pollGamepads();');
+ assert.equal(r.run('keys["2B"]'),true); assert.equal(r.run('keys["2SPELL"]'),true);
+});
+test('Controls shrink so two pads and a board share one phone',()=>{
+ const r=runtime();
+ r.run('padsBox.style.setProperty=(k,v)=>{padsBox.ps=v};gameMode=true;');
+ const scale=(w,h)=>{r.run(`globalThis.innerWidth=${w};globalThis.innerHeight=${h};layout();`);return r.run('padsBox.ps');};
+ assert.equal(scale(1280,800),1);                            // a desktop window needs no squeeze
+ assert.equal(scale(844,390),1);                             // nor a full-size phone on its side
+ assert.ok(scale(568,320)<1);                                // a small one gives up some size
+ assert.ok(scale(360,640)<1);                                // as does a short portrait phone
+ assert.equal(scale(320,420),.6);                            // and never goes below the floor
+});
