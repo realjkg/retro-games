@@ -8,33 +8,13 @@ A self-contained browser recreation, with the **Commodore 64 release** as the re
 
 ## Controls
 
-- Board: arrows and Z/Enter to select; X to cancel. Touch the board or use the on-screen pad.
+- Board: arrows and Z/Enter to select; X to cancel. Touch the board, or use the on-screen stick (or d-pad — see **The stick, and how hard the machine plays**).
 - Combat: **hold fire and a direction to aim/shoot; release fire to move**. All eight directions work, including the corner buttons on touch devices.
-- Second player: WASD to move, Shift/F to select and fire, R to cancel, E for spells — or a
-  full second touch pad with its own d-pad, A, B, SPELL and MENU.
-- In a hot seat each pad drives the board on its own side's turn, so neither player has to
-  hand the device over between moves. A tap on the board itself always belongs to whoever
-  has the turn.
+- Second player: WASD and Shift/F, or their own touch pad — see **Two players on one device**.
 - Sound starts after a tap/key press. SOUND ON/OFF mutes or enables it. A high recharge bell belongs to Light; a low bell belongs to Dark.
 - A finger may **slide across the d-pad** to change direction without lifting, and fire stays held even if the thumb drifts off its button. Each touch is tracked separately, so one thumb can hold fire while the other aims.
 - **Gamepads**: the first connected pad drives Light and a second drives Dark. D-pad or left stick moves, A/right trigger fires and confirms, B/left trigger cancels, X opens spells, Y or Start returns to the menu.
 - Keys map by physical position, so Z/X and WASD sit in the same place on a non-QWERTY layout.
-
-## Two players, one screen
-
-`SEATING` chooses how the pair are sitting, and is remembered:
-
-- **Side by side** (the default): both players read the board the same way up. In landscape
-  the controls become a column down each edge — player one on the left, player two on the
-  right — with the board between them; in portrait player two's pad sits above the board and
-  player one's below, and each side's roster is drawn next to its own pad.
-- **Face to face**: for a device lying flat on the table between the players. Player two's
-  pad is turned round, and so is their stick, so pushing away from themselves moves away
-  from themselves on the board.
-
-Control size follows the screen rather than the other way round: a pad row is measured
-against the space left once the board has its share, and shrinks only as far as it must —
-never below 60% — so two pads and a board fit a phone in either orientation.
 
 ## Full game mode
 
@@ -54,6 +34,69 @@ start in full game mode.
 
 On iPhone, Safari allows no element fullscreen; the immersive layout still applies, and
 adding the page to the Home Screen removes the browser's own chrome.
+
+## The stick, and how hard the machine plays
+
+Two things made a phone game harder than the C64 one, and neither was in the rules.
+
+**A stick, not nine buttons.** A duel is real time, and a grid of nine little squares has gaps
+to fall into and corners to miss: you lose the fight to the controls. Each pad now carries a
+round thumbstick that quantises to the same eight directions a C64 joystick had — push and hold
+to aim and move, with no gap between the ways. On the board a push is one step and holding
+walks on; in combat the direction is simply held, which is what aiming needs. **Controls** on
+the title screen switches between the stick and the old d-pad, and remembers the choice.
+
+**Three CPU strengths**, chosen when you pick a side in 1P vs CPU and remembered afterwards:
+
+| | In a duel | On the board |
+|---|---|---|
+| **Novice** *(the default)* | slow to take a shot, aims loosely, hesitates, walks into missiles | plays noisily and with little caution |
+| **Warrior** | takes its chances, aims straight, sidesteps what is fired at it | the original scoring |
+| **Master** | fires on sight and never wastes a move | maximum caution, almost no guessing |
+
+The difference is mostly reaction, which is what makes a real-time opponent feel unfair: how
+often it takes the shot, how straight it aims, whether it bothers to sidestep. Novice is the
+default because a first game against the old scoring, through a nine-square pad, was a beating.
+
+## Two players on one device
+
+A hot seat game gives each player their own pad, and each pad drives only its own side:
+
+- **Light is pad 1, Dark is pad 2.** On the board, the pad whose turn it is not goes quiet and
+  dims, so nobody moves the other player's cursor and nobody has to ask whose turn it is. Both
+  pads are live at once inside a duel, which is the only moment both players act together.
+- **Dark's pad carries its own A, B and SPELL**, labelled exactly as Light's, so the Dark player never has to reach across
+  for the seven one-shot spells or to cancel a selection. A second gamepad works the same way.
+- **The second pad is on screen for the whole game.** It used to appear only when a duel
+  started, which left the Dark player with nothing to move icons with on the board.
+- Choosing 1P vs 2P asks **where the other player is sitting**, and remembers the answer:
+  *side by side*, where both pads read the right way up and take an edge of the screen each in
+  landscape, or *facing each other*, for a device lying flat between you, where Dark's pad is
+  turned around. The original played side by side on two joysticks; the flat-table arrangement
+  is the one a phone adds.
+
+## Full game mode, and playing it as an app
+
+FULL SCREEN (or `G`) drops the page furniture: the board fills the screen, the pads move into
+the letterboxed space beside it, the screen is kept awake, and the choice is remembered for
+next time. Where the browser has the Fullscreen API — Android, and desktop — that call is made
+too, so the browser's own chrome goes as well.
+
+**iOS Safari has no Fullscreen API at all.** `requestFullscreen` simply does not exist on an
+iPhone, so a tab keeps its address bar and toolbar no matter what the page asks for. The way to
+a real full screen there is to install the game:
+
+- **iPhone/iPad:** Share ▸ **Add to Home Screen**, then open Archon from the icon. It launches
+  standalone, with no address bar and no toolbar.
+- **Android/desktop Chrome:** the **INSTALL** button beside SOUND, which appears when the
+  browser offers the install.
+
+What makes that possible is `manifest.webmanifest` (`display: standalone`, with
+`display_override: ["fullscreen","standalone"]` so an Android launcher goes one better),
+`apple-mobile-web-app-capable`, an `apple-touch-icon`, and 192/512 px icons including a maskable
+one. `sw.js` is a small network-first service worker: it keeps up with deploys but caches the
+shell, so the installed game opens and plays without a signal. A launch that is already
+standalone enters game mode by itself — from the home screen this is a game, not a page.
 
 ## C64 fidelity corrections
 
@@ -84,4 +127,4 @@ This is **not a C64 emulator or an exact reproduction**. The effects are new Web
 
 ## Verification
 
-Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
+Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the stick's eight directions and dead centre, its step-and-repeat on the board, the three CPU strengths and how they differ in a duel, the hot seat rules — each pad on its own side, Dark's own spell button, the second pad present for the whole game, the idle marking, and the seating switch — and the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
