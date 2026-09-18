@@ -282,6 +282,9 @@ function ownGun(out){
  * dirt beside him as well, which is a worse fault than the one it fixes.
  */
 const FADE=8;
+/* Where the leather opens, and the piece of his own drawing that goes into it. */
+const RIM=162;
+const GRIP={sx:74,sy:124,w:16,h:15,dx:52,dy:9};
 let restStrip=null;
 function restingStrip(t,h){
   if(restStrip!==null)return restStrip;
@@ -293,6 +296,18 @@ function restingStrip(t,h){
     if(!c||!c.drawImage||!c.fillRect)return restStrip;
     c.imageSmoothingEnabled=false;
     c.drawImage(sheriffImg,0,t,OWN.w,h,0,0,OWN.w,h);
+    /* The drawing has his revolver in his hand, so the holster under it is
+     * empty - and an empty holster seen from above is an open black cylinder,
+     * which is what it had been reading as: a bin standing in the street rather
+     * than anything of his. With the gun down it has to have the gun in it. So
+     * the wooden butt of his own revolver is lifted out of the drawing and set
+     * into the mouth - tan wood standing out of black leather is legible at
+     * this size where a piece of the nickel frame is not -
+     * leather from the rim down is laid over it again, which tucks the butt
+     * inside instead of leaving it sitting on top. His pixels, twice. */
+    c.drawImage(sheriffImg,GRIP.sx,GRIP.sy,GRIP.w,GRIP.h,
+                           GRIP.dx,GRIP.dy,GRIP.w,GRIP.h);
+    c.drawImage(sheriffImg,0,RIM,OWN.w,OWN.h-RIM,0,RIM-t,OWN.w,OWN.h-RIM);
     c.globalCompositeOperation="source-atop";      // only where he already is
     for(let k=0;k<FADE;k++){
       const amt=Math.round((1-(k+0.5)/FADE)*16);
