@@ -499,7 +499,28 @@ const SND=(function(){
                            s.connect(themeGain); return s;});
     list.forEach((v,i)=>voice(v,c.currentTime,slots[Math.min(i,VOICES-1)]));
   }
-  const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
+  /* iPhones mute Web Audio under the ring/silent switch. A page with a media
+   * element actually playing is treated as playback rather than ambient sound,
+   * and is then heard through it - and the same element keeps the audio session
+   * alive across a route change, which is what mirroring to a television is. So
+   * a quarter-second of real silence loops under everything, started on the
+   * same gesture that unlocks the rest. It is inaudible by construction: the
+   * samples are silence, not a volume of zero, because iOS ignores volume. */
+  const HUSH="data:audio/wav;base64,UklGRiQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+  let keeper=null;
+  function keepSession(){
+    if(keeper||typeof document==="undefined"||!document.createElement)return;
+    try{
+      const a=document.createElement("audio");
+      a.src=HUSH; a.loop=true; a.preload="auto";
+      a.setAttribute("playsinline",""); a.setAttribute("webkit-playsinline","");
+      a.muted=false;                       // muted media does not promote anything
+      const pr=a.play();
+      if(pr&&pr.catch)pr.catch(function(){});
+      keeper=a;
+    }catch(e){ keeper=null; }
+  }
+  const API={unlock(){keepSession();ctx();}, get on(){return on;}, theme, cut,
     get playing(){return themeName;},
     /* Silence means silence: what is sounding stops with what was pending, and
      * turning it back on never resurrects the theme that was playing when it
@@ -511,6 +532,7 @@ const SND=(function(){
     suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
     get suspended(){ return !!ac&&ac.state!=="running"; },
     get state(){ return ac?ac.state:"none"; },
+    get session(){ return !!keeper&&!keeper.paused; },
     /* Waking is not unlocking. It never builds a context - before the first
      * gesture there is nothing to wake and building one would be the very thing
      * the browser forbids - it only takes back one that already exists and has

@@ -1027,7 +1027,11 @@ function paintSound(){
   ["Play it","Next","Previous","Back to the street"].forEach((t,i)=>
     setChoice(lineEls[i+1],i+1,t,i===0?"sel":""));
   modeEl.textContent="GOLD GULCH \u00b7 SOUND TEST";
-  scoreEl.textContent=name;
+  // What the audio is actually doing. A phone that will not make a sound looks
+  // exactly like a game that will not make a sound, and this is the only way to
+  // tell them apart from across the room.
+  scoreEl.textContent="AUDIO "+(SND.on?SND.state.toUpperCase():"OFF")
+    +(SND.session?" \u00b7 SESSION":"");
   fitText();
 }
 
@@ -1235,7 +1239,8 @@ function titleLoop(){
 function firstGesture(){
   SND.unlock();
   if(themePlayed||G.phase!=="intro")return false;
-  themePlayed=true; cueAtMs(0,titleLoop);
+  themePlayed=true;
+  titleLoop();                       // in the gesture, not a frame behind it
   return SND.on;
 }
 /* Back to the title from the sundown table: the music starts over with it. */
@@ -1409,7 +1414,10 @@ const CONTROL={up,down,left,right,fire,
     try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
 function showSound(on){
   if(!muteBtn)return;
-  muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+  // "SOUND ON" while a phone sits on silent is a lie the player cannot see
+  // through. If the sound is wanted but the context is not running, say so.
+  const stuck=on&&SND.state!=="none"&&SND.state!=="running";
+  muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND ON"):"SOUND OFF";
   muteBtn.setAttribute("aria-pressed",on?"true":"false");
 }
 /* A player who turned the sound off does not want it back on every reload. The
@@ -1589,7 +1597,11 @@ function frame(now){
     runQueue(now);
     // Nothing announces an audio route change. Once a second, if the sound is
     // meant to be on and the context is not running, take it back.
-    if(now-wokeAt>1000){wokeAt=now; if(SND.on&&SND.suspended)SND.wake();}
+    if(now-wokeAt>1000){
+      wokeAt=now;
+      if(SND.on&&SND.suspended)SND.wake();
+      showSound(SND.on);
+    }
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){

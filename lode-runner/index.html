@@ -1343,6 +1343,24 @@ function setSoundLabel(){
 /* A route change announces nothing, so the context is checked on a slow tick
  * and whenever the page comes back. This never builds a context: before the
  * first gesture there is nothing to wake. */
+/* iPhones mute Web Audio under the ring/silent switch, and a page with a media
+ * element actually playing is treated as playback instead. The same element
+ * keeps the session alive across a route change, which is what mirroring to a
+ * television is. A quarter-second of real silence, looped, started on the same
+ * gesture that unlocks everything else. Real silence, not a volume of zero:
+ * iOS ignores volume. */
+var __hushEl=null;
+function keepSession(){
+  if(__hushEl||typeof document==="undefined"||!document.createElement)return;
+  try{
+    var a=document.createElement("audio");
+    a.src="data:audio/wav;base64,UklGRiQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+    a.loop=true; a.preload="auto";
+    a.setAttribute("playsinline",""); a.setAttribute("webkit-playsinline","");
+    var pr=a.play(); if(pr&&pr.catch)pr.catch(function(){});
+    __hushEl=a;
+  }catch(e){ __hushEl=null; }
+}
 function wakeAudio(){
   if(!A.on||!A.ctx)return;
   if(A.ctx.state!=='running'){try{A.ctx.resume();}catch(e){}}
@@ -1355,6 +1373,7 @@ if(typeof addEventListener==="function"){
 }
 function unlockAudio(){
   if(!A.on)return;
+  keepSession();
   const c=audioReady();
   // Not only 'suspended': Safari parks a context in 'interrupted' when the
   // audio route changes under it, which is what mirroring to a television does.
