@@ -3,7 +3,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const assert=require('node:assert/strict');
 const {test}=require('node:test');
-const {runtime,step}=require('./harness.cjs');
+const {runtime,clearRoom,step}=require('./harness.cjs');
 
 const PAGE=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 
@@ -198,11 +198,64 @@ test('The music follows the game and answers both switches',()=>{
   assert.equal(r.notes.length,quiet,'SOUND OFF stops everything');
 });
 
-test('Sound effects are fired for the things the game says they are',()=>{
+test('The effects are one bit of audio, the way the Apple II made them',()=>{
   const r=runtime();
   r.run('A.on=true;audioReady();');
-  const n=()=>r.notes.length;
-  const before=n();
-  r.run('sfx("gold");sfx("dig");sfx("trap");sfx("bury");sfx("death");sfx("reveal");');
-  assert.ok(n()>before,'each of them reaches the audio graph');
+  // Every sound the original could make came from flipping the speaker in or
+  // out, so every sample of every effect must be fully out or fully in. A
+  // sample anywhere in between means something rounded the edges off.
+  for(const name of ['step','rung','gold','dig','fill','trap','bury','death',
+      'reveal','clear','extra']){
+    const before=r.played.length;
+    r.run('sfx("'+name+'");');
+    assert.equal(r.played.length,before+1,name+' reaches the speaker');
+    const d=r.played[r.played.length-1].getChannelData();
+    assert.ok(d.length>100,name+' is longer than a blip of nothing');
+    for(let i=0;i<d.length;i++){
+      if(d[i]!==1&&d[i]!==-1){
+        assert.fail(name+' sample '+i+' is '+d[i]+', which one bit cannot be');
+      }
+    }
+    assert.ok(d.some(v=>v===1)&&d.some(v=>v===-1),name+' actually flips');
+  }
+});
+
+test('A quieter one-bit sound is a narrower pulse, not a smaller one',()=>{
+  const r=runtime();
+  r.run('A.on=true;audioReady();');
+  // The machine had no volume control, so a decay has to be duty cycle. The
+  // tail of a fading effect should spend far less time flipped out than its head.
+  r.run('speaker([{f0:600,f1:600,dur:0.3,d0:0.5,d1:0.04}],0.2);');
+  const d=r.played[r.played.length-1].getChannelData();
+  const half=Math.floor(d.length/2);
+  const outIn=(a,b)=>{let n=0;for(let i=a;i<b;i++)if(d[i]===1)n++;return n/(b-a);};
+  const head=outIn(0,half), tail=outIn(half,d.length);
+  assert.ok(head>0.35&&head<0.65,'it starts near a square wave, got '+head.toFixed(2));
+  assert.ok(tail<head/2,'and thins out to fade: head '+head.toFixed(2)+' tail '+tail.toFixed(2));
+});
+
+test('The runner ticks once per tile, and not while he is falling',()=>{
+  const r=runtime();
+  r.run('newGame(1,5);A.on=true;audioReady();');
+  clearRoom(r,10);
+  const before=r.played.length;
+  r.run('keys.right=true;');step(r,60);r.run('keys.right=false;');
+  const walked=r.run('G.hero.x')-6;
+  const ticks=r.played.length-before;
+  assert.ok(walked>0);
+  assert.equal(ticks,walked,'one click for each of the '+walked+' tiles crossed');
+  // Falling is silent: the clicks are footsteps, not a per-tile metronome.
+  r.run('for(let y=11;y<ROWS;y++)G.map[20][y]=EMPTY;G.hero=mkActor(20,10,false);G.hero.digT=0;');
+  const quiet=r.played.length;
+  step(r,60);
+  assert.equal(r.run('G.hero.y'),15,'he fell the whole way');
+  assert.equal(r.played.length,quiet,'without a sound');
+});
+
+test('Sound and music switches still silence everything',()=>{
+  const r=runtime();
+  r.run('A.on=false;');
+  const n=r.played.length;
+  r.run('sfx("gold");sfx("death");');
+  assert.equal(r.played.length,n,'SOUND OFF means no speaker at all');
 });

@@ -123,10 +123,18 @@ test('A guard who cannot climb out is buried and comes back at the top',()=>{
     G.guards=[mkActor(9,11,true)];G.guards[0].stuck=GUARD_STUCK;
     G.map[9][11]=EMPTY;G.map[8][10]=BRICK;G.map[10][10]=BRICK;
     G.holes=[{x:9,y:11,t:HOLE_TIME,open:true}];`);
-  step(r,60*8);
+  step(r,60*7);
   assert.equal(r.run('G.map[9][11]'),1,'the brick closed over him');
   assert.equal(r.run('G.score'),75,'burying him scores 75');
-  assert.ok(r.run('G.guards[0].y')<3,'and he is back on his feet near the top of the screen');
+  assert.equal(r.run('G.guards[0].gone'),true,'and he is off the board for a moment');
+  // Step to the frame he reappears on and look there: a frame later he is
+  // already falling, which says nothing about where he came in.
+  let where=null;
+  for(let i=0;i<240&&where===null;i++){
+    step(r,1);
+    if(!r.run('G.guards[0].gone'))where=r.run('G.guards[0].y');
+  }
+  assert.ok(where!==null&&where<3,'he comes back in at the top of the screen, got '+where);
 });
 
 test('A guard who can climb out does, and keeps coming',()=>{
@@ -183,4 +191,19 @@ test('Giving yourself up costs a man and starts the level again',()=>{
   step(r,120);
   assert.equal(r.run('G.lives'),lives-1);
   assert.equal(r.run('G.level'),2,'the same level, not the next one');
+});
+
+test('Turning the sound on does not change how the game plays',()=>{
+  // The speaker has its own source of randomness. If it drew on the game's,
+  // a guard would take a different corner depending on the SOUND switch.
+  const play=on=>{
+    const r=runtime();
+    r.run('A.on='+on+';'+(on?'audioReady();':''));
+    r.run('newGame(4,99);');
+    r.run('keys.right=true;');
+    step(r,60*20);
+    return r.run('JSON.stringify({s:G.score,l:G.lives,lv:G.level,'+
+      'h:G.hero.x+","+G.hero.y,g:G.guards.map(g=>g.x+","+g.y).join("|")})');
+  };
+  assert.equal(play(true),play(false),'same twenty seconds either way');
 });

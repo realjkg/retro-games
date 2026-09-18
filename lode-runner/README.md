@@ -76,9 +76,35 @@ This is **not an emulator or a port**, and it is not the 1983 game's data.
 - **The art is drawn on a canvas** in a period palette rather than lifted from any release, and
   the drawing surface takes the shape of the box it is in rather than a fixed 280 × 192, so the
   extra room in full screen shows a bigger board instead of black bars.
-- **The sound is locally synthesized Web Audio**, not the original machine's audio.
+- **The sound effects are synthesized the way the machine synthesized them**, but they are not
+  the original's audio. No sample, recording or sound data from any release of Lode Runner is
+  used here — that material is still under copyright. What is reproduced is the *technique*: see
+  **Sound** below.
 
 These distinctions should be preserved when describing the game.
+
+## Sound
+
+The Apple II had one bit of audio. A soft switch at `$C030` flipped the speaker cone in or out,
+and that was the whole instrument — every sound the 1983 game made was a 6502 loop counting
+cycles between flips. Pitch is the gap between them. There is no volume control at all: the only
+way to sound quieter is to spend less of each cycle flipped out, so a fade is a pulse getting
+narrower rather than a wave getting smaller.
+
+The effects here are built that way instead of being oscillators with the edges rounded off: a
+buffer of hard +1 / −1 produced by simulating the flips, run through a filter standing in for the
+small paper cone that had to reproduce it. The scraping sounds — digging, a guard being buried —
+pick the gap at random inside a range each cycle, which is how one bit makes noise. The tests
+check the claim rather than take it on trust: every sample of every effect must be exactly +1 or
+−1, and a fading effect must thin its duty cycle rather than drop its amplitude.
+
+The runner also ticks once per tile he crosses, and is silent while falling, the way the original
+clicked as you ran.
+
+None of this is the original's sound data. It is the same method pointed at new sounds.
+
+The speaker's randomness is deliberately kept off the game's own generator, so the SOUND switch
+cannot change where a guard reappears. There is a test for that too.
 
 ## Music
 
@@ -90,9 +116,12 @@ composer is credited for the much later NES conversion, which is a different pie
 different person and not what this game is after. So there was nothing to transcribe, and nothing
 here is transcribed.
 
-What plays instead is written in the idiom of the machines the game ran on — three voices, a
-pulse lead, a triangle bass and a noisy drum, sequenced sixteenth by sixteenth and scheduled ahead
-of the audio clock so a busy frame cannot make it stumble:
+What plays instead is written in the idiom of the machines the game ran on. The music is three
+voices — a pulse lead, a triangle bass and a noisy drum — which is a Commodore 64 SID sound
+rather than an Apple II one; the Apple II speaker described above could not have played it. That
+is a deliberate split: the effects are the 1983 Apple II machine, the music is the sound of the
+8-bit conversions. It is sequenced sixteenth by sixteenth and scheduled ahead of the audio clock
+so a busy frame cannot make it stumble:
 
 - **Title** — a slow processional in E minor over the tower, which is already running behind the
   menu.
@@ -145,6 +174,10 @@ a keyboard:
   and [Data Driven Gamer on guard psychology](https://datadrivengamer.blogspot.com/2023/01/championship-lode-runner-guard.html)
   — the guards evaluate directions in a fixed order and follow a greedy scan rather than a
   shortest path, which is what makes them exploitable.
+- [Applefritter: how game sound effects were made](https://www.applefritter.com/content/audiogame-sound-effects-how-were-they-made)
+  — the Apple II's 1-bit speaker, the `$C030` soft switch, cycle-counted timing between clicks
+  and pulse-width modulation for anything more intricate; Lode Runner is named among the games
+  built on it.
 - Searched for a music or sound credit across the above plus
   [MobyGames](https://www.mobygames.com/game/243/lode-runner/) and
   [VGMRips](https://vgmrips.net/wiki/Lode_Runner), which lists the Apple II version's composer as
@@ -163,7 +196,8 @@ false bricks, every condition that refuses a dig, the hole that fills back in an
 in it, a guard chasing along a row and killing on contact, a guard in a hole acting as a floor and
 dropping his chest, a guard climbing out before the brick returns and being buried when he cannot,
 the 250 / 75 / 1500 / 15,000 scoring, the way out appearing only on the last chest, the top row
-counting only once it does, and giving yourself up.
+counting only once it does, giving yourself up, and that twenty seconds of play come out
+identical with the sound on and off.
 
 `tests/levels.test.cjs` covers the level data and the page: that the board is 28 × 16 and every
 shipped level fills it with a runner, chests, guards and a hidden exit; that each level survives
@@ -171,8 +205,10 @@ a round trip through its text format; that every chest can be reached and got aw
 every level, with a deliberately unwinnable level proving the check can still say no; the
 generator laying tiles, counting gold, saving to local storage and playing what it made; the
 canvas taking the shape of its box; the full-screen switch; the original's I/J/K/L and U/O keys;
-the rules that stop a held control turning into a text selection; and the music engine following
-the game state and answering both the mute and the music switch.
+the rules that stop a held control turning into a text selection; the music engine following the
+game state and answering both the mute and the music switch; and the effects being genuinely one
+bit — every sample of every effect exactly +1 or −1, a fade carried by duty cycle rather than
+amplitude, and one footstep click per tile crossed with silence while falling.
 
 The tests verify audio events and mute, not subjective sound authenticity. Browser smoke testing
 separately verifies menus, touch controls, rendering and audio activation.
