@@ -1,6 +1,6 @@
 /* ============ content ============
  * An original recreation of the 1985 game's structure, not a port and not a
- * copy: eleven callers over one day, in the documented order, each a tree of
+ * copy: seven callers over one day, in the documented order, each a tree of
  * three exchanges with one visitor line and four replies at every node. Every
  * word here is newly written; no dialogue, artwork or music of the original is
  * reproduced.
@@ -41,57 +41,7 @@ const JOBS={
 };
 
 const CAST=[
- /* 1 ---------------------------------------------------------------- */
- {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
-  armed:true, arrive:["wagon","crowd"],
-  rounds:{
-   opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
-    replies:[
-     {text:"\"Newer, anyway. What brings you to Gold Gulch?\"", next:"cordial"},
-     {text:"\"They talk. You listen. What have you heard?\"", next:"business"},
-     {text:"\"You've been looking up this street a while, mister.\"", next:"wary"},
-     {text:"\"State your business or move along.\"", next:"prickly"}]},
-   cordial:{npc:"Passing through. I came up on the westbound and I'd as soon not go back down on it.",
-    replies:[
-     {text:"\"Trouble on the line?\"", next:"train"},
-     {text:"\"Room at the hotel, if you're staying.\"", end:"peaceful"},
-     {text:"\"What's wrong with the westbound?\"", next:"train"},
-     {text:"\"Then buy a horse and stop loitering.\"", end:"offended"}]},
-   business:{npc:"I heard a sheriff here lasted eleven days. I heard some other things I'd want a reason to repeat.",
-    replies:[
-     {text:"\"The reason is the badge. Say it plain.\"", next:"train"},
-     {text:"\"I'll take it kindly, and remember who told me.\"", next:"train"},
-     {text:"\"Then keep them. I've enough to do.\"", end:"peaceful"},
-     {text:"\"Repeat them now or in a cell.\"", end:"offended"}]},
-   wary:{npc:"A man can look at a street. There's no law against standing still that I know of.",
-    replies:[
-     {text:"\"None at all. Stand somewhere I can see you.\"", end:"peaceful"},
-     {text:"\"There's none. There's a law about what you're not saying.\"", next:"train"},
-     {text:"\"Empty your coat pockets for me.\"", end:"offended"},
-     {text:"\"Move.\"", end:"offended"}]},
-   prickly:{npc:"You've a hard way with a stranger who's done nothing. That's how the last one started, I'd guess.",
-    replies:[
-     {text:"\"You're right. Start again — what did you hear?\"", next:"train"},
-     {text:"\"The last one is why I'm careful.\"", end:"peaceful"},
-     {text:"\"Done nothing yet. I'm early, that's all.\"", action:"delayed"},
-     {text:"\"Then we'll see how you finish.\"", action:"draw"}]},
-   train:{npc:"…There's men meaning to take the westbound where it slows at the cut. Payroll car. That's all I know and it's more than I should say.",
-    replies:[
-     {text:"\"Much obliged. Nobody hears it from me.\"", end:"tip"},
-     {text:"\"Names.\"", end:"tip_hard"},
-     {text:"\"Why tell me at all?\"", end:"tip"},
-     {text:"\"If you're in it, say so now.\"", action:"delayed"}]}},
-  ends:{
-   tip:{text:"He tells it once, quietly, and is gone up the street before you have thanked him twice.",
-        flags:["tip_train","depart"], authority:1},
-   tip_hard:{text:"He gives you the cut, the hour and no names at all, and makes it clear that is the whole of it.",
-        flags:["tip_train"], authority:0},
-   peaceful:{text:"He touches his hat and goes on up the boardwalk, and the street closes behind him.",
-        flags:["depart"], authority:0},
-   offended:{text:"He looks at you the way a man looks at weather, and walks away without another word.",
-        flags:["depart","offended"], authority:-1}}},
-
- /* 2 ---------------------------------------------------------------- */
+ /* 1 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
   rounds:{
@@ -141,7 +91,7 @@ const CAST=[
    cold:{text:"She turns to the next man at the bar and does not turn back.",
         flags:["depart","offended"], authority:-1}}},
 
- /* 3 ---------------------------------------------------------------- */
+ /* 2 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
   rounds:{
@@ -150,7 +100,7 @@ const CAST=[
      {text:"\"A cell, three meals, and a judge in the spring.\"", next:"terms"},
      {text:"\"Four hundred says somebody wants you badly.\"", next:"talk"},
      {text:"\"Take your hand away from your belt first.\"", next:"belt"},
-     {text:"\"I'll offer what you're standing on.\"", action:"draw"}]},
+     {text:"\"I'll offer what you're standing on.\"", action:"ambush"}]},
    terms:{npc:"A judge. In the spring. And between now and the spring I'd be in that little room of yours with the one window.",
     replies:[
      {text:"\"It's a poor room. It's better than the alternative.\"", next:"yield"},
@@ -183,7 +133,7 @@ const CAST=[
      {text:"\"My word is a cell. Nothing after it.\"", action:"draw"}]}},
   ends:{}},
 
- /* 4 ---------------------------------------------------------------- */
+ /* 3 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
   armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
   rounds:{
@@ -236,61 +186,7 @@ const CAST=[
    still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
          flags:[], authority:0}}},
 
- /* 5 ---------------------------------------------------------------- */
- {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
-  armed:true, arrive:["spurs","crowd"],
-  rounds:{
-   opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
-    replies:[
-     {text:"\"That's a handsome piece of work. Mind the hammer.\"", next:"admire"},
-     {text:"\"Forty dollars is a deal of money for a man to be carrying.\"", next:"money"},
-     {text:"\"Put it back in the leather while we talk.\"", next:"order"},
-     {text:"\"A new gun and an old habit. Which one brought you here?\"", next:"probe"}]},
-   admire:{npc:"You know guns, then. Most men see a gun and see trouble coming. I see forty dollars of Kansas City work and a thing that fits my hand.",
-    replies:[
-     {text:"\"I see both. Keep it pointed at the dirt.\"", next:"intent"},
-     {text:"\"Where does a man your age come by forty dollars?\"", next:"intent"},
-     {text:"\"Show me how it sits in the holster.\"", end:"holstered"},
-     {text:"\"Sell it before somebody makes you use it.\"", next:"proud"}]},
-   money:{npc:"I had a piece of work up in Ellsworth. Honest, most of it. The part that wasn't is not written down anywhere a man could go and read it.",
-    replies:[
-     {text:"\"Then we'll leave it unwritten. Mind how you go.\"", end:"holstered"},
-     {text:"\"Tell me the part that wasn't.\"", next:"intent"},
-     {text:"\"Nothing stays unwritten. Hand me the gun.\"", next:"proud"},
-     {text:"\"Ellsworth. I'll wire them tonight.\"", action:"delayed"}]},
-   order:{npc:"It's in my hand because it's mine. You'd be the first man in this town to tell me where to keep my own property, and I've been here a week.",
-    replies:[
-     {text:"\"Then hold it and listen. Nobody's taking it.\"", next:"intent"},
-     {text:"\"I'll be the first and the last. Holster it.\"", next:"proud"},
-     {text:"\"Your property. My street.\"", next:"proud"},
-     {text:"\"Holster it or lose the hand.\"", action:"draw"}]},
-   probe:{npc:"Habits. Every man's got habits. Mine is shooting bottles off the corral rail of an evening, and there is no law in this territory about bottles.",
-    replies:[
-     {text:"\"There isn't. Shoot bottles and we'll stay friends.\"", end:"holstered"},
-     {text:"\"Bottles don't cost forty dollars. What does?\"", next:"intent"},
-     {text:"\"There's a law about what comes after bottles.\"", next:"intent"},
-     {text:"\"Shoot one now and I'll show you the law.\"", action:"ambush"}]},
-   proud:{npc:"You've a way of speaking to a man that gets a town a new sheriff every spring. I'll put it away when I am done looking at it and not before.",
-    replies:[
-     {text:"\"Look at it, then. I'll wait.\"", end:"holstered"},
-     {text:"\"Last spring's sheriff. What became of him?\"", end:"warned"},
-     {text:"\"You're done. Set it on the rail.\"", action:"surrender"},
-     {text:"\"You'll put it away now or in the dust.\"", action:"draw"}]},
-   intent:{npc:"…All right. A man at the livery says the bank's takings go out Friday in a flour sack. I only wanted to know if a sheriff would be watching.",
-    replies:[
-     {text:"\"Now I am. Set the gun down and walk to the jail.\"", action:"surrender"},
-     {text:"\"Who is the man at the livery?\"", end:"tip"},
-     {text:"\"You've told me. Go home and stay there.\"", end:"warned"},
-     {text:"\"You wanted to know. Now you do.\"", action:"draw"}]}},
-  ends:{
-   holstered:{text:"He turns it over once more, the way a man does with a thing he has paid too much for, and puts it away.",
-        flags:["depart"], authority:1},
-   tip:{text:"He gives the name at the livery and the day with it, and looks like a man who has set down something heavy.",
-        flags:["tip_bank","depart"], authority:1},
-   warned:{text:"He goes, and not toward the livery, and the new gun stays in the leather the whole length of the street.",
-        flags:["depart"], authority:0}}},
-
- /* 6 ---------------------------------------------------------------- */
+ /* 4 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
   armed:false, arrive:["crowd"],
   rounds:{
@@ -346,7 +242,7 @@ const CAST=[
    scared:{text:"He runs. Two women outside the milliner's watch him go, and then look at you for rather a long time.",
         flags:["depart","offended"], authority:-1}}},
 
- /* 7 ---------------------------------------------------------------- */
+ /* 5 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
   armed:false, arrive:["crowd"],
   rounds:{
@@ -396,57 +292,7 @@ const CAST=[
    alienated:{text:"\"Good day, Sheriff,\" she says, in the voice she keeps for boys who have not done the work.",
         flags:["depart","offended"], authority:-1}}},
 
- /* 8 ---------------------------------------------------------------- */
- {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
-  armed:true, arrive:["piano","crowd"],
-  rounds:{
-   opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
-    replies:[
-     {text:"\"I don't play. I'll watch a hand.\"", next:"watch"},
-     {text:"\"Show me the deck you've been learning with.\"", next:"deck"},
-     {text:"\"Stand up and turn out your sleeves.\"", next:"sleeves"},
-     {text:"\"You've cleaned out two freighters this week. Out.\"", next:"hard"}]},
-   watch:{npc:"Watch, then. It is an honest game with honest men and I have had honest luck for eleven nights running, which is a thing that happens.",
-    replies:[
-     {text:"\"Eleven nights is a deal of luck for one man.\"", next:"caught"},
-     {text:"\"Deal one hand face up and I'll believe you.\"", next:"caught"},
-     {text:"\"Enjoy the twelfth somewhere else.\"", next:"leave"},
-     {text:"\"Luck like that gets a man buried, not rich.\"", next:"leave"}]},
-   deck:{npc:"It is the house's deck. Ask the man behind the bar. I have not carried my own cards since Natchez, and Natchez was a misunderstanding.",
-    replies:[
-     {text:"\"Natchez. Tell me about the misunderstanding.\"", next:"caught"},
-     {text:"\"Then you'll not mind me cutting it.\"", next:"caught"},
-     {text:"\"That's a long way to come for a misunderstanding.\"", next:"leave"},
-     {text:"\"Hand it here, house deck or not.\"", next:"caught"}]},
-   sleeves:{npc:"…I will stand. I will not turn out anything in front of six men who owe me money. You can see the difficulty in it, Sheriff.",
-    replies:[
-     {text:"\"Then step outside and turn them out there.\"", next:"caught"},
-     {text:"\"I can. Outside, or here in front of all of them.\"", next:"caught"},
-     {text:"\"I see six men who'd like their money back.\"", next:"leave"},
-     {text:"\"Turn them out or I'll turn them out for you.\"", action:"draw"}]},
-   hard:{npc:"Two freighters who could not count. That is not cheating, that is arithmetic, and there is no statute against arithmetic in this territory.",
-    replies:[
-     {text:"\"There's one against what's up your left cuff.\"", next:"caught"},
-     {text:"\"Give them back their wages and we're square.\"", next:"leave"},
-     {text:"\"There's a statute about me. Move.\"", next:"leave"},
-     {text:"\"Then we'll settle it without one.\"", action:"draw"}]},
-   caught:{npc:"…A holdout clip. Well. Eleven good nights. What is it precisely that you would like me to do about it now, Sheriff?",
-    replies:[
-     {text:"\"Set it on the table and walk to the jail.\"", action:"surrender"},
-     {text:"\"Pay the freighters back, then the jail.\"", action:"surrender"},
-     {text:"\"Leave the money and leave the territory.\"", action:"depart"},
-     {text:"\"Nothing. I want the whole room to see it.\"", action:"delayed"}]},
-   leave:{npc:"Then I shall finish this hand and be on the noon coach. You will not see me again and you will not miss me by Thursday.",
-    replies:[
-     {text:"\"Finish it standing up and go.\"", action:"depart"},
-     {text:"\"Leave the hand. Take the coach.\"", action:"depart"},
-     {text:"\"The coach — and the freighters' wages on the bar.\"", end:"repaid"},
-     {text:"\"You'll go when I say and not before.\"", action:"delayed"}]}},
-  ends:{
-   repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
-        flags:["depart"], authority:1}}},
-
- /* 9 ---------------------------------------------------------------- */
+ /* 6 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
   armed:true, arrive:["hooves"],
   rounds:{
@@ -502,7 +348,7 @@ const CAST=[
    dismissed:{text:"He hangs his hat back on the nail and says nothing at all, which from him is a great deal.",
         flags:["depart"], authority:-1}}},
 
- /* 10 --------------------------------------------------------------- */
+ /* 7 ------------------------------------------------------------- */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
   armed:true, arrive:["hooves"],
   rounds:{
@@ -552,13 +398,7 @@ const CAST=[
    date:{text:"She whistles the dog off the gate and walks you as far as the road, which is further than she has walked anybody in three years.",
         flags:["date"], authority:1},
    steers:{text:"She drives them back at first light, Kinch counts them twice, and she does not look at you once the whole way down.",
-        flags:["depart"], authority:1}}},
-
- /* 11 --------------------------------------------------------------- */
- {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
-  armed:true, arrive:["spurs"], forcedDuel:true,
-  standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
-  rounds:{}, ends:{}}
+        flags:["depart"], authority:1}}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
 
@@ -749,11 +589,6 @@ function buildFigure(S,pose){
     }
     figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
   }
-  // A brand new shotgun, carried across him for everyone to see. It is drawn
-  // in the prop colour, not in gunmetal: the gun the crosshair is looking for
-  // is the one on his hip, and two of them on one man is two answers.
-  if(S.longgun&&!up)for(let i=0;i<22;i++)
-    figPut(g,CX-9+i,raised?R.chest+1:R.chest+9-Math.round(i*0.55),"P");
   /* neck, head, hair, hat */
   if(!up)figTaper(g,R.neck-1,R.shoulder,CX,Wd.neckW,CX,Wd.neckW+1,"A");
   figDisc(g,CX,(R.faceTop+R.faceBot)/2,Wd.faceW/2,(R.faceBot-R.faceTop)/2+1,"F");
@@ -773,6 +608,9 @@ function buildFigure(S,pose){
   }else if(S.hat==="cap"){
     figDisc(g,CX,R.brim,Wd.hatCrown/2*0.85,(R.brim-R.crown)/2,"H");
     figSpan(g,R.brim+1,CX-2,Wd.hatBrim*0.5,"H");
+  }else if(S.hat==="sombrero"){          // a brim you can see coming up the street
+    figDisc(g,CX,R.brim-3,Wd.hatCrown/2*0.82,(R.brim-R.crown)/2+2,"H");
+    figTaper(g,R.brim-1,R.brimEnd,CX,Wd.hatBrim*1.34,CX,Wd.hatBrim*1.1,"H");
   }else if(S.hat==="bonnet"){
     figDisc(g,CX,R.brim-1,Wd.hatCrown/2+1,(R.brim-R.crown)/2+2,"H");
     figTaper(g,R.brim,R.brim+2,CX,Wd.hatBrim*0.62,CX,Wd.hatBrim*0.5,"H");
@@ -794,7 +632,6 @@ function buildFigure(S,pose){
   }
   if(S.star)for(let y=R.chest;y<R.chest+3;y++)figSpan(g,y,CX-Wd.chestW*0.28,3,"S");
   if(S.prop==="bag")figTaper(g,R.hand-1,R.hand+7,CX+wristX+1,9,CX+wristX+1,9,"P");
-  if(S.prop==="cards")figTaper(g,R.hand-3,R.hand+1,CX+wristX,6,CX+wristX,6,"P");
   if(S.prop==="slate")figTaper(g,R.chest+1,R.chest+11,CX+wristX,9,CX+wristX,9,"P");
   if(S.prop==="rope")figDisc(g,CX+wristX,R.hand,4,4,"P");
   return g.map(r=>r.join(""));
@@ -803,21 +640,18 @@ function buildFigure(S,pose){
 /* What each of them is made of. The spec is the whole difference between one
  * caller and the next; everything else about them is the same draughtsman. */
 const FIGSPEC={
-  stranger:{hat:"stetson", coat:"jacket",              gun:"holster"},
   rose:    {hat:"none", hair:"long", coat:"dress",     gun:"none", wide:0.94},
-  kid:     {hat:"stetson", coat:"jacket",              gun:"holster", wide:0.94},
+  kid:     {hat:"sombrero", coat:"jacket",             gun:"holster", wide:0.94},
   doctor:  {hat:"derby", coat:"frock",                 gun:"none", prop:"bag"},
-  shotgun: {hat:"stetson", coat:"vest", longgun:true,  gun:"holster"},
   willie:  {hat:"cap", hair:"short", coat:"vest",      gun:"none",
             tall:0.7, wide:0.76, headWide:0.92},
   april:   {hat:"bonnet", hair:"long", coat:"dress",   gun:"none", wide:0.92,
             prop:"slate"},
-  gambler: {hat:"derby", coat:"frock",                 gun:"holster", prop:"cards"},
   deputy:  {hat:"stetson", coat:"jacket",              gun:"holster", star:true},
-  belle:   {hat:"none", hair:"long", coat:"dress",     gun:"holster", wide:0.96,
+  // She rustles cattle for a living; she is not dressed for a saloon
+  belle:   {hat:"stetson", hair:"long", coat:"jacket", gun:"holster", wide:0.96,
             prop:"rope"},
-  lastgun: {hat:"stetson", coat:"frock",               gun:"holster", wide:1.06},
-  robber:  {hat:"stetson", coat:"jacket",              gun:"holster", wide:1.04}
+  robber:  {hat:"stetson", coat:"frock",               gun:"holster", wide:1.04}
 };
 /* The bullet's three targets are not guessed and not hand-tuned per figure:
  * they are read off the drawing that was just made. The weapon box is where

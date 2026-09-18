@@ -185,12 +185,6 @@ const SOUNDS={
    * job in the day, on the same three-voice constraint the machine had. */
 
   /* the first man up the street: open fifths that ask and do not answer */
-  th_stranger:[{w:"pulse",f0:146.83,pw:0.2,pw1:0.44,vol:0.17,cut:1500,cut1:2200,res:8,
-             seq:[[0,0,0.34],[7,0.36,0.26],[10,0.64,0.52],[7,1.2,0.26],[0,1.5,0.9]]},
-            {w:"tri",f0:73.42,vol:0.19,cut:460,res:3,
-             seq:[[0,0,1.16],[5,1.18,0.3],[0,1.5,0.9]]},
-            {w:"pulse",f0:1174.66,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.66,0.1],[7,2.1,0.24]]}],
-  /* the saloon: off-beats pushed late, a flat third leaning on the major */
   th_rose:  [{w:"pulse",f0:174.61,pw:0.3,pw1:0.6,vol:0.16,cut:1700,cut1:2400,res:7,
              seq:[[3,0.12,0.2],[4,0.34,0.34],[7,0.72,0.2],[4,0.94,0.3],[3,1.28,0.2],
                   [0,1.5,0.85]]},
@@ -212,12 +206,6 @@ const SOUNDS={
             {w:"tri",f0:77.78,vol:0.18,cut:400,cut1:280,res:3,
              seq:[[0,0,1.06],[-3,1.08,0.52],[-5,1.62,1.0]]}],
   /* the new gun: a fanfare that reaches one note further than it can hold */
-  th_shotgun:[{w:"pulse",f0:130.81,pw:0.18,pw1:0.5,vol:0.18,cut:1600,cut1:2800,res:9,
-             seq:[[0,0,0.22],[4,0.24,0.22],[7,0.48,0.22],[12,0.72,0.4],[11,1.14,0.86]]},
-            {w:"tri",f0:65.41,vol:0.2,cut:440,res:3,
-             seq:[[0,0,0.7],[0,0.72,0.4],[-1,1.14,0.86]]},
-            {w:"pulse",f0:1046.5,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.74,0.1]]}],
-  /* Willy: small, quick and over before anybody has decided to mind */
   th_willie:[{w:"pulse",f0:196,pw:0.4,pw1:0.5,vol:0.12,cut:2200,res:5,
              seq:[[0,0,0.12],[2,0.13,0.12],[4,0.26,0.12],[7,0.39,0.12],
                   [4,0.52,0.12],[2,0.65,0.12],[0,0.78,0.36]]},
@@ -229,12 +217,6 @@ const SOUNDS={
              seq:[[0,0,1.54],[9,1.56,0.5],[0,2.08,0.95]]},
             {w:"pulse",f0:1174.66,pw:0.5,vol:0.026,cut:5200,res:6,seq:[[0,0.68,0.1],[-3,2.12,0.3]]}],
   /* the Gambler: a chromatic walk under a lead that never lands on the beat */
-  th_gambler:[{w:"pulse",f0:196,pw:0.12,pw1:0.42,vol:0.15,cut:1800,cut1:2600,res:11,
-             seq:[[0,0.14,0.2],[3,0.44,0.2],[2,0.74,0.2],[5,1.04,0.2],[3,1.34,0.7]]},
-            {w:"tri",f0:98,vol:0.19,cut:440,res:4,
-             seq:[[0,0,0.3],[1,0.3,0.3],[2,0.6,0.3],[3,0.9,0.3],[5,1.2,0.3],[-4,1.5,0.6]]},
-            {w:"pulse",f0:1046.5,pw:0.5,vol:0.026,cut:5000,res:6,seq:[[0,1.36,0.1]]}],
-  /* the Deputy: a military dotted figure that puts a foot wrong in the middle */
   th_deputy:[{w:"pulse",f0:146.83,pw:0.22,pw1:0.5,vol:0.17,cut:1500,cut1:2100,res:8,
              seq:[[0,0,0.3],[0,0.32,0.13],[7,0.47,0.3],[7,0.79,0.13],
                   [6,0.94,0.46],[0,1.42,0.8]]},
@@ -248,11 +230,6 @@ const SOUNDS={
             {w:"tri",f0:82.41,vol:0.19,cut:430,res:3,
              seq:[[0,0,0.86],[3,0.88,0.42],[0,1.32,0.9]]}],
   /* the last one: not a tune. A drone, a tritone over it, and one glint */
-  th_lastgun:[{w:"pulse",f0:130.81,pw:0.1,pw1:0.2,vol:0.15,cut:900,cut1:1400,res:13,
-             seq:[[0,0,1.5],[6,1.52,1.6]]},
-            {w:"tri",f0:65.41,vol:0.21,cut:360,res:4,seq:[[0,0,3.12]]},
-            {w:"pulse",f0:1567.98,pw:0.5,vol:0.03,cut:6000,res:8,seq:[[0,2.9,0.22]]}],
-  /* a robbery in progress: two notes, urgent, and no third one coming */
   th_job:   [{w:"pulse",f0:196,pw:0.16,pw1:0.4,vol:0.19,cut:2000,cut1:3000,res:11,
              seq:[[0,0,0.16],[6,0.17,0.16],[0,0.34,0.16],[6,0.51,0.16],
                   [0,0.68,0.16],[6,0.85,0.4]]},

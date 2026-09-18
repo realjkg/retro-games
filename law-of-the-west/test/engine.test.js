@@ -11,11 +11,11 @@ test('1. the scripts parse', ()=>{
     execFileSync(process.execPath,['--check',path.join(ROOT,f)]);
 });
 
-test('2. eleven callers, in order, and every written tree is sound', ()=>{
+test('2. seven callers, in order, and every written tree is sound', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
     const bad=[],ids=new Set();
-    if(CAST.length!==11)bad.push("cast is "+CAST.length+", expected eleven callers");
+    if(CAST.length!==7)bad.push("cast is "+CAST.length+", expected seven callers");
     for(const e of CAST){
       if(ids.has(e.id))bad.push(e.id+": duplicate id"); ids.add(e.id);
       for(const f of ["name","place","theme"])if(!e[f])bad.push(e.id+": no "+f);
@@ -94,14 +94,14 @@ function playDay(seed,chooser,opts){
   })()`));
 }
 
-test('3. a day runs all eleven callers in order and ends at sundown', ()=>{
+test('3. a day runs all seven callers in order and ends at sundown', ()=>{
   const seen={};
   for(let i=0;i<200;i++){
     const r=playDay(i,(enc,round,x)=>Math.floor(x*4));
     assert.equal(r.phase,'summary','day '+i+' never reached sundown');
     assert.ok(r.over,'no reckoning');
     for(const k of Object.keys(r.over.categories))seen[k]=true;
-    if(r.alive)assert.equal(r.met.length,11,'day '+i+' met '+r.met.length+' callers');
+    if(r.alive)assert.equal(r.met.length,7,'day '+i+' met '+r.met.length+' callers');
   }
   assert.deepEqual(Object.keys(seen).sort(),
     ["authority maintained","bad guys shot","crimes missed","crooks captured",
@@ -247,14 +247,15 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   const abox={};vm.createContext(abox);
   vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
   const S=abox.S, cues=Object.keys(S);
-  const arrivals=new Set(JSON.parse(run('JSON.stringify(CAST.flatMap(e=>e.arrive||[]))')));
+  const arrivals=new Set(JSON.parse(run('JSON.stringify('+
+    'CAST.concat(Object.keys(JOBS).map(k=>JOBS[k])).flatMap(e=>e.arrive||[]))')));
   const themes=JSON.parse(run('JSON.stringify(CAST.map(e=>e.theme))'));
   const named=new Set(themes.concat('th_job'));
   const RESERVED=['romance','title','dusk','dawn','badge'];
   const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)
     &&!RESERVED.includes(c)&&!named.has(c));
   assert.deepEqual(idle,[],'cues nothing plays: '+idle.join(', '));
-  assert.equal(new Set(themes).size,11,'callers share entrance themes');
+  assert.equal(new Set(themes).size,7,'callers share entrance themes');
   const missing=[...named].filter(t=>!cues.includes(t));
   assert.deepEqual(missing,[],'themes with no music written: '+missing.join(', '));
   // three voices was the machine's limit, so no cue may need a fourth at once
@@ -282,7 +283,7 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   report.themes=[...named];
 });
 
-test('11. eleven figures, no two alike, each with hitboxes over his own art', ()=>{
+test('11. eight figures, no two alike, each with hitboxes over his own art', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
     const bad=[], seen=new Map();
@@ -331,7 +332,7 @@ test('11. eleven figures, no two alike, each with hitboxes over his own art', ()
     return JSON.stringify({bad,figures:[...seen.values()]});
   })()`));
   assert.deepEqual(out.bad,[]);
-  assert.equal(out.figures.length,11,'expected eleven distinct callers');
+  assert.equal(out.figures.length,7,'expected seven distinct callers');
   report.figures=out.figures;
 });
 
@@ -351,7 +352,7 @@ test('12. every caller is reachable and every action class occurs across the day
     }
     return JSON.stringify({actions,ends,unwritten});
   })()`));
-  assert.deepEqual(out.unwritten,['lastgun'],'the only caller without words is the last one');
+  assert.deepEqual(out.unwritten,[],'every caller has words: '+out.unwritten.join(', '));
   for(const a of ['draw','ambush','delayed','surrender','depart'])
     assert.ok(out.actions[a]>0,'no caller ever answers with "'+a+'"');
   report.actions=out.actions;
@@ -446,7 +447,7 @@ test('16. all three robberies happen, in their place, and only once each', ()=>{
     };
     return JSON.stringify({warned:runDay({stage:true,train:true,bank:true}),blind:runDay({})});
   })()`));
-  assert.deepEqual(out.warned.order,['stage@4','train@8','bank@10']);
+  assert.deepEqual(out.warned.order,['stage@3','train@5','bank@6']);
   assert.deepEqual(out.blind.seen,['stage:missed','train:missed','bank:missed']);
   assert.equal(out.blind.missed,3,'a blind sheriff missed '+out.blind.missed+' of three');
   assert.deepEqual(out.warned.seen,['stage:met','train:met','bank:met']);
