@@ -124,10 +124,17 @@ body.gamemode .choice{font-size:calc(13px * var(--dlg));padding:6px 8px}
 @media (orientation:portrait){body.gamemode #top{flex:0 0 auto;aspect-ratio:4/3}}
 body.gamemode .dpad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,42px)}
 body.gamemode .abtn{width:68px;height:68px}
+/* Landscape: the scene zone is itself 4:3, so the picture fills it edge to
+   edge instead of being letterboxed inside a full-height column. Its width is
+   whichever is smaller — a shade under two thirds of the window, or as wide as
+   the window is tall allows — so on a phone held sideways the street runs the
+   full height and the words keep a column they can be read in. */
 @media (orientation:landscape){
-  body.gamemode #app{flex-direction:row}
-  body.gamemode #top{flex:1 1 50%;height:100%}
-  body.gamemode #bottom{flex:1 1 50%;height:100%;border-top:0;border-left:3px solid var(--line)}
+  body.gamemode #app{flex-direction:row;align-items:center}
+  body.gamemode #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
+    height:auto;aspect-ratio:4/3}
+  body.gamemode #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
+    border-top:0;border-left:3px solid var(--line)}
   body.gamemode #pads{margin-top:auto}
   body.gamemode .npc{font-size:13px}
   body.gamemode .choice{font-size:12px;padding:5px 7px}
