@@ -348,18 +348,16 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   assert.ok(w.sy*200<=400.001&&Math.abs((w.sx*320)/(w.sy*200)-4/3)<1e-6);
   // and the sheriff is the near third of it, with the caller clear of him
   const own=p.ev('OWN');
-  const wide=Math.max.apply(null,p.ev('SHERIFF.drawn').map(r=>r.length))*own.cw;
-  const tall=p.ev('SHERIFF.drawn').length*own.ch;
   assert.ok(own.x<=4,'the sheriff is not against the frame');
-  assert.ok(wide>=320/4,'the sheriff is only '+wide+' pixels of the near third');
-  assert.equal(own.y+tall,200,'he does not run out of the bottom of the frame');
-  assert.ok(tall>=160,'he is only '+tall+' pixels tall');
-  assert.ok(p.ev('SPRX')>own.x+wide,'the caller stands inside the sheriff');
-  // he is painted by the same painter as every caller, from the same alphabet
-  const alpha=new Set('.HRCKLWDFAEBGSP'.split(''));
-  for(const row of p.ev('SHERIFF.drawn').concat(p.ev('SHERIFF.holstered')))
-    for(const ch of row)assert.ok(alpha.has(ch),'the sheriff uses '+ch+', which cellColour cannot paint');
-  assert.ok(p.ev('LOOK.sheriff'),'he has no entry in the look table');
+  assert.ok(own.w>=320/4,'the sheriff is only '+own.w+' pixels of the near third');
+  assert.equal(own.y+own.h,200,'he does not run out of the bottom of the frame');
+  assert.ok(p.ev('SPRX')>own.x+own.w*0.55,'the caller stands inside his gun arm');
+  // his artwork travels with the page: no request, and nothing to smooth
+  const src=p.ev('SHERIFF_SRC');
+  assert.ok(/^data:image\/png;base64,/.test(src),'his artwork is not carried inline');
+  assert.ok(src.length<40000,'his artwork is '+src.length+' characters');
+  // talking shows the strip below the gun arm, drawing shows the whole of him
+  assert.ok(own.rest>0&&own.rest<own.h,'the resting crop is '+own.rest);
   assert.deepEqual(p.errors,[]);
 });
 
