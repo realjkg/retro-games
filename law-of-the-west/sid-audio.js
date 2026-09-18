@@ -262,7 +262,7 @@ const SOUNDS={
 const GATE={step:90,click:30,hit:60,ricochet:70};
 const SND=(function(){
   const AC=window.AudioContext||window.webkitAudioContext;
-  let ac=null,bus=null,nz=null,on=true; const lastAt={};
+  let ac=null,bus=null,nz=null,on=true,woke=0; const lastAt={};
   function noiseBuf(c){                       // SID's 23-bit LFSR
     const n=(c.sampleRate*2)|0, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
     let r=0x7ffff8, held=1, acc=0; const inc=(SID_CLK/256)/c.sampleRate;
@@ -285,8 +285,16 @@ const SND=(function(){
                        tail.release.value=0.14;
                        bus.connect(tail); tail.connect(ac.destination); }
              else bus.connect(ac.destination);
-             nz=noiseBuf(ac); }
-    if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
+             nz=noiseBuf(ac);
+             try{ ac.onstatechange=function(){
+               if(on&&ac&&ac.state!=="running"){try{ac.resume();}catch(e){}}
+             }; }catch(e){}
+    }
+    // Not only "suspended". Safari on iOS parks a context in "interrupted" when
+    // the audio route changes under it - a call arrives, another app takes the
+    // session, or the screen is mirrored to a television - and a check for
+    // "suspended" alone walks straight past it and never plays again.
+    if(ac.state!=="running"){try{ac.resume();}catch(e){}}
     return ac;
   }
   /* a pulse of variable width: saw minus the same saw delayed by width/f */
@@ -501,7 +509,27 @@ const SND=(function(){
     /* Backgrounding. The context is suspended rather than torn down, and only
      * another gesture resumes it. */
     suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
-    get suspended(){ return !!ac&&ac.state==="suspended"; },
+    get suspended(){ return !!ac&&ac.state!=="running"; },
+    get state(){ return ac?ac.state:"none"; },
+    /* Waking is not unlocking. It never builds a context - before the first
+     * gesture there is nothing to wake and building one would be the very thing
+     * the browser forbids - it only takes back one that already exists and has
+     * been parked. When resuming keeps failing the context itself is gone in a
+     * way resume cannot reach, which a route change can do, so it is thrown
+     * away and the next cue builds a fresh one. */
+    wake(){
+      if(!on||!ac)return false;
+      if(ac.state==="running"){woke=0;return true;}
+      try{ac.resume();}catch(e){}
+      if(ac.state==="running"){woke=0;return true;}
+      if(++woke>=4){
+        woke=0; const dead=ac;
+        try{stopAll();}catch(e){}
+        ac=null; bus=null; nz=null; themeGain=null; themeName=null; slots=null; live=[];
+        try{dead.close();}catch(e){}
+      }
+      return false;
+    },
     /* Restoring what the player chose last time must not be the thing that
      * builds an AudioContext: no sound before a gesture, whatever is stored. */
     quiet(){on=false; return on;},

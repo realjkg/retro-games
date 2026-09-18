@@ -1228,6 +1228,9 @@ function audioReady(){
   A.master=A.ctx.createGain();
   A.master.gain.value=0.5;
   A.master.connect(A.ctx.destination);
+  try{ A.ctx.onstatechange=function(){
+    if(A.on&&A.ctx&&A.ctx.state!=='running'){try{A.ctx.resume();}catch(e){}}
+  }; }catch(e){}
   return A.ctx;
 }
 
@@ -1337,10 +1340,25 @@ function setSoundLabel(){
   const b=$('sound');
   if(b)b.textContent=A.on?'SOUND ON':'SOUND OFF';
 }
+/* A route change announces nothing, so the context is checked on a slow tick
+ * and whenever the page comes back. This never builds a context: before the
+ * first gesture there is nothing to wake. */
+function wakeAudio(){
+  if(!A.on||!A.ctx)return;
+  if(A.ctx.state!=='running'){try{A.ctx.resume();}catch(e){}}
+}
+if(typeof setInterval==="function")setInterval(wakeAudio,1000);
+if(typeof document!=="undefined"&&document.addEventListener)
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)wakeAudio();});
+if(typeof addEventListener==="function"){
+  addEventListener("pageshow",wakeAudio); addEventListener("focus",wakeAudio);
+}
 function unlockAudio(){
   if(!A.on)return;
   const c=audioReady();
-  if(c&&c.state==='suspended'&&c.resume)c.resume();
+  // Not only 'suspended': Safari parks a context in 'interrupted' when the
+  // audio route changes under it, which is what mirroring to a television does.
+  if(c&&c.state!=='running'&&c.resume){try{c.resume();}catch(e){}}
   const s=$('audio-status');
   if(s&&c)s.textContent='';
 }

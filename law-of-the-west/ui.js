@@ -13,7 +13,7 @@ const muteBtn=document.getElementById("mute");
 let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
 let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
-let flash=0, bodyFall=0, said="", react="";
+let flash=0, bodyFall=0, said="", react="", wokeAt=0;
 
 /* ---- one clock for the sound ---- *
  * Cues used to be scheduled on setTimeout, which has no idea what happened
@@ -136,14 +136,103 @@ function drawFigure(rows,x0,y0,look,cw,ch){
     }
   }
 }
-function visitor(enc,pose){
+
+/* ---- what a body does while it is standing there ---- *
+ * A figure that holds one pose is a cut-out, whatever is drawn on it. These
+ * are twenty-four cells across, so there is no room to act with; what there is
+ * is a pixel of movement, and a pixel at this size is the difference between a
+ * man waiting and a prop of a man. Everyone breathes, sways off one hip, and
+ * blinks on his own clock. The head carries a mood on three rows of it: a brow
+ * that comes down, a mouth that sets, and a lean. And when the sheriff says
+ * something, whoever he said it to reacts before he answers.
+ */
+const HEADROWS=6;                       // rows 0-5 are hat, brow, eyes, jaw
+const MOODS={
+  warm:   {brow:0, mouth:"soft", lean: 0, rise: 0},
+  neutral:{brow:0, mouth:"set",  lean: 0, rise: 0},
+  wary:   {brow:1, mouth:"set",  lean: 0, rise:-1},
+  hostile:{brow:2, mouth:"grim", lean: 1, rise:-1},
+  scared: {brow:0, mouth:"open", lean:-1, rise: 1}
+};
+/* Each round of talk is named for its temper, so the name is the mood. */
+const MOOD_OF={
+  cordial:"warm", kind:"warm", civil:"warm", easy:"warm", warm:"warm", admire:"warm",
+  proud:"warm", supper:"warm", deal:"warm", square:"warm", money:"warm", talk:"warm",
+  wary:"wary", doubt:"wary", probe:"wary", watch:"wary", secret:"wary", clam:"wary",
+  cool:"wary", listen:"wary", why:"wary", seen:"wary", askers:"wary", count:"wary",
+  deck:"wary", window:"wary", confirm:"wary", terms:"wary", business:"wary",
+  prickly:"hostile", sour:"hostile", hard:"hostile", stern:"hostile", iron:"hostile",
+  sting:"hostile", press:"hostile", order:"hostile", belt:"hostile", intent:"hostile",
+  brisk:"hostile", sleeves:"hostile",
+  caught:"scared", out:"scared", leave:"scared", turn:"scared", rope:"scared",
+  yield:"scared", clam_up:"scared"
+};
+function moodNow(){
+  if(G.duel&&G.duel.drawn)return "hostile";
+  if(G.phase==="tell")return "hostile";
+  if(G.outcome==="surrendered")return "scared";
+  return MOOD_OF[G.node]||"neutral";
+}
+/* Nobody breathes in time with anybody else. */
+const phaseOf=id=>((hash(id.length,id.charCodeAt(0)|0)%1000)/1000)*6.283;
+let reactAt=-1e9, reactKind="";
+function reactTo(nextNode){
+  const m=MOOD_OF[nextNode]||"neutral";
+  reactKind=(m==="hostile"||m==="scared")?"flinch":(m==="warm"?"nod":"take");
+  reactAt=performance.now();
+}
+/* The eyes are the only cells named E on the face row, and the brow sits on the
+ * row above them: to bring a brow down is to put its own shadow over the eyes. */
+function expressOn(head,mood,blink){
+  const out=head.slice();
+  const eyeRow=4, browRow=3, mouthRow=5;
+  const eyes=[];
+  for(let c=0;c<(out[eyeRow]||"").length;c++)if(out[eyeRow][c]==="E")eyes.push(c);
+  const put=(r,c,ch)=>{
+    if(!out[r]||c<0||c>=out[r].length)return;
+    out[r]=out[r].slice(0,c)+ch+out[r].slice(c+1);
+  };
+  if(blink)for(const c of eyes)put(eyeRow,c,"F");
+  for(let k=0;k<mood.brow;k++)
+    for(const c of eyes)put(browRow,c-(k?1:0),"E");
+  if(eyes.length>=2){
+    const mid=Math.round((eyes[0]+eyes[eyes.length-1])/2);
+    if(mood.mouth==="grim"){put(mouthRow,mid-1,"E");put(mouthRow,mid,"E");}
+    else if(mood.mouth==="open"){put(mouthRow,mid,"E");put(mouthRow,mid+1,"E");}
+    else if(mood.mouth==="set")put(mouthRow,mid,"E");
+  }
+  return out;
+}
+function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
   const rows=figureRows(fig,pose);
   let lowest=0;
   for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
-  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow, on the grid
+  const t=(now||0)/1000, ph=phaseOf(enc.figure||enc.id||"x");
+  const mood=MOODS[moodNow()]||MOODS.neutral;
+  // breath, and the weight going from one hip to the other
+  const breath=Math.sin(t*1.7+ph)>0.55?-1:0;
+  const sway=Math.round(Math.sin(t*0.63+ph)*1.2);
+  // an eye shuts for a moment, on his own clock and not on anyone else's
+  const cyc=3.1+((ph*7)%2.4), blink=(t+ph)%cyc<0.13;
+  // and he answers before he answers: a flinch back, a nod in, a beat taken
+  const since=(now||0)-reactAt, RE=460;
+  let rdx=0, rdy=0;
+  if(since>=0&&since<RE){
+    const u=1-since/RE, e=u*u;
+    if(reactKind==="flinch"){rdx=-Math.round(2.6*e); rdy=-Math.round(e);}
+    else if(reactKind==="nod"){rdy=Math.round(1.6*e);}
+    else rdx=Math.round(1.2*e);
+  }
+  const bdx=sway+mood.lean, bdy=breath+mood.rise;
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow stays put
   ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
-  drawFigure(rows,SPRX,SPRY,look);
+  const body=rows.map((r,i)=>i>=HEADROWS?r:"");
+  const head=expressOn(rows.map((r,i)=>i<HEADROWS?r:""),mood,blink);
+  drawFigure(body,SPRX+bdx,SPRY+bdy,look);
+  // The shoulders come up, the head stays where it was: that is what hunching
+  // is. Letting the rise carry the head too only opens a gap at his neck.
+  drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-mood.rise+rdy,look);
 }
 
 /* ---- the sheriff ---- *
@@ -866,8 +955,8 @@ function drawScene(now){
       ctx.fillStyle="rgba(0,0,0,"+(0.34*lay+0.06).toFixed(3)+")";
       ctx.fillRect(FIG.cx-6,FIG.ground-1,Math.round(12+40*lay),2);
       ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(turn);
-      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
-    } else visitor(enc,pose);
+      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle",now);ctx.restore();
+    } else visitor(enc,pose,now);
   }
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
@@ -1111,8 +1200,14 @@ document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
  * on the way back is what resumes it, as it was what started it. */
 document.addEventListener?.("visibilitychange",()=>{
   if(document.hidden){releaseAll(); newSeq(); SND.suspend(); return;}
+  // Coming back is not a fresh start: the gesture that unlocked the audio still
+  // counts, so the sound comes back with the picture rather than waiting for
+  // another tap that, on a television across the room, may never come.
+  SND.wake();
   if(gameMode)keepAwake();
 });
+addEventListener("pageshow",()=>SND.wake());
+addEventListener("focus",()=>SND.wake());
 addEventListener("pagehide",()=>{releaseAll(); newSeq(); SND.suspend();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
@@ -1251,6 +1346,7 @@ function fire(){
   const b=beat(); if(!b){SND.deny();return;}
   const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
+  reactTo(chosen.next||chosen.end||chosen.action||"");
   say(G,cursor);
   if(G.phase==="tell"){G.tell.at=performance.now();SND.cut();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
@@ -1491,6 +1587,9 @@ function frame(now){
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     runAim(now);
     runQueue(now);
+    // Nothing announces an audio route change. Once a second, if the sound is
+    // meant to be on and the context is not running, take it back.
+    if(now-wokeAt>1000){wokeAt=now; if(SND.on&&SND.suspended)SND.wake();}
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){

@@ -330,10 +330,30 @@ function unlockAudio(){
     if(!SOUND.ctx){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
       SOUND.ctx=new Audio(); SOUND.master=SOUND.ctx.createGain();
       SOUND.master.gain.value=0.18; SOUND.master.connect(SOUND.ctx.destination);
-      SOUND.ctx.onstatechange=audioLabel;}
+      SOUND.ctx.onstatechange=function(){
+        // Safari parks a context in "interrupted" when the audio route changes
+        // under it - mirroring the screen to a television does exactly that -
+        // and nothing asks for it back unless we do.
+        if(SOUND.enabled&&SOUND.ctx&&SOUND.ctx.state!=="running")
+          {try{SOUND.ctx.resume();}catch(e){}}
+        audioLabel();
+      };}
     if(SOUND.ctx.state!=="running")SOUND.ctx.resume().then(audioLabel).catch(()=>{});
     audioLabel();
   }catch(e){document.getElementById("audio-status").textContent="Audio unavailable";}
+}
+/* A route change announces nothing, so the context is checked on a slow tick
+ * and whenever the page comes back to the front. Waking never builds a context:
+ * before the first gesture there is nothing to wake. */
+function wakeAudio(){
+  if(!SOUND.enabled||!SOUND.ctx)return;
+  if(SOUND.ctx.state!=="running"){try{SOUND.ctx.resume();}catch(e){}}
+}
+if(typeof setInterval==="function")setInterval(wakeAudio,1000);
+if(typeof document!=="undefined"&&document.addEventListener)
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)wakeAudio();});
+if(typeof addEventListener==="function"){
+  addEventListener("pageshow",wakeAudio); addEventListener("focus",wakeAudio);
 }
 function tone(hz,endHz,seconds,type="square",level=.3){
   const a=SOUND.ctx;if(!SOUND.enabled||!a||a.state!=="running"||document.hidden)return;
