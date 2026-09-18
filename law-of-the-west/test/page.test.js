@@ -18,7 +18,7 @@ const HTML=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
 const open_pages=[];
 process.on('exit',()=>open_pages.forEach(d=>{try{d.window.close();}catch(e){}}));
 
-function openPage(){
+function openPage(setup){
   if(jsdomMissing)throw new Error('jsdom is not installed');
   // no pretendToBeVisual: the page's loop must not keep the harness alive.
   // The canvas stub goes in before the page's scripts run, because they capture
@@ -26,7 +26,8 @@ function openPage(){
   const ctx2d=new Proxy({},{get:(t,k)=>k==='canvas'?{width:320,height:200}:()=>{}});
   const dom=new JSDOM(HTML,{runScripts:"dangerously",
     url:"https://example.invalid/law-of-the-west/",
-    beforeParse(win){win.HTMLCanvasElement.prototype.getContext=()=>ctx2d;}});
+    beforeParse(win){win.HTMLCanvasElement.prototype.getContext=()=>ctx2d;
+      if(setup)setup(win);}});
   open_pages.push(dom);
   const w=dom.window;
   const errors=[];
@@ -414,5 +415,48 @@ test('8p. the sound test reaches every cue the game can make', {skip:jsdomMissin
   assert.equal(p.ev('screen'),null,'there is no way back to the street');
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','the title no longer starts a day');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('8q. the sound remembers itself, steps back for a cue, and never repeats exactly',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  // a preference to be silent survives a reload, and restoring it is not itself
+  // the gesture that builds an AudioContext
+  const quiet=openPage(win=>{try{win.localStorage.setItem('lotw.sound','0');}catch(e){}});
+  assert.equal(quiet.ev('SND.on'),false,'the page came back up making noise');
+  assert.equal(quiet.el('mute').textContent,'SOUND OFF','the control does not say so');
+  assert.equal(quiet.el('mute').getAttribute('aria-pressed'),'false');
+  quiet.tap('[data-cmd="fire"]');
+  assert.equal(quiet.ev('typeof (window.AudioContext||window.webkitAudioContext)'),
+    'undefined','jsdom grew an AudioContext');
+  assert.equal(quiet.ev('SND.on'),false,'a gesture turned the sound back on');
+  assert.deepEqual(quiet.errors,[]);
+
+  // and turning it off writes that down
+  const p=openPage();
+  assert.equal(p.ev('SND.on'),true,'a fresh page came up silent');
+  p.tap('[data-cmd="mute"]');
+  assert.equal(p.ev('SND.on'),false,'the control did not silence it');
+  assert.equal(p.w.localStorage.getItem('lotw.sound'),'0','the choice was not kept');
+  p.tap('[data-cmd="mute"]');
+  assert.equal(p.w.localStorage.getItem('lotw.sound'),'1');
+  assert.equal(p.el('mute').textContent,'SOUND ON');
+
+  // every cue the game can fire is one the engine knows, and the ones a player
+  // hears over and over are the ones allowed to move
+  const cues=p.ev('Object.keys(SOUNDS)');
+  for(const n of p.ev('Object.keys(SOUNDS).filter(k=>SND.spec.varies(k))'))
+    assert.ok(cues.indexOf(n)>=0,'nothing named '+n+' can be varied');
+  for(const n of ['gunshot','hit','ricochet','click','step'])
+    assert.ok(p.ev(`SND.spec.varies(${JSON.stringify(n)})`),n+' fires identically every time');
+  for(const n of p.ev('Object.keys(SOUNDS).filter(k=>k.indexOf("th_")===0)'))
+    assert.equal(p.ev(`SND.spec.varies(${JSON.stringify(n)})`),false,
+      n+' is a tune and must not be detuned');
+
+  // a cue knows its own length, which is what the theme under it ducks for
+  assert.ok(p.ev('SND.spec.lengthOf(SOUNDS.gunshot)')>0,'a gunshot has no length');
+  assert.ok(p.ev('SND.spec.lengthOf(SOUNDS.th_kid)')>p.ev('SND.spec.lengthOf(SOUNDS.click)'),
+    'a theme is not longer than a click');
+  assert.ok(p.ev('SND.spec.duck')>0&&p.ev('SND.spec.duck')<1,'the duck is '+p.ev('SND.spec.duck'));
   assert.deepEqual(p.errors,[]);
 });

@@ -970,8 +970,22 @@ function advance(){
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,
   holster:()=>{holster(G);paint();},
-  mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
-    muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
+  mute:()=>{const on=SND.toggle();showSound(on);
+    try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
+function showSound(on){
+  if(!muteBtn)return;
+  muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+  muteBtn.setAttribute("aria-pressed",on?"true":"false");
+}
+/* A player who turned the sound off does not want it back on every reload. The
+ * preference is restored through quiet(), never through toggle(), so restoring
+ * it is not itself the gesture that builds an AudioContext. */
+(function restoreSound(){
+  let off=false;
+  try{off=localStorage.getItem("lotw.sound")==="0";}catch(e){}
+  if(off)SND.quiet();
+  showSound(SND.on);
+})();
 /* Every on-screen control carries data-cmd; the same names are the key map, so
  * a control can never exist that no handler covers.
  *

@@ -448,7 +448,17 @@ const SND=(function(){
   function ctx(){
     if(!AC)return null;
     if(!ac){ ac=new AC(); bus=ac.createGain(); bus.gain.value=0.3;
-             bus.connect(ac.destination); nz=noiseBuf(ac); }
+             // A shot, a hit, a bell and a theme can all land on the same frame.
+             // Three voices was the machine's whole limit; nothing here stops
+             // eight, so the bus is held down rather than allowed to clip.
+             let tail=null;
+             try{ tail=ac.createDynamicsCompressor(); }catch(e){ tail=null; }
+             if(tail){ tail.threshold.value=-14; tail.knee.value=12;
+                       tail.ratio.value=6; tail.attack.value=0.003;
+                       tail.release.value=0.14;
+                       bus.connect(tail); tail.connect(ac.destination); }
+             else bus.connect(ac.destination);
+             nz=noiseBuf(ac); }
     if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
     return ac;
   }
@@ -464,11 +474,12 @@ const SND=(function(){
     a.start(t0); b.start(t0); a.stop(t0+dur+0.05); b.stop(t0+dur+0.05);
     return out;
   }
-  function voice(v,t0base,dest){
+  function voice(v,t0base,dest,vary){
     const c=ctx(); if(!c)return;
     const notes=v.seq||[[0,0,v.dur]];
     for(const [st,ns,nd] of notes){
-      const t0=t0base+(v.dly||0)+ns, dur=nd, mul=Math.pow(2,st/12);
+      const t0=t0base+(v.dly||0)+ns, dur=nd;
+      const mul=Math.pow(2,st/12)*((vary&&vary.f)||1);
       const n=Math.max(2,Math.round(dur/FRAME));
       const steps=[];
       for(let k=0;k<=n;k++){ const u=k/n;
@@ -476,7 +487,7 @@ const SND=(function(){
           f:sidF((v.f1?v.f0*Math.pow(v.f1/v.f0,u):v.f0)*mul),
           pw:(v.pw==null?0.5:(v.pw1==null?v.pw:v.pw+(v.pw1-v.pw)*u)),
           cut:sidCut(v.cut1?v.cut*Math.pow(v.cut1/v.cut,u):(v.cut||8000)),
-          g:sid4((v.vol==null?0.2:v.vol)*Math.pow(1-u,1.5)) }); }
+          g:sid4((v.vol==null?0.2:v.vol)*((vary&&vary.g)||1)*Math.pow(1-u,1.5)) }); }
       let src;
       if(v.w==="pulse") src=pulseSource(c,v,t0,dur,steps);
       else if(v.w==="noise"){ const s=c.createBufferSource();
@@ -501,12 +512,47 @@ const SND=(function(){
       node.connect(flt); flt.connect(env); env.connect(dest||bus);
     }
   }
+  /* How long a cue runs, so the theme under it knows how long to get out of
+   * its way. */
+  function lengthOf(list){
+    let end=0;
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes)end=Math.max(end,(v.dly||0)+n[1]+n[2]);
+    }
+    return end;
+  }
+  /* A man's entrance theme is playing and then he says something, or a gun goes
+   * off. Both used to sound at once at the same weight. The theme steps back
+   * under the cue and comes back up behind it, which is the difference between
+   * a score and a pile-up. */
+  const DUCK=0.40;
+  function duckFor(c,secs){
+    if(!themeGain)return;
+    const g=themeGain.gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(DUCK,t+0.03);
+      g.linearRampToValueAtTime(1,t+Math.max(0.15,secs)+0.18);
+    }catch(e){}
+  }
+  /* The same cue twice running, bit for bit, is the tell of a machine. What a
+   * hammer does to a cartridge is never twice the same, so anything struck,
+   * fired or walked on moves a few cents and a little in level each time. A
+   * theme never does: it has to stay in tune with itself. */
+  const VARIES=new Set(["gunshot","hit","ricochet","graze","click","step","dryfire",
+    "wound","cock","holster","reload","patch","creak","select","deny","point"]);
   function play(name){
     if(!on)return; const list=SOUNDS[name]; if(!list)return;
     const ms=GATE[name];
     if(ms){const t=performance.now(); if(lastAt[name]&&t-lastAt[name]<ms)return; lastAt[name]=t;}
     const c=ctx(); if(!c)return;
-    list.forEach(v=>voice(v,c.currentTime));
+    const vary=VARIES.has(name)
+      ? {f:Math.pow(2,(Math.random()*0.5-0.25)/12), g:0.88+Math.random()*0.24}
+      : null;
+    duckFor(c,lengthOf(list));
+    list.forEach(v=>voice(v,c.currentTime,null,vary));
   }
   /* A character's theme runs on its own gain so a drawn gun can cut it off
    * mid-bar, which is the one thing an entrance theme has to be able to do.
@@ -515,7 +561,8 @@ const SND=(function(){
   function cut(){
     const c=ctx(); if(!c||!themeGain)return;
     const g=themeGain; themeGain=null; themeName=null;
-    try{g.gain.setValueAtTime(g.gain.value,c.currentTime);
+    try{g.gain.cancelScheduledValues(c.currentTime);
+        g.gain.setValueAtTime(Math.max(0.0001,g.gain.value),c.currentTime);
         g.gain.linearRampToValueAtTime(0,c.currentTime+0.05);}catch(e){}
     setTimeout(()=>{try{g.disconnect();}catch(e){}},400);
   }
@@ -530,7 +577,14 @@ const SND=(function(){
   }
   const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
     get playing(){return themeName;},
-    toggle(){on=!on; if(!on)cut(); else{ctx();play("select");} return on;}};
+    toggle(){on=!on; if(!on)cut(); else{ctx();play("select");} return on;},
+    /* Restoring what the player chose last time must not be the thing that
+     * builds an AudioContext: no sound before a gesture, whatever is stored. */
+    quiet(){on=false; return on;},
+    /* What the mix does, readable from outside so it can be asserted without
+     * an AudioContext: which cues are allowed to move, how long one runs, and
+     * how far a theme steps back under it. */
+    spec:{varies:n=>VARIES.has(n), lengthOf, duck:DUCK}};
   Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
   return API;
 })();
@@ -2871,8 +2925,22 @@ function advance(){
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,
   holster:()=>{holster(G);paint();},
-  mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
-    muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
+  mute:()=>{const on=SND.toggle();showSound(on);
+    try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
+function showSound(on){
+  if(!muteBtn)return;
+  muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+  muteBtn.setAttribute("aria-pressed",on?"true":"false");
+}
+/* A player who turned the sound off does not want it back on every reload. The
+ * preference is restored through quiet(), never through toggle(), so restoring
+ * it is not itself the gesture that builds an AudioContext. */
+(function restoreSound(){
+  let off=false;
+  try{off=localStorage.getItem("lotw.sound")==="0";}catch(e){}
+  if(off)SND.quiet();
+  showSound(SND.on);
+})();
 /* Every on-screen control carries data-cmd; the same names are the key map, so
  * a control can never exist that no handler covers.
  *
