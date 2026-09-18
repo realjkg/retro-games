@@ -310,6 +310,7 @@ function drawScene(now){
   ctx.textAlign="left"; ctx.textBaseline="middle";
   const counted=Math.min(G.encounter+1,CAST.length);
   ctx.fillText(G.phase==="summary"?"GOLD GULCH   SUNDOWN"
+    :G.interlude?((enc?enc.name.toUpperCase():"")+"   A ROBBERY")
     :((enc?enc.name.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+CAST.length),4,5);
   ctx.textAlign="right"; ctx.fillStyle=G.wounds?C64.red:C64.lgy;
   ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-4,5);
@@ -404,6 +405,7 @@ const OUTCOME_LINES={
   killed_him:"He is dead in the street, and the street saw who fired.",
   innocent_killed:"He never went for a gun. Gold Gulch watched you shoot him anyway.",
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
+  wounded_innocent:"You have shot the arm off a man who never had a gun in it, in front of the street.",
   wounded:"You are hit, and on your feet, which is more than some manage.",
   doctor_saved:"The doctor has you inside and the ball out before the dust settles.",
   doctor_came:"The doctor comes, unhurried, and does the work without once looking at you.",
@@ -507,11 +509,15 @@ function newScene(){
   (e&&e.arrive||[]).forEach((cue,i)=>{
     if(typeof SND[cue]==="function")setTimeout(()=>SND[cue](),420+i*520);
   });
+  // and then his own theme, which is how you know who is in the street
+  const theme=e&&e.theme;
+  if(theme)setTimeout(()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);},700);
 }
 function up(){
   if(G.phase==="intro")return;
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
+    SND.cut();                                  // the theme stops where the gun starts
     SND.holster(); SND.cock(); setTimeout(()=>SND.aim(),140); paint(); return;
   }
   if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
@@ -536,7 +542,7 @@ function fire(){
   if(G.phase==="interlude"){
     const warned=!!G.tips[G.interlude];
     enterJob(G);
-    if(warned){SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
+    if(warned){SND.cut();SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
     else settleSound();
     paint(); return;
   }
@@ -554,7 +560,7 @@ function fire(){
   const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
   say(G,cursor);
-  if(G.phase==="tell"){G.tell.at=performance.now();SND.tell();SND.tension();}
+  if(G.phase==="tell"){G.tell.at=performance.now();SND.cut();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
   paint();
 }
@@ -578,6 +584,7 @@ function settleSound(){
   else if(o==="surrendered"){SND.respect();SND.thread();}
   else if(o==="departed"||o==="walked_away"||o==="turns_away")SND.step();
   else if(o==="disarmed"){SND.ricochet();SND.wound();}
+  else if(o==="wounded_innocent"){SND.wound();SND.disgrace();}
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
   else if(o==="innocent_killed"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
   else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
@@ -591,7 +598,7 @@ function settleSound(){
   if(G.phase==="summary")endSound();
 }
 function endSound(){
-  SND.dusk();
+  SND.cut(); SND.dusk();
   setTimeout(()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();},700);
 }
 function advance(){
@@ -600,6 +607,7 @@ function advance(){
   if(G.phase==="summary"){endSound();paint();return;}
   if(G.phase!=="interlude")openDialogue(G);
   newScene(); SND.clock(); SND.wind(); paint();
+  if(G.phase==="interlude")setTimeout(()=>{if(G.phase==="interlude")SND.theme("th_job");},300);
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,

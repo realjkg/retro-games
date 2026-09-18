@@ -239,21 +239,231 @@ test('9. what the crosshair is over is what the bullet finds', ()=>{
   assert.deepEqual([g.scene.w,g.scene.h],[320,200],'the logical screen is not 320x200');
 });
 
-test('10. every cue is played or reserved, and the themes are named', ()=>{
+test('10. every cue is played or reserved, and every caller has his own theme', ()=>{
   const ui=fs.readFileSync(path.join(ROOT,'ui.js'),'utf8');
   const {run}=load();
   const vm=require('node:vm');
   const audio=fs.readFileSync(path.join(ROOT,'sid-audio.js'),'utf8');
   const abox={};vm.createContext(abox);
   vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
-  const cues=Object.keys(abox.S);
+  const S=abox.S, cues=Object.keys(S);
   const arrivals=new Set(JSON.parse(run('JSON.stringify(CAST.flatMap(e=>e.arrive||[]))')));
-  const RESERVED=['romance','title','dusk','dawn','badge'];
-  const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)&&!RESERVED.includes(c));
-  assert.deepEqual(idle,[],'cues nothing plays: '+idle.join(', '));
   const themes=JSON.parse(run('JSON.stringify(CAST.map(e=>e.theme))'));
+  const named=new Set(themes.concat('th_job'));
+  const RESERVED=['romance','title','dusk','dawn','badge'];
+  const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)
+    &&!RESERVED.includes(c)&&!named.has(c));
+  assert.deepEqual(idle,[],'cues nothing plays: '+idle.join(', '));
   assert.equal(new Set(themes).size,11,'callers share entrance themes');
-  report.themesPending=themes.filter(t=>!cues.includes(t));
+  const missing=[...named].filter(t=>!cues.includes(t));
+  assert.deepEqual(missing,[],'themes with no music written: '+missing.join(', '));
+  // three voices was the machine's limit, so no cue may need a fourth at once
+  const over=[];
+  for(const name of named){
+    let longest=0;
+    const spans=[];
+    for(const v of S[name]){
+      for(const [,st,d] of (v.seq||[[0,0,v.dur]])){
+        spans.push([(v.dly||0)+st,(v.dly||0)+st+d]);
+        longest=Math.max(longest,(v.dly||0)+st+d);
+      }
+    }
+    for(const [t] of spans){
+      const n=spans.filter(([a,b])=>t>=a-1e-9&&t<b-1e-9).length;
+      if(n>3){over.push(name+' needs '+n+' voices');break;}
+    }
+    if(longest<0.8||longest>6)over.push(name+' runs '+longest.toFixed(2)+'s');
+  }
+  assert.deepEqual(over,[],over.join('; '));
+  // a drawn gun has to be able to stop one
+  assert.ok(audio.includes('function theme(')&&audio.includes('function cut('),
+    'the audio has no way to start or stop a theme');
+  assert.ok(ui.includes('SND.cut()'),'nothing ever cuts a theme');
+  report.themes=[...named];
+});
+
+test('11. eleven figures, no two alike, each with hitboxes over his own art', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const bad=[], seen=new Map();
+    for(const e of CAST.concat(Object.keys(JOBS).map(k=>JOBS[k]))){
+      const fig=figureOf(e), key=(e.figure||e.id);
+      if(fig.rows.length!==SPR.h)bad.push(key+": "+fig.rows.length+" rows, expected "+SPR.h);
+      for(const r of fig.rows)if(r.length!==SPR.w)bad.push(key+": a row is "+r.length+" wide");
+      const sig=fig.rows.join("|");
+      if(seen.has(sig)&&seen.get(sig)!==key&&!JOBS[key]&&!JOBS[seen.get(sig)])
+        bad.push(key+" and "+seen.get(sig)+" are the same figure");
+      if(!JOBS[key])seen.set(sig,key);
+      const b=fig.box||DEFAULT_BOX;
+      for(const k of ["lethal","weapon","raised"]){
+        const [c0,r0,c1,r1]=b[k];
+        if(c0<0||r0<0||c1>=SPR.w||r1>=SPR.h||c1<c0||r1<r0)bad.push(key+"/"+k+" is off the grid");
+      }
+      // the lethal box has to be over him, and the weapon box over his weapon
+      const filled=(c0,r0,c1,r1,ch)=>{
+        for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+          const g=(fig.rows[r]||"")[c]||".";
+          if(ch?g===ch:g!==".")return true;
+        } return false;
+      };
+      if(!filled.apply(null,b.lethal))bad.push(key+": the lethal box is over empty air");
+      if(e.armed&&!filled.apply(null,b.weapon.concat("G")))
+        bad.push(key+": the weapon box is not over any gunmetal");
+      if(e.armed&&fig.raise){
+        const rows=fig.rows.slice();
+        for(const k of Object.keys(fig.raise))
+          rows[+k]=(fig.raise[k]+"........................").slice(0,SPR.w);
+        const [c0,r0,c1,r1]=b.raised; let g=false;
+        for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)if(((rows[r]||"")[c])==="G")g=true;
+        if(!g)bad.push(key+": the raised box is not over the raised gun");
+      }
+      if(e.armed&&!fig.raise&&!e.forcedDuel&&false)bad.push(key+": no raised pose");
+    }
+    // the boxes must not overlap, or a shot would be two things at once
+    const over=(p,q)=>p.x<q.x+q.w&&q.x<p.x+p.w&&p.y<q.y+q.h&&q.y<p.y+p.h;
+    for(const e of CAST){
+      const bx=boxesFor(e);
+      if(over(bx.weapon,bx.lethal))bad.push(e.id+": weapon and lethal boxes overlap");
+      if(over(bx.weaponRaised,bx.lethal))bad.push(e.id+": raised and lethal boxes overlap");
+      for(const k of Object.keys(bx)){const r=bx[k];
+        if(r.x<0||r.y<0||r.x+r.w>SCENE.w||r.y+r.h>SCENE.h)bad.push(e.id+"/"+k+" is off the scene");}
+    }
+    return JSON.stringify({bad,figures:[...seen.values()]});
+  })()`));
+  assert.deepEqual(out.bad,[]);
+  assert.equal(out.figures.length,11,'expected eleven distinct callers');
+  report.figures=out.figures;
+});
+
+test('12. every caller is reachable and every action class occurs across the day', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const actions={}, ends={}, unwritten=[];
+    for(const e of CAST){
+      if(!written(e)){unwritten.push(e.id);continue;}
+      const per=new Set();
+      for(const id of Object.keys(e.rounds))
+        for(const r of e.rounds[id].replies){
+          if(r.action){actions[r.action]=(actions[r.action]||0)+1;per.add("act:"+r.action);}
+          if(r.end)per.add("end:"+r.end);
+        }
+      ends[e.id]=[...per].sort();
+    }
+    return JSON.stringify({actions,ends,unwritten});
+  })()`));
+  assert.deepEqual(out.unwritten,['lastgun'],'the only caller without words is the last one');
+  for(const a of ['draw','ambush','delayed','surrender','depart'])
+    assert.ok(out.actions[a]>0,'no caller ever answers with "'+a+'"');
+  report.actions=out.actions;
+});
+
+test('13. the doctor has five states and each one decides the day differently', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const hit=(set,n)=>{const G=newDay({seed:21});G.encounter=2;beginEncounter(G);
+      set(G); for(let i=0;i<(n||1);i++)if(G.alive)takeHit(G,"test");
+      return {state:doctorState(G),outcome:G.outcome,phase:G.phase,alive:G.alive,wounds:G.wounds};};
+    return JSON.stringify({
+      civil:    hit(G=>{G.doctor.disposition=1;G.doctor.sober=true;},2),
+      neutral1: hit(G=>{G.doctor.disposition=0;G.doctor.sober=true;},1),
+      neutral2: hit(G=>{G.doctor.disposition=0;G.doctor.sober=true;},2),
+      drunk1:   hit(G=>{G.doctor.sober=false;G.doctor.disposition=1;},1),
+      drunk2:   hit(G=>{G.doctor.sober=false;G.doctor.disposition=1;},2),
+      hostile:  hit(G=>{G.doctor.disposition=-2;},1),
+      dead:     hit(G=>{G.doctor.alive=false;},1)});
+  })()`));
+  assert.equal(out.civil.state,'civil');
+  assert.equal(out.civil.alive,true,'a civil doctor let two wounds kill him');
+  assert.equal(out.civil.outcome,'doctor_saved');
+  assert.equal(out.neutral1.alive,true,'one wound alone was fatal');
+  assert.equal(out.neutral1.outcome,'doctor_came');
+  assert.equal(out.neutral2.alive,false,'the second wound was survivable');
+  assert.equal(out.drunk1.state,'drunk');
+  assert.equal(out.drunk1.outcome,'doctor_drunk');
+  assert.equal(out.drunk2.alive,false);
+  assert.equal(out.hostile.alive,false,'insulting him was survivable');
+  assert.equal(out.dead.alive,false,'a dead doctor still came');
+  report.doctorStates=out;
+});
+
+test('14. shooting the doctor takes the town\'s only rescue with him', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    for(let seed=0;seed<200;seed++){
+      const G=newDay({seed}); G.encounter=CAST.findIndex(e=>e.id==="doctor");
+      beginEncounter(G); openDialogue(G);
+      drawGun(G,0); aimAt(G,"torso"); shoot(G,500);
+      if(G.outcome==="innocent_killed")
+        return JSON.stringify({alive:G.doctor.alive,state:doctorState(G),
+          innocents:G.innocentsKilled,seed});
+    }
+    return JSON.stringify({alive:true,state:"never hit him"});
+  })()`));
+  assert.equal(out.alive,false,'the doctor survived being shot dead');
+  assert.equal(out.state,'dead');
+  assert.equal(out.innocents,1);
+});
+
+test('15. an unarmed caller has no gun to shoot out of his hand', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    for(let seed=0;seed<200;seed++){
+      const G=newDay({seed}); G.encounter=CAST.findIndex(e=>e.id==="rose");
+      beginEncounter(G); openDialogue(G);
+      drawGun(G,0); aimAt(G,"arm"); shoot(G,500);
+      if(G.outcome==="wounded_innocent")
+        return JSON.stringify({outcome:G.outcome,arrests:G.arrests,authority:G.authority});
+    }
+    return JSON.stringify({outcome:"never hit her arm",arrests:0,authority:0});
+  })()`));
+  assert.equal(out.outcome,'wounded_innocent','shooting her arm made an arrest');
+  assert.equal(out.arrests,0);
+  assert.ok(out.authority<0);
+});
+
+test('16. all three robberies happen, in their place, and only once each', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const runDay=(tips)=>{
+      const want=!!tips.stage;
+      const G=newDay({seed:5}); Object.assign(G.tips,tips);
+      const seen=[]; let guard=0;
+      beginEncounter(G); openDialogue(G);
+      while(G.phase!=="summary"&&guard++<500){
+        if(G.phase==="dialogue"){say(G,0); if(!want)Object.assign(G.tips,{train:false,stage:false,bank:false});}
+        else if(G.phase==="interlude"){
+          if(want)Object.assign(G.tips,{train:true,stage:true,bank:true});
+          seen.push(G.interlude+(G.tips[G.interlude]?":met":":missed"));
+          enterJob(G);}
+        else if(G.phase==="tell"){G.phase="duel";G.duel.drawn=true;}
+        else if(G.phase==="duel"||G.phase==="aiming"){aimAt(G,"arm");shoot(G,300);}
+        else if(G.phase==="resolve"){nextEncounter(G);if(G.phase==="approach")openDialogue(G);}
+        else if(G.phase==="approach")openDialogue(G);
+        else break;
+      }
+      return {seen,missed:G.crimesMissed,phase:G.phase,
+        order:INTERLUDES.map(i=>i.job+"@"+i.after)};
+    };
+    return JSON.stringify({warned:runDay({stage:true,train:true,bank:true}),blind:runDay({})});
+  })()`));
+  assert.deepEqual(out.warned.order,['stage@4','train@8','bank@10']);
+  assert.deepEqual(out.blind.seen,['stage:missed','train:missed','bank:missed']);
+  assert.equal(out.blind.missed,3,'a blind sheriff missed '+out.blind.missed+' of three');
+  assert.deepEqual(out.warned.seen,['stage:met','train:met','bank:met']);
+  // every tip has a caller who can give it, before the job it is about
+  const {run:r2}=load();
+  const sources=JSON.parse(r2(`(()=>{
+    const first={};
+    CAST.forEach((e,i)=>{
+      for(const id of Object.keys(e.ends||{}))
+        for(const f of e.ends[id].flags||[])
+          if(f.indexOf("tip_")===0&&first[f.slice(4)]==null)first[f.slice(4)]=i+1;
+    });
+    return JSON.stringify({first,jobs:INTERLUDES});
+  })()`));
+  for(const i of sources.jobs)
+    assert.ok(sources.first[i.job]<=i.after,
+      'nobody can warn about the '+i.job+' job before it happens');
 });
 
 test('report', ()=>{

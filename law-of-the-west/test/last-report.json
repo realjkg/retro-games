@@ -50,7 +50,7 @@
       "wounds": 1
     }
   },
-  "themesPending": [
+  "themes": [
     "th_stranger",
     "th_rose",
     "th_kid",
@@ -61,6 +61,78 @@
     "th_gambler",
     "th_deputy",
     "th_belle",
-    "th_lastgun"
-  ]
+    "th_lastgun",
+    "th_job"
+  ],
+  "figures": [
+    "stranger",
+    "rose",
+    "kid",
+    "doctor",
+    "shotgun",
+    "willie",
+    "april",
+    "gambler",
+    "deputy",
+    "belle",
+    "lastgun"
+  ],
+  "actions": {
+    "delayed": 7,
+    "draw": 13,
+    "depart": 6,
+    "surrender": 9,
+    "ambush": 1
+  },
+  "doctorStates": {
+    "civil": {
+      "state": "civil",
+      "outcome": "doctor_saved",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 2
+    },
+    "neutral1": {
+      "state": "neutral",
+      "outcome": "doctor_came",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 1
+    },
+    "neutral2": {
+      "state": "neutral",
+      "outcome": "doctor_came",
+      "phase": "summary",
+      "alive": false,
+      "wounds": 2
+    },
+    "drunk1": {
+      "state": "drunk",
+      "outcome": "doctor_drunk",
+      "phase": "resolve",
+      "alive": true,
+      "wounds": 1
+    },
+    "drunk2": {
+      "state": "drunk",
+      "outcome": "doctor_drunk",
+      "phase": "summary",
+      "alive": false,
+      "wounds": 2
+    },
+    "hostile": {
+      "state": "hostile",
+      "outcome": null,
+      "phase": "summary",
+      "alive": false,
+      "wounds": 1
+    },
+    "dead": {
+      "state": "dead",
+      "outcome": null,
+      "phase": "summary",
+      "alive": false,
+      "wounds": 1
+    }
+  }
 }

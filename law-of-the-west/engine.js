@@ -190,10 +190,12 @@ function playerDraws(G){
 /* Latency and aim are read apart: fast and wide, or slow and shot. */
 function shoot(G,latencyMs){
   let d=G.duel, e=who(G);
+  // read what the crosshair is over before drawing first changes his pose:
+  // the player aimed at the hand on the hip, not at the hand he has not raised
+  const box=boxAt(G,G.aim.x,G.aim.y);
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.reflex=null;
-  const box=boxAt(G,G.aim.x,G.aim.y);
   d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
   const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
   if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
@@ -205,6 +207,10 @@ function shoot(G,latencyMs){
   const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
   if(hit==="miss"){d.result="miss";return theirReply(G);}
   if(hit==="arm"){
+    // there is nothing to shoot out of an unarmed caller's hand, and the town
+    // can see that as well as the sheriff can
+    if(!e.armed){d.result="wounded_innocent"; G.authority-=2; G.flags.push("offended");
+      return resolve(G,"wounded_innocent");}
     d.result="disarm"; G.arrests++; G.authority+=1; G.flags.push("arrest");
     return resolve(G,"disarmed");
   }

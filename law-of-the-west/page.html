@@ -47,6 +47,9 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 #bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;
   gap:8px;padding:3px 6px;font-size:11px;color:var(--ink);background:rgba(10,7,4,.55);
   pointer-events:none}
+/* The picture is 4:3, so upright the scene zone is exactly that and the words
+   take whatever is left: no black band between the street and the dialogue. */
+@media (orientation:portrait){#top{flex:0 0 auto;aspect-ratio:4/3}}
 #bottom{flex:1 1 50%;min-height:0;display:flex;flex-direction:column;gap:4px;padding:6px;
   background:var(--panel);border-top:2px solid var(--line)}
 /* The words must never be cut off: every line sizes to its own content, and the

@@ -168,7 +168,88 @@ const SOUNDS={
             {w:"tri",f0:1480,ring:1.51,dur:0.18,vol:0.09,cut:5200,cut1:2000,res:12,dly:0.3}],
   patch:   [{w:"tri",f0:329.63,vol:0.15,cut:2000,res:4,seq:[[0,0,0.22],[5,0.24,0.44]]},
             {w:"pulse",f0:164.81,pw:0.3,pw1:0.5,vol:0.1,cut:1600,res:6,
-             seq:[[0,0,0.22],[5,0.24,0.44]]}]
+             seq:[[0,0,0.22],[5,0.24,0.44]]}],
+  /* ---- entrance themes ---- *
+   * One per caller, eight to sixteen bars' worth in two or three voices, cut
+   * the moment a gun leaves the leather. The lead sits an octave below a bright
+   * arcade SID lead throughout; the top voice is only ever a glint. None of
+   * this is a transcription of anything: each is written to the character's
+   * job in the day, on the same three-voice constraint the machine had. */
+
+  /* the first man up the street: open fifths that ask and do not answer */
+  th_stranger:[{w:"pulse",f0:146.83,pw:0.2,pw1:0.44,vol:0.17,cut:1500,cut1:2200,res:8,
+             seq:[[0,0,0.34],[7,0.36,0.26],[10,0.64,0.52],[7,1.2,0.26],[0,1.5,0.9]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:460,res:3,
+             seq:[[0,0,1.16],[5,1.18,0.3],[0,1.5,0.9]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.66,0.1],[7,2.1,0.24]]}],
+  /* the saloon: off-beats pushed late, a flat third leaning on the major */
+  th_rose:  [{w:"pulse",f0:174.61,pw:0.3,pw1:0.6,vol:0.16,cut:1700,cut1:2400,res:7,
+             seq:[[3,0.12,0.2],[4,0.34,0.34],[7,0.72,0.2],[4,0.94,0.3],[3,1.28,0.2],
+                  [0,1.5,0.85]]},
+            {w:"tri",f0:87.31,vol:0.2,cut:420,res:3,
+             seq:[[0,0,0.2],[7,0.24,0.16],[0,0.48,0.2],[7,0.72,0.16],[0,0.96,0.2],
+                  [7,1.2,0.16],[0,1.44,0.9]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.028,cut:5000,res:6,seq:[[0,0.36,0.08],[3,1.3,0.12]]}],
+  /* the Kid: a dotted figure with a flattened second, and boot leather in the noise */
+  th_kid:   [{w:"pulse",f0:164.81,pw:0.14,pw1:0.4,vol:0.18,cut:1600,cut1:2600,res:10,
+             seq:[[0,0,0.16],[1,0.18,0.14],[0,0.34,0.16],[-4,0.52,0.34],
+                  [0,0.9,0.16],[1,1.08,0.14],[0,1.24,0.16],[-5,1.42,0.8]]},
+            {w:"tri",f0:82.41,vol:0.2,cut:440,res:4,
+             seq:[[0,0,0.5],[0,0.52,0.36],[-5,0.9,0.5],[-5,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:0.52},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:1.42}],
+  /* the doctor: slow, minor, and falling, the way a tired man comes to a door */
+  th_doctor:[{w:"pulse",f0:155.56,pw:0.24,pw1:0.4,vol:0.15,cut:1200,cut1:900,res:7,
+             seq:[[0,0,0.52],[-2,0.54,0.52],[-3,1.08,0.52],[-5,1.62,1.0]]},
+            {w:"tri",f0:77.78,vol:0.18,cut:400,cut1:280,res:3,
+             seq:[[0,0,1.06],[-3,1.08,0.52],[-5,1.62,1.0]]}],
+  /* the new gun: a fanfare that reaches one note further than it can hold */
+  th_shotgun:[{w:"pulse",f0:130.81,pw:0.18,pw1:0.5,vol:0.18,cut:1600,cut1:2800,res:9,
+             seq:[[0,0,0.22],[4,0.24,0.22],[7,0.48,0.22],[12,0.72,0.4],[11,1.14,0.86]]},
+            {w:"tri",f0:65.41,vol:0.2,cut:440,res:3,
+             seq:[[0,0,0.7],[0,0.72,0.4],[-1,1.14,0.86]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.74,0.1]]}],
+  /* Willy: small, quick and over before anybody has decided to mind */
+  th_willie:[{w:"pulse",f0:196,pw:0.4,pw1:0.5,vol:0.12,cut:2200,res:5,
+             seq:[[0,0,0.12],[2,0.13,0.12],[4,0.26,0.12],[7,0.39,0.12],
+                  [4,0.52,0.12],[2,0.65,0.12],[0,0.78,0.36]]},
+            {w:"tri",f0:98,vol:0.13,cut:500,res:3,seq:[[0,0,0.5],[0,0.52,0.62]]}],
+  /* Miss April: a suspended fourth taking its time about falling to the third */
+  th_april: [{w:"pulse",f0:174.61,pw:0.26,pw1:0.46,vol:0.16,cut:1500,cut1:2000,res:6,
+             seq:[[5,0,0.62],[4,0.64,0.9],[2,1.56,0.5],[0,2.08,0.95]]},
+            {w:"tri",f0:87.31,vol:0.19,cut:430,res:3,
+             seq:[[0,0,1.54],[9,1.56,0.5],[0,2.08,0.95]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.026,cut:5200,res:6,seq:[[0,0.68,0.1],[-3,2.12,0.3]]}],
+  /* the Gambler: a chromatic walk under a lead that never lands on the beat */
+  th_gambler:[{w:"pulse",f0:196,pw:0.12,pw1:0.42,vol:0.15,cut:1800,cut1:2600,res:11,
+             seq:[[0,0.14,0.2],[3,0.44,0.2],[2,0.74,0.2],[5,1.04,0.2],[3,1.34,0.7]]},
+            {w:"tri",f0:98,vol:0.19,cut:440,res:4,
+             seq:[[0,0,0.3],[1,0.3,0.3],[2,0.6,0.3],[3,0.9,0.3],[5,1.2,0.3],[-4,1.5,0.6]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.026,cut:5000,res:6,seq:[[0,1.36,0.1]]}],
+  /* the Deputy: a military dotted figure that puts a foot wrong in the middle */
+  th_deputy:[{w:"pulse",f0:146.83,pw:0.22,pw1:0.5,vol:0.17,cut:1500,cut1:2100,res:8,
+             seq:[[0,0,0.3],[0,0.32,0.13],[7,0.47,0.3],[7,0.79,0.13],
+                  [6,0.94,0.46],[0,1.42,0.8]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:450,res:3,
+             seq:[[0,0,0.45],[0,0.47,0.45],[0,0.94,0.46],[0,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0.47}],
+  /* Belle: wide open intervals, no ornament, nothing said twice */
+  th_belle: [{w:"pulse",f0:164.81,pw:0.28,pw1:0.44,vol:0.16,cut:1400,cut1:2200,res:6,
+             seq:[[0,0,0.42],[9,0.44,0.42],[7,0.88,0.42],[12,1.32,0.9]]},
+            {w:"tri",f0:82.41,vol:0.19,cut:430,res:3,
+             seq:[[0,0,0.86],[3,0.88,0.42],[0,1.32,0.9]]}],
+  /* the last one: not a tune. A drone, a tritone over it, and one glint */
+  th_lastgun:[{w:"pulse",f0:130.81,pw:0.1,pw1:0.2,vol:0.15,cut:900,cut1:1400,res:13,
+             seq:[[0,0,1.5],[6,1.52,1.6]]},
+            {w:"tri",f0:65.41,vol:0.21,cut:360,res:4,seq:[[0,0,3.12]]},
+            {w:"pulse",f0:1567.98,pw:0.5,vol:0.03,cut:6000,res:8,seq:[[0,2.9,0.22]]}],
+  /* a robbery in progress: two notes, urgent, and no third one coming */
+  th_job:   [{w:"pulse",f0:196,pw:0.16,pw1:0.4,vol:0.19,cut:2000,cut1:3000,res:11,
+             seq:[[0,0,0.16],[6,0.17,0.16],[0,0.34,0.16],[6,0.51,0.16],
+                  [0,0.68,0.16],[6,0.85,0.4]]},
+            {w:"tri",f0:98,vol:0.2,cut:420,res:4,seq:[[0,0,0.66],[-1,0.68,0.6]]},
+            {w:"noise",f0:1,dur:0.5,vol:0.09,cut:900,cut1:250,res:8,dly:0.7}]
 };
 const GATE={step:90,click:30,hit:60,ricochet:70};
 const SND=(function(){
@@ -202,7 +283,7 @@ const SND=(function(){
     a.start(t0); b.start(t0); a.stop(t0+dur+0.05); b.stop(t0+dur+0.05);
     return out;
   }
-  function voice(v,t0base){
+  function voice(v,t0base,dest){
     const c=ctx(); if(!c)return;
     const notes=v.seq||[[0,0,v.dur]];
     for(const [st,ns,nd] of notes){
@@ -236,7 +317,7 @@ const SND=(function(){
       const env=c.createGain();
       steps.forEach(s=>env.gain.setValueAtTime(s.g,s.t));
       env.gain.setValueAtTime(0,t0+dur+0.002);
-      node.connect(flt); flt.connect(env); env.connect(bus);
+      node.connect(flt); flt.connect(env); env.connect(dest||bus);
     }
   }
   function play(name){
@@ -246,8 +327,29 @@ const SND=(function(){
     const c=ctx(); if(!c)return;
     list.forEach(v=>voice(v,c.currentTime));
   }
-  const API={unlock(){ctx();}, get on(){return on;},
-    toggle(){on=!on; if(on){ctx();play("select");} return on;}};
+  /* A character's theme runs on its own gain so a drawn gun can cut it off
+   * mid-bar, which is the one thing an entrance theme has to be able to do.
+   * The synthesis is the same; only where the last node connects changes. */
+  let themeGain=null, themeName=null;
+  function cut(){
+    const c=ctx(); if(!c||!themeGain)return;
+    const g=themeGain; themeGain=null; themeName=null;
+    try{g.gain.setValueAtTime(g.gain.value,c.currentTime);
+        g.gain.linearRampToValueAtTime(0,c.currentTime+0.05);}catch(e){}
+    setTimeout(()=>{try{g.disconnect();}catch(e){}},400);
+  }
+  function theme(name){
+    if(!on)return; const list=SOUNDS[name]; if(!list)return;
+    const c=ctx(); if(!c)return;
+    cut();
+    themeGain=c.createGain(); themeGain.gain.value=1; themeGain.connect(bus);
+    themeName=name;
+    const g=themeGain;
+    list.forEach(v=>voice(v,c.currentTime,g));
+  }
+  const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
+    get playing(){return themeName;},
+    toggle(){on=!on; if(!on)cut(); else{ctx();play("select");} return on;}};
   Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
   return API;
 })();

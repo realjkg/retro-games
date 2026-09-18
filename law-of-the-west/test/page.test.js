@@ -287,3 +287,68 @@ test('8k. a held control repeats, and nothing on the page is selectable', {skip:
   assert.equal(p.ev('held'),null,'FIRE should not repeat');
   assert.deepEqual(p.errors,[]);
 });
+
+test('8l. a robbery is a screen the sheriff walks into, and it plays out', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]');
+  const at=p.ev('INTERLUDES').find(i=>i.job==='stage').after;
+  // stand at the caller before the stage job, with the tip in hand, and resolve
+  p.ev(`G.tips.stage=true;G.encounter=${at-1};beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
+  p.tap('[data-cmd="fire"]');                       // walk on down the street
+  assert.equal(p.G().phase,'interlude','the job never came up');
+  assert.equal(p.G().interlude,'stage');
+  assert.match(p.el('line0').textContent,/coach|ford/i,'no word of what is happening');
+  assert.match(p.el('line1').textContent,/^1\. /,'nothing to do about it');
+  p.tap('[data-cmd="fire"]');                       // ride for the ford
+  assert.equal(p.G().phase,'tell','being there was not a gunfight');
+  assert.equal(p.ev('who(G)').id,'stage','he is facing the wrong man');
+  assert.ok(p.G().authority>0,'standing in front of it earned nothing');
+  // and the unwarned case is a report, not a fight
+  const q=openPage();
+  q.tap('[data-cmd="fire"]');
+  q.ev(`G.tips.bank=false;G.encounter=${p.ev('INTERLUDES').find(i=>i.job==='bank').after-1};`+
+       `beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
+  q.tap('[data-cmd="fire"]'); q.tap('[data-cmd="fire"]');
+  assert.equal(q.G().outcome,'job_missed');
+  assert.equal(q.G().crimesMissed,1);
+  assert.deepEqual(p.errors,[]); assert.deepEqual(q.errors,[]);
+});
+
+test('8m. each caller arrives on his own theme and a drawn gun cuts it', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const log=[];
+  p.ev('SND').theme=n=>log.push('theme:'+n);
+  p.ev('SND').cut=()=>log.push('cut');
+  p.tap('[data-cmd="fire"]');
+  p.w.eval('newScene()');                            // the timers are real; call it directly
+  return new Promise(done=>{
+    setTimeout(()=>{
+      assert.ok(log.some(l=>l==='theme:'+p.ev('who(G)').theme),
+        'the caller arrived without his theme: '+log.join(','));
+      p.ready();
+      p.tap('[data-cmd="up"]');                      // draw
+      assert.equal(p.G().mode,'gun');
+      assert.ok(log.includes('cut'),'the theme played on over a drawn gun');
+      assert.deepEqual(p.errors,[]);
+      done();
+    },900);
+  });
+});
+
+test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  assert.deepEqual([p.ev('SCENE.w'),p.ev('SCENE.h')],[320,200]);
+  const cv=p.ev('cv'); cv.width=800; cv.height=800;
+  const g=p.ev('sceneGeom()');
+  assert.ok(Math.abs((g.sx*320)/(g.sy*200)-4/3)<1e-6,
+    'the frame is '+(g.sx*320)+'x'+(g.sy*200)+', not 4:3');
+  assert.ok(g.sx*320<=800.001&&g.sy*200<=800.001,'the picture does not fit the canvas');
+  cv.width=1600; cv.height=400;
+  const w=p.ev('sceneGeom()');
+  assert.ok(w.sy*200<=400.001&&Math.abs((w.sx*320)/(w.sy*200)-4/3)<1e-6);
+  // and the sheriff is the near third of it, with the caller deeper in
+  assert.ok(p.ev('OWN_X')===0&&p.ev('OWN_CELL')*44>=SCENE_THIRD(),'the sheriff is not the foreground');
+  function SCENE_THIRD(){return 320/3;}
+  assert.ok(p.ev('SPRX')>p.ev('OWN_CELL')*44,'the caller stands inside the sheriff');
+  assert.deepEqual(p.errors,[]);
+});
