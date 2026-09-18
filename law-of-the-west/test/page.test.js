@@ -346,10 +346,12 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   cv.width=1600; cv.height=400;
   const w=p.ev('sceneGeom()');
   assert.ok(w.sy*200<=400.001&&Math.abs((w.sx*320)/(w.sy*200)-4/3)<1e-6);
-  // and the sheriff is the near third of it, with the caller deeper in
-  assert.ok(p.ev('OWN_X')===0&&p.ev('OWN_CELL')*44>=SCENE_THIRD(),'the sheriff is not the foreground');
-  function SCENE_THIRD(){return 320/3;}
-  assert.ok(p.ev('SPRX')>p.ev('OWN_CELL')*44,'the caller stands inside the sheriff');
+  // and the sheriff is the near third of it, with the caller clear of him
+  const wide=Math.max.apply(null,p.ev('SHERIFF.drawn').map(r=>r.length));
+  assert.equal(p.ev('OWN_X'),0,'the sheriff is not against the frame');
+  assert.ok(wide>=320/3,'the sheriff is only '+wide+' pixels of the near third');
+  assert.equal(p.ev('SHERIFF.drawn').length,200,'he does not run the height of the frame');
+  assert.ok(p.ev('SPRX')>wide,'the caller stands inside the sheriff');
   assert.deepEqual(p.errors,[]);
 });
 
