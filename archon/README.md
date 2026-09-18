@@ -42,7 +42,7 @@ A hot seat game gives each player their own pad, and each pad drives only its ow
 - **Light is pad 1, Dark is pad 2.** On the board, the pad whose turn it is not goes quiet and
   dims, so nobody moves the other player's cursor and nobody has to ask whose turn it is. Both
   pads are live at once inside a duel, which is the only moment both players act together.
-- **Dark's pad carries its own SPELL, A and B**, so the Dark player never has to reach across
+- **Dark's pad carries its own A, B and SPELL**, labelled exactly as Light's, so the Dark player never has to reach across
   for the seven one-shot spells or to cancel a selection. A second gamepad works the same way.
 - **The second pad is on screen for the whole game.** It used to appear only when a duel
   started, which left the Dark player with nothing to move icons with on the board.
