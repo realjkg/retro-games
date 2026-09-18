@@ -35,7 +35,15 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
   border-radius:12px;overflow:hidden}
 canvas{width:100%;height:100%;display:block}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.padrow.flip{transform:rotate(180deg)}
+.padcol{display:flex;flex-direction:column;align-items:center;gap:5px}
+.padlabel{font-size:10px;letter-spacing:.12em;font-weight:700;opacity:.75}
+.padlabel.light{color:#d5df7c}
+.padlabel.dark{color:#a89aff}
+/* Rotated only when the second player sits opposite, across a device lying flat. */
+body.facing .padrow.flip{transform:rotate(180deg)}
+/* On the board only the player to move has a live pad. */
+.padrow.idle{opacity:.34}
+.padrow.idle .btn{pointer-events:none}
 .dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,44px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:17px;display:flex;align-items:center;justify-content:center;user-select:none;cursor:pointer}
@@ -81,7 +89,16 @@ body.gamemode .padrow{position:absolute;left:0;right:0;pointer-events:none;
   padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
 body.gamemode .padrow>*{pointer-events:auto}
 body.gamemode #pad1{bottom:calc(env(safe-area-inset-bottom) + 6px);align-items:flex-end}
-body.gamemode #pad2{top:calc(env(safe-area-inset-top) + 6px);align-items:flex-start}
+body.gamemode #pad2{top:calc(env(safe-area-inset-top) + 34px);align-items:flex-start}
+/* Side by side on a phone held in landscape: an edge each, stacked so nobody's
+   buttons end up over the board. */
+@media (orientation:landscape){
+  body.gamemode.twop:not(.facing) .padrow{position:absolute;width:auto;left:auto;right:auto;
+    top:calc(env(safe-area-inset-top) + 30px);bottom:calc(env(safe-area-inset-bottom) + 6px);
+    flex-direction:column;justify-content:center;gap:10px}
+  body.gamemode.twop:not(.facing) #pad1{left:6px;align-items:flex-start}
+  body.gamemode.twop:not(.facing) #pad2{right:6px;align-items:flex-end}
+}
 body.gamemode .btn{background:rgba(31,37,52,.82)}
 body.gamemode .btn:active,body.gamemode .btn.on{background:var(--gold);color:#10131c}
 body.gamemode .soundrow{position:absolute;right:6px;top:2px;z-index:4;margin:0;gap:6px}
@@ -97,18 +114,27 @@ body.gamemode #install{display:none}
   <div id="stage"><canvas id="cv"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow flip" id="pad2" style="display:none">
-      <div class="dpad">
-        <div class="btn" data-k="2U,2L">↖</div><div class="btn" data-k="2U">▲</div><div class="btn" data-k="2U,2R">↗</div>
-        <div class="btn" data-k="2L">◀</div><div></div><div class="btn" data-k="2R">▶</div>
-        <div class="btn" data-k="2D,2L">↙</div><div class="btn" data-k="2D">▼</div><div class="btn" data-k="2D,2R">↘</div>
+      <div class="padcol">
+        <div class="padlabel dark">DARK · P2</div>
+        <div class="dpad">
+          <div class="btn" data-k="2U,2L">↖</div><div class="btn" data-k="2U">▲</div><div class="btn" data-k="2U,2R">↗</div>
+          <div class="btn" data-k="2L">◀</div><div class="btn" data-k="2C">●</div><div class="btn" data-k="2R">▶</div>
+          <div class="btn" data-k="2D,2L">↙</div><div class="btn" data-k="2D">▼</div><div class="btn" data-k="2D,2R">↘</div>
+        </div>
       </div>
-      <div><div class="btn abtn" data-k="2A">FIRE</div></div>
+      <div class="padcol">
+        <div style="display:flex;gap:8px"><div class="btn abtn" data-k="2A">FIRE</div><div class="btn abtn" data-k="2B">B</div></div>
+        <div class="btn sbtn" data-k="2SPELL">SPELL</div>
+      </div>
     </div>
     <div class="padrow" id="pad1">
+      <div class="padcol">
+        <div class="padlabel light" id="lbl1">LIGHT · P1</div>
       <div class="dpad">
         <div class="btn" data-k="1U,1L">↖</div><div class="btn" data-k="1U">▲</div><div class="btn" data-k="1U,1R">↗</div>
         <div class="btn" data-k="1L">◀</div><div class="btn" data-k="1C">●</div><div class="btn" data-k="1R">▶</div>
         <div class="btn" data-k="1D,1L">↙</div><div class="btn" data-k="1D">▼</div><div class="btn" data-k="1D,1R">↘</div>
+      </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
         <div style="display:flex;gap:8px">
@@ -493,7 +519,7 @@ function startCombat(att,def,x,y){
   clearKeys();
   G.combat={a,b,bg,lum,x,y,shots:[],barriers:makeBarriers(x,y),t0:performance.now(),time:0,over:0,p1:lightF,p2:darkF};
   G.phase="combat";G.turnPhase="combat";
-  document.getElementById("pad2").style.display=G.mode==="pvp"?"flex":"none";layout();
+  updatePadState();
   tone(220,880,.25,"triangle",.4);
 }
 function barrierState(b,c=G.combat){
@@ -775,26 +801,37 @@ function cpuMove(){
 let menuSel=0;
 function menuKey(k){
   const items=[...ov.querySelectorAll(".menuitem")]; if(!items.length)return;
-  if(k==="1U"||k==="1L")menuSel=(menuSel-1+items.length)%items.length;
-  if(k==="1D"||k==="1R")menuSel=(menuSel+1)%items.length;
+  const a=padAction(k);
+  if(a==="U"||a==="L")menuSel=(menuSel-1+items.length)%items.length;
+  if(a==="D"||a==="R")menuSel=(menuSel+1)%items.length;
   items.forEach((el,i)=>el.classList.toggle("sel",i===menuSel));
-  if(k==="1A"||k==="1C")items[menuSel].click();
+  if(a==="A"||a==="C")items[menuSel].click();
 }
+/* Two players share one device, so each pad drives its own side: in a hot seat
+   game pad 1 is the Light and pad 2 is the Dark, and a pad is dead on the other
+   side's turn rather than quietly moving their cursor. With one human, the single
+   pad drives whichever side that human plays. */
+function padOwner(k){return k&&(k[0]==="1"||k[0]==="2")?+k[0]:1;}
+function padSide(n){return G.mode==="pvp"?(n===1?"L":"D"):null;}
+function padActive(n){const side=padSide(n);return side===null||side===G.turn;}
+const padAction=k=>k&&(k[0]==="1"||k[0]==="2")?k.slice(1):k;
 function press(k){
   if(k==="FULL"){toggleGameMode();return;}
   if(G.phase==="menu"||G.phase==="over"||G.turnPhase==="spellmenu"||G.turnPhase==="revivemenu"){menuKey(k);return;}
   if(G.phase==="combat")return;
-  if(k==="MENU"){mainMenu();return;}
-  if(k==="SPELL"){openSpells();return;}
+  const n=padOwner(k), act=padAction(k);
+  if(act==="MENU"){mainMenu();return;}
+  if(act==="SPELL"){if(padActive(n))openSpells();return;}
   if(G.phase!=="play"||G.turnPhase!=="select"||!G.human[G.turn])return;
+  if(!padActive(n))return;
   const c=G.cursor;
-  if(k==="1U")c.y=Math.max(0,c.y-1);
-  if(k==="1D")c.y=Math.min(N-1,c.y+1);
-  if(k==="1L")c.x=Math.max(0,c.x-1);
-  if(k==="1R")c.x=Math.min(N-1,c.x+1);
-  if(k==="1B"){ if(G.target){G.target=null;G.msg="Spell cancelled.";}
+  if(act==="U")c.y=Math.max(0,c.y-1);
+  if(act==="D")c.y=Math.min(N-1,c.y+1);
+  if(act==="L")c.x=Math.max(0,c.x-1);
+  if(act==="R")c.x=Math.min(N-1,c.x+1);
+  if(act==="B"){ if(G.target){G.target=null;G.msg="Spell cancelled.";}
                 else {G.sel=null;G.moves=[];G.msg="Select an icon, then its destination.";} }
-  if(k==="1A"||k==="1C"){
+  if(act==="A"||act==="C"){
     if(G.target){spellTarget(c.x,c.y);return;}
     if(G.sel&&G.moves.some(m=>m[0]===c.x&&m[1]===c.y)){startMove(G.sel.x,G.sel.y,c.x,c.y);return;}
     const p=G.grid[c.x][c.y];
@@ -846,6 +883,36 @@ function toggleGameMode(){
   else{setGameMode(true);requestFS();}
 }
 function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);requestFS();}}
+
+/* Where the second player is sitting decides which way their pad faces: beside you,
+   both pads read the right way up; opposite you, across a device lying flat, theirs
+   is turned around. Nothing else about the game changes. */
+let seating="side";
+try{if(localStorage.getItem("archon.seating")==="facing")seating="facing";}catch(e){}
+function setSeating(v){
+  seating=v==="facing"?"facing":"side";
+  try{localStorage.setItem("archon.seating",seating);}catch(e){}
+  applySeating();
+}
+function applySeating(){
+  const two=G.mode==="pvp";
+  bodyEl.classList?.[two?"add":"remove"]("twop");
+  bodyEl.classList?.[two&&seating==="facing"?"add":"remove"]("facing");
+  layout();
+}
+/* The second pad belongs on screen for the whole hot seat game, not only inside a
+   duel: the Dark player moves their own icons on the board with it. The pad that is
+   not to move goes quiet, so nobody wonders whose turn it is. */
+function updatePadState(){
+  const p1=document.getElementById("pad1"), p2=document.getElementById("pad2");
+  const two=G.mode==="pvp"&&(G.phase==="play"||G.phase==="combat");
+  const want=two?"flex":"none";
+  if(p2&&p2.style&&p2.style.display!==want){p2.style.display=want;layout();}
+  const board=G.phase==="play"&&G.turnPhase==="select";
+  const idle=n=>G.mode==="pvp"&&board&&!padActive(n);
+  p1?.classList?.toggle?.("idle",idle(1));
+  p2?.classList?.toggle?.("idle",idle(2));
+}
 
 /* ---- installed as an app ----
    iOS Safari has no Fullscreen API: requestFullscreen simply is not there, so a tab
@@ -909,9 +976,15 @@ function layout(){
     (m,c)=>Math.max(m,c.getBoundingClientRect?.().width||0),0):0;
   // Landscape puts the pads in the letterbox either side of the play area;
   // portrait stacks them under it (and above it, for the second player).
-  const cols=landscape?Math.round(Math.max(colW(pad1),colW(pad2)))+10:0;
+  // Two players in landscape each keep a column at their own edge; one player's pad
+  // spreads across the bottom, so only its widest control column is reserved.
+  const rowW=el=>shown(el)?(el.getBoundingClientRect?.().width||0):0;
+  const twoCols=G.mode==="pvp"&&seating!=="facing"&&shown(pad2);
+  const cols=landscape?Math.round(twoCols?Math.max(rowW(pad1),rowW(pad2))
+    :Math.max(colW(pad1),colW(pad2)))+12:0;
+  const stacked=landscape&&twoCols;
   const top=BAR+(!landscape&&shown(pad2)?Math.round(h(pad2))+8:0);
-  const bottom=landscape?0:Math.round(h(pad1))+10;
+  const bottom=landscape?8:Math.round(h(pad1))+10;   // a little air under the board
   const band=Math.max(120,vh-top-bottom);
   const avail=Math.max(160,vw-2*cols);
   // The canvas takes the entire screen; SAFE is the part of it the play area may use,
@@ -990,17 +1063,20 @@ cv.addEventListener("pointerdown",e=>{
   G.cursor={x,y}; press("1A");
 });
 ov.addEventListener("click",e=>{
-  const el=e.target.closest("[data-mode],[data-side],[data-act],[data-spell],[data-revive]"); if(!el)return;
+  const el=e.target.closest("[data-mode],[data-side],[data-seat],[data-act],[data-spell],[data-revive]"); if(!el)return;
   if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
   // A click is a user gesture, which is the only moment fullscreen can be requested.
   if(el.dataset.act==="back"){mainMenu();return;}
-  if(el.dataset.mode||el.dataset.side)enterGameModeIfWanted();
+  if(el.dataset.mode||el.dataset.side||el.dataset.seat)enterGameModeIfWanted();
+  if(el.dataset.seat){setSeating(el.dataset.seat);
+    G.mode="pvp"; G.human={L:true,D:true}; newGame(); applySeating(); return;}
   if(el.dataset.mode){
     if(el.dataset.mode==="pvc"){sideMenu();return;}
+    if(el.dataset.mode==="pvp"){seatMenu();return;}
     G.mode=el.dataset.mode;
-    G.human={L:G.mode!=="cvc",D:G.mode==="pvp"}; newGame(); return;}
+    G.human={L:G.mode!=="cvc",D:G.mode==="pvp"}; newGame(); applySeating(); return;}
   if(el.dataset.side){G.mode="pvc";
-    G.human={L:el.dataset.side==="L",D:el.dataset.side==="D"}; newGame(); return;}
+    G.human={L:el.dataset.side==="L",D:el.dataset.side==="D"}; newGame(); applySeating(); return;}
   if(el.dataset.act==="again"){newGame();return;}
   if(el.dataset.act==="menu"){mainMenu();return;}
   if(el.dataset.spell){castSpell(el.dataset.spell);return;}
@@ -1013,6 +1089,14 @@ ov.addEventListener("click",e=>{
 function showOverlay(html){ov.innerHTML=html;ov.classList.remove("hidden");menuSel=0;
   [...ov.querySelectorAll(".menuitem")].forEach((el,i)=>el.classList.toggle("sel",i===0));}
 function hideOverlay(){ov.classList.add("hidden");}
+function seatMenu(){
+  showOverlay(`<h1>TWO PLAYERS</h1><p class="sub">One device, one pad each. Where is the other player?</p>
+  <div class="menuitem${seating==="side"?" sel":""}" data-seat="side">Side by side<br>
+    <span style="opacity:.7;font-size:12px">Light's pad on the left, Dark's on the right, both upright</span></div>
+  <div class="menuitem${seating==="facing"?" sel":""}" data-seat="facing">Facing each other<br>
+    <span style="opacity:.7;font-size:12px">Device flat between you — Dark's pad is turned around</span></div>
+  <div class="menuitem" data-act="menu">Back</div>`);
+}
 function sideMenu(){
   showOverlay(`<h1>CHOOSE A SIDE</h1><p class="sub">Light always moves first.</p>
   <div class="menuitem sel" data-side="L">Play the Light</div>
@@ -1029,7 +1113,9 @@ function mainMenu(){
   <div class="menuitem" data-mode="cvc">CPU vs CPU &nbsp;<span style="opacity:.7">demo</span></div>
   <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
   <small class="tip">D-pad moves the cursor · A selects and confirms · B cancels · SPELL opens the seven
-  one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready. 1P vs 2P adds a second pad at the top for Dark.
+  one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready.
+  1P vs 2P gives each player their own pad — Light's and Dark's, each live only on its own turn —
+  and asks whether you are sitting side by side or facing each other across the device.
   Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
   A connected gamepad drives Light; a second one drives Dark.</small>
   ${isStandalone()?"":`<small class="tip">${isIOS()
@@ -1237,6 +1323,7 @@ function padState(gp,pre){
   now[pre+"A"]=on(0)||on(7)||on(5);            // A / triggers: fire and confirm
   now[pre+"B"]=on(1)||on(6)||on(4);            // B / shoulders: cancel
   if(pre==="1"){now.SPELL=on(2);now.MENU=on(3)||on(9);now.FULL=on(8);}
+  else now["2SPELL"]=on(2);
   return now;
 }
 function pollGamepads(){
@@ -1268,11 +1355,11 @@ function loop(now){
       else if(G.turnPhase==="select"&&isCPU(G.turn)&&now>G.cpuAt)cpuMove();
       else if(G.turnPhase==="anim"){G.anim.t+=dt; if(G.anim.t>=G.anim.dur)arrive();}
     }
-    render();
+    render();updatePadState();
   }catch(err){console.error(err);}
   requestAnimationFrame(loop);
 }
-layout(); mainMenu(); requestAnimationFrame(loop);
+layout(); applySeating(); mainMenu(); requestAnimationFrame(loop);
 </script>
 </body>
 </html>

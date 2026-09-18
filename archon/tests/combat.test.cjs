@@ -4,7 +4,9 @@ const {test}=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8').split('<script>')[1].split('</script>')[0];
 function runtime(env){
   const drawing=new Proxy({},{get:()=>()=>{}}),els=new Map(),notes=[];
-  function el(id){if(!els.has(id))els.set(id,{style:{},classList:{add(){},remove(){},toggle(){}},textContent:'',innerHTML:'',setAttribute(){},addEventListener(){},querySelectorAll(){return[]},getBoundingClientRect(){return{width:520,height:520}},getContext(){return drawing}});return els.get(id);}
+  function el(id){if(!els.has(id))els.set(id,{style:{},id,idle:false,hidden:undefined,
+    classList:{add(n){if(n==='idle')els.get(id).idle=true;},remove(n){if(n==='idle')els.get(id).idle=false;},
+      toggle(n,on){if(n==='idle')els.get(id).idle=!!on;},has(n){return n==='idle'&&els.get(id).idle;}},textContent:'',innerHTML:'',setAttribute(){},addEventListener(){},querySelectorAll(){return[]},getBoundingClientRect(){return{width:520,height:520}},getContext(){return drawing}});return els.get(id);}
   class AudioContext{
     constructor(){this.state='running';this.currentTime=0;this.destination={};}
     createGain(){return{gain:{value:1,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};}
@@ -205,4 +207,83 @@ test('An iPhone in Safari is told how to install, and the button is hidden elsew
  const desktop=runtime();
  assert.equal(desktop.run('isIOS()'),false);
  assert.notEqual(desktop.el('install').hidden,false,'no button until Chrome offers the install');
+});
+
+/* ---- hot seat: one device, one pad each ---- */
+function hotseat(){
+ const r=runtime();
+ r.run('G.mode="pvp";G.human={L:true,D:true};newGame();applySeating();');
+ return r;
+}
+test('On the board each pad drives its own side and is dead on the other side\'s turn',()=>{
+ const r=hotseat();
+ assert.equal(r.run('G.turn'),'L');
+ r.run('G.turnPhase="select";G.cursor={x:4,y:4};press("1R");');
+ assert.equal(r.run('G.cursor.x'),5,'Light moves on pad 1');
+ r.run('press("2R");');
+ assert.equal(r.run('G.cursor.x'),5,'pad 2 does nothing while Light is to move');
+ r.run('G.turn="D";G.turnPhase="select";press("2R");');
+ assert.equal(r.run('G.cursor.x'),6,'Dark moves on pad 2');
+ r.run('press("1R");');
+ assert.equal(r.run('G.cursor.x'),6,'and pad 1 goes quiet in turn');
+ // One human keeps one pad whichever side they chose.
+ const solo=runtime();
+ solo.run('G.mode="pvc";G.human={L:false,D:true};newGame();G.turn="D";G.turnPhase="select";G.cursor={x:4,y:4};press("1R");');
+ assert.equal(solo.run('G.cursor.x'),5,'a lone player drives from pad 1 playing the Dark');
+});
+
+test('Dark selects and moves its own icons, and casts from its own pad',()=>{
+ const r=hotseat();
+ r.run('G.turn="D";G.turnPhase="select";G.cursor={x:8,y:1};press("2A");');   // a troll
+ assert.ok(r.run('!!G.sel'),'pad 2 selects a Dark icon');
+ assert.equal(r.run('G.sel.x'),8);
+ r.run('press("2B");');
+ assert.equal(r.run('G.sel'),null,'and cancels with its own B');
+ r.run('press("2SPELL");');
+ assert.equal(r.run('G.turnPhase'),'spellmenu','Dark reaches the spell list without borrowing pad 1');
+ // Menu navigation is DOM work the stub cannot show, so check the routing itself.
+ assert.equal(r.run('padAction("2D")'),'D','a menu reads either pad');
+ r.run('press("2D");');
+ assert.equal(r.run('G.turnPhase'),'spellmenu','pad 2 works the list without throwing');
+ const light=hotseat();
+ light.run('G.turnPhase="select";press("2SPELL");');
+ assert.notEqual(light.run('G.turnPhase'),'spellmenu','Dark cannot open spells on Light\'s turn');
+});
+
+test('Seating decides which way the second pad faces, and is remembered',()=>{
+ const store={};
+ const r=runtime();
+ r.run('G.mode="pvp";G.human={L:true,D:true};newGame();setSeating("side");');
+ assert.equal(r.run('seating'),'side');
+ assert.equal(r.run('document.body.classList.has?document.body.classList.has("facing"):false'),false);
+ r.run('setSeating("facing");');
+ assert.equal(r.run('seating'),'facing');
+ r.run('setSeating("nonsense");');
+ assert.equal(r.run('seating'),'side','anything unrecognised is the upright layout');
+});
+
+test('The second pad is on screen for the whole hot seat game, not only the duel',()=>{
+ const r=hotseat();
+ r.run('G.phase="play";G.turnPhase="select";updatePadState();');
+ assert.equal(r.el('pad2').style.display,'flex','the Dark player has a pad on the board');
+ r.run('G.phase="combat";updatePadState();');
+ assert.equal(r.el('pad2').style.display,'flex');
+ r.run('G.phase="menu";updatePadState();');
+ assert.equal(r.el('pad2').style.display,'none','and none of it clutters the menus');
+ const solo=runtime();
+ solo.run('G.mode="pvc";G.human={L:true,D:false};newGame();G.phase="play";updatePadState();');
+ assert.equal(solo.el('pad2').style.display,'none','one player, one pad');
+});
+
+test('The idle pad is marked while the other side is to move',()=>{
+ const r=hotseat();
+ r.run('G.turnPhase="select";G.turn="L";updatePadState();');
+ assert.equal(r.el('pad1').idle,false,'the side to move is live');
+ assert.equal(r.el('pad2').idle,true);
+ r.run('G.turn="D";updatePadState();');
+ assert.equal(r.el('pad1').idle,true);
+ assert.equal(r.el('pad2').idle,false);
+ r.run('G.phase="combat";updatePadState();');
+ assert.equal(r.el('pad1').idle,false,'both pads are live in a duel');
+ assert.equal(r.el('pad2').idle,false);
 });
