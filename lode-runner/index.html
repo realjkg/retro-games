@@ -186,9 +186,15 @@ const CHARS={' ':EMPTY,'.':EMPTY,'#':BRICK,'@':SOLID,'H':LADDER,'-':BAR,'X':TRAP
 const GLYPH=[' ','#','@','H','-','X','$'];
 
 /* Speeds are tiles per second. The runner is quicker than a guard, which is the
-   only advantage he has, and everything falls at the same rate. */
+   only advantage he has, and everything falls at the same rate.
+
+   A guard runs at a little under sixty per cent of the runner, and climbs at the
+   same fraction. Keeping the two in step matters: when the ladder figure was the
+   higher of the two a guard came up it almost as fast as you did, so climbing
+   away — the main thing you have — barely worked, and they felt less like guards
+   than like something that could not be shaken off. */
 const RUN_WALK=7.4, RUN_CLIMB=5.6, RUN_BAR=7.4, FALL=12.5;
-const GUARD_WALK=5.0, GUARD_CLIMB=4.4;
+const GUARD_WALK=4.3, GUARD_CLIMB=3.3;
 const DIG_TIME=0.40;      // the runner is rooted while the brick comes out
 const HOLE_TIME=6.2;      // how long a hole stays open before the brick returns
 const FILL_TIME=1.0;      // the closing part of HOLE_TIME, drawn growing back
@@ -607,6 +613,8 @@ function decideHero(a){
 }
 
 function heroArrived(a){
+  if(a.mode==='climb')sfx('rung');
+  else if(a.mode!=='fall')sfx('step');
   if(tile(a.x,a.y)===GOLD){
     G.map[a.x][a.y]=EMPTY;
     G.taken++;
@@ -1231,42 +1239,82 @@ function audioReady(){
   return A.ctx;
 }
 
-function blip(freq,dur,type,vol,slideTo){
+/* The Apple II had one bit of audio. A soft switch at $C030 flipped the speaker
+   cone in or out, and that was the whole instrument: every sound the 1983 game
+   made was a 6502 loop counting cycles between flips. Pitch is the gap between
+   them; the only way to get quieter is to spend less of each cycle flipped out,
+   which is why these have a duty cycle and not a volume envelope.
+
+   So the effects here are not oscillators with the edges rounded off — they are
+   built the way the machine built them, a buffer of hard +1 / -1 produced by
+   simulating the flips, then run through a filter standing in for the small
+   paper cone that had to reproduce it. */
+
+const SPK_LP=3400, SPK_HP=300;
+
+// Each segment is a stretch of flipping: f0 to f1 Hz over dur seconds, with the
+// duty cycle sliding d0 to d1. noise:true picks the gap at random inside the
+// range each cycle, which is how a one-bit speaker makes a scraping sound.
+function speaker(segs,vol){
   const c=A.on?audioReady():null;
-  if(!c)return;
-  const o=c.createOscillator(),g=c.createGain();
-  o.type=type||'square';
-  o.frequency.setValueAtTime(freq,c.currentTime);
-  if(slideTo)o.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo),c.currentTime+dur);
-  g.gain.setValueAtTime(vol===undefined?0.16:vol,c.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0008,c.currentTime+dur);
-  o.connect(g);g.connect(A.master);
-  o.start();o.stop(c.currentTime+dur+0.02);
+  if(!c||!c.createBuffer)return null;
+  const sr=c.sampleRate||44100;
+  const total=segs.reduce((a,s)=>a+s.dur,0);
+  const n=Math.max(1,Math.ceil(sr*total));
+  const buf=c.createBuffer(1,n,sr);
+  const d=buf.getChannelData(0);
+  let i=0,phase=0,gap=0;
+  for(const s of segs){
+    const len=Math.min(n-i,Math.floor(sr*s.dur));
+    const d0=s.d0===undefined?0.5:s.d0, d1=s.d1===undefined?d0:s.d1;
+    for(let k=0;k<len;k++,i++){
+      const t=len>1?k/(len-1):0;
+      if(phase>=1||!gap){
+        phase-=phase>=1?1:0;
+        // Math.random, deliberately: the scrape must never draw on G.rng, or
+        // the game would deal a guard a different corner with the sound on.
+        gap=s.noise?s.f0+(s.f1-s.f0)*Math.random():s.f0+(s.f1-s.f0)*t;
+      }
+      phase+=gap/sr;
+      if(phase>=1)phase-=1;
+      // Out for the duty part of the cycle, back in for the rest. Nothing in
+      // between, because there is nothing in between to have.
+      d[i]=phase<(d0+(d1-d0)*t)?1:-1;
+    }
+  }
+  while(i<n)d[i++]=-1;
+  const src=c.createBufferSource();
+  src.buffer=buf;
+  let node=src;
+  if(c.createBiquadFilter){
+    const lp=c.createBiquadFilter(),hp=c.createBiquadFilter();
+    lp.type='lowpass';lp.frequency.value=SPK_LP;
+    hp.type='highpass';hp.frequency.value=SPK_HP;
+    node.connect(lp);lp.connect(hp);node=hp;
+  }
+  const g=c.createGain();
+  g.gain.value=vol===undefined?0.2:vol;
+  node.connect(g);g.connect(A.master);
+  if(src.start)src.start();
+  return buf;
 }
 
-function noise(dur,vol){
-  const c=A.on?audioReady():null;
-  if(!c||!c.createBuffer)return;
-  const n=Math.max(1,Math.floor(c.sampleRate*dur));
-  const buf=c.createBuffer(1,n,c.sampleRate);
-  const d=buf.getChannelData(0);
-  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
-  const src=c.createBufferSource(),g=c.createGain();
-  src.buffer=buf;g.gain.value=vol===undefined?0.2:vol;
-  src.connect(g);g.connect(A.master);
-  src.start();
-}
+const tone=(f,dur,d0,d1)=>({f0:f,f1:f,dur,d0,d1});
 
 const SFX={
-  gold(){blip(880,0.07,'square',0.16);setTimeout(()=>blip(1320,0.1,'square',0.14),60);},
-  dig(){noise(0.16,0.22);blip(180,0.14,'sawtooth',0.1,90);},
-  fill(){noise(0.1,0.12);blip(140,0.1,'square',0.08,70);},
-  trap(){blip(300,0.12,'square',0.15,140);},
-  bury(){noise(0.26,0.26);blip(120,0.3,'sawtooth',0.14,45);},
-  death(){blip(440,0.5,'sawtooth',0.2,60);noise(0.3,0.16);},
-  clear(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,0.16,'square',0.16),i*90));},
-  reveal(){[392,523,659].forEach((f,i)=>setTimeout(()=>blip(f,0.12,'triangle',0.14),i*70));},
-  extra(){[659,880,1319].forEach((f,i)=>setTimeout(()=>blip(f,0.14,'triangle',0.16),i*80));}
+  // One click per tile crossed, the way the original ticked as you ran.
+  step(){speaker([tone(1500,0.010)],0.05);},
+  rung(){speaker([tone(950,0.012)],0.05);},
+  gold(){speaker([tone(920,0.045),tone(1380,0.045),{f0:1840,f1:1840,dur:0.08,d0:0.5,d1:0.05}],0.2);},
+  dig(){speaker([{f0:260,f1:1600,dur:0.15,noise:true,d0:0.5,d1:0.18}],0.17);},
+  fill(){speaker([{f0:1100,f1:240,dur:0.13,d0:0.4,d1:0.04}],0.15);},
+  trap(){speaker([{f0:640,f1:210,dur:0.18,d0:0.5,d1:0.09}],0.19);},
+  bury(){speaker([{f0:220,f1:55,dur:0.30,noise:true,d0:0.5,d1:0.03}],0.24);},
+  death(){speaker([{f0:880,f1:65,dur:0.55,d0:0.5,d1:0.07}],0.26);},
+  reveal(){speaker([tone(520,0.055),tone(700,0.055),{f0:1040,f1:1040,dur:0.1,d0:0.5,d1:0.08}],0.19);},
+  clear(){speaker([tone(523,0.09),tone(659,0.09),tone(784,0.09),
+    {f0:1047,f1:1047,dur:0.18,d0:0.5,d1:0.05}],0.2);},
+  extra(){speaker([tone(659,0.06),tone(880,0.06),{f0:1319,f1:1319,dur:0.12,d0:0.5,d1:0.06}],0.2);}
 };
 function sfx(n){if(A.on&&SFX[n])SFX[n]();}
 

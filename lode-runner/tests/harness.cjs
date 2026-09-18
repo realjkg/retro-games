@@ -10,7 +10,7 @@ function runtime(file){
     if(k==='canvas')return{width:448,height:256};
     if(k==='font'||k==='fillStyle'||k==='strokeStyle'||k==='lineWidth'||k==='textAlign'||k==='textBaseline')return '';
     return (...a)=>/Gradient|Pattern/.test(String(k))?grad:undefined;}});
-  const els=new Map(),notes=[],store=new Map();
+  const els=new Map(),notes=[],played=[],store=new Map();
   function el(id){
     if(!els.has(id))els.set(id,{id,style:{},dataset:{},value:'',textContent:'',innerHTML:'',
       classList:{add(){},remove(){},toggle(){},contains(){return false}},
@@ -26,8 +26,10 @@ function runtime(file){
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};}
     createOscillator(){return{type:'',frequency:{setValueAtTime(hz){notes.push(hz)},
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
-    createBuffer(ch,n){return{getChannelData(){return new Float32Array(n)}};}
-    createBufferSource(){return{buffer:null,connect(){},start(){}};}
+    createBuffer(ch,n){const d=new Float32Array(n);return{length:n,getChannelData(){return d}};}
+    createBufferSource(){return{buffer:null,connect(){},
+      start(){if(this.buffer)played.push(this.buffer);}};}
+    createBiquadFilter(){return{type:'',frequency:{value:0},connect(){},disconnect(){}};}
     resume(){return Promise.resolve();}
   }
   const cls=new Set(),docEvents=[];
@@ -46,7 +48,7 @@ function runtime(file){
   vm.createContext(box);
   vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
-  return {run,notes,el,cls,docEvents,store,box};
+  return {run,notes,played,el,cls,docEvents,store,box};
 }
 
 // Puts the runner on a clear stretch of floor with no guards in the way.
