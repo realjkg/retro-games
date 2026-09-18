@@ -409,8 +409,11 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   const src=p.ev('SHERIFF_SRC');
   assert.ok(/^data:image\/png;base64,/.test(src),'his artwork is not carried inline');
   assert.ok(src.length<40000,'his artwork is '+src.length+' characters');
-  // talking shows the strip below the gun arm, drawing shows the whole of him
-  assert.ok(own.rest>0&&own.rest<own.h,'the resting crop is '+own.rest);
+  // he is never a fragment: the same whole drawing in both states, moved only
+  // by the lean, and the frame is what crops him
+  assert.equal(own.w,129); assert.equal(own.h,200);
+  assert.ok(own.lean>0&&own.lean<8,'the lean is '+own.lean);
+  assert.equal(p.ev('typeof restingStrip'),'undefined','a partial draw survived');
   assert.deepEqual(p.errors,[]);
 });
 
