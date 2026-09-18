@@ -3531,10 +3531,16 @@ const CONTROL={up,down,left,right,fire,
     try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
 function showSound(on){
   if(!muteBtn)return;
-  // "SOUND ON" while a phone sits on silent is a lie the player cannot see
-  // through. If the sound is wanted but the context is not running, say so.
+  /* A button reading SOUND ON is read as a thing to press to get sound on, so
+   * pressing it is how a player turns the sound off while trying to turn it on
+   * - and the choice is remembered, so the game stays silent from then on. The
+   * colon makes it a state and not an invitation.
+   *
+   * And SOUND: ON while a phone sits on its silent switch is a lie the player
+   * has no way to see through, so a context that will not run says so instead. */
   const stuck=on&&SND.state!=="none"&&SND.state!=="running";
-  muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND ON"):"SOUND OFF";
+  muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND: ON"):"SOUND: OFF";
+  muteBtn.setAttribute("aria-label",on?"Sound is on":"Sound is off");
   muteBtn.setAttribute("aria-pressed",on?"true":"false");
 }
 /* A player who turned the sound off does not want it back on every reload. The

@@ -180,7 +180,7 @@ test('8e. the mute control and the m key both toggle and show it', {skip:jsdomMi
   const before=p.snd().on;
   p.tap('#mute');
   assert.notEqual(p.snd().on,before,'the mute control did nothing');
-  assert.match(p.el('mute').textContent,/SOUND (ON|OFF)/);
+  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
   assert.equal(p.el('mute').getAttribute('aria-pressed'),String(p.snd().on));
   p.press('m');
   assert.equal(p.snd().on,before,'the m key did not toggle it back');
@@ -459,7 +459,10 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   // the gesture that builds an AudioContext
   const quiet=openPage(win=>{try{win.localStorage.setItem('lotw.sound','0');}catch(e){}});
   assert.equal(quiet.ev('SND.on'),false,'the page came back up making noise');
-  assert.equal(quiet.el('mute').textContent,'SOUND OFF','the control does not say so');
+  assert.equal(quiet.el('mute').textContent,'SOUND: OFF','the control does not say so');
+  // the label is a state, never an instruction: a button saying SOUND ON is
+  // pressed by someone wanting sound on, which turns it off and keeps it off
+  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
   assert.equal(quiet.el('mute').getAttribute('aria-pressed'),'false');
   quiet.tap('[data-cmd="fire"]');
   assert.equal(quiet.ev('typeof (window.AudioContext||window.webkitAudioContext)'),
@@ -475,7 +478,7 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'0','the choice was not kept');
   p.tap('[data-cmd="mute"]');
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'1');
-  assert.equal(p.el('mute').textContent,'SOUND ON');
+  assert.equal(p.el('mute').textContent,'SOUND: ON');
 
   // every cue the game can fire is one the engine knows, and the ones a player
   // hears over and over are the ones allowed to move
