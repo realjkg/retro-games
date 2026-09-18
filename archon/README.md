@@ -8,7 +8,7 @@ A self-contained browser recreation, with the **Commodore 64 release** as the re
 
 ## Controls
 
-- Board: arrows and Z/Enter to select; X to cancel. Touch the board or use the on-screen pad.
+- Board: arrows and Z/Enter to select; X to cancel. Touch the board, or use the on-screen stick (or d-pad — see **The stick, and how hard the machine plays**).
 - Combat: **hold fire and a direction to aim/shoot; release fire to move**. All eight directions work, including the corner buttons on touch devices.
 - Second player: WASD and Shift/F, or their own touch pad — see **Two players on one device**.
 - Sound starts after a tap/key press. SOUND ON/OFF mutes or enables it. A high recharge bell belongs to Light; a low bell belongs to Dark.
@@ -34,6 +34,29 @@ start in full game mode.
 
 On iPhone, Safari allows no element fullscreen; the immersive layout still applies, and
 adding the page to the Home Screen removes the browser's own chrome.
+
+## The stick, and how hard the machine plays
+
+Two things made a phone game harder than the C64 one, and neither was in the rules.
+
+**A stick, not nine buttons.** A duel is real time, and a grid of nine little squares has gaps
+to fall into and corners to miss: you lose the fight to the controls. Each pad now carries a
+round thumbstick that quantises to the same eight directions a C64 joystick had — push and hold
+to aim and move, with no gap between the ways. On the board a push is one step and holding
+walks on; in combat the direction is simply held, which is what aiming needs. **Controls** on
+the title screen switches between the stick and the old d-pad, and remembers the choice.
+
+**Three CPU strengths**, chosen when you pick a side in 1P vs CPU and remembered afterwards:
+
+| | In a duel | On the board |
+|---|---|---|
+| **Novice** *(the default)* | slow to take a shot, aims loosely, hesitates, walks into missiles | plays noisily and with little caution |
+| **Warrior** | takes its chances, aims straight, sidesteps what is fired at it | the original scoring |
+| **Master** | fires on sight and never wastes a move | maximum caution, almost no guessing |
+
+The difference is mostly reaction, which is what makes a real-time opponent feel unfair: how
+often it takes the shot, how straight it aims, whether it bothers to sidestep. Novice is the
+default because a first game against the old scoring, through a nine-square pad, was a beating.
 
 ## Two players on one device
 
@@ -104,4 +127,4 @@ This is **not a C64 emulator or an exact reproduction**. The effects are new Web
 
 ## Verification
 
-Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the hot seat rules — each pad on its own side, Dark's own spell button, the second pad present for the whole game, the idle marking, and the seating switch — and the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
+Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the stick's eight directions and dead centre, its step-and-repeat on the board, the three CPU strengths and how they differ in a duel, the hot seat rules — each pad on its own side, Dark's own spell button, the second pad present for the whole game, the idle marking, and the seating switch — and the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
