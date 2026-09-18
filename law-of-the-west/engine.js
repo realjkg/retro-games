@@ -28,9 +28,13 @@ function absNormal(g,sigma){          // folded gaussian: the size of a shot's e
 
 function newGame(opts){
   const seed=opts&&opts.seed;
+  if(opts&&opts.mode)selectMode(opts.mode);
   return {
     phase:"intro", slot:0, turn:0, rng:seed==null?Math.random:mulberry32(seed),
+    mode:typeof MODE==="string"?MODE:"faithful",
     S:blankState(), safety:0, clues:[], favours:0, reputation:0,
+    doctorFavour:0, doctorSpent:false, jobs:{bank:0,train:0,stage:0},
+    pending:null, romance:false, surrenders:[], departures:[],
     wounds:0, wounded:false, mode:"talk", aim:{x:0.5,y:0.5}, reflex:null,
     shots:0, hits:0, arrests:[], kills:[], disarms:[], murders:0, needlessKills:0,
     settled:[], points:0, log:[], results:[],
@@ -63,8 +67,27 @@ function beginSlot(G){
 function openDialogue(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
+  if(e.followUp)return robbery(G);
   if(!authored(e.id))return resolve(G,"unwritten");
   G.phase="dialogue"; return turnFor(e.id,0);
+}
+/* The bank, the train and the stage. Whichever job the sheriff learned least
+ * about is the one that comes off, and what he did learn is what stops it. */
+function robbery(G){
+  const ready=JOBS.filter(j=>G.jobs[j]>0);
+  const job=JOBS.find(j=>G.jobs[j]===0)||JOBS[Math.floor(G.rng()*JOBS.length)];
+  G.job=job;
+  if(G.jobs[job]>0||ready.length===JOBS.length){
+    G.safety+=1; award(G,"arrest","stopped the "+job+" job");
+    G.points+=200;
+    return resolve(G,"job_stopped");
+  }
+  if(ready.length){                      // forewarned about the others, not this one
+    G.safety-=1; G.points-=40;
+    return resolve(G,"job_partly");
+  }
+  G.safety-=2; G.points-=120;
+  return resolve(G,"job_done");
 }
 
 /* A reply moves the state by what the writing says it moves, plus a point of
@@ -79,6 +102,11 @@ function respond(G,index){
   if(!available(G,reply))return {denied:reply.needs};
   for(const [k,v] of Object.entries(reply.fx||{})){
     if(k in G.S)G.S[k]+=v; else if(k==="safety")G.safety+=v;
+  }
+  if(e.courtesy){                       // the doctor keeps his own account
+    if(reply.intent==="threaten")G.doctorFavour-=2;
+    else if(reply.intent==="conciliate")G.doctorFavour+=1;
+    else if(reply.intent==="command")G.doctorFavour-=1;
   }
   /* A point of temper either way each turn, on his patience and on one social
    * reading of the sheriff. Evidence is never jittered: the ledger says what
@@ -125,10 +153,18 @@ function settle(G){
     (x.chance==null||G.rng()<x.chance));
   if(!ending)return resolve(G,"unwritten");
   G.ending=ending;
+  /* Some outcomes are not outcomes: he says his piece and then goes for it,
+   * turns back from the doorway, or never meant to talk at all. */
+  if(ending.event==="ambush")return theyDraw(G,"ambush");
+  if(ending.event==="delayed_draw"||ending.event==="false_exit")G.pending=ending.event;
+  if(ending.event==="romance")G.romance=true;
+  if(ending.event==="surrender")G.surrenders.push(e.id);
+  if(ending.event==="departure")G.departures.push(e.id);
   for(const [k,v] of Object.entries(ending.fx||{})){
     if(k==="safety")G.safety+=v;
     else if(k==="clue"&&!G.clues.includes(v))G.clues.push(v);
     else if(k==="favour")G.favours+=1;
+    else if(k==="job"&&G.jobs[v]!=null)G.jobs[v]+=1;      // what he let slip about a job
     else if(k in G.S)G.S[k]+=v;
   }
   if(ending.fx&&ending.fx.clue)award(G,"clue",ending.fx.clue);
@@ -190,10 +226,14 @@ function aimAt(G,zone){
 }
 
 /* ---- duels ---- */
+/* The tell is the warning, and not every draw gives the same one: a man who
+ * turns back from the doorway gives less, and an ambush gives almost none. */
+const TELLS={ambush:[120,260], false_exit:[300,600], delayed_draw:[450,900]};
 function theyDraw(G,why){
   const e=who(G);
+  const span=TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
-  G.tell={at:0,why,delay:Math.round(rnd(G,RULES.TELL_MIN,RULES.TELL_MAX))};
+  G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
   G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",
     fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-(e.nerve||0)*20),
     latency:null,error:null,result:null};
@@ -249,9 +289,17 @@ function theirReply(G){
 }
 /* A wound is carried, not cured: the day goes on until there is one too many.
  * A favour banked with someone in town buys one of them back. */
+/* "If you were civil to the doctor he patches you up; if you insulted him it is
+ * over." His goodwill first, then anybody else who owes the sheriff a favour. */
 function takeHit(G,why){
   G.wounded=true; award(G,"wounded");
-  if(G.favours>0){                       // somebody in town owes him, once
+  if(G.doctorFavour<0&&!G.doctorSpent)
+    return finish(G,"killed",why||"the doctor would not come");
+  if(G.doctorFavour>0&&!G.doctorSpent){
+    G.doctorSpent=true;
+    return resolve(G,"doctor_patched");
+  }
+  if(G.favours>0){                       // somebody else in town owes him, once
     G.favours--;
     return resolve(G,"rescued_from_street");
   }
@@ -270,6 +318,11 @@ function resolve(G,outcome){
 }
 function nextSlot(G){
   if(G.phase==="summary")return null;
+  if(G.pending){                         // he had not finished after all
+    const why=G.pending; G.pending=null;
+    G.ending=null; G.outcome=null;
+    return theyDraw(G,why);
+  }
   G.slot++;
   if(G.slot>=ENCOUNTERS.length)return finish(G,"dusk");
   return beginSlot(G);
@@ -278,11 +331,23 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v)));
 function finish(G,why,how){
   const acc=G.shots?G.hits/G.shots:null;
   const done=G.results.filter(r=>r.outcome!=="unwritten").length;
-  const cats={
+  /* The faithful day is graded on the dimensions the original graded: what was
+   * solved, who was met, how much was settled without shooting, whether the
+   * shooting that did happen was any good, and how the sheriff behaved. */
+  const cats=G.mode==="faithful"?{
+    "crimes solved":  Math.max(0,G.safety)+(G.outcome==="job_stopped"?1:0),
+    "interactions":   done+"/"+ENCOUNTERS.length,
+    "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60
+                        +G.disarms.length*12+G.surrenders.length*8,0,100),
+    "marksmanship":   acc==null?null:Math.round(acc*100),
+    "courtesy":       clamp(60+G.doctorFavour*12+G.settled.length*6-G.murders*40,0,100),
+    "romance":        G.romance?100:0,
+    "secrets learned":JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0)+"/"+JOBS.length
+  }:{
     "crimes solved":  G.clues.length+Math.max(0,G.safety),
     "interactions":   done+"/"+ENCOUNTERS.length,
     "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
-    "marksmanship":   acc==null?null:Math.round(acc*100),   // null when no shot was fired
+    "marksmanship":   acc==null?null:Math.round(acc*100),
     "authority":      clamp(50+G.arrests.length*14+G.settled.length*8-G.murders*40,0,100),
     "mercy":          clamp(100-G.kills.length*22-G.murders*50+G.disarms.length*8,0,100),
     "evidence":       G.clues.length
@@ -296,7 +361,9 @@ function finish(G,why,how){
 function rating(G,why){
   if(why==="killed")return 1;
   let r=2;
-  r+=Math.min(3,G.clues.length);
+  r+=Math.min(3,G.mode==="faithful"?JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0):G.clues.length);
+  r+=G.romance?1:0;
+  r+=Math.min(1,G.surrenders.length);
   r+=Math.min(2,Math.floor(G.settled.length/2));
   r+=Math.min(2,Math.floor(G.disarms.length/2));
   r+=G.arrests.length>=2?1:0;

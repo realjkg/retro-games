@@ -1,10 +1,18 @@
 /* ============ content ============
- * An original encounter anthology built on the design grammar of the 1985
- * game rather than its script: a visitor arrives with a public pretext and a
- * concealed motive, the sheriff gets four sharply distinct attitudes, every
- * response moves state, and an encounter can settle, leave a clue, create a
- * consequence, or become a duel. Nothing here is drawn from the original's
- * dialogue, characters or plot.
+ * Two modes, and the difference between them is stated on the title screen.
+ *
+ *   faithful  The day as the 1985 release ran it: the same cast in the same
+ *             order, three rounds of four answers, the same event classes -
+ *             a secret about a robbery, romance, a surrender, a departure, a
+ *             duel, a draw that comes after the goodbye, a false exit, an
+ *             ambush - the doctor deciding whether a bullet is survivable,
+ *             and the bank, train and stage jobs following up at the end.
+ *             The structure is reconstructed; every line of dialogue here is
+ *             newly written, and none of the original's script, artwork or
+ *             audio is reproduced.
+ *
+ *   remix     Six original encounters of our own on the same machinery,
+ *             labelled as what it is rather than passed off as the original.
  *
  * Intents, not wordings, are what the engine reads:
  *   conciliate  lowers tension, and invites being handled
@@ -17,8 +25,8 @@ const INTENTS=["conciliate","probe","command","threaten"];
  * carries across the day: safety, clues and the sheriff's standing. */
 const VARS=["respect","fear","suspicion","evidence","drawRisk"];
 
-const ENCOUNTERS=[
- {id:"deputy", title:"The Brass-Button Deputy", place:"JAIL",
+const REMIX=[
+ {id:"brass", title:"The Brass-Button Deputy", place:"JAIL",
   surface:"A territorial deputy demands custody of a prisoner",
   hidden:"His warrant may be fabricated",
   core:"authority", armed:true, nerve:2, drawAt:6, hostile:0.12,
@@ -113,10 +121,10 @@ const ENCOUNTERS=[
  * below are read off the same grid, so what the crosshair is over is what the
  * bullet finds.
  */
-const SCENE={w:320,h:200};
+const SCENE={w:320,h:240};               // 4:3, the shape the machine drew on
 const CELL=4;                            // one "pixel" of the machine
 const SPR={w:16,h:26};                   // a figure, in cells
-const FIG={cx:148,ground:172};           // where he stands, snapped to the grid
+const FIG={cx:148,ground:188};           // where he stands, snapped to the grid           // where he stands, snapped to the grid
 const SPRX=FIG.cx-(SPR.w/2)*CELL;        // 124: his left edge
 const SPRY=FIG.ground-SPR.h*CELL;        // 86: the top of his hat
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
@@ -132,7 +140,7 @@ const HITBOX={
  * rewritten without touching a rule. Three turns; four intents per turn; fx is
  * what the reply does to the state.
  */
-const DIALOGUE={
+const REMIX_DIALOGUE={
  rainmaker:[
   {say:"Sheriff. Brother Amos Teague, of no fixed pulpit. Three nights on the lot behind the livery, a tent, and a hymn or two. The town keeps the peace and heaven keeps the accounts.",
    replies:[
@@ -249,7 +257,7 @@ const DIALOGUE={
      react:"\"Then come out,\" she says, and the wagon is moving before you have finished the sentence.",
      fx:{fear:+3,respect:-1}}]}],
 
- deputy:[
+ brass:[
   {say:"Sheriff. Deputy Marsh, territorial office. I'm here for the man you're holding — Coyle. Warrant's made out and my horse is tired.",
    replies:[
     {intent:"conciliate",
@@ -307,3 +315,88 @@ const DIALOGUE={
      react:"\"Then reach,\" he says, very quietly, and stops talking.",
      fx:{drawRisk:+4,respect:-2,fear:+2}}]}]
 };
+
+/* ============ the faithful day ============
+ * Ten callers in the original sequence, then the robbery that the day has been
+ * pointing at. Each carries the classes of event it can produce and, where the
+ * original gave one, the job its secret concerns.
+ */
+const JOBS=["bank","train","stage"];
+const FAITHFUL=[
+ {id:"dude", title:"A Dude", place:"STREET", arrive:["wagon","crowd"],
+  surface:"A nervous newcomer stops the sheriff in the street",
+  hidden:"He has heard what the James gang means to do", core:"trust",
+  armed:true, nerve:1, drawAt:7, hostile:0.18, fragment:"train",
+  events:["secret","departure","duel","delayed_draw"], endings:[]},
+ {id:"rose", title:"Miss Rose", place:"SALOON", arrive:["piano","bottle"],
+  surface:"The saloon hostess has something to say and takes her time saying it",
+  hidden:"She knows which coach is worth robbing and when", core:"trust",
+  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"stage",
+  events:["secret","romance","departure"], endings:[]},
+ {id:"mexicali", title:"The Mexicali Kid", place:"STREET", arrive:["hooves","spurs"],
+  surface:"A fugitive with a price on him, and he knows the sheriff knows it",
+  hidden:"He has decided how this ends before he opens his mouth", core:"nerve",
+  armed:true, nerve:3, drawAt:4, hostile:0.55, fragment:null,
+  events:["duel","surrender","false_exit","ambush"], endings:[]},
+ {id:"doctor", title:"The Doctor", place:"DOCTOR", arrive:["crowd"],
+  surface:"The town doctor, sober enough to be useful and sour enough to say so",
+  hidden:"He hears what men say under laudanum, including about the bank",
+  core:"courtesy", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
+  events:["secret","departure"], courtesy:true, endings:[]},
+ {id:"newgun", title:"Dude with new Gun", place:"STREET", arrive:["spurs","crowd"],
+  surface:"A man with a new gun and an audience for it",
+  hidden:"He needs to use it in front of somebody", core:"pride",
+  armed:true, nerve:2, drawAt:5, hostile:0.42, fragment:null,
+  events:["duel","surrender","departure","delayed_draw"], endings:[]},
+ {id:"willy", title:"Little Willy", place:"STREET", arrive:["crowd"],
+  surface:"A boy with his hands behind his back and a great deal to say",
+  hidden:"He saw who was pacing out the bank's back wall", core:"patience",
+  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
+  events:["secret","departure"], endings:[]},
+ {id:"april", title:"Miss April", place:"SCHOOL", arrive:["crowd"],
+  surface:"The schoolteacher, with a picnic in mind and the afternoon free",
+  hidden:"Her brother let something slip about the westbound train",
+  core:"romance", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"train",
+  events:["romance","secret","departure"], costsRomance:true, endings:[]},
+ {id:"gambler", title:"The Gambler", place:"SALOON", arrive:["piano","crowd"],
+  surface:"A card player who would rather not be asked about last night",
+  hidden:"His hand is closer to his coat than to the table", core:"nerve",
+  armed:true, nerve:2, drawAt:5, hostile:0.38, fragment:null,
+  events:["duel","surrender","false_exit","departure"], endings:[]},
+ {id:"deputy", title:"The Deputy", place:"JAIL", arrive:["hooves"],
+  surface:"Your own deputy, out of breath and short on detail",
+  hidden:"Whatever is happening has already started", core:"authority",
+  armed:true, nerve:1, drawAt:9, hostile:0.05, fragment:null,
+  events:["announce"], triggers:"robbery", endings:[]},
+ {id:"belle", title:"Belle", place:"CORRAL", arrive:["hooves"],
+  surface:"A rustler who rode in rather than away, which is its own answer",
+  hidden:"She can be an enemy or a witness, and has not decided which",
+  core:"trust", armed:true, nerve:2, drawAt:6, hostile:0.35, fragment:null,
+  events:["duel","surrender","romance","false_exit","ambush"], endings:[]},
+ /* The eleventh is the day's own consequence: whatever the sheriff learned
+  * about the bank, the train and the stage arrives to be used or regretted. */
+ {id:"robbery", title:"The Robbery", place:"BANK", arrive:["alarm"],
+  surface:"The job the day has been pointing at",
+  hidden:"Whether it can be stopped was decided in the conversations before it",
+  core:"consequence", armed:true, nerve:3, drawAt:1, hostile:0.00, fragment:null,
+  events:["duel","ambush","consequence"], followUp:true, endings:[]}
+];
+const FAITHFUL_DIALOGUE={};
+
+const MODES={
+  faithful:{id:"faithful",title:"THE DAY AS IT WAS",
+    note:"The original cast and running order, reconstructed. New words, same day.",
+    encounters:FAITHFUL,dialogue:FAITHFUL_DIALOGUE},
+  remix:{id:"remix",title:"GOLD GULCH REMIX",
+    note:"Six encounters of our own on the same machinery.",
+    encounters:REMIX,dialogue:REMIX_DIALOGUE}
+};
+/* The engine and the page read these two; selecting a mode repoints them. */
+let MODE="faithful";
+let ENCOUNTERS=MODES.faithful.encounters;
+let DIALOGUE=MODES.faithful.dialogue;
+function selectMode(id){
+  if(!MODES[id])return MODE;
+  MODE=id; ENCOUNTERS=MODES[id].encounters; DIALOGUE=MODES[id].dialogue;
+  return MODE;
+}

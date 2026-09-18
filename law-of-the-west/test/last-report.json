@@ -1,14 +1,10 @@
 {
   "authored": [
-    "deputy written",
-    "rainmaker written",
-    "surveyor pending",
-    "widow written",
-    "tuner pending",
-    "locket pending"
+    "faithful: 0/11",
+    "remix: 3/6"
   ],
   "runs": {
-    "deputy": {
+    "brass": {
       "escorted": 85,
       "forgery": 135,
       "duel:killed_him": 61,
@@ -43,7 +39,7 @@
     }
   },
   "variance": {
-    "deputy": {
+    "brass": {
       "conciliate": {
         "top": 79,
         "counts": {

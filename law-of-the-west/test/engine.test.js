@@ -12,10 +12,13 @@ test('1. the scripts parse', ()=>{
     execFileSync(process.execPath,['--check',path.join(ROOT,f)]);
 });
 
-test('2. the anthology and every authored encounter are sound', ()=>{
+test('2. both days, and every authored encounter in them, are sound', ()=>{
   const {run}=load({fill:false});
   const problems=JSON.parse(run(`(()=>{
-    const bad=[],ids=new Set(),ops=[">=","<=",">","<","==","!="];
+    const bad=[],ops=[">=","<=",">","<","==","!="];
+    for(const modeId of Object.keys(MODES)){
+    selectMode(modeId);
+    const ids=new Set();
     const known=["respect","fear","suspicion","evidence","drawRisk","safety","favours","wounds","clues"];
     const isVar=n=>known.includes(n)||/^clue:[a-z_]+$/.test(n);
     for(const e of ENCOUNTERS){
@@ -61,15 +64,30 @@ test('2. the anthology and every authored encounter are sound', ()=>{
         if(last&&x.chance!=null)bad.push(e.id+": the fallback must be certain");
       });
     }
+    }
+    selectMode("faithful");
     return JSON.stringify(bad);
   })()`));
   assert.deepEqual(problems,[]);
-  report.authored=JSON.parse(run('JSON.stringify(ENCOUNTERS.map(e=>e.id+(DIALOGUE[e.id]?" written":" pending")))'));
+  report.authored=JSON.parse(run(`JSON.stringify(Object.keys(MODES).map(m=>
+    m+": "+MODES[m].encounters.filter(e=>MODES[m].dialogue[e.id]).length+"/"+MODES[m].encounters.length))`));
 });
 
 /* Play one encounter with a chooser over the four intents. */
+const MODE_OF={};                       // which day a scene belongs to
+function modeOf(id){
+  if(!MODE_OF[id]){
+    const {run}=load({fill:false});
+    for(const m of JSON.parse(run('JSON.stringify(Object.keys(MODES))')))
+      for(const e of JSON.parse(run(`JSON.stringify(MODES.${m}.encounters.map(x=>x.id))`))){
+        const written=JSON.parse(run(`JSON.stringify(!!MODES.${m}.dialogue[${JSON.stringify(e)}])`));
+        if(!MODE_OF[e]||written)MODE_OF[e]=m;     // the day that has words for it wins
+      }
+  }
+  return MODE_OF[id]||'faithful';
+}
 function playEncounter(id,seed,chooser,fireLatency,clues){
-  const h=load(); const {run,box}=h;
+  const h=load({mode:modeOf(id)}); const {run,box}=h;
   box.__choose=chooser;
   box.__clues=clues||[];
   return JSON.parse(run(`(()=>{
@@ -99,7 +117,7 @@ function playEncounter(id,seed,chooser,fireLatency,clues){
 }
 
 test('3. five hundred runs of every written encounter reach every ending', ()=>{
-  const {run}=load({fill:false});
+  const {run}=load({fill:false,mode:'remix'});
   const written=JSON.parse(run(`JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>({
     id:e.id,
     endings:e.endings.map(x=>({id:x.id,
@@ -144,7 +162,7 @@ test('3. five hundred runs of every written encounter reach every ending', ()=>{
 
 test('4. one intent held all the way through does not always end the same', ()=>{
   const per={};
-  const {run}=load();
+  const {run}=load({mode:'remix'});
   const intents=JSON.parse(run('JSON.stringify(INTENTS)'));
   for(const id of JSON.parse(run('JSON.stringify(ENCOUNTERS.map(e=>e.id))'))){
     per[id]={};
@@ -164,7 +182,7 @@ test('4. one intent held all the way through does not always end the same', ()=>
   // the unwritten encounters run on a single fixture ending, so only the
   // written ones can be judged here
   // ask an unfilled harness which scenes are actually authored
-  const writtenIds=JSON.parse(load({fill:false})
+  const writtenIds=JSON.parse(load({fill:false,mode:'remix'})
     .run('JSON.stringify(ENCOUNTERS.filter(e=>DIALOGUE[e.id]).map(e=>e.id))'));
   const stuck=writtenIds.filter(id=>rigid.includes(id));
   assert.deepEqual(stuck,[],'no intent path varies for: '+stuck.join(', '));
@@ -173,8 +191,8 @@ test('4. one intent held all the way through does not always end the same', ()=>
 });
 
 test('5. two thousand duels across the tell range', ()=>{
-  const {run,slotOf}=load();
-  const slot=slotOf('deputy'), buckets={};
+  const {run,slotOf}=load({mode:'remix'});
+  const slot=slotOf('brass'), buckets={};
   for(let i=0;i<2000;i++){
     const lat=140+(i%64)*20;
     const b=Math.floor(lat/100)*100;
@@ -199,8 +217,8 @@ test('5. two thousand duels across the tell range', ()=>{
 });
 
 test('6. wounds carry, a banked favour buys one back, and the second is fatal', ()=>{
-  const {run,slotOf}=load();
-  const slot=slotOf('deputy');
+  const {run,slotOf}=load({mode:'remix'});
+  const slot=slotOf('brass');
   const one=run(`(()=>{const G=newGame({seed:1});G.slot=${slot};beginSlot(G);
     takeHit(G,"test");return JSON.stringify({o:G.outcome,w:G.wounds,phase:G.phase});})()`);
   assert.deepEqual(JSON.parse(one),{o:'wound_consequence',w:1,phase:'resolve'});
@@ -217,7 +235,7 @@ test('6. wounds carry, a banked favour buys one back, and the second is fatal', 
 /* The favour is the one state that has to survive between encounters, so it is
  * tested across them rather than in isolation. */
 test('6b. the Widow\'s favour is earned in her scene and spent in a later one', ()=>{
-  const {run}=load();
+  const {run}=load({mode:'remix'});
   // her favour ending carries a chance of its own, so take the first seed
   // that earns it rather than assuming one does
   const earned=JSON.parse(run(`(()=>{
@@ -242,7 +260,7 @@ test('6b. the Widow\'s favour is earned in her scene and spent in a later one', 
   // carried into a later encounter, spent once, and gone
   const spent=JSON.parse(run(`(()=>{
     const G=globalThis.G;
-    while(G.slot<ENCOUNTERS.length-1&&ENCOUNTERS[G.slot].id!=="deputy")nextSlot(G);
+    while(G.slot<ENCOUNTERS.length-1&&ENCOUNTERS[G.slot].id!=="brass")nextSlot(G);
     const first=takeHit(G,"shot");
     const second=takeHit(G,"shot again");
     return JSON.stringify({first:first.outcome,favours:G.favours,
@@ -272,8 +290,8 @@ test('7. every cue plays through the runtime with only finite, in-range values',
 });
 
 test('9. what the crosshair is over is what the bullet finds', ()=>{
-  const {run,slotOf}=load();
-  const slot=slotOf('deputy');
+  const {run,slotOf}=load({mode:'remix'});
+  const slot=slotOf('brass');
   const g=JSON.parse(run(`(()=>{
     const G=newGame({seed:7}); G.slot=${slot}; beginSlot(G);
     const out={holstered:{},raised:{}};
@@ -307,8 +325,9 @@ test('10. every sound cue is either played by the page or explicitly reserved', 
   const abox={};vm.createContext(abox);
   vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
   const cues=Object.keys(abox.S);
-  const arrivals=new Set(JSON.parse(run('JSON.stringify(ENCOUNTERS.flatMap(e=>e.arrive||[]))')));
-  const endingSounds=new Set(JSON.parse(run('JSON.stringify(ENCOUNTERS.flatMap(e=>(e.endings||[]).map(x=>x.sound).filter(Boolean)))')));
+  const all=JSON.parse(run(`JSON.stringify(Object.keys(MODES).flatMap(m=>MODES[m].encounters))`));
+  const arrivals=new Set(all.flatMap(e=>e.arrive||[]));
+  const endingSounds=new Set(all.flatMap(e=>(e.endings||[]).map(x=>x.sound).filter(Boolean)));
   const RESERVED=['romance'];        // no romance in the anthology yet
   const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)
     &&!endingSounds.has(c)&&!RESERVED.includes(c));

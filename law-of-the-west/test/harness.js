@@ -25,6 +25,8 @@ function load(opts){
   vm.createContext(box);
   for(const f of ['content.js','engine.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT,f),'utf8'),box,{filename:f});
+  // every test says which day it is playing; the default is the faithful one
+  vm.runInContext(`selectMode(${JSON.stringify((opts&&opts.mode)||'faithful')});`,box);
   if(!opts||opts.fill!==false)
     fillUnwritten(box.ENCOUNTERS||vm.runInContext('ENCOUNTERS',box),
       vm.runInContext('DIALOGUE',box),

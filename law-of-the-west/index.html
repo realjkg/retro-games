@@ -393,12 +393,20 @@ const SND=(function(){
 
 /* ===== content.js ===== */
 /* ============ content ============
- * An original encounter anthology built on the design grammar of the 1985
- * game rather than its script: a visitor arrives with a public pretext and a
- * concealed motive, the sheriff gets four sharply distinct attitudes, every
- * response moves state, and an encounter can settle, leave a clue, create a
- * consequence, or become a duel. Nothing here is drawn from the original's
- * dialogue, characters or plot.
+ * Two modes, and the difference between them is stated on the title screen.
+ *
+ *   faithful  The day as the 1985 release ran it: the same cast in the same
+ *             order, three rounds of four answers, the same event classes -
+ *             a secret about a robbery, romance, a surrender, a departure, a
+ *             duel, a draw that comes after the goodbye, a false exit, an
+ *             ambush - the doctor deciding whether a bullet is survivable,
+ *             and the bank, train and stage jobs following up at the end.
+ *             The structure is reconstructed; every line of dialogue here is
+ *             newly written, and none of the original's script, artwork or
+ *             audio is reproduced.
+ *
+ *   remix     Six original encounters of our own on the same machinery,
+ *             labelled as what it is rather than passed off as the original.
  *
  * Intents, not wordings, are what the engine reads:
  *   conciliate  lowers tension, and invites being handled
@@ -411,8 +419,8 @@ const INTENTS=["conciliate","probe","command","threaten"];
  * carries across the day: safety, clues and the sheriff's standing. */
 const VARS=["respect","fear","suspicion","evidence","drawRisk"];
 
-const ENCOUNTERS=[
- {id:"deputy", title:"The Brass-Button Deputy", place:"JAIL",
+const REMIX=[
+ {id:"brass", title:"The Brass-Button Deputy", place:"JAIL",
   surface:"A territorial deputy demands custody of a prisoner",
   hidden:"His warrant may be fabricated",
   core:"authority", armed:true, nerve:2, drawAt:6, hostile:0.12,
@@ -507,10 +515,10 @@ const ENCOUNTERS=[
  * below are read off the same grid, so what the crosshair is over is what the
  * bullet finds.
  */
-const SCENE={w:320,h:200};
+const SCENE={w:320,h:240};               // 4:3, the shape the machine drew on
 const CELL=4;                            // one "pixel" of the machine
 const SPR={w:16,h:26};                   // a figure, in cells
-const FIG={cx:148,ground:172};           // where he stands, snapped to the grid
+const FIG={cx:148,ground:188};           // where he stands, snapped to the grid           // where he stands, snapped to the grid
 const SPRX=FIG.cx-(SPR.w/2)*CELL;        // 124: his left edge
 const SPRY=FIG.ground-SPR.h*CELL;        // 86: the top of his hat
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
@@ -526,7 +534,7 @@ const HITBOX={
  * rewritten without touching a rule. Three turns; four intents per turn; fx is
  * what the reply does to the state.
  */
-const DIALOGUE={
+const REMIX_DIALOGUE={
  rainmaker:[
   {say:"Sheriff. Brother Amos Teague, of no fixed pulpit. Three nights on the lot behind the livery, a tent, and a hymn or two. The town keeps the peace and heaven keeps the accounts.",
    replies:[
@@ -643,7 +651,7 @@ const DIALOGUE={
      react:"\"Then come out,\" she says, and the wagon is moving before you have finished the sentence.",
      fx:{fear:+3,respect:-1}}]}],
 
- deputy:[
+ brass:[
   {say:"Sheriff. Deputy Marsh, territorial office. I'm here for the man you're holding — Coyle. Warrant's made out and my horse is tired.",
    replies:[
     {intent:"conciliate",
@@ -702,6 +710,91 @@ const DIALOGUE={
      fx:{drawRisk:+4,respect:-2,fear:+2}}]}]
 };
 
+/* ============ the faithful day ============
+ * Ten callers in the original sequence, then the robbery that the day has been
+ * pointing at. Each carries the classes of event it can produce and, where the
+ * original gave one, the job its secret concerns.
+ */
+const JOBS=["bank","train","stage"];
+const FAITHFUL=[
+ {id:"dude", title:"A Dude", place:"STREET", arrive:["wagon","crowd"],
+  surface:"A nervous newcomer stops the sheriff in the street",
+  hidden:"He has heard what the James gang means to do", core:"trust",
+  armed:true, nerve:1, drawAt:7, hostile:0.18, fragment:"train",
+  events:["secret","departure","duel","delayed_draw"], endings:[]},
+ {id:"rose", title:"Miss Rose", place:"SALOON", arrive:["piano","bottle"],
+  surface:"The saloon hostess has something to say and takes her time saying it",
+  hidden:"She knows which coach is worth robbing and when", core:"trust",
+  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"stage",
+  events:["secret","romance","departure"], endings:[]},
+ {id:"mexicali", title:"The Mexicali Kid", place:"STREET", arrive:["hooves","spurs"],
+  surface:"A fugitive with a price on him, and he knows the sheriff knows it",
+  hidden:"He has decided how this ends before he opens his mouth", core:"nerve",
+  armed:true, nerve:3, drawAt:4, hostile:0.55, fragment:null,
+  events:["duel","surrender","false_exit","ambush"], endings:[]},
+ {id:"doctor", title:"The Doctor", place:"DOCTOR", arrive:["crowd"],
+  surface:"The town doctor, sober enough to be useful and sour enough to say so",
+  hidden:"He hears what men say under laudanum, including about the bank",
+  core:"courtesy", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
+  events:["secret","departure"], courtesy:true, endings:[]},
+ {id:"newgun", title:"Dude with new Gun", place:"STREET", arrive:["spurs","crowd"],
+  surface:"A man with a new gun and an audience for it",
+  hidden:"He needs to use it in front of somebody", core:"pride",
+  armed:true, nerve:2, drawAt:5, hostile:0.42, fragment:null,
+  events:["duel","surrender","departure","delayed_draw"], endings:[]},
+ {id:"willy", title:"Little Willy", place:"STREET", arrive:["crowd"],
+  surface:"A boy with his hands behind his back and a great deal to say",
+  hidden:"He saw who was pacing out the bank's back wall", core:"patience",
+  armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"bank",
+  events:["secret","departure"], endings:[]},
+ {id:"april", title:"Miss April", place:"SCHOOL", arrive:["crowd"],
+  surface:"The schoolteacher, with a picnic in mind and the afternoon free",
+  hidden:"Her brother let something slip about the westbound train",
+  core:"romance", armed:false, nerve:0, drawAt:99, hostile:0.00, fragment:"train",
+  events:["romance","secret","departure"], costsRomance:true, endings:[]},
+ {id:"gambler", title:"The Gambler", place:"SALOON", arrive:["piano","crowd"],
+  surface:"A card player who would rather not be asked about last night",
+  hidden:"His hand is closer to his coat than to the table", core:"nerve",
+  armed:true, nerve:2, drawAt:5, hostile:0.38, fragment:null,
+  events:["duel","surrender","false_exit","departure"], endings:[]},
+ {id:"deputy", title:"The Deputy", place:"JAIL", arrive:["hooves"],
+  surface:"Your own deputy, out of breath and short on detail",
+  hidden:"Whatever is happening has already started", core:"authority",
+  armed:true, nerve:1, drawAt:9, hostile:0.05, fragment:null,
+  events:["announce"], triggers:"robbery", endings:[]},
+ {id:"belle", title:"Belle", place:"CORRAL", arrive:["hooves"],
+  surface:"A rustler who rode in rather than away, which is its own answer",
+  hidden:"She can be an enemy or a witness, and has not decided which",
+  core:"trust", armed:true, nerve:2, drawAt:6, hostile:0.35, fragment:null,
+  events:["duel","surrender","romance","false_exit","ambush"], endings:[]},
+ /* The eleventh is the day's own consequence: whatever the sheriff learned
+  * about the bank, the train and the stage arrives to be used or regretted. */
+ {id:"robbery", title:"The Robbery", place:"BANK", arrive:["alarm"],
+  surface:"The job the day has been pointing at",
+  hidden:"Whether it can be stopped was decided in the conversations before it",
+  core:"consequence", armed:true, nerve:3, drawAt:1, hostile:0.00, fragment:null,
+  events:["duel","ambush","consequence"], followUp:true, endings:[]}
+];
+const FAITHFUL_DIALOGUE={};
+
+const MODES={
+  faithful:{id:"faithful",title:"THE DAY AS IT WAS",
+    note:"The original cast and running order, reconstructed. New words, same day.",
+    encounters:FAITHFUL,dialogue:FAITHFUL_DIALOGUE},
+  remix:{id:"remix",title:"GOLD GULCH REMIX",
+    note:"Six encounters of our own on the same machinery.",
+    encounters:REMIX,dialogue:REMIX_DIALOGUE}
+};
+/* The engine and the page read these two; selecting a mode repoints them. */
+let MODE="faithful";
+let ENCOUNTERS=MODES.faithful.encounters;
+let DIALOGUE=MODES.faithful.dialogue;
+function selectMode(id){
+  if(!MODES[id])return MODE;
+  MODE=id; ENCOUNTERS=MODES[id].encounters; DIALOGUE=MODES[id].dialogue;
+  return MODE;
+}
+
 
 /* ===== engine.js ===== */
 /* ============ engine ============
@@ -734,9 +827,13 @@ function absNormal(g,sigma){          // folded gaussian: the size of a shot's e
 
 function newGame(opts){
   const seed=opts&&opts.seed;
+  if(opts&&opts.mode)selectMode(opts.mode);
   return {
     phase:"intro", slot:0, turn:0, rng:seed==null?Math.random:mulberry32(seed),
+    mode:typeof MODE==="string"?MODE:"faithful",
     S:blankState(), safety:0, clues:[], favours:0, reputation:0,
+    doctorFavour:0, doctorSpent:false, jobs:{bank:0,train:0,stage:0},
+    pending:null, romance:false, surrenders:[], departures:[],
     wounds:0, wounded:false, mode:"talk", aim:{x:0.5,y:0.5}, reflex:null,
     shots:0, hits:0, arrests:[], kills:[], disarms:[], murders:0, needlessKills:0,
     settled:[], points:0, log:[], results:[],
@@ -769,8 +866,27 @@ function beginSlot(G){
 function openDialogue(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
+  if(e.followUp)return robbery(G);
   if(!authored(e.id))return resolve(G,"unwritten");
   G.phase="dialogue"; return turnFor(e.id,0);
+}
+/* The bank, the train and the stage. Whichever job the sheriff learned least
+ * about is the one that comes off, and what he did learn is what stops it. */
+function robbery(G){
+  const ready=JOBS.filter(j=>G.jobs[j]>0);
+  const job=JOBS.find(j=>G.jobs[j]===0)||JOBS[Math.floor(G.rng()*JOBS.length)];
+  G.job=job;
+  if(G.jobs[job]>0||ready.length===JOBS.length){
+    G.safety+=1; award(G,"arrest","stopped the "+job+" job");
+    G.points+=200;
+    return resolve(G,"job_stopped");
+  }
+  if(ready.length){                      // forewarned about the others, not this one
+    G.safety-=1; G.points-=40;
+    return resolve(G,"job_partly");
+  }
+  G.safety-=2; G.points-=120;
+  return resolve(G,"job_done");
 }
 
 /* A reply moves the state by what the writing says it moves, plus a point of
@@ -785,6 +901,11 @@ function respond(G,index){
   if(!available(G,reply))return {denied:reply.needs};
   for(const [k,v] of Object.entries(reply.fx||{})){
     if(k in G.S)G.S[k]+=v; else if(k==="safety")G.safety+=v;
+  }
+  if(e.courtesy){                       // the doctor keeps his own account
+    if(reply.intent==="threaten")G.doctorFavour-=2;
+    else if(reply.intent==="conciliate")G.doctorFavour+=1;
+    else if(reply.intent==="command")G.doctorFavour-=1;
   }
   /* A point of temper either way each turn, on his patience and on one social
    * reading of the sheriff. Evidence is never jittered: the ledger says what
@@ -831,10 +952,18 @@ function settle(G){
     (x.chance==null||G.rng()<x.chance));
   if(!ending)return resolve(G,"unwritten");
   G.ending=ending;
+  /* Some outcomes are not outcomes: he says his piece and then goes for it,
+   * turns back from the doorway, or never meant to talk at all. */
+  if(ending.event==="ambush")return theyDraw(G,"ambush");
+  if(ending.event==="delayed_draw"||ending.event==="false_exit")G.pending=ending.event;
+  if(ending.event==="romance")G.romance=true;
+  if(ending.event==="surrender")G.surrenders.push(e.id);
+  if(ending.event==="departure")G.departures.push(e.id);
   for(const [k,v] of Object.entries(ending.fx||{})){
     if(k==="safety")G.safety+=v;
     else if(k==="clue"&&!G.clues.includes(v))G.clues.push(v);
     else if(k==="favour")G.favours+=1;
+    else if(k==="job"&&G.jobs[v]!=null)G.jobs[v]+=1;      // what he let slip about a job
     else if(k in G.S)G.S[k]+=v;
   }
   if(ending.fx&&ending.fx.clue)award(G,"clue",ending.fx.clue);
@@ -896,10 +1025,14 @@ function aimAt(G,zone){
 }
 
 /* ---- duels ---- */
+/* The tell is the warning, and not every draw gives the same one: a man who
+ * turns back from the doorway gives less, and an ambush gives almost none. */
+const TELLS={ambush:[120,260], false_exit:[300,600], delayed_draw:[450,900]};
 function theyDraw(G,why){
   const e=who(G);
+  const span=TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
-  G.tell={at:0,why,delay:Math.round(rnd(G,RULES.TELL_MIN,RULES.TELL_MAX))};
+  G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
   G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",
     fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)-(e.nerve||0)*20),
     latency:null,error:null,result:null};
@@ -955,9 +1088,17 @@ function theirReply(G){
 }
 /* A wound is carried, not cured: the day goes on until there is one too many.
  * A favour banked with someone in town buys one of them back. */
+/* "If you were civil to the doctor he patches you up; if you insulted him it is
+ * over." His goodwill first, then anybody else who owes the sheriff a favour. */
 function takeHit(G,why){
   G.wounded=true; award(G,"wounded");
-  if(G.favours>0){                       // somebody in town owes him, once
+  if(G.doctorFavour<0&&!G.doctorSpent)
+    return finish(G,"killed",why||"the doctor would not come");
+  if(G.doctorFavour>0&&!G.doctorSpent){
+    G.doctorSpent=true;
+    return resolve(G,"doctor_patched");
+  }
+  if(G.favours>0){                       // somebody else in town owes him, once
     G.favours--;
     return resolve(G,"rescued_from_street");
   }
@@ -976,6 +1117,11 @@ function resolve(G,outcome){
 }
 function nextSlot(G){
   if(G.phase==="summary")return null;
+  if(G.pending){                         // he had not finished after all
+    const why=G.pending; G.pending=null;
+    G.ending=null; G.outcome=null;
+    return theyDraw(G,why);
+  }
   G.slot++;
   if(G.slot>=ENCOUNTERS.length)return finish(G,"dusk");
   return beginSlot(G);
@@ -984,11 +1130,23 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v)));
 function finish(G,why,how){
   const acc=G.shots?G.hits/G.shots:null;
   const done=G.results.filter(r=>r.outcome!=="unwritten").length;
-  const cats={
+  /* The faithful day is graded on the dimensions the original graded: what was
+   * solved, who was met, how much was settled without shooting, whether the
+   * shooting that did happen was any good, and how the sheriff behaved. */
+  const cats=G.mode==="faithful"?{
+    "crimes solved":  Math.max(0,G.safety)+(G.outcome==="job_stopped"?1:0),
+    "interactions":   done+"/"+ENCOUNTERS.length,
+    "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60
+                        +G.disarms.length*12+G.surrenders.length*8,0,100),
+    "marksmanship":   acc==null?null:Math.round(acc*100),
+    "courtesy":       clamp(60+G.doctorFavour*12+G.settled.length*6-G.murders*40,0,100),
+    "romance":        G.romance?100:0,
+    "secrets learned":JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0)+"/"+JOBS.length
+  }:{
     "crimes solved":  G.clues.length+Math.max(0,G.safety),
     "interactions":   done+"/"+ENCOUNTERS.length,
     "pacifism":       clamp(100-G.kills.length*16-G.needlessKills*24-G.murders*60+G.disarms.length*12,0,100),
-    "marksmanship":   acc==null?null:Math.round(acc*100),   // null when no shot was fired
+    "marksmanship":   acc==null?null:Math.round(acc*100),
     "authority":      clamp(50+G.arrests.length*14+G.settled.length*8-G.murders*40,0,100),
     "mercy":          clamp(100-G.kills.length*22-G.murders*50+G.disarms.length*8,0,100),
     "evidence":       G.clues.length
@@ -1002,7 +1160,9 @@ function finish(G,why,how){
 function rating(G,why){
   if(why==="killed")return 1;
   let r=2;
-  r+=Math.min(3,G.clues.length);
+  r+=Math.min(3,G.mode==="faithful"?JOBS.reduce((n,j)=>n+(G.jobs[j]>0?1:0),0):G.clues.length);
+  r+=G.romance?1:0;
+  r+=Math.min(1,G.surrenders.length);
   r+=Math.min(2,Math.floor(G.settled.length/2));
   r+=Math.min(2,Math.floor(G.disarms.length/2));
   r+=G.arrests.length>=2?1:0;
@@ -1130,14 +1290,15 @@ function cellColour(ch,look){
   }
 }
 /* Paint a grid of rows at a cell origin. Rows may be sparse (an overlay). */
-function blocks(rows,x0,y0,look){
+function blocks(rows,x0,y0,look,cell){
+  const k=cell||CELL;                         // the foreground is drawn in bigger blocks
   for(const key of Object.keys(rows)){
     const r=+key, line=rows[r];
     for(let c=0;c<line.length;c++){
       const col=cellColour(line[c],look);
       if(!col)continue;
       ctx.fillStyle=col;
-      ctx.fillRect(x0+c*CELL,y0+r*CELL,CELL,CELL);
+      ctx.fillRect(x0+c*k,y0+r*k,k,k);
     }
   }
 }
@@ -1154,31 +1315,44 @@ function visitor(enc,armState){
 /* The sheriff's own hand and gun, across the low corner, on the same grid. */
 /* The sheriff's own forearm and revolver across the low right corner: his hand
  * is the only part of him the player ever sees. 16 cells wide, 10 tall. */
+/* The sheriff fills the bottom of the frame: his shoulder, his forearm and his
+ * revolver, seen from just behind his own hip. 22 cells across, 13 down. */
 const OWN={
-  holstered:["..............CC",
-             ".............CCC",
-             "..........CCCCCC",
-             ".......CCCAAAACC",
-             "....CCCCAAAAAACC",
-             "...CCCCAAAAAAACC",
-             "...BBBGGGAAAACCC",
-             "...BBGGGGGBBBBBB",
-             "....BBBBBBBBBB..",
-             ".....BBBBBBBB..."],
-  drawn:    ["BBBB............",
-             "GGGGBB..........",
-             "GGGGGGBB........",
-             "BGGGGGGGBB......",
-             ".BBBGGGGGBB.....",
-             "...BAAAGGGGB....",
-             "..BAAAAAAGGB....",
-             "..BCCAAAAAAAB...",
-             "...BCCCCAAAAAB..",
-             "....BCCCCCCCCCB."]};
+  holstered:[
+    "...................BBB",
+    "................BBBCCC",
+    "............BBBCCCCCCC",
+    "............CCCCCCCCCC",
+    ".........CCCAAAAACCCCC",
+    "......CCCCAAAAAAAACCCC",
+    "....CCCCAAAAAAAAAACCCC",
+    "...BBBGGGGGAAAAAACCCCC",
+    "..BBGGGGGGGBBBBBBCCCCC",
+    "..BBGGGGGBBBBBBBBBBBBB",
+    "...BBBBBBBBBBBBBBBBBBB",
+    "....BBBBBBBBBBBBBBBBBB",
+    ".....BBBBBBBBBBBBBBBBB"],
+  drawn:[
+    "BBBBB.................",
+    "GGGGGBB...............",
+    "GGGGGGGBB.............",
+    ".BBGGGGGGGGG..........",
+    "...BAAAAAGGGGG........",
+    "..BAAAAAAAAGGGG.......",
+    "..BCCAAAAAAAAGG.......",
+    "..BCCCCAAAAAAAAB......",
+    "...BCCCCCCAAAAAAB.....",
+    "....BCCCCCCCCAAAAB....",
+    ".....BCCCCCCCCCCCCB...",
+    "......BCCCCCCCCCCCCCB.",
+    ".......BCCCCCCCCCCCCCB"]};
+/* He is nearest the camera, so his blocks are the biggest thing on screen:
+ * seven scene-pixels to a cell against the street's four. */
+const OWN_CELL=CELL*1.5;
 function ownGun(out){
   const rows=Object.fromEntries((out?OWN.drawn:OWN.holstered).map((l,i)=>[i,l]));
-  const x0=SCENE.w-16*CELL, y0=SCENE.h-(out?14:13)*CELL;
-  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff});
+  const x0=SCENE.w-20*OWN_CELL, y0=SCENE.h-12*OWN_CELL;
+  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff},OWN_CELL);
 }
 /* A reticle of blocks, with a dark cell behind every light one so it reads
  * over a white shirt or a black doorway alike. */
@@ -1193,39 +1367,39 @@ function crosshair(){
 }
 const grid=v=>Math.round(v/CELL)*CELL;                     // nothing lands off the grid
 function facade(name){
-  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(28),SCENE.w,grid(84));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(28),SCENE.w,CELL*2);
-  for(let y=grid(40);y<grid(112);y+=CELL*3){
+  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(40),SCENE.w,grid(96));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(40),SCENE.w,CELL*2);
+  for(let y=grid(52);y<grid(136);y+=CELL*3){
     ctx.fillStyle="rgba(0,0,0,.10)"; ctx.fillRect(0,y,SCENE.w,CELL);
   }
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(52),grid(48),grid(44));
-  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(56),grid(40),grid(36));
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(52),grid(48),grid(32));
-  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(48),grid(40),grid(64));
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(64),grid(48),grid(48));
+  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(68),grid(40),grid(40));
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(64),grid(48),grid(36));
+  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(60),grid(40),grid(76));
   ctx.fillStyle=PAL.sign;  ctx.font="700 12px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(name,SCENE.w/2,grid(34));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(112),SCENE.w,CELL*2);   // boardwalk
-  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(56),CELL,grid(56));}
+  ctx.fillText(name,SCENE.w/2,grid(46));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(136),SCENE.w,CELL*2);   // boardwalk
+  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(68),CELL,grid(68));}
 }
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
-  for(let i=0;i<4;i++){ctx.fillStyle=PAL.sky[i];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
-  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(32),SCENE.w,grid(12));
+  for(let i=0;i<5;i++){ctx.fillStyle=PAL.sky[Math.min(3,i)];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
+  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(40),SCENE.w,grid(12));
   for(let i=0;i<6;i++){                                    // hills, stepped in cells
     ctx.fillStyle=PAL.hill2;
     for(let k=0;k<4;k++)
-      ctx.fillRect(grid(i*56+k*CELL*2),grid(44)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
+      ctx.fillRect(grid(i*56+k*CELL*2),grid(52)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
   }
-  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(44),SCENE.w,SCENE.h-grid(44));
+  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(52),SCENE.w,SCENE.h-grid(52));
   const enc=who(G);
   if(enc)facade(enc.place||"STREET");
-  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(116),SCENE.w,SCENE.h-grid(116));
+  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(140),SCENE.w,SCENE.h-grid(140));
   for(let i=0;i<26;i++){                                   // ruts, one cell each
     ctx.fillStyle=i%3?PAL.rut:"#cdaa7a";
-    ctx.fillRect(grid((i*47)%SCENE.w),grid(124+((i*37)%56)),CELL,CELL);
+    ctx.fillRect(grid((i*47)%SCENE.w),grid(146+((i*37)%40)),CELL,CELL);
   }
   if(enc&&build.rows>=6){
     const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
@@ -1275,14 +1449,17 @@ function paint(){
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
     lineEls[0].className="npc";
-    lineEls[1].textContent="Press FIRE or Enter to pin on the badge";
-    lineEls[1].className="choice sel";
-    const written=ENCOUNTERS.filter(e=>Array.isArray(DIALOGUE[e.id])).length;
-    lineEls[2].textContent=written+" of "+ENCOUNTERS.length+
-      " encounters written. The rest are walked past for now."+
-      (gameMode?"":"  ·  It opens full screen; EXIT or g stays in the page.");
-    lineEls[2].className="choice dim";
-    for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    const count=id=>{const m=MODES[id];
+      return m.encounters.filter(e=>Array.isArray(m.dialogue[e.id])).length+" of "+m.encounters.length;};
+    [["faithful",1],["remix",2]].forEach(([id,line])=>{
+      lineEls[line].textContent=line+". "+MODES[id].title+" — "+MODES[id].note+
+        "  ("+count(id)+" written)";
+      lineEls[line].className="choice"+(MODE===id?" sel":"");
+    });
+    lineEls[3].textContent="";
+    lineEls[3].className="choice";
+    lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
+    lineEls[4].className="choice dim";
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
     fitText(); return;
   }
@@ -1399,7 +1576,7 @@ function firstGesture(){
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
   SND.dawn();
-  G=newGame({}); cursor=0; said=""; react="";
+  G=newGame({mode:MODE}); cursor=0; said=""; react="";
   beginSlot(G); openDialogue(G); newScene();
   SND.badge();
 }
@@ -1461,6 +1638,10 @@ function fire(){
   paint();
 }
 function choose(i){                       // the 1-4 keys and the tapped lines
+  if(G.phase==="intro"){                  // on the title screen they pick the day
+    const id=i===1?"remix":"faithful";
+    selectMode(id); startDay(); paint(); return;
+  }
   if(G.phase!=="dialogue"||G.mode!=="talk")return;
   cursor=Math.max(0,Math.min(3,i)); fire();
 }

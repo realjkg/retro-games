@@ -37,7 +37,8 @@ function openPage(){
   // window properties, so the page's scope is reached through its own eval
   const ev=code=>w.eval(code);
   assert.ok(ev('typeof SND')==='object','the page did not build SND');
-  // the written encounter plays as authored; the rest get fixture turns
+  // the page tests drive the day that has scenes in it; the rest get fixture turns
+  ev('selectMode("remix")');
   fillUnwritten(ev('ENCOUNTERS'),ev('DIALOGUE'),ev('INTENTS'),ev('RULES').TURNS);
   return {dom,w,errors,ev,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
@@ -72,7 +73,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE did not start the day');
-  assert.equal(p.ev('ENCOUNTERS')[p.G().slot].id,'deputy');
+  assert.equal(p.ev('ENCOUNTERS')[p.G().slot].id,'brass');   // the remix day's first caller
   p.ready();                                           // skip the block-load cadence
 
   const texts=[1,2,3,4].map(i=>p.el('line'+i).textContent);

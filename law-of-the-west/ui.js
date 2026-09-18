@@ -103,14 +103,15 @@ function cellColour(ch,look){
   }
 }
 /* Paint a grid of rows at a cell origin. Rows may be sparse (an overlay). */
-function blocks(rows,x0,y0,look){
+function blocks(rows,x0,y0,look,cell){
+  const k=cell||CELL;                         // the foreground is drawn in bigger blocks
   for(const key of Object.keys(rows)){
     const r=+key, line=rows[r];
     for(let c=0;c<line.length;c++){
       const col=cellColour(line[c],look);
       if(!col)continue;
       ctx.fillStyle=col;
-      ctx.fillRect(x0+c*CELL,y0+r*CELL,CELL,CELL);
+      ctx.fillRect(x0+c*k,y0+r*k,k,k);
     }
   }
 }
@@ -127,31 +128,44 @@ function visitor(enc,armState){
 /* The sheriff's own hand and gun, across the low corner, on the same grid. */
 /* The sheriff's own forearm and revolver across the low right corner: his hand
  * is the only part of him the player ever sees. 16 cells wide, 10 tall. */
+/* The sheriff fills the bottom of the frame: his shoulder, his forearm and his
+ * revolver, seen from just behind his own hip. 22 cells across, 13 down. */
 const OWN={
-  holstered:["..............CC",
-             ".............CCC",
-             "..........CCCCCC",
-             ".......CCCAAAACC",
-             "....CCCCAAAAAACC",
-             "...CCCCAAAAAAACC",
-             "...BBBGGGAAAACCC",
-             "...BBGGGGGBBBBBB",
-             "....BBBBBBBBBB..",
-             ".....BBBBBBBB..."],
-  drawn:    ["BBBB............",
-             "GGGGBB..........",
-             "GGGGGGBB........",
-             "BGGGGGGGBB......",
-             ".BBBGGGGGBB.....",
-             "...BAAAGGGGB....",
-             "..BAAAAAAGGB....",
-             "..BCCAAAAAAAB...",
-             "...BCCCCAAAAAB..",
-             "....BCCCCCCCCCB."]};
+  holstered:[
+    "...................BBB",
+    "................BBBCCC",
+    "............BBBCCCCCCC",
+    "............CCCCCCCCCC",
+    ".........CCCAAAAACCCCC",
+    "......CCCCAAAAAAAACCCC",
+    "....CCCCAAAAAAAAAACCCC",
+    "...BBBGGGGGAAAAAACCCCC",
+    "..BBGGGGGGGBBBBBBCCCCC",
+    "..BBGGGGGBBBBBBBBBBBBB",
+    "...BBBBBBBBBBBBBBBBBBB",
+    "....BBBBBBBBBBBBBBBBBB",
+    ".....BBBBBBBBBBBBBBBBB"],
+  drawn:[
+    "BBBBB.................",
+    "GGGGGBB...............",
+    "GGGGGGGBB.............",
+    ".BBGGGGGGGGG..........",
+    "...BAAAAAGGGGG........",
+    "..BAAAAAAAAGGGG.......",
+    "..BCCAAAAAAAAGG.......",
+    "..BCCCCAAAAAAAAB......",
+    "...BCCCCCCAAAAAAB.....",
+    "....BCCCCCCCCAAAAB....",
+    ".....BCCCCCCCCCCCCB...",
+    "......BCCCCCCCCCCCCCB.",
+    ".......BCCCCCCCCCCCCCB"]};
+/* He is nearest the camera, so his blocks are the biggest thing on screen:
+ * seven scene-pixels to a cell against the street's four. */
+const OWN_CELL=CELL*1.5;
 function ownGun(out){
   const rows=Object.fromEntries((out?OWN.drawn:OWN.holstered).map((l,i)=>[i,l]));
-  const x0=SCENE.w-16*CELL, y0=SCENE.h-(out?14:13)*CELL;
-  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff});
+  const x0=SCENE.w-20*OWN_CELL, y0=SCENE.h-12*OWN_CELL;
+  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff},OWN_CELL);
 }
 /* A reticle of blocks, with a dark cell behind every light one so it reads
  * over a white shirt or a black doorway alike. */
@@ -166,39 +180,39 @@ function crosshair(){
 }
 const grid=v=>Math.round(v/CELL)*CELL;                     // nothing lands off the grid
 function facade(name){
-  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(28),SCENE.w,grid(84));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(28),SCENE.w,CELL*2);
-  for(let y=grid(40);y<grid(112);y+=CELL*3){
+  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(40),SCENE.w,grid(96));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(40),SCENE.w,CELL*2);
+  for(let y=grid(52);y<grid(136);y+=CELL*3){
     ctx.fillStyle="rgba(0,0,0,.10)"; ctx.fillRect(0,y,SCENE.w,CELL);
   }
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(52),grid(48),grid(44));
-  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(56),grid(40),grid(36));
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(52),grid(48),grid(32));
-  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(48),grid(40),grid(64));
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(64),grid(48),grid(48));
+  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(68),grid(40),grid(40));
+  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(64),grid(48),grid(36));
+  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(60),grid(40),grid(76));
   ctx.fillStyle=PAL.sign;  ctx.font="700 12px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(name,SCENE.w/2,grid(34));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(112),SCENE.w,CELL*2);   // boardwalk
-  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(56),CELL,grid(56));}
+  ctx.fillText(name,SCENE.w/2,grid(46));
+  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(136),SCENE.w,CELL*2);   // boardwalk
+  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(68),CELL,grid(68));}
 }
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
-  for(let i=0;i<4;i++){ctx.fillStyle=PAL.sky[i];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
-  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(32),SCENE.w,grid(12));
+  for(let i=0;i<5;i++){ctx.fillStyle=PAL.sky[Math.min(3,i)];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
+  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(40),SCENE.w,grid(12));
   for(let i=0;i<6;i++){                                    // hills, stepped in cells
     ctx.fillStyle=PAL.hill2;
     for(let k=0;k<4;k++)
-      ctx.fillRect(grid(i*56+k*CELL*2),grid(44)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
+      ctx.fillRect(grid(i*56+k*CELL*2),grid(52)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
   }
-  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(44),SCENE.w,SCENE.h-grid(44));
+  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(52),SCENE.w,SCENE.h-grid(52));
   const enc=who(G);
   if(enc)facade(enc.place||"STREET");
-  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(116),SCENE.w,SCENE.h-grid(116));
+  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(140),SCENE.w,SCENE.h-grid(140));
   for(let i=0;i<26;i++){                                   // ruts, one cell each
     ctx.fillStyle=i%3?PAL.rut:"#cdaa7a";
-    ctx.fillRect(grid((i*47)%SCENE.w),grid(124+((i*37)%56)),CELL,CELL);
+    ctx.fillRect(grid((i*47)%SCENE.w),grid(146+((i*37)%40)),CELL,CELL);
   }
   if(enc&&build.rows>=6){
     const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
@@ -248,14 +262,17 @@ function paint(){
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
     lineEls[0].className="npc";
-    lineEls[1].textContent="Press FIRE or Enter to pin on the badge";
-    lineEls[1].className="choice sel";
-    const written=ENCOUNTERS.filter(e=>Array.isArray(DIALOGUE[e.id])).length;
-    lineEls[2].textContent=written+" of "+ENCOUNTERS.length+
-      " encounters written. The rest are walked past for now."+
-      (gameMode?"":"  ·  It opens full screen; EXIT or g stays in the page.");
-    lineEls[2].className="choice dim";
-    for(let i=3;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
+    const count=id=>{const m=MODES[id];
+      return m.encounters.filter(e=>Array.isArray(m.dialogue[e.id])).length+" of "+m.encounters.length;};
+    [["faithful",1],["remix",2]].forEach(([id,line])=>{
+      lineEls[line].textContent=line+". "+MODES[id].title+" — "+MODES[id].note+
+        "  ("+count(id)+" written)";
+      lineEls[line].className="choice"+(MODE===id?" sel":"");
+    });
+    lineEls[3].textContent="";
+    lineEls[3].className="choice";
+    lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
+    lineEls[4].className="choice dim";
     modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
     fitText(); return;
   }
@@ -372,7 +389,7 @@ function firstGesture(){
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
   SND.dawn();
-  G=newGame({}); cursor=0; said=""; react="";
+  G=newGame({mode:MODE}); cursor=0; said=""; react="";
   beginSlot(G); openDialogue(G); newScene();
   SND.badge();
 }
@@ -434,6 +451,10 @@ function fire(){
   paint();
 }
 function choose(i){                       // the 1-4 keys and the tapped lines
+  if(G.phase==="intro"){                  // on the title screen they pick the day
+    const id=i===1?"remix":"faithful";
+    selectMode(id); startDay(); paint(); return;
+  }
   if(G.phase!=="dialogue"||G.mode!=="talk")return;
   cursor=Math.max(0,Math.min(3,i)); fire();
 }
