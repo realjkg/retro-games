@@ -356,9 +356,9 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   assert.ok(tall>=160,'he is only '+tall+' pixels tall');
   assert.ok(p.ev('SPRX')>own.x+wide,'the caller stands inside the sheriff');
   // he is painted by the same painter as every caller, from the same alphabet
-  const alpha=new Set('.HRCKLWFAEBGSP'.split(''));
+  const alpha=new Set('.HRCKLWDFAEBGSP'.split(''));
   for(const row of p.ev('SHERIFF.drawn').concat(p.ev('SHERIFF.holstered')))
-    for(const ch of row)assert.ok(alpha.has(ch),'the sheriff uses '+ch+', which no caller has');
+    for(const ch of row)assert.ok(alpha.has(ch),'the sheriff uses '+ch+', which cellColour cannot paint');
   assert.ok(p.ev('LOOK.sheriff'),'he has no entry in the look table');
   assert.deepEqual(p.errors,[]);
 });
