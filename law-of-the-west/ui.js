@@ -146,7 +146,25 @@ function drawFigure(rows,x0,y0,look,cw,ch){
  * that comes down, a mouth that sets, and a lean. And when the sheriff says
  * something, whoever he said it to reacts before he answers.
  */
-const HEADROWS=6;                       // rows 0-5 are hat, brow, eyes, jaw
+/* Where a given figure's head ends and his eyes are. Not every one is built
+ * alike: the eyes sit on row 4 for six of them, row 5 for four, and row 10 for
+ * Little Willy, who is a child and drawn small inside the same grid. Assuming
+ * one row for all of them left five of the twelve with no blink, no brow and no
+ * mouth, and split three of them through the jaw. It is read off the drawing
+ * instead, once per figure. */
+const HEADOF={};
+function headOf(fig){
+  const key=fig.rows.join("|");
+  if(HEADOF[key])return HEADOF[key];
+  let eye=-1, body=-1;
+  for(let r=0;r<fig.rows.length;r++){
+    if(eye<0&&fig.rows[r].indexOf("E")>=0)eye=r;
+    if(body<0&&/[CWLK]/.test(fig.rows[r]))body=r;
+  }
+  if(eye<0)eye=4;
+  const head=(body>eye+1)?body:eye+2;
+  return HEADOF[key]={eye:eye, head:head};
+}
 const MOODS={
   warm:   {brow:0, mouth:"soft", lean: 0, rise: 0},
   neutral:{brow:0, mouth:"set",  lean: 0, rise: 0},
@@ -183,9 +201,9 @@ function reactTo(nextNode){
 }
 /* The eyes are the only cells named E on the face row, and the brow sits on the
  * row above them: to bring a brow down is to put its own shadow over the eyes. */
-function expressOn(head,mood,blink){
+function expressOn(head,mood,blink,eyeRow){
   const out=head.slice();
-  const eyeRow=4, browRow=3, mouthRow=5;
+  const browRow=eyeRow-1, mouthRow=eyeRow+1;
   const eyes=[];
   for(let c=0;c<(out[eyeRow]||"").length;c++)if(out[eyeRow][c]==="E")eyes.push(c);
   const put=(r,c,ch)=>{
@@ -227,8 +245,9 @@ function visitor(enc,pose,now){
   const bdx=sway+mood.lean, bdy=breath+mood.rise;
   ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow stays put
   ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
-  const body=rows.map((r,i)=>i>=HEADROWS?r:"");
-  const head=expressOn(rows.map((r,i)=>i<HEADROWS?r:""),mood,blink);
+  const cut=headOf(fig);
+  const body=rows.map((r,i)=>i>=cut.head?r:"");
+  const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
   drawFigure(body,SPRX+bdx,SPRY+bdy,look);
   // The shoulders come up, the head stays where it was: that is what hunching
   // is. Letting the rise carry the head too only opens a gap at his neck.
@@ -1438,7 +1457,9 @@ function showSound(on){
    * has no way to see through, so a context that will not run says so instead. */
   const stuck=on&&SND.state!=="none"&&SND.state!=="running";
   muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND: ON"):"SOUND: OFF";
-  muteBtn.setAttribute("aria-label",on?"Sound is on":"Sound is off");
+  muteBtn.setAttribute("aria-label",
+    on?(stuck?"Sound is on but this device is not playing it":"Sound is on")
+      :"Sound is off");
   muteBtn.setAttribute("aria-pressed",on?"true":"false");
 }
 /* A player who turned the sound off does not want it back on every reload. The

@@ -880,3 +880,54 @@ test('9r. the dither is one weave over the whole picture, not a stripe per row',
     assert.equal(off[x+','+y],whole[x+','+y],'the weave restarted at '+x+','+y);
   assert.deepEqual(p.errors,[]);
 });
+
+test('9s. every figure gets a face, wherever its face is drawn',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const figs=p.ev('Object.keys(FIGURES)');
+  assert.ok(figs.length>=12,'only '+figs.length+' figures');
+  const seen={};
+  for(const k of figs){
+    const cut=p.ev(`headOf(FIGURES[${JSON.stringify(k)}])`);
+    const rows=p.ev(`FIGURES[${JSON.stringify(k)}].rows`);
+    // the eye row is read off the drawing, not assumed: they are not all alike
+    assert.equal(rows[cut.eye].indexOf('E')>=0,true,
+      k+" has no eyes on the row it was told to put a brow over");
+    // the head is cut below the face, never through it
+    assert.ok(cut.head>cut.eye+1,k+' is cut through its own face');
+    // and a mood actually marks that face
+    const plain=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.neutral,false,${cut.eye})`).join('|');
+    const cross=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.hostile,false,${cut.eye})`).join('|');
+    const shut=p.ev(`expressOn(FIGURES[${JSON.stringify(k)}].rows.slice(0,${cut.head}),`+
+      `MOODS.neutral,true,${cut.eye})`).join('|');
+    assert.notEqual(cross,plain,k+' looks the same angry as calm');
+    assert.notEqual(shut,plain,k+' never blinks');
+    seen[k]=cut.eye;
+  }
+  // the bug this holds shut: assuming one eye row for all of them
+  assert.ok(new Set(Object.values(seen)).size>1,
+    'every figure now has its eyes on the same row; the test proves nothing');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9t. backgrounding really parks the audio, and waking respects that',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]');
+  // suspend must not be undone by the statechange it causes
+  p.ev('SND.suspend()');
+  assert.equal(p.ev('SND.parked'),true,'suspending did not park it');
+  assert.equal(p.ev('SND.wake()'),false,'waking undid a suspend we asked for');
+  assert.equal(p.ev('SND.parked'),true,'waking unparked what backgrounding parked');
+  // only a gesture unparks it
+  p.ev('SND.unlock()');
+  assert.equal(p.ev('SND.parked'),false,'a gesture did not unpark it');
+  // and a muted player holds nobody's audio session
+  const q=openPage(win=>{try{win.localStorage.setItem('lotw.sound','0');}catch(e){}});
+  q.tap('[data-cmd="fire"]');
+  assert.equal(q.ev('SND.on'),false);
+  assert.equal(q.ev('SND.session'),false,'a muted page seized the audio session');
+  assert.deepEqual(p.errors,[]);
+});
