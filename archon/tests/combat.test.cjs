@@ -2,7 +2,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {test}=require('node:test');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8').split('<script>')[1].split('</script>')[0];
-function runtime(){
+function runtime(env){
   const drawing=new Proxy({},{get:()=>()=>{}}),els=new Map(),notes=[];
   function el(id){if(!els.has(id))els.set(id,{style:{},classList:{add(){},remove(){},toggle(){}},textContent:'',innerHTML:'',setAttribute(){},addEventListener(){},querySelectorAll(){return[]},getBoundingClientRect(){return{width:520,height:520}},getContext(){return drawing}});return els.get(id);}
   class AudioContext{
@@ -15,11 +15,14 @@ function runtime(){
   const box={console,document:{hidden:false,getElementById:el,querySelectorAll(){return[]},addEventListener(){},
     body:el('body'),documentElement:el('html'),elementFromPoint(){return null}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){},
-    navigator:{getGamepads(){return pads;}}};
+    navigator:Object.assign({getGamepads(){return pads;}},(env&&env.navigator)||{}),
+    matchMedia:(env&&env.matchMedia)||(q=>({matches:false,media:q})),
+    isSecureContext:false,
+    localStorage:{getItem(){return null;},setItem(){}}};
   vm.createContext(box);vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run('G.mode="pvp";G.human={L:true,D:true};newGame();');
-  return {run,notes,pads};
+  return {run,notes,pads,el};
 }
 function duel(a='archer',b='manticore'){
  const r=runtime();r.run(`startCombat(mk('${a}','L'),mk('${b}','D'),4,4);G.combat.barriers=[];`);return r;
@@ -153,4 +156,53 @@ test('Sliding across the d-pad hands the direction over without lifting',()=>{
  r.run('document.elementFromPoint=()=>null;padMove({pointerId:1,clientX:0,clientY:0});');
  assert.equal(r.run('keys["1U"]'),false); assert.equal(r.run('keys["1R"]'),false);
  r.run('padUp({pointerId:1});'); assert.equal(r.run('holders.size'),0);
+});
+
+/* ---- installed-app behaviour: the only route to a full screen on iOS ---- */
+const HTML=fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+
+test('The page carries everything a phone needs to install it as an app',()=>{
+ assert.match(HTML,/<link rel="manifest" href="manifest\.webmanifest">/);
+ assert.match(HTML,/<link rel="apple-touch-icon" href="icon-180\.png">/);
+ assert.match(HTML,/name="apple-mobile-web-app-capable" content="yes"/);
+ assert.match(HTML,/name="mobile-web-app-capable" content="yes"/);
+ assert.match(HTML,/name="theme-color"/);
+ const man=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../manifest.webmanifest'),'utf8'));
+ assert.equal(man.display,'standalone');
+ assert.deepEqual(man.display_override,['fullscreen','standalone']);
+ assert.equal(man.start_url,'./');
+ assert.equal(man.scope,'./');
+ for(const size of ['192x192','512x512'])
+  assert.ok(man.icons.some(i=>i.sizes===size),size+' icon is declared');
+ assert.ok(man.icons.some(i=>i.purpose==='maskable'),'an Android launcher gets a maskable icon');
+ for(const f of ['icon-180.png','icon-192.png','icon-512.png'])
+  assert.ok(fs.existsSync(require('node:path').join(__dirname,'../'+f)),f+' exists');
+ const sw=fs.readFileSync(require('node:path').join(__dirname,'../sw.js'),'utf8');
+ for(const asset of ['./index.html','./manifest.webmanifest','./icon-192.png'])
+  assert.ok(sw.includes(asset),asset+' is in the offline shell');
+ assert.match(sw,/fetch\(req\)\.then/,'the worker is network first, so a deploy is not shadowed');
+});
+
+test('Launched from the home screen it opens as a game, not a page',()=>{
+ const plain=runtime();
+ assert.equal(plain.run('isStandalone()'),false);
+ assert.equal(plain.run('wantGameMode'),false);
+ const app=runtime({matchMedia:q=>({matches:/standalone/.test(q),media:q})});
+ assert.equal(app.run('isStandalone()'),true);
+ assert.equal(app.run('wantGameMode'),true,'the installed app wants game mode from the start');
+ app.run('enterGameModeIfWanted();');
+ assert.equal(app.run('gameMode'),true);
+ const ios=runtime({navigator:{standalone:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)'}});
+ assert.equal(ios.run('isStandalone()'),true);
+ assert.equal(ios.run('isIOS()'),true);
+});
+
+test('An iPhone in Safari is told how to install, and the button is hidden elsewhere',()=>{
+ const ios=runtime({navigator:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari'}});
+ assert.equal(ios.run('isIOS()'),true);
+ assert.equal(ios.run('isStandalone()'),false);
+ assert.equal(ios.el('install').hidden,false,'the hint button is offered');
+ const desktop=runtime();
+ assert.equal(desktop.run('isIOS()'),false);
+ assert.notEqual(desktop.el('install').hidden,false,'no button until Chrome offers the install');
 });

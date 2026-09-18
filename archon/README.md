@@ -35,6 +35,29 @@ start in full game mode.
 On iPhone, Safari allows no element fullscreen; the immersive layout still applies, and
 adding the page to the Home Screen removes the browser's own chrome.
 
+## Full game mode, and playing it as an app
+
+FULL SCREEN (or `G`) drops the page furniture: the board fills the screen, the pads move into
+the letterboxed space beside it, the screen is kept awake, and the choice is remembered for
+next time. Where the browser has the Fullscreen API — Android, and desktop — that call is made
+too, so the browser's own chrome goes as well.
+
+**iOS Safari has no Fullscreen API at all.** `requestFullscreen` simply does not exist on an
+iPhone, so a tab keeps its address bar and toolbar no matter what the page asks for. The way to
+a real full screen there is to install the game:
+
+- **iPhone/iPad:** Share ▸ **Add to Home Screen**, then open Archon from the icon. It launches
+  standalone, with no address bar and no toolbar.
+- **Android/desktop Chrome:** the **INSTALL** button beside SOUND, which appears when the
+  browser offers the install.
+
+What makes that possible is `manifest.webmanifest` (`display: standalone`, with
+`display_override: ["fullscreen","standalone"]` so an Android launcher goes one better),
+`apple-mobile-web-app-capable`, an `apple-touch-icon`, and 192/512 px icons including a maskable
+one. `sw.js` is a small network-first service worker: it keeps up with deploys but caches the
+shell, so the installed game opens and plays without a signal. A launch that is already
+standalone enters game mode by itself — from the home screen this is a game, not a page.
+
 ## C64 fidelity corrections
 
 The September 2026 correction replaces the earlier modern arena approximations:
@@ -64,4 +87,4 @@ This is **not a C64 emulator or an exact reproduction**. The effects are new Web
 
 ## Verification
 
-Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
+Run `node --test archon/tests/combat.test.cjs` from the repository root (or `node --test tests/combat.test.cjs` from `archon/`) with Node.js. The tests execute the game's own script with minimal DOM/audio stubs and check the mechanical regressions above. They also check the installable-app wiring: the manifest's display mode and icons, the Apple meta tags, the offline shell, and that a standalone launch enters game mode while a browser tab does not. They verify audio events and pitch distinction, not subjective sound authenticity. Browser smoke testing separately verifies menus, board/arena rendering, audio activation, and mute.
