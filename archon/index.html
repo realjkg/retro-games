@@ -6,6 +6,15 @@
 <title>Archon — The Light and the Dark</title>
 <meta name="description" content="Archon: The Light and the Dark — a browser remake of the 1983 strategy-and-combat classic. Play in any browser, desktop or mobile.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen, the game runs without the browser's bars. iOS has no
+     Fullscreen API, so this is the only way to get a full screen on an iPhone. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#0e1016">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Archon">
 <style>
 :root{--bg:#0e1016;--panel:#171b26;--panel2:#1f2534;--ink:#e9edf6;--dim:#97a1b8;--gold:#d8b45a;--line:#2a3145}
 @media (prefers-color-scheme: light){
@@ -51,11 +60,17 @@ button{font:inherit;cursor:pointer}
 #stage{border-radius:0;background:#000}
 canvas{image-rendering:pixelated}
 .btn{touch-action:none}
-#full{background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:9px 12px;min-height:40px;border-radius:10px}
+#full,#install{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+  padding:9px 12px;min-height:40px;border-radius:10px}
+#install{border-color:var(--gold);color:var(--gold)}
+#install[hidden]{display:none}
 
 /* ---- full game mode: the page gets out of the way and the machine fills the screen ---- */
 body.gamemode{position:fixed;inset:0;padding:0;background:#000;overflow:hidden;
-  touch-action:none;user-select:none;-webkit-user-select:none}
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  /* the board is lit by its own luminance, so the chrome around it stays dark
+     even on a phone set to the light colour scheme */
+  --panel:#171b26;--panel2:#1f2534;--ink:#e9edf6;--dim:#97a1b8;--line:#2a3145}
 body.gamemode #wrap{position:relative;max-width:none;width:100%;height:100%;gap:0;padding:0}
 body.gamemode #status{position:absolute;left:0;right:0;top:0;z-index:3;height:26px;min-height:0;
   padding:5px 168px 5px 8px;border:0;border-radius:0;background:rgba(8,10,16,.72);color:#e9edf6;
@@ -71,7 +86,9 @@ body.gamemode .btn{background:rgba(31,37,52,.82)}
 body.gamemode .btn:active,body.gamemode .btn.on{background:var(--gold);color:#10131c}
 body.gamemode .soundrow{position:absolute;right:6px;top:2px;z-index:4;margin:0;gap:6px}
 body.gamemode #audio-status{display:none}
-body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:10px;opacity:.85;border-radius:7px}
+body.gamemode #sound,body.gamemode #full,body.gamemode #install{padding:2px 7px;min-height:0;
+  font-size:10px;opacity:.85;border-radius:7px}
+body.gamemode #install{display:none}
 </style>
 </head>
 <body>
@@ -103,7 +120,7 @@ body.gamemode #sound,body.gamemode #full{padding:2px 7px;min-height:0;font-size:
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="full" type="button" aria-pressed="false">FULL SCREEN</button><button id="install" type="button" hidden>INSTALL</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
@@ -830,6 +847,48 @@ function toggleGameMode(){
 }
 function enterGameModeIfWanted(){if(wantGameMode&&!gameMode){setGameMode(true);requestFS();}}
 
+/* ---- installed as an app ----
+   iOS Safari has no Fullscreen API: requestFullscreen simply is not there, so a tab
+   keeps its address bar and toolbar whatever the page does. The way to a real full
+   screen on an iPhone is Add to Home Screen, which relaunches this page standalone
+   with no browser chrome at all. Android and desktop Chrome install it from the
+   beforeinstallprompt event instead, and either way the launch is a game, not a page. */
+const MM=typeof matchMedia==="function"?matchMedia:null;
+function isStandalone(){
+  if(NAV&&NAV.standalone===true)return true;                   // iOS home-screen launch
+  if(!MM)return false;
+  try{return MM("(display-mode: standalone)").matches||MM("(display-mode: fullscreen)").matches;}
+  catch(e){return false;}
+}
+function isIOS(){
+  if(!NAV)return false;
+  const ua=NAV.userAgent||"";
+  return /iP(hone|od|ad)/.test(ua)||(/Mac/.test(NAV.platform||"")&&NAV.maxTouchPoints>1);
+}
+const installBtn=document.getElementById("install");
+let installPrompt=null;
+function showInstall(on){if(installBtn)installBtn.hidden=!on;}
+addEventListener("beforeinstallprompt",e=>{           // Chrome: we drive the install
+  e.preventDefault();installPrompt=e;showInstall(true);
+});
+addEventListener("appinstalled",()=>{installPrompt=null;showInstall(false);});
+installBtn?.addEventListener?.("click",()=>{
+  if(installPrompt){installPrompt.prompt();installPrompt=null;showInstall(false);return;}
+  if(isIOS())showOverlay(`<h1>Play without the browser</h1>
+    <p class="sub">iOS has no full-screen switch for web pages, so the browser's bars stay.
+    Installing the game removes them.</p>
+    <small class="tip">Tap <b>Share</b> at the bottom of Safari, choose <b>Add to Home Screen</b>,
+    then open Archon from the icon. It launches with no address bar, keeps the screen awake while
+    you play, and works without a signal.</small>
+    <div class="menuitem sel" data-act="back">Back</div>`);
+});
+// An iPhone gets the hint instead of a button, since only the user can install there.
+if(isIOS()&&!isStandalone())showInstall(true);
+// Launched from the home screen, this is the game: go straight into game mode.
+if(isStandalone()){wantGameMode=true;bodyEl.classList?.add?.("installed");}
+if(NAV&&NAV.serviceWorker&&typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{NAV.serviceWorker.register("sw.js").catch(()=>{});});
+
 /* The board is drawn as a square, so game mode sizes the stage square too and
    lets the pads sit in the letterboxed space beside or below it. */
 function layout(){
@@ -934,6 +993,7 @@ ov.addEventListener("click",e=>{
   const el=e.target.closest("[data-mode],[data-side],[data-act],[data-spell],[data-revive]"); if(!el)return;
   if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
   // A click is a user gesture, which is the only moment fullscreen can be requested.
+  if(el.dataset.act==="back"){mainMenu();return;}
   if(el.dataset.mode||el.dataset.side)enterGameModeIfWanted();
   if(el.dataset.mode){
     if(el.dataset.mode==="pvc"){sideMenu();return;}
@@ -972,6 +1032,9 @@ function mainMenu(){
   one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready. 1P vs 2P adds a second pad at the top for Dark.
   Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
   A connected gamepad drives Light; a second one drives Dark.</small>
+  ${isStandalone()?"":`<small class="tip">${isIOS()
+    ?"iPhone: <b>Share ▸ Add to Home Screen</b> to play with no address bar, offline."
+    :"Install it from the INSTALL button below the pad to play without the browser."}</small>`}
   <small class="tip"><a href="../" style="color:#ffd27f">← More retro games</a></small>`);
 }
 
