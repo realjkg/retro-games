@@ -118,7 +118,7 @@ const SOUNDS={
             {w:"noise",f0:1,dur:0.03,vol:0.09,cut:2600,cut1:900,res:4,dly:0.02}],
 
   /* what the player learns, and what it is worth */
-  clue:    [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
+  tipoff:  [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
             {w:"tri",f0:165,vol:0.11,cut:1200,res:3,seq:[[0,0.06,0.2]]}],
   point:   [{w:"pulse",f0:880,f1:1320,pw:0.4,dur:0.05,vol:0.11,cut:5000,res:4}],
   penalty: [{w:"pulse",f0:520,f1:330,pw:0.3,dur:0.09,vol:0.13,cut:2200,cut1:900,res:7}],

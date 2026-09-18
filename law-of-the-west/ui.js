@@ -353,8 +353,7 @@ function paint(){
     lineEls[0].className="npc";
     lineEls[1].textContent="1. Pin on the badge";
     lineEls[1].className="choice sel";
-    const done=CAST.filter(written).length;
-    lineEls[2].textContent=done+" of "+CAST.length+" callers written so far.";
+    lineEls[2].textContent=CAST.length+" callers, one day, and a gun you may draw at any of it.";
     lineEls[2].className="choice dim";
     lineEls[3].textContent="An original recreation inspired by the 1985 game.";
     lineEls[3].className="choice dim";
@@ -580,7 +579,7 @@ function settleSound(){
   const o=G.outcome;
   const flags=(G.ending&&G.ending.flags)||[];
   if(flags.indexOf("offended")>=0)SND.penalty();
-  if(flags.some(f=>f.indexOf("tip_")===0)){SND.clue();SND.point();}
+  if(flags.some(f=>f.indexOf("tip_")===0)){SND.tipoff();SND.point();}
   else if(o==="surrendered"){SND.respect();SND.thread();}
   else if(o==="departed"||o==="walked_away"||o==="turns_away")SND.step();
   else if(o==="disarmed"){SND.ricochet();SND.wound();}
@@ -682,7 +681,10 @@ function frame(now){
     if(G.phase!=="intro"&&G.phase!=="summary"){
       const before=G.phase;
       const ev=tick(G,now);
+      // a man who outdraws you ends the encounter, and sometimes the day, from
+      // inside the loop rather than from a keypress: repaint either way
       if(ev&&G.phase==="resolve"){settleSound();paint();}
+      if(ev&&G.phase==="summary"){endSound();paint();}
       if(before==="tell"&&G.phase==="duel"){SND.holster();}
     }
     drawScene(now);

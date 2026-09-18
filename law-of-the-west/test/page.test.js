@@ -352,3 +352,20 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   assert.ok(p.ev('SPRX')>p.ev('OWN_CELL')*44,'the caller stands inside the sheriff');
   assert.deepEqual(p.errors,[]);
 });
+
+test('8o. being outdrawn by the clock still paints the reckoning', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]');
+  p.ready();
+  // one wound already carried, a hostile doctor, and a man who has drawn
+  p.ev('G.doctor.disposition=-2;');
+  p.ev('theyDraw(G,"draw");G.tell.at=0;');
+  p.frame(60);                                     // he clears leather
+  p.frame(4000);                                   // and fires before anybody moved
+  assert.equal(p.G().phase,'summary','the clock never killed him');
+  assert.equal(p.G().alive,false);
+  assert.match(p.el('line0').textContent,/THE STREET KEPT YOU — -?\d+ points/,
+    'the screen still showed the encounter: '+p.el('line0').textContent);
+  assert.match(p.el('line4').textContent,/^1\. /,'no way to ride in again');
+  assert.deepEqual(p.errors,[]);
+});
