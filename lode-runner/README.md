@@ -47,10 +47,12 @@ diagonally, and no way at all to kill the guards who are already running at you.
   either.
 - **False bricks** are drawn exactly like brick and hold nothing up. There is no telling one from
   the other until the floor is not there.
-- **Guards.** They are quicker in numbers and slower than you one to one, they carry one chest at
-  a time, they block each other, and they do not take the shortest path — they look along the
-  floor they are on for the column that brings them nearest your row and commit to it, which is
-  why they overshoot, bunch up and drop into holes you dug a moment ago.
+- **Guards.** They run at a little under sixty per cent of your speed, and climb at the same
+  fraction, so you can open a gap on the flat and up a ladder alike — that margin is the only
+  advantage you have. They get slower as more of them crowd a level. They carry one chest at a
+  time, they block each other, and they do not take the shortest path: they look along the floor
+  they are on for the column that brings them nearest your row and commit to it, which is why
+  they overshoot, bunch up and drop into holes you dug a moment ago.
 - **Scoring**: 250 a chest, 75 for a guard you put in a hole and 75 again for burying him, 1500
   for clearing a level, an extra man every 15,000 points, five men to start.
 - **The level generator.** The 1983 box called it "an action game and game generator" — the
@@ -72,7 +74,10 @@ This is **not an emulator or a port**, and it is not the 1983 game's data.
   original's guards act, not from a disassembly. It gives the same shape of play; it is not
   frame-for-frame the 1983 algorithm.
 - **Movement speeds, hole and dig timings, the fill delay and how long a guard flounders** were
-  tuned here for feel. They are not measured against a running Apple II or C64 copy.
+  tuned here for feel and adjusted from playing it. They are not measured against a running
+  Apple II or C64 copy. The guard speeds are pinned by a test to stay under 65% of the runner's
+  and within a few points of each other on the flat and on a ladder, because the two drifting
+  apart is what made climbing away stop working.
 - **The art is drawn on a canvas** in a period palette rather than lifted from any release, and
   the drawing surface takes the shape of the box it is in rather than a fixed 280 × 192, so the
   extra room in full screen shows a bigger board instead of black bars.
@@ -196,8 +201,9 @@ false bricks, every condition that refuses a dig, the hole that fills back in an
 in it, a guard chasing along a row and killing on contact, a guard in a hole acting as a floor and
 dropping his chest, a guard climbing out before the brick returns and being buried when he cannot,
 the 250 / 75 / 1500 / 15,000 scoring, the way out appearing only on the last chest, the top row
-counting only once it does, giving yourself up, and that twenty seconds of play come out
-identical with the sound on and off.
+counting only once it does, giving yourself up, that twenty seconds of play come out identical
+with the sound on and off, and that a guard stays slow enough to be outrun both on the flat and
+up a ladder.
 
 `tests/levels.test.cjs` covers the level data and the page: that the board is 28 × 16 and every
 shipped level fills it with a runner, chests, guards and a hidden exit; that each level survives

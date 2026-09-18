@@ -207,3 +207,35 @@ test('Turning the sound on does not change how the game plays',()=>{
   };
   assert.equal(play(true),play(false),'same twenty seconds either way');
 });
+
+test('A guard is slower than the runner on the flat and on a ladder alike',()=>{
+  const r=runtime();
+  const flat=r.run('GUARD_WALK/RUN_WALK'), ladder=r.run('GUARD_CLIMB/RUN_CLIMB');
+  assert.ok(flat<0.65,'you can outrun him on the flat, got '+flat.toFixed(3));
+  assert.ok(ladder<0.65,'and up a ladder, got '+ladder.toFixed(3));
+  // The two must stay in step. When the ladder figure drifted up to 0.79 while
+  // the flat one sat at 0.68, climbing away stopped working and the guards felt
+  // like something you could not shake off.
+  assert.ok(Math.abs(flat-ladder)<0.06,
+    'climbing away works as well as running away: flat '+flat.toFixed(3)+' ladder '+ladder.toFixed(3));
+});
+
+test('A runner who keeps running opens a gap on open ground and up a ladder',()=>{
+  const r=runtime();
+  r.run('newGame(1,5);');
+  clearRoom(r,10);
+  r.run('G.guards=[mkActor(2,10,true)];G.hero.x=8;keys.right=true;');
+  const gap0=r.run('G.hero.x-G.guards[0].x');
+  step(r,90);
+  r.run('keys.right=false;');
+  assert.ok(r.run('G.hero.x-G.guards[0].x')>gap0,'the gap opens on the flat');
+
+  clearRoom(r,14);
+  r.run(`for(let y=0;y<=14;y++)G.map[6][y]=LADDER;
+    G.hero=mkActor(6,14,false);G.hero.digT=0;
+    G.guards=[mkActor(6,15,true)];keys.up=true;`);
+  const before=r.run('G.guards[0].y-G.hero.y');
+  step(r,90);
+  r.run('keys.up=false;');
+  assert.ok(r.run('G.guards[0].y-G.hero.y')>before,'and it opens on a ladder too');
+});

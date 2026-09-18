@@ -186,9 +186,15 @@ const CHARS={' ':EMPTY,'.':EMPTY,'#':BRICK,'@':SOLID,'H':LADDER,'-':BAR,'X':TRAP
 const GLYPH=[' ','#','@','H','-','X','$'];
 
 /* Speeds are tiles per second. The runner is quicker than a guard, which is the
-   only advantage he has, and everything falls at the same rate. */
+   only advantage he has, and everything falls at the same rate.
+
+   A guard runs at a little under sixty per cent of the runner, and climbs at the
+   same fraction. Keeping the two in step matters: when the ladder figure was the
+   higher of the two a guard came up it almost as fast as you did, so climbing
+   away — the main thing you have — barely worked, and they felt less like guards
+   than like something that could not be shaken off. */
 const RUN_WALK=7.4, RUN_CLIMB=5.6, RUN_BAR=7.4, FALL=12.5;
-const GUARD_WALK=5.0, GUARD_CLIMB=4.4;
+const GUARD_WALK=4.3, GUARD_CLIMB=3.3;
 const DIG_TIME=0.40;      // the runner is rooted while the brick comes out
 const HOLE_TIME=6.2;      // how long a hole stays open before the brick returns
 const FILL_TIME=1.0;      // the closing part of HOLE_TIME, drawn growing back
