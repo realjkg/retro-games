@@ -115,8 +115,24 @@ ground, dark across the bottom-left. Between the two, the player is standing in
 the street rather than watching it. His face is the one part of him there is
 never any of.
 
-Everything is stepped a column at a time with integer edges, so the diagonals
-stair the way a bitmap's do, and the palette is the C64's sixteen colours.
+**How it is drawn.** Ordered 4×4 dithering — the same matrix a C64 artist would
+have used — wherever a flat field would otherwise show: the sky graduates
+through four colours in dithered bands, the walls carry grain under their
+clapboard, the street and the dirt near the boots are two greys mixed, and every
+cloud has a dithered underside. Light comes from the left, so every edge knows
+which side it is on: lit stave and shadowed stave on a barrel, a lit rim and a
+shadow line on each plank, a lit face and a dark face on the hills. Windows have
+frames, mullions, sills and a line of light off the glass; doors have sunken
+panels and a knob; awnings throw a dithered shadow down the wall behind them;
+wheels have rims, ten spokes and a hub. Everything is stepped a column at a time
+with integer edges, so the diagonals stair the way a bitmap's do, and the
+palette is the C64's sixteen colours with a handful of mixes between them.
+
+**Grain follows distance.** The town is drawn a pixel at a time, the caller two
+pixels to a cell, the sheriff's sleeve three — and the fist and revolver, which
+are nearest of all, go back to one, so the cylinder is round and fluted, the
+barrel has a rib and a front sight, the hammer is drawn back over the frame, and
+the fingers have knuckles.
 
 **Eleven figures, no template.** Each caller is his own 24×28 grid, one pixel
 across and two down — 24 by 56 on screen, the proportions a man has at this

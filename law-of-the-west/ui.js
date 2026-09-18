@@ -79,85 +79,223 @@ const OWN={
     "LLLB........................................",
     "LLLLB.......................................",
     "LLLLLB......................................",
-    "LLLLLLB.....................................",
-    "LLLLLLLB....................................",
-    "LLLLLLLLB...................................",
-    "LLLLLLLLLBB.................................",
-    "LLLLLLLLLLLBB...............................",
-    "LLLLLLLLLLLLLBB.............................",
-    "LLLLLLSLLLLLLLLB............................",
-    "LLLLLSSSSLLLLLLLBB..........................",
-    "LLSSSSSSSSSLLLLLLLB.........................",
-    "SSSSSSSSSSSSSLLLLLLB........................",
+    "SSSLLLB.....................................",
+    "SSLLLLLB....................................",
+    "SLLLLLLLB...................................",
+    "SLLLLLLLLBB.................................",
+    "LLLLLLSLLLLBB...............................",
+    "LLLLLSSSLLLLLBB.............................",
+    "LLLLSSSSSLLLLLLB............................",
+    "SSSSSSSSSSSLLLLLBB..........................",
+    "SSSSSSSSSSSSSLLLLLB.........................",
     "SSSSSSSSSSSSSSSLLLLB........................",
-    "SSSSSSSSSSSSSSSSLLLLB.BBBB..................",
-    "SSSSSSSSSSSSSSSSSSLLLBWWWWB.................",
-    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
-    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
-    "SSSSSSSDDDDSSSSSSSSSLLWWWWB.................",
-    "DSSSSSDDDDDDSSSSSSSSSLWWWWB.................",
-    "DDSSDDDDDDDDSSSSSSSSSSWWWWB.................",
-    "DDDSDDDDDDDDSSSSSSSSSSBBWWB.................",
-    "DDDDDDDDDDDDSSSSSSSSSSBBBBBBBB..............",
-    "DDDDDDDDDDDSSSSSSSSSSSBBBBBBBBB.............",
-    "BDDDDDDDDDSSSSSSSSSSSSBBBBBBBBBB............",
-    ".BDDDDDDDSSSSSSSSSSSSBBBBBBBBBBBB...........",
-    "..BDDDDDDDDSSSSSSSSSBBBBBBBBBBBBBB..........",
-    "...BBDDDDDDDDSSSSSSSBBBBBBBBBBBBBB..........",
-    ".....BBDDDDDDDDSSSSSBBBBBBBBBBBBBB..........",
-    ".......BBDDDDDDDDSSSBBBBBBBBBBBBBBBB........",
-    ".........BBDDDDDDDSSBBBBBBBBBBBBBGGGB.......",
-    "...........BBDDDDDDSSBBBBBBBBBBBGGGGB.......",
-    ".............BBDDDDDSSBBBBBBBBBGGGGGB.......",
-    "...............BBDDDDSBBBBBBBBBMGGGGGB......",
-    ".................BDDDDBBBBBBBBMMGGGGGB......",
-    "..................BDDDBBBBBBB.BMMGGGGGB.....",
-    "...................BDDBBWWB...BMMGGGGGB.....",
-    "....................BDWWWWB....BMMGGGGGB....",
-    ".....................BWWWWB....BMMGGGGGB....",
-    ".....................BWWWWB.....BMMGGGGGB..."
+    "SSSSSSSSSSSSSSSSLLLB........................",
+    "SSSSSSSSSSSSSSSSSSLLB.BBBB..................",
+    "SSSSSSSSSSSSSSSSSSSLLBWWWWB.................",
+    "DDSSSSSSDDDDSSSSSSSLLLWWWWB.................",
+    "DDDSSSDDDDDDDSSSSSSSLLWWWWB.................",
+    "DDDDDDDDDDDDDDSSSSSSSLWWWWB.................",
+    "DDDDDDDDDDDDDDDSSSSSSSWWWWB.................",
+    "DDDDDDDDDDDDDDDSSSSSSDWWWWB.................",
+    "DDDDDDDDDDDDDDSSSSSSDDWWWWB.................",
+    "DDDDDDDDDDDDDDSSSSSDDDWWWWB.................",
+    "DDDDDDDDDDDDDSSSSSSDDDWWWWB.................",
+    "BDDDDDDDDDDDDDDSSSSSDDWWWWB.................",
+    ".BDDDDDDDDDDDDDDDSSSDDWWWWB.................",
+    "..BDDDDDDDDDDDDDDDSSSDWWWWB.................",
+    "...BBDDDDDDDDDDDDDDSSSWWWWB.................",
+    ".....BBDDDDDDDDDDDDDSSWWWWB.................",
+    ".......BBDDDDDDDDDDDDSWWWWB.................",
+    ".........BBDDDDDDDDDDDWWWWB.................",
+    "...........BBDDDDDDDDDWWWWB.................",
+    ".............BBDDDDDDDWWWWB.................",
+    "...............BBDDDDDWWWWB.................",
+    ".................BDDDDWWWWB.................",
+    "..................BDDDWWWWB.................",
+    "...................BDDWWWWB.................",
+    "....................BDWWWWB.................",
+    ".....................BWWWWB.................",
+    ".....................BWWWWB................."
   ],
   drawn:[
     "LLLLLLB.....................................",
     "LLLLLLLB....................................",
-    "LLLLLLLLB...................................",
-    "LLLLLLLLLBB.................................",
-    "SLLLLLLLLLLBB...............................",
-    "LLLLLLLLLLLLLBB.............................",
-    "LLLLLLSLLLLLLLLB............................",
-    "LLLLLSSSSLLLLLLLBB..........................",
-    "LLLLSSSSSSSLLLLLLLB.........................",
-    "LLLSSSSSSSSSSLLLLLLB........................",
+    "SLLLLLLLB...................................",
+    "SSSLLLLLLBB.................................",
+    "SSLLLLSLLLLBB...............................",
+    "SLLLLSSSLLLLLBB.............................",
+    "LLLLLSSSSLLLLLLB............................",
+    "LLLLSSSSSSSLLLLLBB..........................",
+    "LLLSSSSSSSSSSLLLLLB.........................",
     "SSSSSSSSSSSSSSSLLLLB........................",
-    "SSSSSSSSSSSSSSSSLLLLB.BBBB..................",
-    "SSSSSSSSSSSSSSSSSSLLLBWWWWB.................",
-    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
-    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
-    "SSSSSSSDDDDSSSSSSSSSLLWWWWB.................",
-    "SSSSSSDDDDDDSSSSSSSSSLWWWWB.................",
-    "DSSSSDDDDDDDSSSSSSSSSSWWWWB.BBBBB...........",
-    "DDSSDDDDDDDDSSSSSSSSSSBBWWBBGGGGGB..........",
-    "DDDDDDDDDDDDSSSSSSSSSSBBBBBBGGGGGGB.........",
-    "DDDDDDDDDDDSSSSSSSSSSSBBBBBBBBGGGGGBB.......",
-    "BDDDDDDDDDSSSSSSSSSSSSBBBBBBBBBMMMMMGB......",
-    ".BDDDDDDDSSSSSSSSSSSSBBBBBBBBBBBGGGGGB......",
-    "..BDDDDDDDDSSSSSSSSSBBBBBBBBBBBBBGGGGBBBBBBB",
-    "...BBDDDDDDDDSSSSSSSBBBBBBBBBBBBBGGGMMMMMMMM",
-    ".....BBDDDDDDDDSSSSSBBBBBBBBBBBBBGGGGGGGGGGG",
-    ".......BBDDDDDDDDSSSBBBBBBBBBBBBBGGGGGGGGGGG",
-    ".........BBDDDDDDDSSBBBBBBBBBBBBBGGGGGGGGGGG",
-    "...........BBDDDDDDSSBBBBBBBBBBBGGGGGGGGGGGG",
-    ".............BBDDDDDSSBBBBBBBBBGGGGGGBBBBBBB",
-    "...............BBDDDDSBBBBBBBBBGGGGGGB......",
-    ".................BDDDDBBBBBBBGGGGGGBB.......",
-    "..................BDDDBBBBBGGGGGGGB.........",
-    "...................BDDBBWGGGGGBBBB..........",
-    "....................BDWWWGGGGGB.............",
-    ".....................BWWWGGGGGB.............",
-    ".....................BWWWWBBBB..............",
+    "SSSSSSSSSSSSSSSSLLLB........................",
+    "SSSSSSSSSSSSSSSSSSLLB.BBBB..................",
+    "SSSSSSSSSSSSSSSSSSSLLBWWWWB.................",
+    "SSSSSSSSDDDDSSSSSSSLLLWWWWB.................",
+    "DDSSSSDDDDDDDSSSSSSSLLWWWWB.................",
+    "DDDSSDDDDDDDDDSSSSSSSLWWWWB.................",
+    "DDDDDDDDDDDDDDDSSSSSSSWWWWB.................",
+    "DDDDDDDDDDDDDDDSSSSSSDWWWWB.................",
+    "DDDDDDDDDDDDDDSSSSSSDDWWWWB.................",
+    "DDDDDDDDDDDDDDSSSSSDDDWWWWB.................",
+    "DDDDDDDDDDDDDSSSSSSDDDWWWWB.................",
+    "BDDDDDDDDDDDDDDSSSSSDDWWWWB.................",
+    ".BDDDDDDDDDDDDDDDSSSDDWWWWB.................",
+    "..BDDDDDDDDDDDDDDDSSSDWWWWB.................",
+    "...BBDDDDDDDDDDDDDDSSSWWWWB.................",
+    ".....BBDDDDDDDDDDDDDSSWWWWB.................",
+    ".......BBDDDDDDDDDDDDSWWWWB.................",
+    ".........BBDDDDDDDDDDDWWWWB.................",
+    "...........BBDDDDDDDDDWWWWB.................",
+    ".............BBDDDDDDDWWWWB.................",
+    "...............BBDDDDDWWWWB.................",
+    ".................BDDDDWWWWB.................",
+    "..................BDDDWWWWB.................",
+    "...................BDDWWWWB.................",
+    "....................BDWWWWB.................",
+    ".....................BWWWWB.................",
+    ".....................BWWWWB.................",
     ".....................BWWWWB.................",
     ".....................BWWWWB.................",
     "......................BBBB.................."
+  ]
+};
+const HAND={
+  level:[
+    "..........................................................................................",
+    "..........................................................................................",
+    "..........................................................................................",
+    "......................BBBBBBBBBBBBB.......................................................",
+    ".....................BLGGGGGGGGGGDDB......................................................",
+    ".....................BLGGGGGGGGGGDDB......................................................",
+    ".....................BLDDDDDDDDDDDDB......................................................",
+    "....................BBLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB................................................BBBB..",
+    "...................BDDDDGGGGGGGGGGGBBBBBBBBBBBBBBBBBBBBBBBBBB......................BLLGGB.",
+    "...................BDDDDGGGGGGGGGGGLLLLLLLLLLLBLLLLLLLLLLLLLLB.....................BLLGGB.",
+    "...................BDDDDGGGGGGGGGGGLLLLLLBBBBBBBBBBBLLLLLLLLLB.....................BLLGGB.",
+    "...................BDDDDDBBBDDDGGGGGGGGLBBDGGGGDGGGBBGGGGGGGGB.....................BLLGGB.",
+    "....................BBBBB..BDDDGGGGGGGBBLLDGGGGDGGGGDBBGGGGGGB.....................BLLGGB.",
+    "...........................BDDDGGGGGGBBLLLDGGGGDGGGGDGBBGGGGGB.....................BLLGGB.",
+    "...........................BDDDGGGGGBBLLLLDGGGGDGGGGDGGBBGGGGBBBBBBBBB.............BLLGGB.",
+    "..............BBBBBBBBBBBBBBDDDGGGGLBDLLLGDGGGGDGGGGDGGGBGGGLLLLLLLLLLBBBBBBBBBBBBBBLLGGB.",
+    ".............BHHHHHHHHHHHHHHHHHHHGLBLDLLLGDGGGGDGGGGDGGGGBGDLLLLLLLLLLLLLLLLLLLLLLLLLLGGB.",
+    ".............BHHHHHHHHHHHHHHHHHHHGBBLDLLLGDGGGGDGGGGDGGGGBBBGGGGGGGGGGLLLLLLLLLLLLLLLLLLB.",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBBGGGGGGGGGGGGGGGGGGGGGGGGGGGLB.",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGGGGGGGGGGGGGGGGGGGGGGGGGGGB.",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGGGGGGGGGGGGGGGGGGGGGGGGGGGB.",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGGGGGGGGGGGGGGGGGGGGGGGGGGGB.",
+    ".............BAAAAAAAAAAAAAAAAAAAKKKADGGGGDGGGGDGGGGDGGGGDBBGGGGGGGGGGGGGGGGGGGGGGGGGGGGB.",
+    "......BBBBBBBBKKKKKKKKKKKKKKKKKAAKKKADGGGGDGGGGDGGGGDGGGGDBGGGGGGGGGGGGGGGGGGGGGGGGGGGGGB.",
+    "BBBBBBHHHHHHHHKKKKKKKKKKKKKKKKKAAKKAGDGGGGDGGGGDGGGGDGGGGDBGGGGGGGGGGGGGGGDDDDDDDDDDDDDDB.",
+    "KKKKKKKKAAAAAAAAAAAAAAAAAAHHHAAKKKKAGDGGGGDGGGGDGGGGDGGGGDBGDDDDDDDDDDDDDDBBBBBBBBBBBBBB..",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKAGGDGGGGDGGGGDGGGGDGGGGDBBBBGGGGGGGGGGGGGGGGGGGGGB......",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKABGDGGGGGGGGGDGGGGDDDDDBBB.BDDDDDDDDDDDDDDDDDDDDDB......",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKAGBGDGGGGGGGGGDGGGGDDDDDBDB.BDDDDDDDDDDDDDDDDDDDDDB......",
+    "AAAAAAAAAKKKKKKKKKKKKKKKKKKKKKKKKAGGGGGGGGGGGGGGGGGGDDDDBDB..BDDDDDDDDDDDDDDDDDDDDDB......",
+    "KKKKKKKKABBBBBBBBDDDKKKKKKKKKKKKAGGGGGGGGGGGGGGGGGGDDDDBBB....BBBBBBBBBBBBBBBBBBBBB.......",
+    "AAAAAAAAAHHHHHHHHHHHHHHHHHHHKKKKAGGGGGGGGGGGGGGGGGGDDDBBB.................................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKKAGGGGBBGDDDDGGGDGGGGDBBB..................................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKABGGGB.BGDDDDGGGDGGGGBDB...................................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKAGGGGB.BGDDDDGGBBBGGGGB....................................",
+    "KKKKKKKKAAAAAAAAAAAAAAAHHHAAKKABBBGB..BGDDDDGGBBBBGGGB....................................",
+    "AAAAAAAAAKKKKKKKKKKKKKKKKKKKKKAB..B...BGDDDDGGB..BGGGB....................................",
+    "KKKKAAAAABBBBBDDDKKKKKKKKKKKKAB.......BGDDDDGGB..BGGGB....................................",
+    "KKKKAAAAAHHHHHHHHHHHHHHHHKKKKAB.......BGDDDDGGB..BGGGGB...................................",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKKAB........BDDDDBB...BGGGB....................................",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKAB.........BDDDDB....BGGGB....................................",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKAB.........BDDDDB....BGGGB....................................",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKAB...........BBBB......BGGB....................................",
+    "KKKKAAAAAKKKKKKKKKKKKKKKKKKAB......................BB.....................................",
+    "KKKKAAAAABBDDDKKKKKKKKKKKKAB..............................................................",
+    "KKKKAAAAAHHHHHHHHHHHHHKKKKAB..............................................................",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKKAB..............................................................",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKAB...............................................................",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKAB...............................................................",
+    "KKKKAAAAAAAAAAAAAHHHAAKKAB................................................................",
+    "KKKKAAAAAKKKKKKKKKKKKKKKAB................................................................",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB................................................................",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB................................................................",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB................................................................",
+    "KKKKAAAADDDDDDDDDDDDDDDDDB................................................................",
+    "KKKKAAAABBBBBBBBBBBBBBBBB.................................................................",
+    "KKKKAAAAB................................................................................."
+  ],
+  down:[
+    "..........................................................................................",
+    "..........................................................................................",
+    "..........................................................................................",
+    "......................BBBBBBBBBBBBB.......................................................",
+    ".....................BLGGGGGGGGGGDDB......................................................",
+    ".....................BLGGGGGGGGGGDDB......................................................",
+    ".....................BLDDDDDDDDDDDDB......................................................",
+    "....................BBLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDDDDDDDDDDDDB......................................................",
+    "...................BDDLDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGB......................................................",
+    "...................BDDDDGGGGGGGGGGGBBBBBBBBBBBBBBBBBBBBBBBBBB.............................",
+    "...................BDDDDGGGGGGGGGGGLLLLLLLLLLLBLLLLLLLLLLLLLLB............................",
+    "...................BDDDDGGGGGGGGGGGLLLLLLBBBBBBBBBBBLLLLLLLLLB............................",
+    "...................BDDDDDBBBDDDGGGGGGGGLBBDGGGGDGGGBBGGGGGGGGB............................",
+    "....................BBBBB..BDDDGGGGGGGBBLLDGGGGDGGGGDBBGGGGGGB............................",
+    "...........................BDDDGGGGGGBBLLLDGGGGDGGGGDGBBGGGGGB............................",
+    "...........................BDDDGGGGGBBLLLLDGGGGDGGGGDGGBBGGGGB............................",
+    "..............BBBBBBBBBBBBBBDDDGGGGLBDLLLGDGGGGDGGGGDGGGBGGGGB............................",
+    ".............BHHHHHHHHHHHHHHHHHHHGLBLDLLLGDGGGGDGGGGDGGGGBGDLB............................",
+    ".............BHHHHHHHHHHHHHHHHHHHGBBLDLLLGDGGGGDGGGGDGGGGBBBGLB...........................",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBBGLB...........................",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGLB..........................",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGLB..........................",
+    ".............BAAAAAAAAAAAAAAAAAAAGBGGDGGGGDGGGGDGGGGDGGGGDBGGGGLB.........................",
+    ".............BAAAAAAAAAAAAAAAAAAAKKKADGGGGDGGGGDGGGGDGGGGDBBGGGLB.........................",
+    "......BBBBBBBBKKKKKKKKKKKKKKKKKAAKKKADGGGGDGGGGDGGGGDGGGGDBGGGGGLB........................",
+    "BBBBBBHHHHHHHHKKKKKKKKKKKKKKKKKAAKKAGDGGGGDGGGGDGGGGDGGGGDBGGGGGLB........................",
+    "KKKKKKKKAAAAAAAAAAAAAAAAAAHHHAAKKKKAGDGGGGDGGGGDGGGGDGGGGDBGGGGGGLB.......................",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKAGGDGGGGDGGGGDGGGGDGGGGDBBDGGGGGLB......................",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKABGDGGGGGGGGGDGGGGDDDDDBBBBGGGGGLB......................",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAHHHAAKKAGBGDGGGGGGGGGDGGGGDDDDDBDBBDGGGGGLB.....................",
+    "AAAAAAAAAKKKKKKKKKKKKKKKKKKKKKKKKAGGGGGGGGGGGGGGGGGGDDDDBDB..BGGGGGLB.....................",
+    "KKKKKKKKABBBBBBBBDDDKKKKKKKKKKKKAGGGGGGGGGGGGGGGGGGDDDDBBB...BDGGGGGLB....................",
+    "AAAAAAAAAHHHHHHHHHHHHHHHHHHHKKKKAGGGGGGGGGGGGGGGGGGDDDBBB.....BGGGGGLB....................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKKAGGGGBBGDDDDGGGDGGGGDBBB......BDGGGGGLB...................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKABGGGB.BGDDDDGGGDGGGGBDB........BGGGGGLB...................",
+    "AAAAAAAAAAAAAAAAAAAAAAAHHHAAKKKAGGGGB.BGDDDDGGBBBGGGGB.........BDGGGGGLB..................",
+    "KKKKKKKKAAAAAAAAAAAAAAAHHHAAKKABBBGB..BGDDDDGGBBBBGGGB..........BDGGGGLB..................",
+    "AAAAAAAAAKKKKKKKKKKKKKKKKKKKKKAB..B...BGDDDDGGB..BGGGB...........BGGGGGLB.................",
+    "KKKKAAAAABBBBBDDDKKKKKKKKKKKKAB.......BGDDDDGGB..BGGGB...........BDGGGGGLB................",
+    "KKKKAAAAAHHHHHHHHHHHHHHHHKKKKAB.......BGDDDDGGB..BGGGGB...........BGGGGGLB................",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKKAB........BDDDDBB...BGGGB............BDGGGGGLB...............",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKAB.........BDDDDB....BGGGB.............BGGGGGLB...............",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKKAB.........BDDDDB....BGGGB.............BDGGGGGLB..............",
+    "KKKKAAAAAAAAAAAAAAAAHHHAAKKAB...........BBBB......BGGB..............BGGGGGLB..............",
+    "KKKKAAAAAKKKKKKKKKKKKKKKKKKAB......................BB...............BDGGGGGLB.............",
+    "KKKKAAAAABBDDDKKKKKKKKKKKKAB.........................................BGGGGGLB.............",
+    "KKKKAAAAAHHHHHHHHHHHHHKKKKAB.........................................BDGGGGGLB............",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKKAB..........................................BDGGGGLB............",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKAB............................................BGGGGGLB...........",
+    "KKKKAAAAAAAAAAAAAHHHAAKKKAB............................................BDGGGGGLB..........",
+    "KKKKAAAAAAAAAAAAAHHHAAKKAB..............................................BGGGGGLB..........",
+    "KKKKAAAAAKKKKKKKKKKKKKKKAB..............................................BDGGGGGLB.........",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB...............................................BGGGGGLB.........",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB...............................................BDGGGGGB.........",
+    "KKKKAAAAADDDDDDDDDDDDDDDDB................................................BGGGGGB.........",
+    "KKKKAAAADDDDDDDDDDDDDDDDDB................................................BDGGGGB.........",
+    "KKKKAAAABBBBBBBBBBBBBBBBB..................................................BGGGGB.........",
+    "KKKKAAAAB..................................................................BDGGGB........."
   ]
 };
 function figureRows(fig,pose){
@@ -200,45 +338,66 @@ const OWN_CELL=3, OWN_X=0, OWN_Y=12;
  * that colour, so the foreground never reads as part of the boardwalk. */
 /* The sleeve is mottled light grey, the cuff dark, the fist and the revolver
  * black with a grey barrel: the only thing on screen bigger than a building. */
-const OWN_LOOK={S:C64.lgy,L:"#c3c3c3",D:C64.gry,W:"#2b2b2b",
-  G:"#2b2b2b",M:C64.lgy,B:C64.blk};  // the gun is a shade off his fist, with a lit edge
+/* A dusty canvas sleeve, lit along the top of the arm and shadowed beneath it,
+ * with a leather cuff at the wrist. Nothing else in the town is this colour, so
+ * the foreground never joins the scenery, and the contour is brown rather than
+ * black so the arm does not read as a ridge of rock. */
+const OWN_LOOK={S:"#7d7466",L:"#a89b82",D:"#4f483e",W:"#4a3524",B:"#2a231c"};
 function ownGun(out){
   const rows=out?OWN.drawn:OWN.holstered;
   const at=(r,c)=>(rows[r]&&rows[r][c])||".";
   const col=ch=>OWN_LOOK[ch]||null;
   for(let r=0;r<rows.length;r++)for(let c=0;c<rows[r].length;c++){
-    const ch=at(r,c); const k=col(ch); if(!k)continue;
+    const k=col(at(r,c)); if(!k)continue;
     px(OWN_X+c*OWN_CELL,OWN_Y+r*OWN_CELL,OWN_CELL,OWN_CELL,k);
   }
-  // A one-pixel light rim all the way round. The sleeve hardly needs it; the
-  // revolver does, because a dark gun over a dark doorway is a hole otherwise.
-  ctx.fillStyle=C64.lgy;
-  const W=rows[0].length;
-  for(let r=0;r<rows.length;r++)for(let c=0;c<W;c++){
-    if(!col(at(r,c)))continue;
-    const X=Math.round(OWN_X+c*OWN_CELL), Y=Math.round(OWN_Y+r*OWN_CELL), k=OWN_CELL;
-    if(!col(at(r-1,c)))ctx.fillRect(X,Y-1,k,1);
-    if(!col(at(r+1,c)))ctx.fillRect(X,Y+k,k,1);
-    if(!col(at(r,c-1)))ctx.fillRect(X-1,Y,1,k);
-    if(!col(at(r,c+1)))ctx.fillRect(X+k,Y,1,k);
+  hand(out);
+}
+/* The nearest thing in the picture gets the finest grain: the fist and the
+ * revolver are drawn a scene pixel to a cell, so the cylinder is round, the
+ * barrel has a rib and a front sight, and the fingers have knuckles. */
+const HAND_LOOK={A:"#2f2620",K:"#181310",H:"#453a2c",       // the glove, near black
+  D:"#1a1e23",G:"#3b424b",L:"#8a94a2",B:C64.blk};            // and blued steel
+const HAND_X=72, HAND_Y=72;
+function hand(out){
+  const rows=out?HAND.level:HAND.down;
+  const dy=out?0:4;
+  for(let r=0;r<rows.length;r++){
+    const line=rows[r];
+    for(let c=0;c<line.length;c++){
+      const k=HAND_LOOK[line[c]]; if(!k)continue;
+      px(HAND_X+c,HAND_Y+dy+r,1,1,k);
+    }
   }
 }
 
 /* ---- the street ---- *
- * The frame the 1985 game used, rebuilt from scratch: a flat row of storefronts
- * across the back under a cloudy sky, the caller standing in the middle of a
- * grey street, one large piece of scenery in the near right, and the sheriff's
- * own sleeve, fist and revolver coming in across the left at the height of the
- * caller's chest. Everything is stepped a column at a time with integer edges.
+ * The 1985 frame, drawn with the craft the machine's artists used: ordered
+ * dithering between two colours wherever a flat field would show, clapboard
+ * siding on every wall, framed and mullioned windows, panelled doors, awnings
+ * with the shadow they cast, plank boardwalks, and light that comes from the
+ * left so every edge knows which side it is on. Nothing has a soft edge.
  */
 const HORIZON=126, ROOF=48, WALK=118;
 const PEOPLE=[{x:196,w:5,h:13},{x:206,w:5,h:12},{x:52,w:5,h:13}];
 const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
-/* Each caller's place decides the sign over the door and what is parked in the
- * near right of the frame. */
+/* A 4x4 ordered matrix: the same one a C64 artist would have dithered with. */
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+function dither(x,y,w,h,a,b,amount){
+  const t=Math.round(Math.max(0,Math.min(1,amount))*16);
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){
+    const X=Math.round(x)+i, Y=Math.round(y)+j;
+    ctx.fillStyle=BAYER[(j&3)*4+(i&3)]<t?b:a;
+    ctx.fillRect(X,Y,1,1);
+  }
+}
+/* A vertical run of colours with a dithered band between each pair. */
+function skyband(y0,y1,a,b){
+  const n=y1-y0;
+  for(let j=0;j<n;j++)dither(0,y0+j,SCENE.w,1,a,b,j/(n-1||1));
+}
 /* Gold Gulch keeps the same five fronts every day; what changes is the big
- * board over the middle one, which names the concern this caller has come out
- * of, and what is parked in the near right. */
+ * board over the middle one and what is parked in the near right. */
 const PLACES={
   STREET:      {sign:"GOLD GULCH HOTEL",     prop:"coach"},
   SALOON:      {sign:"MAGUIRE'S SALOON",     prop:"barrels"},
@@ -250,57 +409,85 @@ const PLACES={
   "THE CUT":   {sign:"GOLD GULCH & WESTERN", prop:"loco"},
   BANK:        {sign:"J P MORGAN BANK",      prop:"crates"}};
 const STORES=[
-  {x0:0,  x1:46, top:44, wall:C64.lgy, trim:C64.dgy, storey:2, sign:"HANLEY'S"},
-  {x0:46, x1:96, top:56, wall:C64.yel, trim:C64.org, storey:1, sign:"ASSAY OFFICE"},
-  {x0:96, x1:170,top:38, wall:C64.lrd, trim:C64.brn, storey:2, board:true},
-  {x0:170,x1:216,top:54, wall:C64.yel, trim:C64.org, storey:1, sign:"LIVERY"},
-  {x0:216,x1:252,top:48, wall:C64.gry, trim:C64.dgy, storey:2, sign:"TELEGRAPH"}];
+  {x0:0,  x1:46, top:44, wall:C64.lgy, dark:C64.gry,  trim:C64.dgy, storey:2, sign:"HANLEY'S"},
+  {x0:46, x1:96, top:56, wall:C64.yel, dark:"#8d9a52", trim:C64.org, storey:1, sign:"ASSAY OFFICE"},
+  {x0:96, x1:170,top:38, wall:C64.lrd, dark:"#784f3f", trim:C64.brn, storey:2, board:true},
+  {x0:170,x1:216,top:54, wall:C64.yel, dark:"#8d9a52", trim:C64.org, storey:1, sign:"LIVERY"},
+  {x0:216,x1:252,top:48, wall:C64.gry, dark:C64.dgy,  trim:C64.dgy, storey:2, sign:"TELEGRAPH"}];
+
 function sky(){
-  px(0,0,SCENE.w,ROOF+8,C64.blu);
-  for(let i=0;i<6;i++){                                   // cloud banks, stepped
+  skyband(0,16,C64.blu,"#4a3a8f");
+  skyband(16,30,"#4a3a8f",C64.lbl);
+  skyband(30,42,C64.lbl,C64.lgy);
+  skyband(42,ROOF+8,C64.lgy,C64.lrd);
+  for(let i=0;i<6;i++){                                   // cloud banks, lit on top
     const cx=10+i*56, cy=6+(i%3)*10, w=44+(i%3)*14;
     for(let k=0;k<4;k++){
       const inset=[0,5,12,22][k], hh=[4,3,3,2][k];
-      px(cx+inset,cy+8-k*3,w-inset*2,hh,k?C64.lgy:C64.gry);
+      px(cx+inset,cy+8-k*3,w-inset*2,hh,k?C64.wht:C64.lgy);
     }
-    px(cx+6,cy+9,w-12,2,C64.dgy);
+    dither(cx+4,cy+9,w-8,3,C64.lgy,C64.gry,0.6);          // the shaded underside
   }
-  for(let x=0;x<SCENE.w;x++){                             // the ridge behind the town
-    const h=Math.round(ROOF-6+5*Math.sin(x/29)+3*Math.sin(x/9));
-    px(x,h,1,HORIZON-h,C64.dgy);
+  for(let x=0;x<SCENE.w;x++){                             // hills, lit from the left
+    const h=Math.round(ROOF-8+6*Math.sin(x/31)+3*Math.sin(x/9));
+    const slope=Math.cos(x/31)>0;
+    px(x,h,1,4,slope?"#5f4f6e":"#402f52");
+    px(x,h+4,1,HORIZON-h-4,"#402f52");
   }
+  dither(0,ROOF-6,SCENE.w,8,"#402f52","#33264a",0.5);     // haze at their feet
 }
-function storefront(s,sign){
-  px(s.x0,s.top,s.x1-s.x0,WALK-s.top,s.wall);
-  px(s.x0,s.top,s.x1-s.x0,4,s.trim);                      // the false front's cap
-  px(s.x0,s.top+4,2,WALK-s.top-4,s.trim);
-  px(s.x1-2,s.top+4,2,WALK-s.top-4,s.trim);
+function window2(x,y,w,h,lit){
+  px(x-1,y-1,w+2,h+2,C64.brn);                            // frame
+  px(x,y,w,h,lit?C64.yel:"#26305c");
+  if(lit)dither(x,y,w,h,C64.yel,"#8d9a52",0.35);
+  else dither(x,y,w,h,"#26305c",C64.blu,0.5);
+  px(x+Math.floor(w/2),y,1,h,C64.brn);                    // mullions
+  px(x,y+Math.floor(h/2),w,1,C64.brn);
+  px(x,y,w,1,lit?C64.wht:C64.lgy);                        // a line of light off the glass
+  px(x-1,y+h+1,w+2,2,C64.org);                            // the sill
+}
+function door(x,y,w,h){
+  px(x-1,y-1,w+2,h+1,C64.brn);
+  px(x,y,w,h,"#2a1c10");
+  for(const j of [0,1]){                                  // two sunken panels
+    const py0=y+3+j*Math.floor((h-8)/2), ph=Math.floor((h-10)/2);
+    px(x+3,py0,w-6,ph,"#1d1409");
+    px(x+3,py0,w-6,1,C64.brn); px(x+3,py0,1,ph,C64.brn);
+  }
+  px(x+w-4,y+Math.floor(h/2),2,2,C64.yel);                // the knob
+}
+function storefront(s){
   const w=s.x1-s.x0;
-  if(s.storey>1)for(let i=0;i<2;i++){                     // upstairs windows
-    const wx=s.x0+8+i*(w-24), wy=s.top+12;
-    px(wx,wy,10,12,C64.blk); px(wx+1,wy+1,8,10,hash(wx,wy)%3?C64.blu:C64.yel);
-  }
-  px(s.x0+4,WALK-26,w-8,4,s.trim);                        // the awning
-  const dx=s.x0+Math.round(w/2)-7;
-  px(dx,WALK-22,14,22,C64.blk); px(dx+1,WALK-21,12,21,"#1d1508");
-  for(const side of [s.x0+5,s.x1-17]){                    // shop windows either side
-    if(side<dx-14||side>dx+14){
-      px(side,WALK-20,12,14,C64.blk); px(side+1,WALK-19,10,12,C64.dgy);
-    }
-  }
-  if(s.sign)painted(s.sign,s.x0+3,s.top+6,w-6,11,6);      // the concern's own board
+  px(s.x0,s.top,w,WALK-s.top,s.wall);
+  dither(s.x0,s.top,w,WALK-s.top,s.wall,s.dark,0.28);     // grain in the paint
+  for(let y=s.top+6;y<WALK;y+=3)px(s.x0,y,w,1,s.dark);    // clapboard siding
+  px(s.x0,s.top,w,5,s.trim);                              // the false front's cap
+  px(s.x0,s.top+5,w,1,C64.blk);
+  px(s.x0,s.top,w,1,C64.lgy);
+  px(s.x0,s.top+6,2,WALK-s.top-6,s.trim);                 // corner boards
+  px(s.x1-2,s.top+6,2,WALK-s.top-6,s.trim);
+  px(s.x1-3,s.top+6,1,WALK-s.top-6,C64.blk);              // and the shadow in the joint
+  if(s.storey>1)for(let i=0;i<2;i++)
+    window2(s.x0+9+i*(w-25),s.top+13,11,13,hash(s.x0,i)%3!==0);
+  const ay=WALK-27;
+  px(s.x0+2,ay,w-4,3,s.trim); px(s.x0+2,ay+3,w-4,1,C64.blk);   // the awning
+  dither(s.x0+2,ay+4,w-4,5,s.wall,C64.blk,0.55);              // its shadow on the wall
+  for(const px0 of [s.x0+4,s.x1-7])px(px0,ay+3,2,WALK-ay-3,C64.brn);  // posts
+  const dx=s.x0+Math.round(w/2)-8;
+  door(dx,WALK-21,16,21);
+  for(const side of [s.x0+7,s.x1-20])
+    if(side<dx-13||side>dx+15)window2(side,WALK-19,13,12,false);
+  if(s.sign)painted(s.sign,s.x0+3,s.top+7,w-6,11,6);
 }
 /* A painted board: brown frame, black field, yellow letters, the face dropped a
  * point at a time until the name fits the front it is nailed to. */
 function painted(text,x,y,w,h,size){
   while(size>4&&text.length*size*0.62>w-4)size--;
-  px(x,y,w,h,C64.brn); px(x+1,y+1,w-2,h-2,C64.blk);
+  px(x,y,w,h,C64.brn); px(x,y,w,1,C64.org); px(x+1,y+1,w-2,h-2,C64.blk);
   ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(text,x+w/2,y+h/2+1);
 }
-/* The big board over the middle front: two lines when the name is long, and a
- * smaller face when even two will not carry it. */
 function signboard(text){
   const words=text.split(" ");
   let lines=[text];
@@ -315,72 +502,117 @@ function signboard(text){
   const longest=Math.max.apply(null,lines.map(t=>t.length));
   const size=longest<=11?8:6;
   const bx=90, bw=96, by=44, bh=lines.length>1?22:14;
-  px(bx,by,bw,bh,C64.brn); px(bx+2,by+2,bw-4,bh-4,C64.blk);
+  px(bx-1,by-1,bw+2,bh+2,C64.blk);
+  px(bx,by,bw,bh,C64.brn); px(bx,by,bw,2,C64.org);
+  px(bx+2,by+2,bw-4,bh-4,C64.blk);
   ctx.fillStyle=C64.yel; ctx.font="700 "+size+"px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
   lines.forEach((t,i)=>ctx.fillText(t,bx+bw/2,by+bh/2+1+(i-(lines.length-1)/2)*(size+3)));
+  px(bx+5,by+bh,3,8,C64.brn); px(bx+bw-8,by+bh,3,8,C64.brn);   // the brackets
 }
-/* The tree stands out in front of the fronts, low enough to leave the boards
- * on them readable. */
+/* A cottonwood: an irregular head of foliage, lit from the left. */
 function tree(){
-  px(78,96,6,WALK-96,C64.brn);
-  for(const [cx,cy,r] of [[81,80,13],[70,88,10],[92,88,10],[81,92,11]]){
-    for(let y=-r;y<=r;y++){const half=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
-      px(cx-half,cy+y,half*2,1,(y+cx)%5?C64.grn:C64.lgn);}
-  }
+  px(220,94,7,WALK-94,C64.brn); px(220,94,2,WALK-94,"#6a5a33"); // trunk, lit edge
+  px(227,100,5,2,C64.brn);                                      // a branch
+  const blobs=[[224,78,13],[213,86,10],[236,86,11],[224,92,11],[232,76,8]];
+  for(const [cx,cy,r] of blobs)
+    for(let y=-r;y<=r;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
+      px(cx-h,cy+y,h*2,1,C64.grn);}
+  for(const [cx,cy,r] of blobs)                                // light on the upper left
+    for(let y=-r;y<=-r/3;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
+      px(cx-h,cy+y,Math.round(h*1.1),1,C64.lgn);}
+  for(const [cx,cy,r] of blobs)                                // and shadow beneath
+    dither(cx-r,cy+Math.round(r*0.45),r*2,Math.round(r*0.5),C64.grn,"#3a5c2c",0.6);
 }
 function street(){
   px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,C64.gry);
-  px(0,WALK,SCENE.w,HORIZON-WALK,C64.org);                // the boardwalk
+  dither(0,HORIZON,SCENE.w,SCENE.h-HORIZON,C64.gry,C64.lgy,0.30);
+  dither(0,SCENE.h-26,SCENE.w,26,C64.gry,C64.dgy,0.28);        // the dirt near the boots
+  // the boardwalk: planks, board ends and the shadow it throws on the street
+  px(0,WALK,SCENE.w,HORIZON-WALK,C64.org);
+  dither(0,WALK,SCENE.w,HORIZON-WALK,C64.org,C64.brn,0.35);
+  px(0,WALK,SCENE.w,1,"#8a6a3a");
+  for(let i=0;i<40;i++)px(i*8+3,WALK+1,1,HORIZON-WALK-1,C64.brn);
   px(0,HORIZON-2,SCENE.w,2,C64.brn);
-  for(let i=0;i<9;i++)px(i*36+4,WALK,3,HORIZON-WALK,C64.brn);
-  for(let i=0;i<90;i++){                                  // stones and ruts in the dirt
-    const x=(hash(i,3)%SCENE.w), y=HORIZON+2+(hash(i,7)%(SCENE.h-HORIZON-4));
-    px(x,y,1+(hash(i,11)%3),1,(i%3)?C64.lgy:C64.dgy);
+  dither(0,HORIZON,SCENE.w,3,C64.gry,C64.dgy,0.7);
+  for(let i=0;i<5;i++){                                        // wheel ruts
+    const y=HORIZON+10+i*13, w=40+i*22;
+    dither(18+i*44,y,w,2,C64.gry,C64.dgy,0.75);
+    px(18+i*44,y+2,w,1,C64.lgy);
   }
-  for(let i=0;i<5;i++)px(20+i*62,HORIZON+14+i*9,46+i*10,2,C64.dgy);
+  for(let i=0;i<70;i++){                                       // stones, lit and shadowed
+    const x=(hash(i,3)%SCENE.w), y=HORIZON+3+(hash(i,7)%(SCENE.h-HORIZON-6));
+    const w=1+(hash(i,11)%3);
+    px(x,y,w,1,C64.lgy); px(x,y+1,w,1,C64.dgy);
+  }
 }
+/* The one large thing parked in the near right, chosen by the place. Lit from
+ * the left like everything else, and dithered where a flat panel would show. */
 function propAt(kind){
   if(kind==="loco"){
-    px(252,58,58,18,C64.dgy);                             // the cab
-    px(248,76,72,46,C64.blk);                             // the boiler
-    for(let y=0;y<44;y+=4)px(250,78+y,68,2,C64.dgy);
-    for(let y=-22;y<=22;y++){const h=Math.round(Math.sqrt(Math.max(0,484-y*y)));
-      px(268-h,100+y,h*2,1,y%3?C64.dgy:C64.gry);}         // the smokebox door
-    px(276,92,16,16,C64.blk); px(280,96,8,8,C64.lgy);
-    px(258,36,14,24,C64.dgy); px(254,32,22,6,C64.dgy);    // the stack
-    px(244,122,76,10,C64.blk);                            // the cowcatcher
-    for(let i=0;i<8;i++)px(248+i*9,132,4,14,C64.dgy);
-    for(let i=0;i<7;i++)px(236+i*12,158+i*6,SCENE.w,3,C64.brn);  // the rails running out
+    px(250,56,60,20,C64.dgy); dither(250,56,60,20,C64.dgy,C64.blk,0.4);
+    px(250,56,60,2,C64.gry);
+    px(246,76,74,48,C64.blk);                              // the boiler
+    for(let y=-24;y<=24;y++){const h=Math.round(Math.sqrt(Math.max(0,576-y*y)));
+      const lit=y<-6;
+      px(266-h,100+y,h*2,1,lit?C64.gry:C64.dgy);}          // the smokebox door, round
+    dither(242,88,50,26,C64.dgy,C64.blk,0.45);
+    for(let y=78;y<122;y+=6)px(248,y,70,1,C64.blk);        // boiler bands
+    px(274,92,18,18,C64.blk); px(276,94,14,14,C64.lgy);    // the headlamp
+    px(278,96,10,10,C64.wht);
+    px(256,32,16,26,C64.dgy); px(252,28,24,6,C64.gry);     // the stack
+    dither(256,32,16,26,C64.dgy,C64.blk,0.4);
+    px(242,124,80,10,C64.blk);                             // the cowcatcher
+    for(let i=0;i<9;i++)px(246+i*9,134,4,16,i%2?C64.dgy:C64.gry);
+    for(let i=0;i<6;i++){const y=160+i*8;                  // the rails running out
+      px(230+i*14,y,SCENE.w,3,C64.brn); px(230+i*14,y,SCENE.w,1,"#6a5a33");}
   } else if(kind==="coach"){
-    px(250,70,66,44,C64.brn); px(250,70,66,5,C64.dgy);
-    px(258,78,18,16,C64.blk); px(284,78,18,16,C64.blk);
-    px(260,80,14,12,C64.yel); px(286,80,14,12,C64.yel);
-    px(246,112,74,6,C64.dgy);
-    for(const [cx,r] of [[266,20],[306,24]]){             // wheels, spoked
+    px(248,66,70,48,C64.brn); dither(248,66,70,48,C64.brn,"#2e2700",0.35);
+    px(248,66,70,4,C64.org); px(248,70,70,1,C64.blk);
+    for(const wx of [256,284]){                            // windows with a blind
+      px(wx-1,75,20,18,C64.blk); px(wx,76,18,16,"#26305c");
+      dither(wx,76,18,16,"#26305c",C64.blu,0.5);
+      px(wx,76,18,3,C64.org);
+    }
+    px(244,114,78,6,C64.dgy); px(244,114,78,1,C64.lgy);
+    px(250,120,6,20,C64.brn); px(300,120,6,24,C64.brn);    // springs
+    for(const [cx,r] of [[264,20],[306,25]]){              // wheels: rim, spokes, hub
       for(let y=-r;y<=r;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
-        px(cx-h,128+y,h*2,1,C64.brn);}
+        px(cx-h,132+y,h*2,1,C64.brn);}
       for(let y=-r+4;y<=r-4;y++){const h=Math.round(Math.sqrt(Math.max(0,(r-4)*(r-4)-y*y)));
-        px(cx-h,128+y,h*2,1,C64.gry);}
-      for(let a=0;a<8;a++){const dx=Math.cos(a*0.785),dy=Math.sin(a*0.785);
-        for(let t=0;t<r-3;t++)px(cx+dx*t,128+dy*t,2,2,C64.dgy);}
+        px(cx-h,132+y,h*2,1,C64.gry);}
+      for(let a=0;a<10;a++){const dx=Math.cos(a*0.628),dy=Math.sin(a*0.628);
+        for(let t=0;t<r-3;t++)px(cx+dx*t,132+dy*t,2,2,C64.brn);}
+      px(cx-3,129,6,6,C64.org);
     }
   } else if(kind==="barrels"){
-    for(const [bx,by,bw,bh] of [[252,110,26,40],[286,120,28,46],[258,150,30,34]]){
+    for(const [bx,by,bw,bh] of [[250,106,28,44],[286,118,30,50],[256,150,32,36]]){
       px(bx,by,bw,bh,C64.org);
-      px(bx,by,bw,4,C64.brn); px(bx,by+bh-5,bw,5,C64.brn);
-      px(bx+2,by+Math.round(bh/2),bw-4,3,C64.brn);
+      dither(bx,by,bw,bh,C64.org,C64.brn,0.35);
+      px(bx,by,3,bh,"#8a6a3a");                            // the lit stave
+      px(bx+bw-4,by,4,bh,C64.brn);
+      for(const hy of [by+2,by+Math.round(bh/2)-1,by+bh-5])px(bx,hy,bw,3,C64.brn);
+      px(bx,by,bw,2,"#8a6a3a");
+      ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
     }
-    px(246,166,74,10,C64.brn);
   } else if(kind==="crates"){
-    for(const [bx,by,bw,bh] of [[248,118,40,34],[292,130,28,28],[256,152,44,38]]){
+    for(const [bx,by,bw,bh] of [[246,114,44,38],[292,128,28,30],[254,152,48,40]]){
       px(bx,by,bw,bh,C64.brn); px(bx+2,by+2,bw-4,bh-4,C64.org);
-      px(bx+2,by+Math.round(bh/2)-1,bw-4,2,C64.brn);
+      dither(bx+2,by+2,bw-4,bh-4,C64.org,C64.brn,0.3);
+      px(bx+2,by+2,bw-4,1,"#8a6a3a");
+      px(bx+2,by+Math.round(bh/2)-1,bw-4,2,C64.brn);       // the band
+      px(bx+Math.round(bw/2)-1,by+2,2,bh-4,C64.brn);
+      ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
     }
-  } else {                                                // a corral fence, in perspective
-    for(let i=0;i<4;i++)px(244+i*24,118+i*10,8,70-i*6,C64.brn);
-    for(let k=0;k<3;k++)for(let i=0;i<3;i++)
-      px(244+i*24,126+i*10+k*16,26,5,C64.org);
+  } else {                                                 // a corral fence in perspective
+    for(let i=0;i<4;i++){
+      const x=242+i*26, y=114+i*11, h=74-i*7;
+      px(x,y,9,h,C64.brn); px(x,y,3,h,"#6a5a33"); px(x,y,9,2,C64.org);
+    }
+    for(let k=0;k<3;k++)for(let i=0;i<3;i++){
+      const x=242+i*26, y=124+i*11+k*17;
+      px(x,y,28,6,C64.org); px(x,y,28,1,"#8a6a3a"); px(x,y+5,28,1,C64.brn);
+    }
   }
 }
 function town(now,armed){
