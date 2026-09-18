@@ -70,66 +70,94 @@ const LOOK={
   lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
   robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.brn,W:C64.gry}
 };
-/* The sheriff's own arm: a mottled sleeve entering from the left edge at the
- * height of the caller's chest, a cuff, a black fist and the revolver. 40x22
- * cells at three pixels each, the largest thing in the frame, and the only part
- * of him the player ever sees. */
+/* The sheriff's own arm. It runs out of the top-left corner of the frame, which
+ * is what says whose arm it is: his shoulder is at the camera, not across the
+ * street. Sleeve, cuff, black fist and revolver, 44x40 cells at three pixels
+ * each — the largest thing in the picture, and the only part of him there is. */
 const OWN={
   holstered:[
-    "............................................",
-    "............................................",
-    "................BB..........................",
-    ".............BBBLLBBBBBBB...................",
-    "............BLLLLLLLLLWWWB..................",
-    "....B.....BBLLLLLLLLLLWWWBBBBB..............",
-    "BBBBLBBBBBLLLLLLSSLLLLWWWBBBBBB.............",
-    "LLLLLLLLLLLLLLSSSSSSSSWBBBBBBBB.............",
-    "LLLLLLLLLLLLLSSSSSSSSSWBBBBBBBBBB...........",
-    "LLLLLLLLLLSSSSSSSSSSSSWBBBBBBBBBBB..........",
-    "SLLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBB..........",
-    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBB.........",
-    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBB.........",
-    "LLLLSSSSSSSSDDSSSSSSSBBBBBBBBBBBBBB.........",
-    "LLLSSSSSSSDDDDSSSSSSSBBBBBBBBBBBBBB.........",
-    "SSSSSSSSSSDDDSSSSSSSSBBBBBBBBBBBBBB.........",
-    "SSSSSSSSDDDDDSSSSSSSSSBBBBBBBBBBBGB.........",
-    "SSSSSSSDDDDDDSSSSDDDSSWBBBBBBBBBBGB.........",
-    "SSSSSSSDDDDDSSSDDDDDDDWBBBBBBBBGGGB.........",
-    "SSSSSSDDDDDSSSDDDDDDDDWBBBBBBBMGGGGB........",
-    "SSSSSDDDDDSSSDDDDDDDDDWBBBBB.BMGGGGB........",
-    "SSSSSDDDDDDDDDDDDBBBDDWWWB....BMGGGGB.......",
-    "DDDDDDDDDDDDDDDBB...BBWWWB....BMGGGGB.......",
-    "DDDDDDDDDDDDDDB......BWWWB.....BMGGGGB......",
-    "DDDDDDDDDDDDDB........BBB......BMGGGGB......",
-    "DDDDDDDDBDBBB...................BMGGGGB....."
+    "LLLB........................................",
+    "LLLLB.......................................",
+    "LLLLLB......................................",
+    "LLLLLLB.....................................",
+    "LLLLLLLB....................................",
+    "LLLLLLLLB...................................",
+    "LLLLLLLLLBB.................................",
+    "LLLLLLLLLLLBB...............................",
+    "LLLLLLLLLLLLLBB.............................",
+    "LLLLLLSLLLLLLLLB............................",
+    "LLLLLSSSSLLLLLLLBB..........................",
+    "LLSSSSSSSSSLLLLLLLB.........................",
+    "SSSSSSSSSSSSSLLLLLLB........................",
+    "SSSSSSSSSSSSSSSLLLLB........................",
+    "SSSSSSSSSSSSSSSSLLLLB.BBBB..................",
+    "SSSSSSSSSSSSSSSSSSLLLBWWWWB.................",
+    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
+    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
+    "SSSSSSSDDDDSSSSSSSSSLLWWWWB.................",
+    "DSSSSSDDDDDDSSSSSSSSSLWWWWB.................",
+    "DDSSDDDDDDDDSSSSSSSSSSWWWWB.................",
+    "DDDSDDDDDDDDSSSSSSSSSSBBWWB.................",
+    "DDDDDDDDDDDDSSSSSSSSSSBBBBBBBB..............",
+    "DDDDDDDDDDDSSSSSSSSSSSBBBBBBBBB.............",
+    "BDDDDDDDDDSSSSSSSSSSSSBBBBBBBBBB............",
+    ".BDDDDDDDSSSSSSSSSSSSBBBBBBBBBBBB...........",
+    "..BDDDDDDDDSSSSSSSSSBBBBBBBBBBBBBB..........",
+    "...BBDDDDDDDDSSSSSSSBBBBBBBBBBBBBB..........",
+    ".....BBDDDDDDDDSSSSSBBBBBBBBBBBBBB..........",
+    ".......BBDDDDDDDDSSSBBBBBBBBBBBBBBBB........",
+    ".........BBDDDDDDDSSBBBBBBBBBBBBBGGGB.......",
+    "...........BBDDDDDDSSBBBBBBBBBBBGGGGB.......",
+    ".............BBDDDDDSSBBBBBBBBBGGGGGB.......",
+    "...............BBDDDDSBBBBBBBBBMGGGGGB......",
+    ".................BDDDDBBBBBBBBMMGGGGGB......",
+    "..................BDDDBBBBBBB.BMMGGGGGB.....",
+    "...................BDDBBWWB...BMMGGGGGB.....",
+    "....................BDWWWWB....BMMGGGGGB....",
+    ".....................BWWWWB....BMMGGGGGB....",
+    ".....................BWWWWB.....BMMGGGGGB..."
   ],
   drawn:[
-    "................BB..........................",
-    ".............BBBLLBBBBBBB...................",
-    "............BLLLLLLLLLWWWB..................",
-    "....B.....BBLLLLLLLLLLWWWB....BBBB..........",
-    "BBBBLBBBBBLLLLLLSSLLLLWWWB.B.BGGGGB.........",
-    "LLLLLLLLLLLLLLSSSSSSSSWBBBBBBBGGGGGBB.......",
-    "LLLLLLLLLLLLLSSSSSSSSSWBBBBBBBBGMMMMGB......",
-    "LLLLLLLLLLSSSSSSSSSSSSWBBBBBBBBBBGGGGBBBBBBB",
-    "LLLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBGGGMMMMMMMM",
-    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
-    "LLLLLLSSSSSSSSSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
-    "LLLLSSSSSSSSDDSSSSSSSBBBBBBBBBBBBBGGGGGGGGGG",
-    "LLLLSSSSSSDDDDSSSSSSSBBBBBBBBBBBBBGGGBBBBBBB",
-    "LLLSSSSSSSDDDSSSSSSSSBBBBBBBBBBBBBGGGB......",
-    "SSSSSSSSDDDDDSSSSSSSSSBBBBBBBBBBBBBBB.......",
-    "SSSSSSSDDDDDDSSSSDDDSSWBBBBBBBBBBBBB........",
-    "SSSSSSSDDDDDSSSDDDDDDDWBBBBBBBBBBBB.........",
-    "SSSSSSDDDDDSSSDDDDDDDDWBBBBBBBBBB...........",
-    "SSSSSDDDDDSSSDDDDDDDDDWBBBBBBBBBB...........",
-    "SSSSSDDDDDDDDDDDDBBBDDWWWBBBBBBBB...........",
-    "SSSSSDDDDDDDDDDBB...BBWWWBBBBBBBB...........",
-    "SSSSDDDDDDDDDDB......BWWWBBBBBBBB...........",
-    "DDDDDDDDDDDDDB........BBBBBBBBBBB...........",
-    "DDDDDDDDBDBBB............BBBBBBB............",
-    "DDDDDDBB.B..................................",
-    "DDDDBB......................................"
+    "LLLLLLB.....................................",
+    "LLLLLLLB....................................",
+    "LLLLLLLLB...................................",
+    "LLLLLLLLLBB.................................",
+    "SLLLLLLLLLLBB...............................",
+    "LLLLLLLLLLLLLBB.............................",
+    "LLLLLLSLLLLLLLLB............................",
+    "LLLLLSSSSLLLLLLLBB..........................",
+    "LLLLSSSSSSSLLLLLLLB.........................",
+    "LLLSSSSSSSSSSLLLLLLB........................",
+    "SSSSSSSSSSSSSSSLLLLB........................",
+    "SSSSSSSSSSSSSSSSLLLLB.BBBB..................",
+    "SSSSSSSSSSSSSSSSSSLLLBWWWWB.................",
+    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
+    "SSSSSSSSSSSSSSSSSSSLLLWWWWB.................",
+    "SSSSSSSDDDDSSSSSSSSSLLWWWWB.................",
+    "SSSSSSDDDDDDSSSSSSSSSLWWWWB.................",
+    "DSSSSDDDDDDDSSSSSSSSSSWWWWB.BBBBB...........",
+    "DDSSDDDDDDDDSSSSSSSSSSBBWWBBGGGGGB..........",
+    "DDDDDDDDDDDDSSSSSSSSSSBBBBBBGGGGGGB.........",
+    "DDDDDDDDDDDSSSSSSSSSSSBBBBBBBBGGGGGBB.......",
+    "BDDDDDDDDDSSSSSSSSSSSSBBBBBBBBBMMMMMGB......",
+    ".BDDDDDDDSSSSSSSSSSSSBBBBBBBBBBBGGGGGB......",
+    "..BDDDDDDDDSSSSSSSSSBBBBBBBBBBBBBGGGGBBBBBBB",
+    "...BBDDDDDDDDSSSSSSSBBBBBBBBBBBBBGGGMMMMMMMM",
+    ".....BBDDDDDDDDSSSSSBBBBBBBBBBBBBGGGGGGGGGGG",
+    ".......BBDDDDDDDDSSSBBBBBBBBBBBBBGGGGGGGGGGG",
+    ".........BBDDDDDDDSSBBBBBBBBBBBBBGGGGGGGGGGG",
+    "...........BBDDDDDDSSBBBBBBBBBBBGGGGGGGGGGGG",
+    ".............BBDDDDDSSBBBBBBBBBGGGGGGBBBBBBB",
+    "...............BBDDDDSBBBBBBBBBGGGGGGB......",
+    ".................BDDDDBBBBBBBGGGGGGBB.......",
+    "..................BDDDBBBBBGGGGGGGB.........",
+    "...................BDDBBWGGGGGBBBB..........",
+    "....................BDWWWGGGGGB.............",
+    ".....................BWWWGGGGGB.............",
+    ".....................BWWWWBBBB..............",
+    ".....................BWWWWB.................",
+    ".....................BWWWWB.................",
+    "......................BBBB.................."
   ]
 };
 function figureRows(fig,pose){
@@ -167,13 +195,13 @@ function visitor(enc,pose){
  * 44x34 cells at three pixels each: a hundred and thirty across the left third
  * of the frame, from his shoulder down past his holster. He is the only figure
  * the player never sees the face of. */
-const OWN_CELL=3, OWN_X=0, OWN_Y=92;
+const OWN_CELL=3, OWN_X=0, OWN_Y=12;
 /* His coat is the darkest blue on the screen and nothing else in the town is
  * that colour, so the foreground never reads as part of the boardwalk. */
 /* The sleeve is mottled light grey, the cuff dark, the fist and the revolver
  * black with a grey barrel: the only thing on screen bigger than a building. */
 const OWN_LOOK={S:C64.lgy,L:"#c3c3c3",D:C64.gry,W:"#2b2b2b",
-  G:C64.blk,M:C64.gry,B:C64.blk};   // the revolver is a black silhouette with one light edge
+  G:"#2b2b2b",M:C64.lgy,B:C64.blk};  // the gun is a shade off his fist, with a lit edge
 function ownGun(out){
   const rows=out?OWN.drawn:OWN.holstered;
   const at=(r,c)=>(rows[r]&&rows[r][c])||".";
@@ -182,13 +210,17 @@ function ownGun(out){
     const ch=at(r,c); const k=col(ch); if(!k)continue;
     px(OWN_X+c*OWN_CELL,OWN_Y+r*OWN_CELL,OWN_CELL,OWN_CELL,k);
   }
-  // the light off the street catches the top edge of him, one pixel wide, which
-  // is what keeps a mass this size from reading as a hole in the picture
-  for(let c=0;c<44;c++){
-    let top=-1;
-    for(let r=0;r<rows.length;r++)if(col(at(r,c))&&at(r,c)!=="B"){top=r;break;}
-    if(top<0)continue;
-    px(OWN_X+c*OWN_CELL,OWN_Y+top*OWN_CELL,OWN_CELL,1,"#6f7ea8");
+  // A one-pixel light rim all the way round. The sleeve hardly needs it; the
+  // revolver does, because a dark gun over a dark doorway is a hole otherwise.
+  ctx.fillStyle=C64.lgy;
+  const W=rows[0].length;
+  for(let r=0;r<rows.length;r++)for(let c=0;c<W;c++){
+    if(!col(at(r,c)))continue;
+    const X=Math.round(OWN_X+c*OWN_CELL), Y=Math.round(OWN_Y+r*OWN_CELL), k=OWN_CELL;
+    if(!col(at(r-1,c)))ctx.fillRect(X,Y-1,k,1);
+    if(!col(at(r+1,c)))ctx.fillRect(X,Y+k,k,1);
+    if(!col(at(r,c-1)))ctx.fillRect(X-1,Y,1,k);
+    if(!col(at(r,c+1)))ctx.fillRect(X+k,Y,1,k);
   }
 }
 
@@ -364,6 +396,15 @@ function town(now,armed){
   }
   propAt(here.prop);
 }
+/* A hitching rail at the sheriff's own boots, nearer than anything else on the
+ * ground. With the arm out of the top corner it is what puts the player in the
+ * street rather than watching it. */
+function nearRail(){
+  px(0,148,108,9,"#2a1c10"); px(0,148,108,2,C64.brn);
+  px(0,176,96,10,"#2a1c10"); px(0,176,96,2,C64.brn);
+  px(10,140,18,60,"#1d1409"); px(10,140,4,60,C64.brn);
+  px(78,152,12,48,"#1d1409"); px(78,152,3,48,C64.brn);
+}
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
@@ -379,6 +420,7 @@ function drawScene(now){
       ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
     } else visitor(enc,pose);
   }
+  nearRail();
   ownGun(G.mode==="gun");
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
