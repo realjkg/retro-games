@@ -347,11 +347,19 @@ test('8n. the picture is 320x200 painted into a 4:3 frame', {skip:jsdomMissing&&
   const w=p.ev('sceneGeom()');
   assert.ok(w.sy*200<=400.001&&Math.abs((w.sx*320)/(w.sy*200)-4/3)<1e-6);
   // and the sheriff is the near third of it, with the caller clear of him
-  const wide=Math.max.apply(null,p.ev('SHERIFF.drawn').map(r=>r.length));
-  assert.equal(p.ev('OWN_X'),0,'the sheriff is not against the frame');
-  assert.ok(wide>=320/3,'the sheriff is only '+wide+' pixels of the near third');
-  assert.equal(p.ev('SHERIFF.drawn').length,200,'he does not run the height of the frame');
-  assert.ok(p.ev('SPRX')>wide,'the caller stands inside the sheriff');
+  const own=p.ev('OWN');
+  const wide=Math.max.apply(null,p.ev('SHERIFF.drawn').map(r=>r.length))*own.cw;
+  const tall=p.ev('SHERIFF.drawn').length*own.ch;
+  assert.ok(own.x<=4,'the sheriff is not against the frame');
+  assert.ok(wide>=320/4,'the sheriff is only '+wide+' pixels of the near third');
+  assert.equal(own.y+tall,200,'he does not run out of the bottom of the frame');
+  assert.ok(tall>=160,'he is only '+tall+' pixels tall');
+  assert.ok(p.ev('SPRX')>own.x+wide,'the caller stands inside the sheriff');
+  // he is painted by the same painter as every caller, from the same alphabet
+  const alpha=new Set('.HRCKLWFAEBGSP'.split(''));
+  for(const row of p.ev('SHERIFF.drawn').concat(p.ev('SHERIFF.holstered')))
+    for(const ch of row)assert.ok(alpha.has(ch),'the sheriff uses '+ch+', which no caller has');
+  assert.ok(p.ev('LOOK.sheriff'),'he has no entry in the look table');
   assert.deepEqual(p.errors,[]);
 });
 
