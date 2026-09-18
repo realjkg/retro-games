@@ -16,6 +16,6 @@ if(!shell.includes(marker))throw new Error('page.html has no '+marker);
 const out=shell.replace(marker,parts.join('\n\n'));
 fs.writeFileSync(path.join(ROOT,'index.html'),out);
 const kb=(Buffer.byteLength(out)/1024).toFixed(1);
-console.log(`index.html  ${kb} KB  (budget 120 KB)`);
+console.log(`index.html  ${kb} KB  (budget 240 KB)`);
 if(/<script[^>]+src=|https?:\/\/(?!www\.w3\.org)/.test(out.replace(/<!--[\s\S]*?-->/g,'')))
   console.log('WARNING: the page appears to reference something external');

@@ -39,6 +39,12 @@ const SOUNDS={
             {w:"tri",f0:95,f1:58,dur:0.3,vol:0.2,cut:600,res:4}],
   death:   [{w:"saw",f0:220,f1:44,dur:0.8,vol:0.26,cut:3200,cut1:180,res:11},
             {w:"pulse",f0:110,f1:40,pw:0.2,pw1:0.5,dur:0.85,vol:0.18,cut:1200,cut1:200,res:8}],
+  /* Two opposite actions had one sound between them. Leather is the gun coming
+   * out — a rising drag and a ring off the trigger guard. Holster is it going
+   * back: the same drag falling, and no ring. */
+  leather: [{w:"noise",f0:1,dur:0.11,vol:0.15,cut:700,cut1:2600,res:8},
+            {w:"saw",f0:96,f1:168,dur:0.15,vol:0.12,cut:800,cut1:2400,res:11,dly:0.02},
+            {w:"pulse",f0:1560,pw:0.14,dur:0.045,vol:0.08,cut:5200,res:5,dly:0.11}],
   holster: [{w:"noise",f0:1,dur:0.09,vol:0.12,cut:1800,cut1:700,res:8},
             {w:"saw",f0:130,f1:96,dur:0.14,vol:0.1,cut:900,cut1:1800,res:11,dly:0.03}],
   /* melodic cues — seq entries are [semitones from f0, start, length]     */
@@ -52,14 +58,16 @@ const SOUNDS={
              seq:[[0,0,0.55],[-2,0.55,0.55]]}],
   /* An identity sting rather than a melody: a three-note motif, answered twice,
      low in the register. The high voice is a glint, never the lead. */
-  title:   [{w:"pulse",f0:146.83,vol:0.19,cut:1500,cut1:2100,pw:0.16,pw1:0.5,res:9,
-             seq:[[0,0,0.9],[7,0.95,0.55],[10,1.55,1.5],
-                  [0,3.4,0.75],[7,4.2,0.5],[3,4.75,1.1],
-                  [0,6.1,1.9]]},
-            {w:"tri",f0:73.42,vol:0.2,cut:520,res:3,
-             seq:[[0,0,1.55],[0,1.55,1.8],[7,3.4,1.35],[0,4.75,1.3],[0,6.1,1.9]]},
-            {w:"pulse",f0:1174.66,pw:0.5,vol:0.035,cut:5200,res:6,
-             seq:[[0,1.6,0.14],[7,3.5,0.14],[0,6.2,0.4]]}],
+  /* The title. Three voices, as the machine had: a melody in D minor over a
+   * walking bass and a brush on two and four. Newly written — the dramatic job
+   * is the one the original's title music did, wide and unhurried before a
+   * single shot is fired, and none of the notes are its notes. */
+  title:   [{w:"pulse",f0:293.66,vol:0.165,cut:1700,cut1:2600,pw:0.20,pw1:0.46,res:9,
+             seq:[[7,0.00,0.34],[0,0.34,1.02],[3,1.36,0.34],[5,1.70,0.34],[7,2.04,0.68],[5,2.72,0.34],[3,3.06,0.34],[2,3.40,0.34],[0,3.74,0.98],[7,4.72,0.34],[10,5.06,0.34],[12,5.40,1.02],[10,6.42,0.34],[8,6.76,0.34],[7,7.10,0.68],[5,7.78,0.34],[3,8.12,1.02],[12,9.14,0.51],[15,9.65,0.51],[14,10.16,0.34],[12,10.50,0.34],[10,10.84,0.68],[8,11.52,0.34],[7,11.86,0.34],[5,12.20,0.68],[3,12.88,0.34],[2,13.22,0.34],[0,13.56,1.62],[7,15.26,0.34],[3,15.60,0.34],[0,15.94,2.20]]},
+            {w:"tri",f0:73.42,vol:0.20,cut:560,cut1:420,res:3,
+             seq:[[0,0.00,1.30],[0,1.36,1.30],[-4,2.72,1.30],[-2,4.08,0.58],[0,4.72,1.30],[3,6.08,1.30],[-2,7.44,1.30],[0,8.80,0.30],[0,9.14,1.30],[3,10.50,0.96],[-4,11.52,1.30],[-2,12.88,0.62],[0,13.56,1.62],[0,15.26,0.62],[0,15.94,2.20]]},
+            {w:"noise",f0:1,vol:0.055,cut:2400,cut1:600,res:4,
+             seq:[[0,0.34,0.06],[0,1.02,0.06],[0,1.70,0.06],[0,2.38,0.06],[0,3.06,0.06],[0,3.74,0.06],[0,4.42,0.06],[0,5.10,0.06],[0,5.78,0.06],[0,6.46,0.06],[0,7.14,0.06],[0,7.82,0.06],[0,8.50,0.06],[0,9.18,0.06],[0,9.86,0.06],[0,10.54,0.06],[0,11.22,0.06],[0,11.90,0.06],[0,12.58,0.06],[0,13.26,0.06],[0,13.94,0.06],[0,14.62,0.06],[0,15.30,0.06],[0,15.98,0.06],[0,16.66,0.06],[0,17.34,0.06]]}],
   dusk:    [{w:"pulse",f0:110,pw:0.22,pw1:0.5,vol:0.17,cut:1800,cut1:900,res:8,
              seq:[[0,0,0.5],[-2,0.52,0.5],[-3,1.04,0.4],[-4,1.46,0.4],
                   [-5,1.88,0.45],[-7,2.35,0.6]]},
@@ -118,7 +126,7 @@ const SOUNDS={
             {w:"noise",f0:1,dur:0.03,vol:0.09,cut:2600,cut1:900,res:4,dly:0.02}],
 
   /* what the player learns, and what it is worth */
-  clue:    [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
+  tipoff:  [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
             {w:"tri",f0:165,vol:0.11,cut:1200,res:3,seq:[[0,0.06,0.2]]}],
   point:   [{w:"pulse",f0:880,f1:1320,pw:0.4,dur:0.05,vol:0.11,cut:5000,res:4}],
   penalty: [{w:"pulse",f0:520,f1:330,pw:0.3,dur:0.09,vol:0.13,cut:2200,cut1:900,res:7}],
@@ -168,7 +176,88 @@ const SOUNDS={
             {w:"tri",f0:1480,ring:1.51,dur:0.18,vol:0.09,cut:5200,cut1:2000,res:12,dly:0.3}],
   patch:   [{w:"tri",f0:329.63,vol:0.15,cut:2000,res:4,seq:[[0,0,0.22],[5,0.24,0.44]]},
             {w:"pulse",f0:164.81,pw:0.3,pw1:0.5,vol:0.1,cut:1600,res:6,
-             seq:[[0,0,0.22],[5,0.24,0.44]]}]
+             seq:[[0,0,0.22],[5,0.24,0.44]]}],
+  /* ---- entrance themes ---- *
+   * One per caller, eight to sixteen bars' worth in two or three voices, cut
+   * the moment a gun leaves the leather. The lead sits an octave below a bright
+   * arcade SID lead throughout; the top voice is only ever a glint. None of
+   * this is a transcription of anything: each is written to the character's
+   * job in the day, on the same three-voice constraint the machine had. */
+
+  /* the first man up the street: open fifths that ask and do not answer */
+  th_stranger:[{w:"pulse",f0:146.83,pw:0.2,pw1:0.44,vol:0.17,cut:1500,cut1:2200,res:8,
+             seq:[[0,0,0.34],[7,0.36,0.26],[10,0.64,0.52],[7,1.2,0.26],[0,1.5,0.9]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:460,res:3,
+             seq:[[0,0,1.16],[5,1.18,0.3],[0,1.5,0.9]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.66,0.1],[7,2.1,0.24]]}],
+  /* the saloon: off-beats pushed late, a flat third leaning on the major */
+  th_rose:  [{w:"pulse",f0:174.61,pw:0.3,pw1:0.6,vol:0.16,cut:1700,cut1:2400,res:7,
+             seq:[[3,0.12,0.2],[4,0.34,0.34],[7,0.72,0.2],[4,0.94,0.3],[3,1.28,0.2],
+                  [0,1.5,0.85]]},
+            {w:"tri",f0:87.31,vol:0.2,cut:420,res:3,
+             seq:[[0,0,0.2],[7,0.24,0.16],[0,0.48,0.2],[7,0.72,0.16],[0,0.96,0.2],
+                  [7,1.2,0.16],[0,1.44,0.9]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.028,cut:5000,res:6,seq:[[0,0.36,0.08],[3,1.3,0.12]]}],
+  /* the Kid: a dotted figure with a flattened second, and boot leather in the noise */
+  th_kid:   [{w:"pulse",f0:164.81,pw:0.14,pw1:0.4,vol:0.18,cut:1600,cut1:2600,res:10,
+             seq:[[0,0,0.16],[1,0.18,0.14],[0,0.34,0.16],[-4,0.52,0.34],
+                  [0,0.9,0.16],[1,1.08,0.14],[0,1.24,0.16],[-5,1.42,0.8]]},
+            {w:"tri",f0:82.41,vol:0.2,cut:440,res:4,
+             seq:[[0,0,0.5],[0,0.52,0.36],[-5,0.9,0.5],[-5,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:0.52},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:1.42}],
+  /* the doctor: slow, minor, and falling, the way a tired man comes to a door */
+  th_doctor:[{w:"pulse",f0:155.56,pw:0.24,pw1:0.4,vol:0.15,cut:1200,cut1:900,res:7,
+             seq:[[0,0,0.52],[-2,0.54,0.52],[-3,1.08,0.52],[-5,1.62,1.0]]},
+            {w:"tri",f0:77.78,vol:0.18,cut:400,cut1:280,res:3,
+             seq:[[0,0,1.06],[-3,1.08,0.52],[-5,1.62,1.0]]}],
+  /* the new gun: a fanfare that reaches one note further than it can hold */
+  th_shotgun:[{w:"pulse",f0:130.81,pw:0.18,pw1:0.5,vol:0.18,cut:1600,cut1:2800,res:9,
+             seq:[[0,0,0.22],[4,0.24,0.22],[7,0.48,0.22],[12,0.72,0.4],[11,1.14,0.86]]},
+            {w:"tri",f0:65.41,vol:0.2,cut:440,res:3,
+             seq:[[0,0,0.7],[0,0.72,0.4],[-1,1.14,0.86]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.74,0.1]]}],
+  /* Willy: small, quick and over before anybody has decided to mind */
+  th_willie:[{w:"pulse",f0:196,pw:0.4,pw1:0.5,vol:0.12,cut:2200,res:5,
+             seq:[[0,0,0.12],[2,0.13,0.12],[4,0.26,0.12],[7,0.39,0.12],
+                  [4,0.52,0.12],[2,0.65,0.12],[0,0.78,0.36]]},
+            {w:"tri",f0:98,vol:0.13,cut:500,res:3,seq:[[0,0,0.5],[0,0.52,0.62]]}],
+  /* Miss April: a suspended fourth taking its time about falling to the third */
+  th_april: [{w:"pulse",f0:174.61,pw:0.26,pw1:0.46,vol:0.16,cut:1500,cut1:2000,res:6,
+             seq:[[5,0,0.62],[4,0.64,0.9],[2,1.56,0.5],[0,2.08,0.95]]},
+            {w:"tri",f0:87.31,vol:0.19,cut:430,res:3,
+             seq:[[0,0,1.54],[9,1.56,0.5],[0,2.08,0.95]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.026,cut:5200,res:6,seq:[[0,0.68,0.1],[-3,2.12,0.3]]}],
+  /* the Gambler: a chromatic walk under a lead that never lands on the beat */
+  th_gambler:[{w:"pulse",f0:196,pw:0.12,pw1:0.42,vol:0.15,cut:1800,cut1:2600,res:11,
+             seq:[[0,0.14,0.2],[3,0.44,0.2],[2,0.74,0.2],[5,1.04,0.2],[3,1.34,0.7]]},
+            {w:"tri",f0:98,vol:0.19,cut:440,res:4,
+             seq:[[0,0,0.3],[1,0.3,0.3],[2,0.6,0.3],[3,0.9,0.3],[5,1.2,0.3],[-4,1.5,0.6]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.026,cut:5000,res:6,seq:[[0,1.36,0.1]]}],
+  /* the Deputy: a military dotted figure that puts a foot wrong in the middle */
+  th_deputy:[{w:"pulse",f0:146.83,pw:0.22,pw1:0.5,vol:0.17,cut:1500,cut1:2100,res:8,
+             seq:[[0,0,0.3],[0,0.32,0.13],[7,0.47,0.3],[7,0.79,0.13],
+                  [6,0.94,0.46],[0,1.42,0.8]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:450,res:3,
+             seq:[[0,0,0.45],[0,0.47,0.45],[0,0.94,0.46],[0,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0.47}],
+  /* Belle: wide open intervals, no ornament, nothing said twice */
+  th_belle: [{w:"pulse",f0:164.81,pw:0.28,pw1:0.44,vol:0.16,cut:1400,cut1:2200,res:6,
+             seq:[[0,0,0.42],[9,0.44,0.42],[7,0.88,0.42],[12,1.32,0.9]]},
+            {w:"tri",f0:82.41,vol:0.19,cut:430,res:3,
+             seq:[[0,0,0.86],[3,0.88,0.42],[0,1.32,0.9]]}],
+  /* the last one: not a tune. A drone, a tritone over it, and one glint */
+  th_lastgun:[{w:"pulse",f0:130.81,pw:0.1,pw1:0.2,vol:0.15,cut:900,cut1:1400,res:13,
+             seq:[[0,0,1.5],[6,1.52,1.6]]},
+            {w:"tri",f0:65.41,vol:0.21,cut:360,res:4,seq:[[0,0,3.12]]},
+            {w:"pulse",f0:1567.98,pw:0.5,vol:0.03,cut:6000,res:8,seq:[[0,2.9,0.22]]}],
+  /* a robbery in progress: two notes, urgent, and no third one coming */
+  th_job:   [{w:"pulse",f0:196,pw:0.16,pw1:0.4,vol:0.19,cut:2000,cut1:3000,res:11,
+             seq:[[0,0,0.16],[6,0.17,0.16],[0,0.34,0.16],[6,0.51,0.16],
+                  [0,0.68,0.16],[6,0.85,0.4]]},
+            {w:"tri",f0:98,vol:0.2,cut:420,res:4,seq:[[0,0,0.66],[-1,0.68,0.6]]},
+            {w:"noise",f0:1,dur:0.5,vol:0.09,cut:900,cut1:250,res:8,dly:0.7}]
 };
 const GATE={step:90,click:30,hit:60,ricochet:70};
 const SND=(function(){
@@ -186,7 +275,17 @@ const SND=(function(){
   function ctx(){
     if(!AC)return null;
     if(!ac){ ac=new AC(); bus=ac.createGain(); bus.gain.value=0.3;
-             bus.connect(ac.destination); nz=noiseBuf(ac); }
+             // A shot, a hit, a bell and a theme can all land on the same frame.
+             // Three voices was the machine's whole limit; nothing here stops
+             // eight, so the bus is held down rather than allowed to clip.
+             let tail=null;
+             try{ tail=ac.createDynamicsCompressor(); }catch(e){ tail=null; }
+             if(tail){ tail.threshold.value=-14; tail.knee.value=12;
+                       tail.ratio.value=6; tail.attack.value=0.003;
+                       tail.release.value=0.14;
+                       bus.connect(tail); tail.connect(ac.destination); }
+             else bus.connect(ac.destination);
+             nz=noiseBuf(ac); }
     if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
     return ac;
   }
@@ -202,11 +301,12 @@ const SND=(function(){
     a.start(t0); b.start(t0); a.stop(t0+dur+0.05); b.stop(t0+dur+0.05);
     return out;
   }
-  function voice(v,t0base){
+  function voice(v,t0base,dest,vary){
     const c=ctx(); if(!c)return;
     const notes=v.seq||[[0,0,v.dur]];
     for(const [st,ns,nd] of notes){
-      const t0=t0base+(v.dly||0)+ns, dur=nd, mul=Math.pow(2,st/12);
+      const t0=t0base+(v.dly||0)+ns, dur=nd;
+      const mul=Math.pow(2,st/12)*((vary&&vary.f)||1);
       const n=Math.max(2,Math.round(dur/FRAME));
       const steps=[];
       for(let k=0;k<=n;k++){ const u=k/n;
@@ -214,7 +314,7 @@ const SND=(function(){
           f:sidF((v.f1?v.f0*Math.pow(v.f1/v.f0,u):v.f0)*mul),
           pw:(v.pw==null?0.5:(v.pw1==null?v.pw:v.pw+(v.pw1-v.pw)*u)),
           cut:sidCut(v.cut1?v.cut*Math.pow(v.cut1/v.cut,u):(v.cut||8000)),
-          g:sid4((v.vol==null?0.2:v.vol)*Math.pow(1-u,1.5)) }); }
+          g:sid4((v.vol==null?0.2:v.vol)*((vary&&vary.g)||1)*Math.pow(1-u,1.5)) }); }
       let src;
       if(v.w==="pulse") src=pulseSource(c,v,t0,dur,steps);
       else if(v.w==="noise"){ const s=c.createBufferSource();
@@ -236,18 +336,181 @@ const SND=(function(){
       const env=c.createGain();
       steps.forEach(s=>env.gain.setValueAtTime(s.g,s.t));
       env.gain.setValueAtTime(0,t0+dur+0.002);
-      node.connect(flt); flt.connect(env); env.connect(bus);
+      node.connect(flt); flt.connect(env); env.connect(dest||bus);
     }
   }
+  /* Three voices was the machine's whole limit, and it is the limit here: a
+   * melody, a bass or countermelody, and a noise or percussion line. What the
+   * ceiling means is three at the same instant, not three entries — a cue may
+   * lay out a dozen hoofbeats one after another and never break it.
+   *
+   * An alert takes the third: a gunshot over a theme silences the theme's
+   * percussion line for as long as the shot runs, which is the voice a SID
+   * composer would have given up too.
+   */
+  const VOICES=3;
+  function peak(list){
+    // Times are written in seconds and added up in binary, so a note that ends
+    // exactly where the next begins can end a quarter of a femtosecond after
+    // it. Counting to the millisecond is finer than anything audible and finer
+    // than the frame the notes are quantised to, and it does not mistake that
+    // for a fourth voice.
+    const ms=t=>Math.round(t*1000);
+    const ev=[];
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes){
+        ev.push([ms((v.dly||0)+n[1]),1]); ev.push([ms((v.dly||0)+n[1]+n[2]),-1]);
+      }
+    }
+    ev.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    let c=0,m=0; for(const e of ev){c+=e[1]; if(c>m)m=c;}
+    return m;
+  }
+  /* Every cue runs on its own gain. Nothing that has been started has to be
+   * waited out: muting, backgrounding or an outcome that supersedes this one
+   * takes it down in twenty milliseconds. */
+  let live=[];
+  function reap(c){
+    const t=c.currentTime;
+    live=live.filter(x=>{
+      if(x.ends>t)return true;
+      try{x.g.disconnect();}catch(e){}
+      return false;
+    });
+  }
+  function kill(x,c){
+    try{
+      x.g.gain.cancelScheduledValues(c.currentTime);
+      x.g.gain.setValueAtTime(Math.max(0.0001,x.g.gain.value),c.currentTime);
+      x.g.gain.linearRampToValueAtTime(0,c.currentTime+0.02);
+    }catch(e){}
+    setTimeout(()=>{try{x.g.disconnect();}catch(e){}},200);
+  }
+  function stopAll(){
+    const c=ac; cut();
+    if(!c)  {live=[];return;}
+    live.forEach(x=>kill(x,c)); live=[];
+  }
+  /* How long a cue runs, so the theme under it knows how long to get out of
+   * its way. */
+  function lengthOf(list){
+    let end=0;
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes)end=Math.max(end,(v.dly||0)+n[1]+n[2]);
+    }
+    return end;
+  }
+  /* A man's entrance theme is playing and then he says something, or a gun goes
+   * off. Both used to sound at once at the same weight. The theme steps back
+   * under the cue and comes back up behind it, which is the difference between
+   * a score and a pile-up. */
+  const DUCK=0.40;
+  function duckFor(c,secs){
+    if(!themeGain)return;
+    const g=themeGain.gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(DUCK,t+0.03);
+      g.linearRampToValueAtTime(1,t+Math.max(0.15,secs)+0.18);
+    }catch(e){}
+  }
+  /* The same cue twice running, bit for bit, is the tell of a machine. What a
+   * hammer does to a cartridge is never twice the same, so anything struck,
+   * fired or walked on moves a few cents and a little in level each time. A
+   * theme never does: it has to stay in tune with itself. */
+  const VARIES=new Set(["gunshot","hit","ricochet","graze","click","step","dryfire",
+    "wound","cock","holster","reload","patch","creak","select","deny","point"]);
+  /* An alert is loud and sudden and has somewhere to be: it takes the theme's
+   * third voice while it runs. */
+  const ALERTS=new Set(["gunshot","alarm","churchbell","hit","death","tell","robbery"]);
+  /* An outcome is the answer to a shot. A second answer replaces the first
+   * rather than sounding on top of it, and a weightier answer always wins. */
+  const OUTCOME={death:5,disgrace:4,respect:4,wound:3,patch:3,graze:2,ricochet:2,
+                 step:1,thread:1,penalty:2,tipoff:2,point:1,dusk:5,alarm:4,robbery:4};
   function play(name){
     if(!on)return; const list=SOUNDS[name]; if(!list)return;
     const ms=GATE[name];
     if(ms){const t=performance.now(); if(lastAt[name]&&t-lastAt[name]<ms)return; lastAt[name]=t;}
     const c=ctx(); if(!c)return;
-    list.forEach(v=>voice(v,c.currentTime));
+    reap(c);
+    // an answer to a shot names itself: no call site has to know the channel
+    const pri=OUTCOME[name]||0, chan=pri?"outcome":null;
+    if(chan==="outcome"){
+      // the previous answer stands down for this one unless it outranks it
+      for(const x of live.slice())
+        if(x.chan==="outcome"){
+          if(x.pri>pri)return;
+          kill(x,c); live=live.filter(y=>y!==x);
+        }
+    }
+    const len=lengthOf(list);
+    const vary=VARIES.has(name)
+      ? {f:Math.pow(2,(Math.random()*0.5-0.25)/12), g:0.88+Math.random()*0.24}
+      : null;
+    const g=c.createGain(); g.gain.value=1; g.connect(bus);
+    live.push({g,ends:c.currentTime+len+0.3,chan:chan||null,pri,name});
+    duckFor(c,len);
+    if(ALERTS.has(name))steal(c,len);
+    list.forEach(v=>voice(v,c.currentTime,g,vary));
   }
-  const API={unlock(){ctx();}, get on(){return on;},
-    toggle(){on=!on; if(on){ctx();play("select");} return on;}};
+  /* A character's theme runs on its own gain so a drawn gun can cut it off
+   * mid-bar, which is the one thing an entrance theme has to be able to do.
+   * The synthesis is the same; only where the last node connects changes. */
+  let themeGain=null, themeName=null, slots=null;
+  /* The third voice of the theme, given up for the length of an alert. */
+  function steal(c,secs){
+    if(!slots||!slots[2])return;
+    const g=slots[2].gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(0.0001,t+0.02);
+      g.linearRampToValueAtTime(1,t+Math.max(0.12,secs)+0.12);
+    }catch(e){}
+  }
+  function cut(){
+    const c=ctx(); if(!c||!themeGain)return;
+    const g=themeGain; themeGain=null; themeName=null; slots=null;
+    try{g.gain.cancelScheduledValues(c.currentTime);
+        g.gain.setValueAtTime(Math.max(0.0001,g.gain.value),c.currentTime);
+        g.gain.linearRampToValueAtTime(0,c.currentTime+0.05);}catch(e){}
+    setTimeout(()=>{try{g.disconnect();}catch(e){}},400);
+  }
+  function theme(name){
+    if(!on)return; const list=SOUNDS[name]; if(!list)return;
+    const c=ctx(); if(!c)return;
+    cut();
+    themeGain=c.createGain(); themeGain.gain.value=1; themeGain.connect(bus);
+    themeName=name;
+    // melody, bass or countermelody, noise and percussion; anything past the
+    // third joins the third, because the third is the one that can be spared
+    slots=[0,1,2].map(()=>{const s=c.createGain(); s.gain.value=1;
+                           s.connect(themeGain); return s;});
+    list.forEach((v,i)=>voice(v,c.currentTime,slots[Math.min(i,VOICES-1)]));
+  }
+  const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
+    get playing(){return themeName;},
+    /* Silence means silence: what is sounding stops with what was pending, and
+     * turning it back on never resurrects the theme that was playing when it
+     * went off. */
+    toggle(){on=!on; if(!on)stopAll(); else{ctx();play("select");} return on;},
+    stopAll,
+    /* Backgrounding. The context is suspended rather than torn down, and only
+     * another gesture resumes it. */
+    suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    get suspended(){ return !!ac&&ac.state==="suspended"; },
+    /* Restoring what the player chose last time must not be the thing that
+     * builds an AudioContext: no sound before a gesture, whatever is stored. */
+    quiet(){on=false; return on;},
+    /* What the mix does, readable from outside so it can be asserted without
+     * an AudioContext: which cues are allowed to move, how long one runs, and
+     * how far a theme steps back under it. */
+    spec:{varies:n=>VARIES.has(n), lengthOf, duck:DUCK, peak, voices:VOICES,
+          alerts:n=>ALERTS.has(n), outcomePri:n=>OUTCOME[n]||0,
+          live:()=>live.map(x=>x.name)}};
   Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
   return API;
 })();

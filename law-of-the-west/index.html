@@ -14,7 +14,8 @@
 <style>
 :root{
   --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
-  --gold:#d8a441; --line:#40311f; --npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+  --gold:#d8a441; --line:#40311f; --sign:#e8cf6a;--npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+  --selbg:rgba(216,164,65,.17);
   --dlg:1;
 }
 @media (prefers-color-scheme: light){
@@ -45,21 +46,53 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 #top{position:relative;flex:1 1 50%;min-height:0;background:#000;overflow:hidden}
 #scene{width:100%;height:100%;display:block;image-rendering:pixelated}
 #bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;
-  gap:8px;padding:3px 6px;font-size:11px;color:var(--ink);background:rgba(10,7,4,.55);
-  pointer-events:none}
+  gap:8px;padding:2px 6px;font-size:10px;line-height:13px;color:var(--sign);
+  background:rgba(10,7,4,.78);pointer-events:none;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden}
+/* The picture is 4:3, so upright the scene zone is exactly that and the words
+   take whatever is left: no black band between the street and the dialogue. */
+@media (orientation:portrait){#top{flex:0 0 auto;aspect-ratio:4/3}}
 #bottom{flex:1 1 50%;min-height:0;display:flex;flex-direction:column;gap:4px;padding:6px;
   background:var(--panel);border-top:2px solid var(--line)}
 /* The words must never be cut off: every line sizes to its own content, and the
    panel scrolls as a last resort rather than clipping what a character said. */
 #panel{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;
   overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.npc,.choice{overflow-wrap:break-word;word-break:normal;hyphens:auto}
-.npc{color:var(--npc);font-size:calc(14px * var(--dlg));line-height:1.35;padding:4px 6px;flex:0 0 auto;
-  border-bottom:1px solid var(--line)}
-.choice{font-size:calc(13px * var(--dlg));line-height:1.3;padding:5px 6px;border:1px solid transparent;
-  border-radius:6px;color:var(--ink);cursor:pointer;flex:0 0 auto}
-.choice.sel{background:var(--sel);color:var(--selink);font-weight:700;border-color:var(--sel)}
-.choice.dim{opacity:.45}
+/* The four replies share whatever the visitor's line leaves, up to a limit, so
+   the room under them becomes tap area instead of dead space. */
+#replies{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:3px}
+/* The matrix is set the way the machine set it: upper case, one width per
+   character, tightly stacked. */
+.npc,.choice{overflow-wrap:break-word;word-break:normal;hyphens:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  text-transform:uppercase;letter-spacing:.01em}
+.npc{color:var(--npc);font-size:calc(13px * var(--dlg));line-height:1.3;padding:5px 6px 7px;flex:0 0 auto;
+  border-bottom:2px solid var(--line)}
+/* A reply is a number in its own column and the words beside it, so a line that
+   wraps hangs under its own text rather than under the number. */
+.choice{font-size:calc(12px * var(--dlg));line-height:1.3;padding:4px 7px;
+  border:1px solid transparent;border-left:4px solid transparent;border-radius:4px;
+  color:var(--ink);cursor:pointer;flex:1 1 auto;max-height:82px;min-height:0;
+  display:grid;grid-template-columns:auto 1fr;gap:0 7px;
+  align-content:center;align-items:start}
+.choice .num{color:var(--gold);opacity:.75;font-weight:700}
+.choice .txt{min-width:0}
+.choice.empty{flex:0 0 0;max-height:0;padding:0;border:0;overflow:hidden}
+.choice.sel{background:var(--selbg);border-color:var(--sel);font-weight:700}
+.choice.sel .num{color:var(--sel);opacity:1}
+.choice.dim{opacity:.55}
+/* A note is a line of information, not something to press. */
+.choice.note{cursor:default;flex:0 0 auto;max-height:none;font-size:calc(11px * var(--dlg))}
+/* An action that should not swell to fill the screen on its own. */
+.choice.act{flex:0 0 auto}
+/* The reckoning, as a table rather than a run-on line: name left, count right. */
+.choice.table{cursor:default;flex:0 0 auto;max-height:none;display:block;padding:5px 7px}
+.tbl{display:grid;grid-template-columns:1fr auto;gap:3px 14px;
+  font-size:calc(11px * var(--dlg));line-height:1.35}
+.tbl .k{color:var(--dim)}
+.tbl .v{color:var(--gold);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.choice.dim.sel{opacity:.8;background:none}
 .choice.locked{opacity:.5;font-style:italic}
 .choice.locked.sel{background:var(--panel2);color:var(--dim);border-color:var(--line);font-weight:400}
 #pads{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -85,15 +118,28 @@ body.gamemode #app{padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 body.gamemode #top{flex:1 1 46%}
 body.gamemode #bottom{flex:1 1 54%;border-top-width:3px}
 body.gamemode #meta{display:none}
-body.gamemode .npc{font-size:calc(15px * var(--dlg))}
-body.gamemode .choice{font-size:calc(14px * var(--dlg));padding:7px 8px}
+body.gamemode .npc{font-size:calc(14px * var(--dlg))}
+body.gamemode .choice{font-size:calc(13px * var(--dlg));padding:6px 8px}
 
+@media (orientation:portrait){body.gamemode #top{flex:0 0 auto;aspect-ratio:4/3}}
 body.gamemode .dpad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,42px)}
 body.gamemode .abtn{width:68px;height:68px}
+/* Landscape: the scene zone is itself 4:3, so the picture fills it edge to
+   edge instead of being letterboxed inside a full-height column. Its width is
+   whichever is smaller — a shade under two thirds of the window, or as wide as
+   the window is tall allows — so on a phone held sideways the street runs the
+   full height and the words keep a column they can be read in. */
 @media (orientation:landscape){
-  body.gamemode #app{flex-direction:row}
-  body.gamemode #top{flex:1 1 50%;height:100%}
-  body.gamemode #bottom{flex:1 1 50%;height:100%;border-top:0;border-left:3px solid var(--line)}
+  /* Sideways the two zones sit beside each other whether or not the day was
+     opened full screen: a picture letterboxed into a wide short box was the
+     worst of both, black down each side and the street too small to read. */
+  #app{flex-direction:row;align-items:center}
+  #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
+    height:auto;aspect-ratio:4/3}
+  #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
+    border-top:0;border-left:2px solid var(--line)}
+  #pads{margin-top:auto}
+  body.gamemode #bottom{border-left-width:3px}
   body.gamemode #pads{margin-top:auto}
   body.gamemode .npc{font-size:13px}
   body.gamemode .choice{font-size:12px;padding:5px 7px}
@@ -111,10 +157,12 @@ body.gamemode .abtn{width:68px;height:68px}
   <div id="bottom">
     <div id="panel" role="group" aria-label="Dialogue">
       <div id="line0" class="npc">LAW OF THE WEST — GOLD GULCH</div>
-      <div id="line1" class="choice sel" data-cmd="choose" data-index="0"></div>
-      <div id="line2" class="choice" data-cmd="choose" data-index="1"></div>
-      <div id="line3" class="choice" data-cmd="choose" data-index="2"></div>
-      <div id="line4" class="choice" data-cmd="choose" data-index="3"></div>
+      <div id="replies">
+        <div id="line1" class="choice sel" data-cmd="choose" data-index="0"></div>
+        <div id="line2" class="choice" data-cmd="choose" data-index="1"></div>
+        <div id="line3" class="choice" data-cmd="choose" data-index="2"></div>
+        <div id="line4" class="choice" data-cmd="choose" data-index="3"></div>
+      </div>
     </div>
     <div id="pads">
       <div class="dpad">
@@ -177,6 +225,12 @@ const SOUNDS={
             {w:"tri",f0:95,f1:58,dur:0.3,vol:0.2,cut:600,res:4}],
   death:   [{w:"saw",f0:220,f1:44,dur:0.8,vol:0.26,cut:3200,cut1:180,res:11},
             {w:"pulse",f0:110,f1:40,pw:0.2,pw1:0.5,dur:0.85,vol:0.18,cut:1200,cut1:200,res:8}],
+  /* Two opposite actions had one sound between them. Leather is the gun coming
+   * out — a rising drag and a ring off the trigger guard. Holster is it going
+   * back: the same drag falling, and no ring. */
+  leather: [{w:"noise",f0:1,dur:0.11,vol:0.15,cut:700,cut1:2600,res:8},
+            {w:"saw",f0:96,f1:168,dur:0.15,vol:0.12,cut:800,cut1:2400,res:11,dly:0.02},
+            {w:"pulse",f0:1560,pw:0.14,dur:0.045,vol:0.08,cut:5200,res:5,dly:0.11}],
   holster: [{w:"noise",f0:1,dur:0.09,vol:0.12,cut:1800,cut1:700,res:8},
             {w:"saw",f0:130,f1:96,dur:0.14,vol:0.1,cut:900,cut1:1800,res:11,dly:0.03}],
   /* melodic cues — seq entries are [semitones from f0, start, length]     */
@@ -190,14 +244,16 @@ const SOUNDS={
              seq:[[0,0,0.55],[-2,0.55,0.55]]}],
   /* An identity sting rather than a melody: a three-note motif, answered twice,
      low in the register. The high voice is a glint, never the lead. */
-  title:   [{w:"pulse",f0:146.83,vol:0.19,cut:1500,cut1:2100,pw:0.16,pw1:0.5,res:9,
-             seq:[[0,0,0.9],[7,0.95,0.55],[10,1.55,1.5],
-                  [0,3.4,0.75],[7,4.2,0.5],[3,4.75,1.1],
-                  [0,6.1,1.9]]},
-            {w:"tri",f0:73.42,vol:0.2,cut:520,res:3,
-             seq:[[0,0,1.55],[0,1.55,1.8],[7,3.4,1.35],[0,4.75,1.3],[0,6.1,1.9]]},
-            {w:"pulse",f0:1174.66,pw:0.5,vol:0.035,cut:5200,res:6,
-             seq:[[0,1.6,0.14],[7,3.5,0.14],[0,6.2,0.4]]}],
+  /* The title. Three voices, as the machine had: a melody in D minor over a
+   * walking bass and a brush on two and four. Newly written — the dramatic job
+   * is the one the original's title music did, wide and unhurried before a
+   * single shot is fired, and none of the notes are its notes. */
+  title:   [{w:"pulse",f0:293.66,vol:0.165,cut:1700,cut1:2600,pw:0.20,pw1:0.46,res:9,
+             seq:[[7,0.00,0.34],[0,0.34,1.02],[3,1.36,0.34],[5,1.70,0.34],[7,2.04,0.68],[5,2.72,0.34],[3,3.06,0.34],[2,3.40,0.34],[0,3.74,0.98],[7,4.72,0.34],[10,5.06,0.34],[12,5.40,1.02],[10,6.42,0.34],[8,6.76,0.34],[7,7.10,0.68],[5,7.78,0.34],[3,8.12,1.02],[12,9.14,0.51],[15,9.65,0.51],[14,10.16,0.34],[12,10.50,0.34],[10,10.84,0.68],[8,11.52,0.34],[7,11.86,0.34],[5,12.20,0.68],[3,12.88,0.34],[2,13.22,0.34],[0,13.56,1.62],[7,15.26,0.34],[3,15.60,0.34],[0,15.94,2.20]]},
+            {w:"tri",f0:73.42,vol:0.20,cut:560,cut1:420,res:3,
+             seq:[[0,0.00,1.30],[0,1.36,1.30],[-4,2.72,1.30],[-2,4.08,0.58],[0,4.72,1.30],[3,6.08,1.30],[-2,7.44,1.30],[0,8.80,0.30],[0,9.14,1.30],[3,10.50,0.96],[-4,11.52,1.30],[-2,12.88,0.62],[0,13.56,1.62],[0,15.26,0.62],[0,15.94,2.20]]},
+            {w:"noise",f0:1,vol:0.055,cut:2400,cut1:600,res:4,
+             seq:[[0,0.34,0.06],[0,1.02,0.06],[0,1.70,0.06],[0,2.38,0.06],[0,3.06,0.06],[0,3.74,0.06],[0,4.42,0.06],[0,5.10,0.06],[0,5.78,0.06],[0,6.46,0.06],[0,7.14,0.06],[0,7.82,0.06],[0,8.50,0.06],[0,9.18,0.06],[0,9.86,0.06],[0,10.54,0.06],[0,11.22,0.06],[0,11.90,0.06],[0,12.58,0.06],[0,13.26,0.06],[0,13.94,0.06],[0,14.62,0.06],[0,15.30,0.06],[0,15.98,0.06],[0,16.66,0.06],[0,17.34,0.06]]}],
   dusk:    [{w:"pulse",f0:110,pw:0.22,pw1:0.5,vol:0.17,cut:1800,cut1:900,res:8,
              seq:[[0,0,0.5],[-2,0.52,0.5],[-3,1.04,0.4],[-4,1.46,0.4],
                   [-5,1.88,0.45],[-7,2.35,0.6]]},
@@ -256,7 +312,7 @@ const SOUNDS={
             {w:"noise",f0:1,dur:0.03,vol:0.09,cut:2600,cut1:900,res:4,dly:0.02}],
 
   /* what the player learns, and what it is worth */
-  clue:    [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
+  tipoff:  [{w:"pulse",f0:660,f1:990,pw:0.35,pw1:0.6,dur:0.13,vol:0.17,cut:4200,res:6},
             {w:"tri",f0:165,vol:0.11,cut:1200,res:3,seq:[[0,0.06,0.2]]}],
   point:   [{w:"pulse",f0:880,f1:1320,pw:0.4,dur:0.05,vol:0.11,cut:5000,res:4}],
   penalty: [{w:"pulse",f0:520,f1:330,pw:0.3,dur:0.09,vol:0.13,cut:2200,cut1:900,res:7}],
@@ -306,7 +362,88 @@ const SOUNDS={
             {w:"tri",f0:1480,ring:1.51,dur:0.18,vol:0.09,cut:5200,cut1:2000,res:12,dly:0.3}],
   patch:   [{w:"tri",f0:329.63,vol:0.15,cut:2000,res:4,seq:[[0,0,0.22],[5,0.24,0.44]]},
             {w:"pulse",f0:164.81,pw:0.3,pw1:0.5,vol:0.1,cut:1600,res:6,
-             seq:[[0,0,0.22],[5,0.24,0.44]]}]
+             seq:[[0,0,0.22],[5,0.24,0.44]]}],
+  /* ---- entrance themes ---- *
+   * One per caller, eight to sixteen bars' worth in two or three voices, cut
+   * the moment a gun leaves the leather. The lead sits an octave below a bright
+   * arcade SID lead throughout; the top voice is only ever a glint. None of
+   * this is a transcription of anything: each is written to the character's
+   * job in the day, on the same three-voice constraint the machine had. */
+
+  /* the first man up the street: open fifths that ask and do not answer */
+  th_stranger:[{w:"pulse",f0:146.83,pw:0.2,pw1:0.44,vol:0.17,cut:1500,cut1:2200,res:8,
+             seq:[[0,0,0.34],[7,0.36,0.26],[10,0.64,0.52],[7,1.2,0.26],[0,1.5,0.9]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:460,res:3,
+             seq:[[0,0,1.16],[5,1.18,0.3],[0,1.5,0.9]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.66,0.1],[7,2.1,0.24]]}],
+  /* the saloon: off-beats pushed late, a flat third leaning on the major */
+  th_rose:  [{w:"pulse",f0:174.61,pw:0.3,pw1:0.6,vol:0.16,cut:1700,cut1:2400,res:7,
+             seq:[[3,0.12,0.2],[4,0.34,0.34],[7,0.72,0.2],[4,0.94,0.3],[3,1.28,0.2],
+                  [0,1.5,0.85]]},
+            {w:"tri",f0:87.31,vol:0.2,cut:420,res:3,
+             seq:[[0,0,0.2],[7,0.24,0.16],[0,0.48,0.2],[7,0.72,0.16],[0,0.96,0.2],
+                  [7,1.2,0.16],[0,1.44,0.9]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.028,cut:5000,res:6,seq:[[0,0.36,0.08],[3,1.3,0.12]]}],
+  /* the Kid: a dotted figure with a flattened second, and boot leather in the noise */
+  th_kid:   [{w:"pulse",f0:164.81,pw:0.14,pw1:0.4,vol:0.18,cut:1600,cut1:2600,res:10,
+             seq:[[0,0,0.16],[1,0.18,0.14],[0,0.34,0.16],[-4,0.52,0.34],
+                  [0,0.9,0.16],[1,1.08,0.14],[0,1.24,0.16],[-5,1.42,0.8]]},
+            {w:"tri",f0:82.41,vol:0.2,cut:440,res:4,
+             seq:[[0,0,0.5],[0,0.52,0.36],[-5,0.9,0.5],[-5,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:0.52},
+            {w:"noise",f0:1,dur:0.05,vol:0.11,cut:400,cut1:160,res:5,dly:1.42}],
+  /* the doctor: slow, minor, and falling, the way a tired man comes to a door */
+  th_doctor:[{w:"pulse",f0:155.56,pw:0.24,pw1:0.4,vol:0.15,cut:1200,cut1:900,res:7,
+             seq:[[0,0,0.52],[-2,0.54,0.52],[-3,1.08,0.52],[-5,1.62,1.0]]},
+            {w:"tri",f0:77.78,vol:0.18,cut:400,cut1:280,res:3,
+             seq:[[0,0,1.06],[-3,1.08,0.52],[-5,1.62,1.0]]}],
+  /* the new gun: a fanfare that reaches one note further than it can hold */
+  th_shotgun:[{w:"pulse",f0:130.81,pw:0.18,pw1:0.5,vol:0.18,cut:1600,cut1:2800,res:9,
+             seq:[[0,0,0.22],[4,0.24,0.22],[7,0.48,0.22],[12,0.72,0.4],[11,1.14,0.86]]},
+            {w:"tri",f0:65.41,vol:0.2,cut:440,res:3,
+             seq:[[0,0,0.7],[0,0.72,0.4],[-1,1.14,0.86]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.03,cut:5200,res:6,seq:[[0,0.74,0.1]]}],
+  /* Willy: small, quick and over before anybody has decided to mind */
+  th_willie:[{w:"pulse",f0:196,pw:0.4,pw1:0.5,vol:0.12,cut:2200,res:5,
+             seq:[[0,0,0.12],[2,0.13,0.12],[4,0.26,0.12],[7,0.39,0.12],
+                  [4,0.52,0.12],[2,0.65,0.12],[0,0.78,0.36]]},
+            {w:"tri",f0:98,vol:0.13,cut:500,res:3,seq:[[0,0,0.5],[0,0.52,0.62]]}],
+  /* Miss April: a suspended fourth taking its time about falling to the third */
+  th_april: [{w:"pulse",f0:174.61,pw:0.26,pw1:0.46,vol:0.16,cut:1500,cut1:2000,res:6,
+             seq:[[5,0,0.62],[4,0.64,0.9],[2,1.56,0.5],[0,2.08,0.95]]},
+            {w:"tri",f0:87.31,vol:0.19,cut:430,res:3,
+             seq:[[0,0,1.54],[9,1.56,0.5],[0,2.08,0.95]]},
+            {w:"pulse",f0:1174.66,pw:0.5,vol:0.026,cut:5200,res:6,seq:[[0,0.68,0.1],[-3,2.12,0.3]]}],
+  /* the Gambler: a chromatic walk under a lead that never lands on the beat */
+  th_gambler:[{w:"pulse",f0:196,pw:0.12,pw1:0.42,vol:0.15,cut:1800,cut1:2600,res:11,
+             seq:[[0,0.14,0.2],[3,0.44,0.2],[2,0.74,0.2],[5,1.04,0.2],[3,1.34,0.7]]},
+            {w:"tri",f0:98,vol:0.19,cut:440,res:4,
+             seq:[[0,0,0.3],[1,0.3,0.3],[2,0.6,0.3],[3,0.9,0.3],[5,1.2,0.3],[-4,1.5,0.6]]},
+            {w:"pulse",f0:1046.5,pw:0.5,vol:0.026,cut:5000,res:6,seq:[[0,1.36,0.1]]}],
+  /* the Deputy: a military dotted figure that puts a foot wrong in the middle */
+  th_deputy:[{w:"pulse",f0:146.83,pw:0.22,pw1:0.5,vol:0.17,cut:1500,cut1:2100,res:8,
+             seq:[[0,0,0.3],[0,0.32,0.13],[7,0.47,0.3],[7,0.79,0.13],
+                  [6,0.94,0.46],[0,1.42,0.8]]},
+            {w:"tri",f0:73.42,vol:0.19,cut:450,res:3,
+             seq:[[0,0,0.45],[0,0.47,0.45],[0,0.94,0.46],[0,1.42,0.8]]},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0},
+            {w:"noise",f0:1,dur:0.05,vol:0.1,cut:380,cut1:150,res:5,dly:0.47}],
+  /* Belle: wide open intervals, no ornament, nothing said twice */
+  th_belle: [{w:"pulse",f0:164.81,pw:0.28,pw1:0.44,vol:0.16,cut:1400,cut1:2200,res:6,
+             seq:[[0,0,0.42],[9,0.44,0.42],[7,0.88,0.42],[12,1.32,0.9]]},
+            {w:"tri",f0:82.41,vol:0.19,cut:430,res:3,
+             seq:[[0,0,0.86],[3,0.88,0.42],[0,1.32,0.9]]}],
+  /* the last one: not a tune. A drone, a tritone over it, and one glint */
+  th_lastgun:[{w:"pulse",f0:130.81,pw:0.1,pw1:0.2,vol:0.15,cut:900,cut1:1400,res:13,
+             seq:[[0,0,1.5],[6,1.52,1.6]]},
+            {w:"tri",f0:65.41,vol:0.21,cut:360,res:4,seq:[[0,0,3.12]]},
+            {w:"pulse",f0:1567.98,pw:0.5,vol:0.03,cut:6000,res:8,seq:[[0,2.9,0.22]]}],
+  /* a robbery in progress: two notes, urgent, and no third one coming */
+  th_job:   [{w:"pulse",f0:196,pw:0.16,pw1:0.4,vol:0.19,cut:2000,cut1:3000,res:11,
+             seq:[[0,0,0.16],[6,0.17,0.16],[0,0.34,0.16],[6,0.51,0.16],
+                  [0,0.68,0.16],[6,0.85,0.4]]},
+            {w:"tri",f0:98,vol:0.2,cut:420,res:4,seq:[[0,0,0.66],[-1,0.68,0.6]]},
+            {w:"noise",f0:1,dur:0.5,vol:0.09,cut:900,cut1:250,res:8,dly:0.7}]
 };
 const GATE={step:90,click:30,hit:60,ricochet:70};
 const SND=(function(){
@@ -324,7 +461,17 @@ const SND=(function(){
   function ctx(){
     if(!AC)return null;
     if(!ac){ ac=new AC(); bus=ac.createGain(); bus.gain.value=0.3;
-             bus.connect(ac.destination); nz=noiseBuf(ac); }
+             // A shot, a hit, a bell and a theme can all land on the same frame.
+             // Three voices was the machine's whole limit; nothing here stops
+             // eight, so the bus is held down rather than allowed to clip.
+             let tail=null;
+             try{ tail=ac.createDynamicsCompressor(); }catch(e){ tail=null; }
+             if(tail){ tail.threshold.value=-14; tail.knee.value=12;
+                       tail.ratio.value=6; tail.attack.value=0.003;
+                       tail.release.value=0.14;
+                       bus.connect(tail); tail.connect(ac.destination); }
+             else bus.connect(ac.destination);
+             nz=noiseBuf(ac); }
     if(ac.state==="suspended"){try{ac.resume();}catch(e){}}
     return ac;
   }
@@ -340,11 +487,12 @@ const SND=(function(){
     a.start(t0); b.start(t0); a.stop(t0+dur+0.05); b.stop(t0+dur+0.05);
     return out;
   }
-  function voice(v,t0base){
+  function voice(v,t0base,dest,vary){
     const c=ctx(); if(!c)return;
     const notes=v.seq||[[0,0,v.dur]];
     for(const [st,ns,nd] of notes){
-      const t0=t0base+(v.dly||0)+ns, dur=nd, mul=Math.pow(2,st/12);
+      const t0=t0base+(v.dly||0)+ns, dur=nd;
+      const mul=Math.pow(2,st/12)*((vary&&vary.f)||1);
       const n=Math.max(2,Math.round(dur/FRAME));
       const steps=[];
       for(let k=0;k<=n;k++){ const u=k/n;
@@ -352,7 +500,7 @@ const SND=(function(){
           f:sidF((v.f1?v.f0*Math.pow(v.f1/v.f0,u):v.f0)*mul),
           pw:(v.pw==null?0.5:(v.pw1==null?v.pw:v.pw+(v.pw1-v.pw)*u)),
           cut:sidCut(v.cut1?v.cut*Math.pow(v.cut1/v.cut,u):(v.cut||8000)),
-          g:sid4((v.vol==null?0.2:v.vol)*Math.pow(1-u,1.5)) }); }
+          g:sid4((v.vol==null?0.2:v.vol)*((vary&&vary.g)||1)*Math.pow(1-u,1.5)) }); }
       let src;
       if(v.w==="pulse") src=pulseSource(c,v,t0,dur,steps);
       else if(v.w==="noise"){ const s=c.createBufferSource();
@@ -374,18 +522,181 @@ const SND=(function(){
       const env=c.createGain();
       steps.forEach(s=>env.gain.setValueAtTime(s.g,s.t));
       env.gain.setValueAtTime(0,t0+dur+0.002);
-      node.connect(flt); flt.connect(env); env.connect(bus);
+      node.connect(flt); flt.connect(env); env.connect(dest||bus);
     }
   }
+  /* Three voices was the machine's whole limit, and it is the limit here: a
+   * melody, a bass or countermelody, and a noise or percussion line. What the
+   * ceiling means is three at the same instant, not three entries — a cue may
+   * lay out a dozen hoofbeats one after another and never break it.
+   *
+   * An alert takes the third: a gunshot over a theme silences the theme's
+   * percussion line for as long as the shot runs, which is the voice a SID
+   * composer would have given up too.
+   */
+  const VOICES=3;
+  function peak(list){
+    // Times are written in seconds and added up in binary, so a note that ends
+    // exactly where the next begins can end a quarter of a femtosecond after
+    // it. Counting to the millisecond is finer than anything audible and finer
+    // than the frame the notes are quantised to, and it does not mistake that
+    // for a fourth voice.
+    const ms=t=>Math.round(t*1000);
+    const ev=[];
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes){
+        ev.push([ms((v.dly||0)+n[1]),1]); ev.push([ms((v.dly||0)+n[1]+n[2]),-1]);
+      }
+    }
+    ev.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    let c=0,m=0; for(const e of ev){c+=e[1]; if(c>m)m=c;}
+    return m;
+  }
+  /* Every cue runs on its own gain. Nothing that has been started has to be
+   * waited out: muting, backgrounding or an outcome that supersedes this one
+   * takes it down in twenty milliseconds. */
+  let live=[];
+  function reap(c){
+    const t=c.currentTime;
+    live=live.filter(x=>{
+      if(x.ends>t)return true;
+      try{x.g.disconnect();}catch(e){}
+      return false;
+    });
+  }
+  function kill(x,c){
+    try{
+      x.g.gain.cancelScheduledValues(c.currentTime);
+      x.g.gain.setValueAtTime(Math.max(0.0001,x.g.gain.value),c.currentTime);
+      x.g.gain.linearRampToValueAtTime(0,c.currentTime+0.02);
+    }catch(e){}
+    setTimeout(()=>{try{x.g.disconnect();}catch(e){}},200);
+  }
+  function stopAll(){
+    const c=ac; cut();
+    if(!c)  {live=[];return;}
+    live.forEach(x=>kill(x,c)); live=[];
+  }
+  /* How long a cue runs, so the theme under it knows how long to get out of
+   * its way. */
+  function lengthOf(list){
+    let end=0;
+    for(const v of list){
+      const notes=v.seq||[[0,0,v.dur]];
+      for(const n of notes)end=Math.max(end,(v.dly||0)+n[1]+n[2]);
+    }
+    return end;
+  }
+  /* A man's entrance theme is playing and then he says something, or a gun goes
+   * off. Both used to sound at once at the same weight. The theme steps back
+   * under the cue and comes back up behind it, which is the difference between
+   * a score and a pile-up. */
+  const DUCK=0.40;
+  function duckFor(c,secs){
+    if(!themeGain)return;
+    const g=themeGain.gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(DUCK,t+0.03);
+      g.linearRampToValueAtTime(1,t+Math.max(0.15,secs)+0.18);
+    }catch(e){}
+  }
+  /* The same cue twice running, bit for bit, is the tell of a machine. What a
+   * hammer does to a cartridge is never twice the same, so anything struck,
+   * fired or walked on moves a few cents and a little in level each time. A
+   * theme never does: it has to stay in tune with itself. */
+  const VARIES=new Set(["gunshot","hit","ricochet","graze","click","step","dryfire",
+    "wound","cock","holster","reload","patch","creak","select","deny","point"]);
+  /* An alert is loud and sudden and has somewhere to be: it takes the theme's
+   * third voice while it runs. */
+  const ALERTS=new Set(["gunshot","alarm","churchbell","hit","death","tell","robbery"]);
+  /* An outcome is the answer to a shot. A second answer replaces the first
+   * rather than sounding on top of it, and a weightier answer always wins. */
+  const OUTCOME={death:5,disgrace:4,respect:4,wound:3,patch:3,graze:2,ricochet:2,
+                 step:1,thread:1,penalty:2,tipoff:2,point:1,dusk:5,alarm:4,robbery:4};
   function play(name){
     if(!on)return; const list=SOUNDS[name]; if(!list)return;
     const ms=GATE[name];
     if(ms){const t=performance.now(); if(lastAt[name]&&t-lastAt[name]<ms)return; lastAt[name]=t;}
     const c=ctx(); if(!c)return;
-    list.forEach(v=>voice(v,c.currentTime));
+    reap(c);
+    // an answer to a shot names itself: no call site has to know the channel
+    const pri=OUTCOME[name]||0, chan=pri?"outcome":null;
+    if(chan==="outcome"){
+      // the previous answer stands down for this one unless it outranks it
+      for(const x of live.slice())
+        if(x.chan==="outcome"){
+          if(x.pri>pri)return;
+          kill(x,c); live=live.filter(y=>y!==x);
+        }
+    }
+    const len=lengthOf(list);
+    const vary=VARIES.has(name)
+      ? {f:Math.pow(2,(Math.random()*0.5-0.25)/12), g:0.88+Math.random()*0.24}
+      : null;
+    const g=c.createGain(); g.gain.value=1; g.connect(bus);
+    live.push({g,ends:c.currentTime+len+0.3,chan:chan||null,pri,name});
+    duckFor(c,len);
+    if(ALERTS.has(name))steal(c,len);
+    list.forEach(v=>voice(v,c.currentTime,g,vary));
   }
-  const API={unlock(){ctx();}, get on(){return on;},
-    toggle(){on=!on; if(on){ctx();play("select");} return on;}};
+  /* A character's theme runs on its own gain so a drawn gun can cut it off
+   * mid-bar, which is the one thing an entrance theme has to be able to do.
+   * The synthesis is the same; only where the last node connects changes. */
+  let themeGain=null, themeName=null, slots=null;
+  /* The third voice of the theme, given up for the length of an alert. */
+  function steal(c,secs){
+    if(!slots||!slots[2])return;
+    const g=slots[2].gain, t=c.currentTime;
+    try{
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001,g.value),t);
+      g.linearRampToValueAtTime(0.0001,t+0.02);
+      g.linearRampToValueAtTime(1,t+Math.max(0.12,secs)+0.12);
+    }catch(e){}
+  }
+  function cut(){
+    const c=ctx(); if(!c||!themeGain)return;
+    const g=themeGain; themeGain=null; themeName=null; slots=null;
+    try{g.gain.cancelScheduledValues(c.currentTime);
+        g.gain.setValueAtTime(Math.max(0.0001,g.gain.value),c.currentTime);
+        g.gain.linearRampToValueAtTime(0,c.currentTime+0.05);}catch(e){}
+    setTimeout(()=>{try{g.disconnect();}catch(e){}},400);
+  }
+  function theme(name){
+    if(!on)return; const list=SOUNDS[name]; if(!list)return;
+    const c=ctx(); if(!c)return;
+    cut();
+    themeGain=c.createGain(); themeGain.gain.value=1; themeGain.connect(bus);
+    themeName=name;
+    // melody, bass or countermelody, noise and percussion; anything past the
+    // third joins the third, because the third is the one that can be spared
+    slots=[0,1,2].map(()=>{const s=c.createGain(); s.gain.value=1;
+                           s.connect(themeGain); return s;});
+    list.forEach((v,i)=>voice(v,c.currentTime,slots[Math.min(i,VOICES-1)]));
+  }
+  const API={unlock(){ctx();}, get on(){return on;}, theme, cut,
+    get playing(){return themeName;},
+    /* Silence means silence: what is sounding stops with what was pending, and
+     * turning it back on never resurrects the theme that was playing when it
+     * went off. */
+    toggle(){on=!on; if(!on)stopAll(); else{ctx();play("select");} return on;},
+    stopAll,
+    /* Backgrounding. The context is suspended rather than torn down, and only
+     * another gesture resumes it. */
+    suspend(){ stopAll(); if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    get suspended(){ return !!ac&&ac.state==="suspended"; },
+    /* Restoring what the player chose last time must not be the thing that
+     * builds an AudioContext: no sound before a gesture, whatever is stored. */
+    quiet(){on=false; return on;},
+    /* What the mix does, readable from outside so it can be asserted without
+     * an AudioContext: which cues are allowed to move, how long one runs, and
+     * how far a theme steps back under it. */
+    spec:{varies:n=>VARIES.has(n), lengthOf, duck:DUCK, peak, voices:VOICES,
+          alerts:n=>ALERTS.has(n), outcomePri:n=>OUTCOME[n]||0,
+          live:()=>live.map(x=>x.name)}};
   Object.keys(SOUNDS).forEach(k=>API[k]=()=>play(k));
   return API;
 })();
@@ -415,11 +726,28 @@ const SND=(function(){
  */
 const LIMITS={NPC:150,REPLY:92,ROUNDS:3,REPLIES:4};
 const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
-  "depart","offended","doctor_civil","doctor_insulted","warned_bank"];
+  "depart","offended","doctor_civil","doctor_insulted","doctor_sober"];
+
+/* The three jobs the day's tips are about. A sheriff who was told is standing
+ * in the right place when it happens; a sheriff who was not reads about it. */
+const JOBS={
+ stage:{id:"stage", name:"The Stage Road", place:"STAGE ROAD", theme:"th_job",
+   armed:true, arrive:["wagon"],
+   brief:"The Thursday coach comes down the grade with the mine's money aboard, and two men step out of the rocks above the ford.",
+   missed:"They took it at the ford while you were up the street. The driver is alive. Nobody else saw a thing worth telling."},
+ train:{id:"train", name:"The Westbound", place:"THE CUT", theme:"th_job",
+   armed:true, arrive:["wagon","crowd"],
+   brief:"The westbound comes into the cut at a walking pace, and a man drops off the payroll car's step with his coat open.",
+   missed:"The payroll car was opened at the cut and the westbound came in two hours late with nothing in it."},
+ bank:{id:"bank", name:"The Bank", place:"BANK", theme:"th_job",
+   armed:true, arrive:["crowd"],
+   brief:"The back wall of the bank has a door in it that was not there yesterday, and a man in the alley turns round with his hand already moving.",
+   missed:"They went through the back wall while you were at the other end of town, and the flour sack went with them."}
+};
 
 const CAST=[
  /* 1 ---------------------------------------------------------------- */
- {id:"stranger", name:"A Stranger", place:"STREET", theme:"stranger",
+ {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
   armed:true, arrive:["wagon","crowd"],
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
@@ -469,7 +797,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
 
  /* 2 ---------------------------------------------------------------- */
- {id:"rose", name:"Miss Rose", place:"SALOON", theme:"rose",
+ {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
@@ -519,7 +847,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
 
  /* 3 ---------------------------------------------------------------- */
- {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"kid",
+ {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
@@ -561,9 +889,22 @@ const CAST=[
   ends:{}},
 
  /* 4 ---------------------------------------------------------------- */
- {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"doctor",
-  armed:false, arrive:["crowd"], doctor:true,
+ {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
+  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
   rounds:{
+   /* Which of the two he opens with is settled at dawn, not by the player. */
+   opening_drunk:{npc:"Sheriff. I have had a night of it and a bottle after the night, and I am ashamed of neither. Ask me what you like, but ask it slowly.",
+    replies:[
+     {text:"\"Then sit down and take the coffee instead.\"", next:"coffee"},
+     {text:"\"Slowly, then. What have you heard this week?\"", next:"listen"},
+     {text:"\"You're the only doctor in sixty miles, Doc.\"", next:"coffee"},
+     {text:"\"A drunk doctor is no doctor at all.\"", next:"sour"}]},
+   coffee:{npc:"…The pot is on the stove and it is yesterday's. You would have to pour it yourself and stand over me while I drank it, and you have a street to walk.",
+    replies:[
+     {text:"\"The street will keep. Drink it.\"", end:"sobered"},
+     {text:"\"I'll pour, and stand here till it's gone.\"", end:"sobered"},
+     {text:"\"Drink it or don't. I've said my piece.\"", end:"still_drinking"},
+     {text:"\"Sleep it off. Try to be useful by dark.\"", end:"insulted"}]},
    opening:{npc:"Sheriff. I dug a ball out of a freighter's shoulder at four this morning and I'd like to know whether I'll be doing it again tonight.",
     replies:[
      {text:"\"Not if the day goes the way I mean it to.\"", next:"civil"},
@@ -594,44 +935,793 @@ const CAST=[
    grudging:{text:"\"At four this morning I had my hands inside a man,\" he says, and shuts the door. He will still come if you are shot, but he will not hurry.",
          flags:["tip_bank"], authority:0},
    insulted:{text:"\"Then don't send for me,\" he says, loud enough for the street. Several people hear him say it.",
-         flags:["doctor_insulted","offended"], authority:-1}}},
+         flags:["doctor_insulted","offended"], authority:-1},
+   sobered:{text:"He drinks it scalding, twice, and by the second cup his hands have stopped and he is looking at you like a man again.",
+         flags:["doctor_sober","doctor_civil"], authority:1},
+   still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
+         flags:[], authority:0}}},
 
- /* 5-11: the rest of the day, not yet written ------------------------ */
- {id:"shotgun", name:"The Shotgun Owner", place:"STREET", theme:"shotgun",
-  armed:true, arrive:["spurs","crowd"], rounds:{}, ends:{}},
- {id:"willie", name:"Little Willie", place:"STREET", theme:"willie",
-  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
- {id:"april", name:"Miss April", place:"SCHOOL", theme:"april",
-  armed:false, arrive:["crowd"], rounds:{}, ends:{}},
- {id:"gambler", name:"The Gambler", place:"SALOON", theme:"gambler",
-  armed:true, arrive:["piano","crowd"], rounds:{}, ends:{}},
- {id:"deputy", name:"The Deputy", place:"JAIL", theme:"deputy",
-  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
- {id:"belle", name:"Belle", place:"CORRAL", theme:"belle",
-  armed:true, arrive:["hooves"], rounds:{}, ends:{}},
- {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"lastgun",
-  armed:true, arrive:["spurs"], forcedDuel:true, rounds:{}, ends:{}}
+ /* 5 ---------------------------------------------------------------- */
+ {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
+  armed:true, arrive:["spurs","crowd"],
+  rounds:{
+   opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
+    replies:[
+     {text:"\"That's a handsome piece of work. Mind the hammer.\"", next:"admire"},
+     {text:"\"Forty dollars is a deal of money for a man to be carrying.\"", next:"money"},
+     {text:"\"Put it back in the leather while we talk.\"", next:"order"},
+     {text:"\"A new gun and an old habit. Which one brought you here?\"", next:"probe"}]},
+   admire:{npc:"You know guns, then. Most men see a gun and see trouble coming. I see forty dollars of Kansas City work and a thing that fits my hand.",
+    replies:[
+     {text:"\"I see both. Keep it pointed at the dirt.\"", next:"intent"},
+     {text:"\"Where does a man your age come by forty dollars?\"", next:"intent"},
+     {text:"\"Show me how it sits in the holster.\"", end:"holstered"},
+     {text:"\"Sell it before somebody makes you use it.\"", next:"proud"}]},
+   money:{npc:"I had a piece of work up in Ellsworth. Honest, most of it. The part that wasn't is not written down anywhere a man could go and read it.",
+    replies:[
+     {text:"\"Then we'll leave it unwritten. Mind how you go.\"", end:"holstered"},
+     {text:"\"Tell me the part that wasn't.\"", next:"intent"},
+     {text:"\"Nothing stays unwritten. Hand me the gun.\"", next:"proud"},
+     {text:"\"Ellsworth. I'll wire them tonight.\"", action:"delayed"}]},
+   order:{npc:"It's in my hand because it's mine. You'd be the first man in this town to tell me where to keep my own property, and I've been here a week.",
+    replies:[
+     {text:"\"Then hold it and listen. Nobody's taking it.\"", next:"intent"},
+     {text:"\"I'll be the first and the last. Holster it.\"", next:"proud"},
+     {text:"\"Your property. My street.\"", next:"proud"},
+     {text:"\"Holster it or lose the hand.\"", action:"draw"}]},
+   probe:{npc:"Habits. Every man's got habits. Mine is shooting bottles off the corral rail of an evening, and there is no law in this territory about bottles.",
+    replies:[
+     {text:"\"There isn't. Shoot bottles and we'll stay friends.\"", end:"holstered"},
+     {text:"\"Bottles don't cost forty dollars. What does?\"", next:"intent"},
+     {text:"\"There's a law about what comes after bottles.\"", next:"intent"},
+     {text:"\"Shoot one now and I'll show you the law.\"", action:"ambush"}]},
+   proud:{npc:"You've a way of speaking to a man that gets a town a new sheriff every spring. I'll put it away when I am done looking at it and not before.",
+    replies:[
+     {text:"\"Look at it, then. I'll wait.\"", end:"holstered"},
+     {text:"\"Last spring's sheriff. What became of him?\"", end:"warned"},
+     {text:"\"You're done. Set it on the rail.\"", action:"surrender"},
+     {text:"\"You'll put it away now or in the dust.\"", action:"draw"}]},
+   intent:{npc:"…All right. A man at the livery says the bank's takings go out Friday in a flour sack. I only wanted to know if a sheriff would be watching.",
+    replies:[
+     {text:"\"Now I am. Set the gun down and walk to the jail.\"", action:"surrender"},
+     {text:"\"Who is the man at the livery?\"", end:"tip"},
+     {text:"\"You've told me. Go home and stay there.\"", end:"warned"},
+     {text:"\"You wanted to know. Now you do.\"", action:"draw"}]}},
+  ends:{
+   holstered:{text:"He turns it over once more, the way a man does with a thing he has paid too much for, and puts it away.",
+        flags:["depart"], authority:1},
+   tip:{text:"He gives the name at the livery and the day with it, and looks like a man who has set down something heavy.",
+        flags:["tip_bank","depart"], authority:1},
+   warned:{text:"He goes, and not toward the livery, and the new gun stays in the leather the whole length of the street.",
+        flags:["depart"], authority:0}}},
+
+ /* 6 ---------------------------------------------------------------- */
+ {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
+  armed:false, arrive:["crowd"],
+  rounds:{
+   opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
+    replies:[
+     {text:"\"Nobody hears it from me, Willy. Sit on the rail.\"", next:"kind"},
+     {text:"\"What's it worth, then? I've a nickel says a nickel.\"", next:"deal"},
+     {text:"\"Say it quick, then. I've a street to walk.\"", next:"brisk"},
+     {text:"\"If you've done something, say so now.\"", next:"stern"}]},
+   kind:{npc:"You're the only one calls me Willy instead of boy. Ma says a sheriff's got no time for boys. You've got some, though, ain't you.",
+    replies:[
+     {text:"\"As much as this takes. Go on.\"", next:"secret"},
+     {text:"\"I've time for anybody who saw something.\"", next:"secret"},
+     {text:"\"Not much of it. What did you see?\"", next:"clam"},
+     {text:"\"Then don't waste it. Out with it.\"", next:"clam"}]},
+   deal:{npc:"A nickel! Mister Hanley gives a nickel for sweeping out the whole store. A secret's got to be worth more than sweeping a store.",
+    replies:[
+     {text:"\"It is. Tell it and we'll settle after.\"", next:"secret"},
+     {text:"\"Two bits if it's true and if it's mine first.\"", next:"secret"},
+     {text:"\"You don't sell what you know to the law, Willy.\"", next:"clam"},
+     {text:"\"I don't buy from boys. Go home.\"", end:"sent"}]},
+   brisk:{npc:"I can say it fast. I only want to know first whether I'm saying it to the sheriff or to the man who drinks coffee with my ma of a Sunday.",
+    replies:[
+     {text:"\"To the sheriff. Your ma hears nothing.\"", next:"secret"},
+     {text:"\"To both, and neither of them tells.\"", next:"secret"},
+     {text:"\"To the sheriff. That's the only one here today.\"", next:"clam"},
+     {text:"\"You're saying it to a man in a hurry.\"", next:"clam"}]},
+   stern:{npc:"I ain't done nothing! I only saw a thing. Seeing ain't doing. Ma says seeing ain't doing and she says it about you as well.",
+    replies:[
+     {text:"\"Your ma's right and I'm sorry. What did you see?\"", next:"secret"},
+     {text:"\"Seeing isn't doing. Telling isn't either. Go on.\"", next:"secret"},
+     {text:"\"Then seeing is what I want. Quickly.\"", next:"clam"},
+     {text:"\"Boys who see things get shot at. Home.\"", end:"scared"}]},
+   secret:{npc:"Two men been out back of the bank with a rope, measuring along the wall. They gave me a nickel not to say and I already spent it on liquorice.",
+    replies:[
+     {text:"\"Then it's paid for already. You did right, Willy.\"", end:"tip"},
+     {text:"\"Measuring with a rope. What day was that?\"", end:"tip"},
+     {text:"\"You keep the liquorice. I'll keep the rope.\"", end:"tip"},
+     {text:"\"You took their money? Get home.\"", end:"scared"}]},
+   clam:{npc:"…No. I promised. A promise is a promise even when it's a bad one, Ma says. Ask me something else and I'll answer that.",
+    replies:[
+     {text:"\"Then keep it. That's a fair thing to do.\"", end:"kept"},
+     {text:"\"Come and find me when it stops being a promise.\"", end:"kept"},
+     {text:"\"Promises don't hold against the law, son.\"", end:"kept"},
+     {text:"\"You'll say it now or say it in the jail.\"", end:"scared"}]}},
+  ends:{
+   tip:{text:"He tells it in one breath and then again slower, in case the first time was too fast, and runs for the corner before you can thank him.",
+        flags:["tip_bank","depart"], authority:1},
+   kept:{text:"He goes off up the boardwalk with it still in him, walking slowly, hoping the whole way to be called back.",
+        flags:["depart"], authority:0},
+   sent:{text:"He shrugs the way a boy shrugs when he has decided not to mind, and goes back down toward the store.",
+        flags:["depart"], authority:0},
+   scared:{text:"He runs. Two women outside the milliner's watch him go, and then look at you for rather a long time.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 7 ---------------------------------------------------------------- */
+ {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
+  armed:false, arrive:["crowd"],
+  rounds:{
+   opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
+    replies:[
+     {text:"\"Nor is it manners. What are they learning instead?\"", next:"warm"},
+     {text:"\"They may be better at it than arithmetic. What have they seen?\"", next:"seen"},
+     {text:"\"Keep them at the window. They see more than I do.\"", next:"seen"},
+     {text:"\"Then teach them to mind their own business.\"", next:"cool"}]},
+   warm:{npc:"Long division, and not gracefully. It is a quiet post. A woman may go a month here without being asked a single question worth answering.",
+    replies:[
+     {text:"\"Then ask me one. I'll try to be worth it.\"", next:"supper"},
+     {text:"\"I'll ask you one a day if it helps.\"", next:"supper"},
+     {text:"\"Ask the window, then. What does it show?\"", next:"window"},
+     {text:"\"Quiet is what I'm paid for, ma'am.\"", end:"ordinary"}]},
+   seen:{npc:"The schoolhouse looks down the grade to where the westbound slows. The children count the cars. Lately they have been counting men instead.",
+    replies:[
+     {text:"\"Men. Where, and how many?\"", next:"window"},
+     {text:"\"Children count better than deputies. Go on.\"", next:"window"},
+     {text:"\"Keep them counting. I'll come back at four.\"", next:"supper"},
+     {text:"\"Children imagine. Don't bring me imagining.\"", end:"alienated"}]},
+   cool:{npc:"I have taught in three towns, Sheriff, and been told to mind my business in every one of them. It has never once been good advice.",
+    replies:[
+     {text:"\"It wasn't this time either. I'm sorry — go on.\"", next:"window"},
+     {text:"\"Then give me yours instead of minding it.\"", next:"window"},
+     {text:"\"In this town it is the only advice I have.\"", end:"ordinary"},
+     {text:"\"Three towns, and not one of them kept you.\"", end:"alienated"}]},
+   supper:{npc:"There is a supper at the hotel on Saturday. I have been asked twice already by men I do not care for, and I am running out of ways to say no.",
+    replies:[
+     {text:"\"Then say yes to one you haven't met properly.\"", end:"date"},
+     {text:"\"Say no again and let me ask you on Sunday.\"", end:"date"},
+     {text:"\"I'd take you, if the town lets me. It may not.\"", end:"date"},
+     {text:"\"I'd stay clear of hotel suppers this week.\"", end:"ordinary"}]},
+   window:{npc:"Four men, three mornings, at the cut where the grade slows the westbound. They were not counting cars. One of them had a rifle rolled in a blanket.",
+    replies:[
+     {text:"\"At the cut. That's a day's work you've done.\"", end:"tip"},
+     {text:"\"Keep the children inside tomorrow morning.\"", end:"tip"},
+     {text:"\"A rifle in a blanket. Anything else?\"", end:"tip"},
+     {text:"\"Four men and a blanket is not evidence.\"", end:"alienated"}]}},
+  ends:{
+   tip:{text:"She writes the hour on a slate in a clear hand, turns it round for you to read, and wipes it off again with her sleeve.",
+        flags:["tip_train"], authority:1},
+   date:{text:"\"Saturday,\" she says, and goes back in to the long division with something in her step that was not there before.",
+        flags:["date"], authority:1},
+   ordinary:{text:"She closes the schoolhouse door quietly, which somehow says a great deal more than slamming it would have.",
+        flags:["depart"], authority:0},
+   alienated:{text:"\"Good day, Sheriff,\" she says, in the voice she keeps for boys who have not done the work.",
+        flags:["depart","offended"], authority:-1}}},
+
+ /* 8 ---------------------------------------------------------------- */
+ {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
+  armed:true, arrive:["piano","crowd"],
+  rounds:{
+   opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
+    replies:[
+     {text:"\"I don't play. I'll watch a hand.\"", next:"watch"},
+     {text:"\"Show me the deck you've been learning with.\"", next:"deck"},
+     {text:"\"Stand up and turn out your sleeves.\"", next:"sleeves"},
+     {text:"\"You've cleaned out two freighters this week. Out.\"", next:"hard"}]},
+   watch:{npc:"Watch, then. It is an honest game with honest men and I have had honest luck for eleven nights running, which is a thing that happens.",
+    replies:[
+     {text:"\"Eleven nights is a deal of luck for one man.\"", next:"caught"},
+     {text:"\"Deal one hand face up and I'll believe you.\"", next:"caught"},
+     {text:"\"Enjoy the twelfth somewhere else.\"", next:"leave"},
+     {text:"\"Luck like that gets a man buried, not rich.\"", next:"leave"}]},
+   deck:{npc:"It is the house's deck. Ask the man behind the bar. I have not carried my own cards since Natchez, and Natchez was a misunderstanding.",
+    replies:[
+     {text:"\"Natchez. Tell me about the misunderstanding.\"", next:"caught"},
+     {text:"\"Then you'll not mind me cutting it.\"", next:"caught"},
+     {text:"\"That's a long way to come for a misunderstanding.\"", next:"leave"},
+     {text:"\"Hand it here, house deck or not.\"", next:"caught"}]},
+   sleeves:{npc:"…I will stand. I will not turn out anything in front of six men who owe me money. You can see the difficulty in it, Sheriff.",
+    replies:[
+     {text:"\"Then step outside and turn them out there.\"", next:"caught"},
+     {text:"\"I can. Outside, or here in front of all of them.\"", next:"caught"},
+     {text:"\"I see six men who'd like their money back.\"", next:"leave"},
+     {text:"\"Turn them out or I'll turn them out for you.\"", action:"draw"}]},
+   hard:{npc:"Two freighters who could not count. That is not cheating, that is arithmetic, and there is no statute against arithmetic in this territory.",
+    replies:[
+     {text:"\"There's one against what's up your left cuff.\"", next:"caught"},
+     {text:"\"Give them back their wages and we're square.\"", next:"leave"},
+     {text:"\"There's a statute about me. Move.\"", next:"leave"},
+     {text:"\"Then we'll settle it without one.\"", action:"draw"}]},
+   caught:{npc:"…A holdout clip. Well. Eleven good nights. What is it precisely that you would like me to do about it now, Sheriff?",
+    replies:[
+     {text:"\"Set it on the table and walk to the jail.\"", action:"surrender"},
+     {text:"\"Pay the freighters back, then the jail.\"", action:"surrender"},
+     {text:"\"Leave the money and leave the territory.\"", action:"depart"},
+     {text:"\"Nothing. I want the whole room to see it.\"", action:"delayed"}]},
+   leave:{npc:"Then I shall finish this hand and be on the noon coach. You will not see me again and you will not miss me by Thursday.",
+    replies:[
+     {text:"\"Finish it standing up and go.\"", action:"depart"},
+     {text:"\"Leave the hand. Take the coach.\"", action:"depart"},
+     {text:"\"The coach — and the freighters' wages on the bar.\"", end:"repaid"},
+     {text:"\"You'll go when I say and not before.\"", action:"delayed"}]}},
+  ends:{
+   repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
+        flags:["depart"], authority:1}}},
+
+ /* 9 ---------------------------------------------------------------- */
+ {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
+  armed:true, arrive:["hooves"],
+  rounds:{
+   opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
+    replies:[
+     {text:"\"Slow down. Tell it in the order it happened.\"", next:"order"},
+     {text:"\"How many, and were they mounted?\"", next:"count"},
+     {text:"\"You're certain or you're not. Which is it?\"", next:"press"},
+     {text:"\"You've been certain twice this week already.\"", next:"sting"}]},
+   order:{npc:"I come round by the assay office and there was two horses stood at the bank's back wall with nobody holding them. Horses don't stand like that.",
+    replies:[
+     {text:"\"No, they don't. Go on — what else?\"", next:"confirm"},
+     {text:"\"Two horses. Anything in the alley?\"", next:"confirm"},
+     {text:"\"Horses stand where they're tied, Deputy.\"", next:"doubt"},
+     {text:"\"You ran all this way to tell me about horses.\"", next:"doubt"}]},
+   count:{npc:"Two. Maybe three. Mounted — no, stood, and one up on the boardwalk in a coat that was wrong for the weather we're having.",
+    replies:[
+     {text:"\"A coat wrong for the weather is worth the run.\"", next:"confirm"},
+     {text:"\"Three men and a heavy coat. Where's your gun?\"", next:"confirm"},
+     {text:"\"Two, maybe three. That is not a report.\"", next:"doubt"},
+     {text:"\"Come back when the number stops moving.\"", next:"doubt"}]},
+   press:{npc:"…Certain. I am certain. I'd not have run if I wasn't and I'd not be stood here letting you look at me like that either.",
+    replies:[
+     {text:"\"Then I'm certain too. Get the shotgun.\"", next:"confirm"},
+     {text:"\"Good man. Tell me the rest as we walk.\"", next:"confirm"},
+     {text:"\"You've been certain about a deal of things.\"", next:"doubt"},
+     {text:"\"Looking at you is all I've done. Try being right.\"", next:"doubt"}]},
+   sting:{npc:"Twice, and both times you went and both times it was nothing, and you have not let me forget either of them. This one is not nothing.",
+    replies:[
+     {text:"\"Then this is the one that counts. Show me.\"", next:"confirm"},
+     {text:"\"You're right. I've been hard on you. Go on.\"", next:"confirm"},
+     {text:"\"Third time pays for all, they say. Prove it.\"", next:"doubt"},
+     {text:"\"Three for three, then. Sit down, Deputy.\"", next:"doubt"}]},
+   confirm:{npc:"Back wall, two horses, and the coat. If you want me at the front I'll take the front, and if you want me nowhere I'll take that too.",
+    replies:[
+     {text:"\"Take the front. I'll come round the back.\"", end:"ready"},
+     {text:"\"You've done well. Get the shotgun and follow.\"", end:"ready"},
+     {text:"\"Nowhere. Stay here and mind the jail.\"", end:"alone"},
+     {text:"\"You'll take the back, and you'll go first.\"", end:"pushed"}]},
+   doubt:{npc:"…All right. All right, Sheriff. Maybe it was horses. I'll go back by the corner and look again, and I'll not run this time.",
+    replies:[
+     {text:"\"Look again. Come straight to me either way.\"", end:"ready"},
+     {text:"\"No. We'll both look, and we'll look now.\"", end:"ready"},
+     {text:"\"Do that. And Deputy — walk, don't run.\"", end:"dismissed"},
+     {text:"\"Don't trouble. Mind the jail and let me work.\"", end:"dismissed"}]}},
+  ends:{
+   ready:{text:"He is out of the door before you are, and for once in the day you are following a man who knows where he is going.",
+        flags:["tip_bank"], authority:1},
+   alone:{text:"He takes the keys and the chair by the stove, and does not look up when you go out.",
+        flags:["tip_bank"], authority:0},
+   pushed:{text:"He goes where he is sent, white about the mouth, and the men on the boardwalk watch him being sent.",
+        flags:["tip_bank","offended"], authority:-1},
+   dismissed:{text:"He hangs his hat back on the nail and says nothing at all, which from him is a great deal.",
+        flags:["depart"], authority:-1}}},
+
+ /* 10 --------------------------------------------------------------- */
+ {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
+  armed:true, arrive:["hooves"],
+  rounds:{
+   opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
+    replies:[
+     {text:"\"You'll not pretend. That's a start. Why are they there?\"", next:"why"},
+     {text:"\"Then they can walk out again, and you with them.\"", next:"out"},
+     {text:"\"Whose iron did the second burn, Belle?\"", next:"iron"},
+     {text:"\"Two steers is a rope in this territory.\"", next:"rope"}]},
+   why:{npc:"Because Kinch at the Bar-K runs his stock over my water and calls it open range. I took two. He has taken my water for three years running.",
+    replies:[
+     {text:"\"Three years is a grievance, not a defence.\"", next:"square"},
+     {text:"\"Then we'll take it to the judge, water and all.\"", next:"square"},
+     {text:"\"Drive them back tonight and I'll speak for you.\"", next:"turn"},
+     {text:"\"He'll get the judge and you'll get the rope.\"", next:"square"}]},
+   out:{npc:"They can. I'll walk them back myself at first light and Kinch can count them twice. It is what I meant to do before you came up the hill.",
+    replies:[
+     {text:"\"Then I'll ride out and watch him count.\"", next:"turn"},
+     {text:"\"First light. I'll be here at first light.\"", next:"turn"},
+     {text:"\"You'll walk them back now, and I'll follow.\"", next:"square"},
+     {text:"\"You meant nothing of the kind.\"", next:"square"}]},
+   iron:{npc:"Mine. I burned it over his and I made a poor job of it, which you can see from where you are stood, and I did not much care that you could.",
+    replies:[
+     {text:"\"A poor job and an honest answer. Sit down.\"", next:"turn"},
+     {text:"\"You cared, or you'd not have said it that way.\"", next:"turn"},
+     {text:"\"Then come down to the jail and say it again.\"", next:"square"},
+     {text:"\"Careless and a thief. Hands where I see them.\"", next:"square"}]},
+   rope:{npc:"It is. It's a rope for a man as well. You'll notice nobody has hung Kinch over the water, and nobody in this county is going to.",
+    replies:[
+     {text:"\"Nobody's hanging anybody today. Talk to me.\"", next:"turn"},
+     {text:"\"Then let me be the first to ask him about it.\"", next:"turn"},
+     {text:"\"Kinch isn't stood in front of me. You are.\"", next:"square"},
+     {text:"\"Keep talking and we'll see about the rope.\"", action:"draw"}]},
+   square:{npc:"…So it's the jail. Say it straight out, Sheriff, and let me fetch my coat. I would rather that than be talked round to it by degrees.",
+    replies:[
+     {text:"\"It's the jail, and I'll speak to the judge for you.\"", action:"surrender"},
+     {text:"\"Fetch it. The water goes in the record too.\"", action:"surrender"},
+     {text:"\"No jail. Drive them back and we never spoke.\"", action:"depart"},
+     {text:"\"Fetch your coat, and be quick about it.\"", action:"delayed"}]},
+   turn:{npc:"You are the first man off that road in three years to say a thing to me that was not about cattle. There is a dance at the grange on Saturday.",
+    replies:[
+     {text:"\"Then I'll come up the road again Saturday.\"", end:"date"},
+     {text:"\"Saturday, and I'll not mention cattle once.\"", end:"date"},
+     {text:"\"Drive them back first. Then ask me again.\"", end:"steers"},
+     {text:"\"I came about the steers, Belle. Only the steers.\"", end:"steers"}]}},
+  ends:{
+   date:{text:"She whistles the dog off the gate and walks you as far as the road, which is further than she has walked anybody in three years.",
+        flags:["date"], authority:1},
+   steers:{text:"She drives them back at first light, Kinch counts them twice, and she does not look at you once the whole way down.",
+        flags:["depart"], authority:1}}},
+
+ /* 11 --------------------------------------------------------------- */
+ {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
+  armed:true, arrive:["spurs"], forcedDuel:true,
+  standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
+  rounds:{}, ends:{}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
 
 /* ============ the pixel grid ============
- * A 320x200 logical screen, drawn at one scene pixel per unit and scaled with
- * nearest-neighbour. The sheriff stands in the left foreground, seen from
- * behind; the visitor stands deeper in the street.
+ * A 320x200 logical screen, presented in 4:3 the way a C64 was. The sheriff
+ * stands in the left foreground, seen from behind and drawn in the largest
+ * blocks on the screen; the visitor stands deeper in the street, smaller and
+ * finer. The hitboxes are read off the visitor's own grid, so what the
+ * crosshair is over is what the bullet finds, for every one of them.
  */
 const SCENE={w:320,h:200};
-const CELL=2;                            // fine enough for one-pixel contours
-const FIG={cx:196,ground:150};           // the visitor, up the street and right of centre
-const SPR={w:16,h:26};
-const SPRX=FIG.cx-(SPR.w/2)*CELL;
-const SPRY=FIG.ground-SPR.h*CELL;
-const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*CELL,y:SPRY+r0*CELL,
-  w:(c1-c0+1)*CELL,h:(r1-r0+1)*CELL});
-const HITBOX={
-  lethal:      cellsBox(4,5,11,18),
-  weapon:      cellsBox(0,17,3,20),
-  weaponRaised:cellsBox(0,11,3,14)
+const CELL=2;                            // the block the street furniture is built on
+
+/* ============ the eleven figures ============
+ * Each caller is his own 24x20 grid, painted two scene-pixels to a cell with a
+ * one-pixel dark contour round the silhouette. No two share a grid: the hats,
+ * the coat length, the skirt, the boy's height and the gambler's tails are what
+ * tell them apart at this size, not the colours.
+ *   . nothing  H hat   R hair  F face  E eye     C coat   K coat shadow
+ *   W linen    L legs and skirts       A skin    G gunmetal
+ *   B dark (belts, boots, bags)        S star    P prop (bag, slate, cards, rope)
+ * `raise` is the sparse overlay for the hand coming up, and `box` gives the
+ * cells the bullet has to find: torso, weapon at rest, weapon raised.        */
+/* A caller is 24 pixels across and 28 cells tall drawn two pixels to the row:
+ * 24 by 56 on the screen, the proportions a man has at this distance rather
+ * than the squat block a square cell gave. */
+const SPR={w:24,h:28}, FIGCW=1, FIGCH=2, FIGCELL=FIGCW;
+const DEFAULT_BOX={lethal:[7,6,16,13], weapon:[2,12,5,15], raised:[1,6,5,9]};
+const FIGURES={
+  stranger:{rows:[
+  ".........HHHHHH.........",
+  "........HHHHHHHH........",
+  "......HHHHHHHHHHHH......",
+  ".......FFFFFFFFFF.......",
+  "........FFEFFEFF........",
+  ".........FFFFFF.........",
+  "......CCCCWWWWCCCC......",
+  ".....CCCCCWWWWCCCCC.....",
+  "....CCCCCCWWWWCCCCCC....",
+  "....CCCCCCCWWCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCBBBBBBBBCCCC....",
+  "...ACCCCCCCCCCCCCCCCA...",
+  "...AGCCCCCCCCCCCCCCAA...",
+  "...GGCCCCCCCCCCCCCCC....",
+  "...GGCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  ".....CCCCCC..CCCCCC.....",
+  ".....CCCCCC..CCCCCC.....",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  ".....BBBB......BBBB.....",
+  ".....BBBB......BBBB....."],
+  raise:{6:"...AGCCCCWWWWCCCC......",
+         7:"...GGCCCCWWWWCCCCC.....",
+         12:"....CCCCCCCCCCCCCCCCA...",
+         13:"....CCCCCCCCCCCCCCCAA...",
+         14:"....CCCCCCCCCCCCCCCC....",
+         15:"....CCCCCCCCCCCCCCCC...."},
+  box:{lethal:[7,6,16,13], weapon:[2,12,5,17], raised:[1,6,5,9]}},
+  rose:{rows:[
+  "........RRRRRR..........",
+  ".......RRRRRRRR.........",
+  "......RRRRRRRRRR........",
+  ".......RFFFFFFR.........",
+  "........FFEFFEF.........",
+  ".........FFFFF..........",
+  "........AAAAAAA.........",
+  ".......AAWWWWAAA........",
+  "......AWWWWWWWWA........",
+  "......WWWWWWWWWW........",
+  ".....WWWWWWWWWWWW.......",
+  ".....KKKKKKKKKKKK.......",
+  "....LLLLLLLLLLLLLL......",
+  "...LLLLLLLLLLLLLLLL.....",
+  "..LLLLLLLLLLLLLLLLLL....",
+  "..LLLLLLLLLLLLLLLLLL....",
+  "..LLLLLLLLLLLLLLLLLL....",
+  "..LLLLLLLLLLLLLLLLLL....",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  ".LLLLLLLLLLLLLLLLLLLL...",
+  "...BBBB........BBBB.....",
+  "...BBBB........BBBB....."],
+  box:{lethal:[6,6,15,12], weapon:[2,12,5,17], raised:[1,6,5,9]}},
+  kid:{rows:[
+  ".........HHHHHH.........",
+  "........HHHHHHHH........",
+  "...HHHHHHHHHHHHHHHHH....",
+  "..HHHHHHHHHHHHHHHHHHH...",
+  ".......FFFFFFFF.........",
+  "......FFFEFFEFFF........",
+  ".......FFFFFFFF.........",
+  "......CCCCCCCCCC........",
+  ".....CCGCCCCGCCCC.......",
+  "....CCCGCCCCGCCCCC......",
+  "....CCCCGCCGCCCCCC......",
+  "....CCCCCGGCCCCCCC......",
+  "...ACCCBBBBBBBBCCCA.....",
+  "...AGCCCCCCCCCCCCAA.....",
+  "...GGCCCCCCCCCCCCC......",
+  "...GGCCCCCCCCCCCCC......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "....LLLLLL..LLLLLL......",
+  "...BBBBBB....BBBBBB.....",
+  "...BBBBBB....BBBBBB.....",
+  "...BBBBBB....BBBBBB.....",
+  "...BBBBBB....BBBBBB.....",
+  "...BBBBBB....BBBBBB....."],
+  raise:{6:"...AGCFFFFFFFF.........",
+         7:"...GGCCCCCCCCCC........",
+         12:"....CCCBBBBBBBBCCCA.....",
+         13:"....CCCCCCCCCCCCCAA.....",
+         14:"....CCCCCCCCCCCCCC......",
+         15:"....CCCCCCCCCCCCCC......"},
+  box:{lethal:[7,6,16,13], weapon:[2,12,5,17], raised:[1,6,5,9]}},
+  doctor:{rows:[
+  "........BBBBBB..........",
+  ".......BBBBBBBB.........",
+  "......BBBBBBBBBB........",
+  ".......FFFFFFFF.........",
+  "......FEFFFFFEF.........",
+  ".......FFFFFFF..........",
+  "......CCWWWWWWCC........",
+  ".....CCCWWWWWWCCC.......",
+  ".....CCCWKKKKWCCC.......",
+  ".....CCCWWWWWWCCC.......",
+  ".....CCCCWWWWCCCC.......",
+  ".....CCCBBBBBBCCC.......",
+  "....ACCCCCCCCCCCCA......",
+  "....ACCCCCCCCCCCAA......",
+  "...PPPPPCCCCCCCCC.......",
+  "...PPPPPCCCCCCCCC.......",
+  "...PPPPPLLLLLLLL........",
+  "...PPPPPLLLLLLLL........",
+  "...PPPPPLLL..LLL........",
+  "...PPPPPLLL..LLL........",
+  "........LLL..LLL........",
+  "........LLL..LLL........",
+  "........LLL..LLL........",
+  "........LLL..LLL........",
+  "........LLL..LLL........",
+  "........LLL..LLL........",
+  ".......BBBB..BBBB.......",
+  ".......BBBB..BBBB......."],
+  box:{lethal:[6,6,16,13], weapon:[3,14,7,22], raised:[3,14,7,22]}},
+  shotgun:{rows:[
+  ".........HHHHHH.........",
+  "........HHHHHHHH........",
+  ".......HHHHHHHHHH.......",
+  "........FFFFFFFF........",
+  ".......FFFEFFEFF........",
+  "........FFFFFFF.........",
+  "......WWWWWWWWWWW.......",
+  ".....WWWWWWWWWWWWW......",
+  "....WWWWWWWWWWWWWWW.....",
+  "..GGGGGGGGGGGGGGWWW.....",
+  "..GGGGGGGGGGGGGGGGG.....",
+  "...AAWWWWWWWWWAAWWW.....",
+  "....WWWWBBBBBWWWWW......",
+  "....LLLLLLLLLLLLL.......",
+  "....LLLLLLLLLLLLL.......",
+  "....LLLLLLLLLLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "....LLLLLL..LLLLL.......",
+  "...BBBBBB....BBBBB......",
+  "...BBBBBB....BBBBB......",
+  "...BBBBBB....BBBBB......",
+  "...BBBBBB....BBBBB......",
+  "...BBBBBB....BBBBB......"],
+  raise:{7:"..GGGGGGGGGGGGGWWW......",
+         8:"..GGGGGGGGGGGGGGGGG.....",
+         9:"...AAWWWWWWWWWAAWWW.....",
+         10:"....WWWWWWWWWWWWWWW.....",
+         11:"....WWWWWWWWWWWWWWW....."},
+  box:{lethal:[8,6,16,8], weapon:[2,9,7,11], raised:[2,7,7,9]}},
+  willie:{rows:[
+  "........................",
+  "........................",
+  "........................",
+  "........................",
+  "........................",
+  "........................",
+  "........................",
+  ".........HHHHH..........",
+  "........HHHHHHH.........",
+  ".........FFFFF..........",
+  "........FFEFFEF.........",
+  ".........FFFFF..........",
+  ".......WWWWWWWWW........",
+  "......WWWWWWWWWWW.......",
+  "......AWWWWWWWWWA.......",
+  "......AWWWWWWWWWA.......",
+  "......AWWWWWWWWWA.......",
+  "......AWWWWWWWWWA.......",
+  ".......LLLLLLLLL........",
+  ".......LLLLLLLLL........",
+  ".......LLLL.LLLL........",
+  ".......LLLL.LLLL........",
+  ".......LLLL.LLLL........",
+  ".......LLLL.LLLL........",
+  ".......LLLL.LLLL........",
+  ".......LLLL.LLLL........",
+  "......AAAA...AAAA.......",
+  "......AAAA...AAAA......."],
+  box:{lethal:[8,12,15,22], weapon:[5,14,7,17], raised:[5,14,7,17]}},
+  april:{rows:[
+  "........RRRRRR..........",
+  ".......RRRRRRRR.........",
+  ".......RRRRRRRRR........",
+  "........FFFFFF..........",
+  ".......FFEFFEFF.........",
+  "........FFFFFF..........",
+  ".......WWWWWWWW.........",
+  "......CCWWWWWWCC........",
+  "......CCCCCCCCCC........",
+  "......CCCCCCCCCC........",
+  "......CCCCCCCCCC........",
+  "......CCCCCCCCCC........",
+  "...PPPCCCCCCCCCCA.......",
+  "...PPPCCCCCCCCCAA.......",
+  "...PPPLLLLLLLLLL........",
+  "...PPPLLLLLLLLLL........",
+  "......LLLLLLLLLL........",
+  "......LLLLLLLLLL........",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  ".....LLLLLLLLLLLL.......",
+  "......BBB....BBB........",
+  "......BBB....BBB........"],
+  box:{lethal:[6,6,15,13], weapon:[3,12,5,15], raised:[3,12,5,15]}},
+  gambler:{rows:[
+  ".......HHHHHHHH.........",
+  ".......HHHHHHHH.........",
+  ".......HHHHHHHH.........",
+  ".....HHHHHHHHHHHH.......",
+  "........FFFFFF..........",
+  ".......FFEFFEFF.........",
+  "........FFFFFF..........",
+  "......CCCWWWWCCC........",
+  ".....CCCCWWWWCCCC.......",
+  ".....CCCCWPPWCCCC.......",
+  ".....CCCCWWWWCCCC.......",
+  ".....CCCBBBBBBCCC.......",
+  "..AGCCCCCCCCCCCPPPPP....",
+  "..GGCCCCCCCCCCCCPPP.....",
+  "...CCCCCCCCCCCCCCP......",
+  "...CCCCCCCCCCCCCCP......",
+  "....CCCCCCCCCCCCC.......",
+  "....CCCCCCCCCCCCC.......",
+  "....CCCCC..CCCCCC.......",
+  "....CCCCC..CCCCCC.......",
+  ".....LLL....LLLL........",
+  ".....LLL....LLLL........",
+  ".....LLL....LLLL........",
+  ".....LLL....LLLL........",
+  ".....LLL....LLLL........",
+  ".....LLL....LLLL........",
+  "....BBBB....BBBBB.......",
+  "....BBBB....BBBBB......."],
+  raise:{7:"..AGCCCCWWWWCCC.........",
+         8:"..GGCCCCWWWWCCCC........",
+         12:"....CCCCCCCCCCCPPPPP....",
+         13:"....CCCCCCCCCCCCPPP.....",
+         14:"....CCCCCCCCCCCCCP......",
+         15:"....CCCCCCCCCCCCCP......"},
+  box:{lethal:[7,6,16,11], weapon:[2,12,5,15], raised:[2,7,5,9]}},
+  deputy:{rows:[
+  ".........HHHHH..........",
+  "........HHHHHHH.........",
+  ".......HHHHHHHHH........",
+  "......HHHHHHHHHHH.......",
+  "........FFFFFF..........",
+  ".......FFEFFEFF.........",
+  "........FFFFFF..........",
+  "......CCCWWWWCCC........",
+  ".....CCCCWWWWCCCC.......",
+  ".....CCSCWWWWCCCC.......",
+  ".....CCCCWWWWCCCC.......",
+  ".....CCCBBBBBBCCC.......",
+  "...ACCCCCCCCCCCCA.......",
+  "...AGCCCCCCCCCCAA.......",
+  "...GGCCCCCCCCCCC........",
+  "...GGCCCCCCCCCCC........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "...GGLLLLL.LLLLL........",
+  "..BBBBBBB...BBBBB.......",
+  "..BBBBBBB...BBBBB.......",
+  "..BBBBBBB...BBBBB.......",
+  "..BBBBBBB...BBBBB.......",
+  "..BBBBBBB...BBBBB......."],
+  raise:{6:"...AGCCFFFFFF...........",
+         7:"...GGCCCWWWWCCC.........",
+         8:"...GGCCCCWWWWCCCC.......",
+         12:"....CCCCCCCCCCCA.......",
+         13:"....CCCCCCCCCCAA.......",
+         16:".....LLLLL.LLLLL........",
+         17:".....LLLLL.LLLLL........",
+         18:".....LLLLL.LLLLL........",
+         19:".....LLLLL.LLLLL........",
+         20:".....LLLLL.LLLLL........",
+         21:".....LLLLL.LLLLL........",
+         22:".....LLLLL.LLLLL........"},
+  box:{lethal:[7,6,16,13], weapon:[2,13,5,22], raised:[2,6,5,9]}},
+  belle:{rows:[
+  "......HHHHHHHHHH........",
+  ".....HHHHHHHHHHHH.......",
+  "........RRRRRR..........",
+  ".......RFFFFFFR.........",
+  "........FFEFFEF.........",
+  ".........FFFFF..........",
+  "......WWWWWWWWWW........",
+  ".....WWWWWWWWWWWW.......",
+  ".....WWWWWWWWWWWW.......",
+  ".....WWWWWWWWWWWW.......",
+  "....PPWWWWWWWWWWW.......",
+  "...PPPPBBBBBBBWWW.......",
+  "...PPPPCCCCCCCCCA.......",
+  "...AGCCCCCCCCCCAA.......",
+  "...GGCCCCCCCCCCC........",
+  "...GGCCCCCCCCCCC........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "....LLLLLL.LLLLL........",
+  "...BBBBBB...BBBBB.......",
+  "...BBBBBB...BBBBB.......",
+  "...BBBBBB...BBBBB.......",
+  "...BBBBBB...BBBBB.......",
+  "...BBBBBB...BBBBB......."],
+  raise:{6:"...AGCWWWWWWWWWW........",
+         7:"...GGCWWWWWWWWWWW.......",
+         13:"....CCCCCCCCCCCAA.......",
+         14:"....CCCCCCCCCCCC........",
+         15:"....CCCCCCCCCCCC........"},
+  box:{lethal:[6,6,16,12], weapon:[2,12,5,17], raised:[1,6,5,8]}},
+  lastgun:{rows:[
+  "........HHHHHH..........",
+  ".......HHHHHHHH.........",
+  ".....HHHHHHHHHHHH.......",
+  "....HHHHHHHHHHHHHH......",
+  "........FFFFFF..........",
+  ".......FFEFFEFF.........",
+  "........FFFFFF..........",
+  "......KKKKKKKKKK........",
+  ".....KKKKKKKKKKKK.......",
+  "....KKKKKKKKKKKKKK......",
+  "....KKKKKKKKKKKKKK......",
+  "....KKKKKKKKKKKKKK......",
+  "..AKKKKKKKKKKKKKKA......",
+  "..AGKKKKKKKKKKKKAA......",
+  "..GGKKKKKKKKKKKKKK......",
+  "..GGKKKKKKKKKKKKKK......",
+  "...KKKKKKKKKKKKKK.......",
+  "...KKKKKKKKKKKKKK.......",
+  "...KKKKKK..KKKKKKK......",
+  "...KKKKKK..KKKKKKK......",
+  "....LLLL....LLLLL.......",
+  "....LLLL....LLLLL.......",
+  "....LLLL....LLLLL.......",
+  "....LLLL....LLLLL.......",
+  "....LLLL....LLLLL.......",
+  "....LLLL....LLLLL.......",
+  "...BBBB......BBBBB......",
+  "...BBBB......BBBBB......"],
+  raise:{6:"..AGKKKKKKKKKKKK........",
+         7:"..GGKKKKKKKKKKKKKK......",
+         12:"...KKKKKKKKKKKKKKA......",
+         13:"...KKKKKKKKKKKKKAA......",
+         14:"...KKKKKKKKKKKKKKK......",
+         15:"...KKKKKKKKKKKKKKK......"},
+  box:{lethal:[6,6,17,13], weapon:[1,12,4,17], raised:[1,6,4,8]}},
+  robber:{rows:[
+  ".........HHHHHH.........",
+  "........HHHHHHHH........",
+  "......HHHHHHHHHHHH......",
+  ".......KKKKKKKKKK.......",
+  "........KKEKKEKK........",
+  ".........KKKKKK.........",
+  "......CCCCCCCCCCCC......",
+  ".....CCCCCCCCCCCCCC.....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCBBBBBBBBCCCC....",
+  "..AGCCCCCCCCCCCCCCCCA...",
+  "..GGCCCCCCCCCCCCCCCAA...",
+  "..GGCCCCCCCCCCCCCCCC....",
+  "..GGCCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  "....CCCCCCCCCCCCCCCC....",
+  ".....CCCCCC..CCCCCC.....",
+  ".....CCCCCC..CCCCCC.....",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  "......LLLL....LLLL......",
+  ".....BBBB......BBBB.....",
+  ".....BBBB......BBBB....."],
+  raise:{6:"..AGCCCCCCCCCCCCCC......",
+         7:"..GGCCCCCCCCCCCCCCCC....",
+         12:"....CCCCCCCCCCCCCCCCA...",
+         13:"....CCCCCCCCCCCCCCCAA..."},
+  box:{lethal:[7,6,16,13], weapon:[1,12,4,17], raised:[1,6,4,8]}}
 };
+/* Hands up: an overlay any figure can wear, so surrender reads at a glance. */
+const SURRENDER={0:"..AAA..............AAA..",1:"..AAA..............AAA..",
+  2:"..AAA..HHHHHH......AAA..",3:"..AAA..FFFFFF......AAA..",
+  4:"..AAA..FFEFFE......AAA..",5:"...AA...FFFFF.......AA.."};
+
+const FIG={cx:190, ground:150};          // the caller, in the middle of the street
+const SPRX=FIG.cx-(SPR.w/2)*FIGCW;
+const SPRY=FIG.ground-SPR.h*FIGCH;
+const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*FIGCW,y:SPRY+r0*FIGCH,
+  w:(c1-c0+1)*FIGCW,h:(r1-r0+1)*FIGCH});
+const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
+function boxesFor(e){
+  const b=figureOf(e).box||DEFAULT_BOX;
+  return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
+          weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
+          weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
+}
+const HITBOX=boxesFor(null);             // the default, for anything asking without a caller
 
 
 /* ===== engine.js ===== */
@@ -649,13 +1739,15 @@ const RULES={
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
   REFLEX_MIN:1500, REFLEX_MAX:2600,
-  AIM_STEP:0.04, AIM_FLOOR:120, AIM_CEIL:500,
+  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2
 };
-/* Which job comes off after which caller, if the sheriff never heard of it. */
-const INTERLUDES=[{after:3,job:"train"},{after:7,job:"stage"},{after:9,job:"bank"}];
+/* Where each job falls in the day. Every job sits after the callers who could
+ * have warned about it: the stage after Rose, the train after Miss April, the
+ * bank after the Doctor, the new gun, Willy and the Deputy. */
+const INTERLUDES=[{after:4,job:"stage"},{after:8,job:"train"},{after:10,job:"bank"}];
 
 const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
@@ -665,7 +1757,7 @@ function absNormal(g,sigma){
   return Math.abs(Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v))*sigma;
 }
 
-function newDay(opts){
+function rawDay(opts){
   const seed=opts&&opts.seed;
   return {
     phase:"intro", encounter:0, node:"opening", round:1,
@@ -679,15 +1771,21 @@ function newDay(opts){
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
+/* Whether the doctor has been up all night with a bottle is settled before the
+ * day starts, not by anything the sheriff does; what he does about it is his. */
+function newDay(opts){const G=rawDay(opts); G.doctor.sober=G.rng()>=0.3; return G;}
 const newGame=newDay;                      // the page calls it this
-const who=G=>CAST[G.encounter]||null;
+/* During a robbery the man in front of the sheriff is the robber, not the next
+ * caller, and every rule below reads him through the same accessor. */
+const who=G=>(G.interlude?JOBS[G.interlude]:CAST[G.encounter])||null;
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
 function beginEncounter(G){
   const e=who(G);
   if(!e)return finish(G,"dusk");
-  G.phase="approach"; G.node="opening"; G.round=1;
+  G.phase="approach"; G.round=1;
+  G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   if(e.doctor)G.doctor.met=true;
@@ -740,6 +1838,7 @@ function terminal(G,id){
     if(f==="arrest")G.arrests++;
     if(f==="doctor_civil")G.doctor.disposition+=1;
     if(f==="doctor_insulted")G.doctor.disposition-=2;
+    if(f==="doctor_sober")G.doctor.sober=true;
   }
   G.authority+=t.authority||0;
   return resolve(G,id);
@@ -758,6 +1857,15 @@ function holster(G){
   G.mode="talk"; G.reflex=null;
   if(G.phase==="aiming")G.phase="dialogue";
   return G.mode;
+}
+/* Laying the sights straight onto a point, which is what a thumb on the glass
+ * or a mouse over the street means. The same rule as moving them: no sights
+ * unless the gun is out. */
+function setAim(G,x,y){
+  if(G.mode!=="gun")return null;
+  G.aim.x=Math.max(0,Math.min(1,x));
+  G.aim.y=Math.max(0,Math.min(1,y));
+  return G.aim;
 }
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
@@ -781,16 +1889,19 @@ function tick(G,nowMs){
   return null;
 }
 const inBox=(px,py,b)=>px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;
-const weaponBox=G=>(G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?HITBOX.weaponRaised:HITBOX.weapon;
+/* Every caller has his own boxes, off his own grid: the boy's are low and the
+ * man with the long gun carries his across his chest. */
+const weaponBox=G=>{const b=boxesFor(who(G));
+  return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?b.weaponRaised:b.weapon;};
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
   if(inBox(px,py,weaponBox(G)))return "weapon";
-  if(inBox(px,py,HITBOX.lethal))return "lethal";
+  if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
 }
 const boxCentre=b=>({x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h});
 function aimAt(G,zone){
-  G.aim=boxCentre(zone==="arm"?weaponBox(G):HITBOX.lethal);
+  G.aim=boxCentre(zone==="arm"?weaponBox(G):boxesFor(who(G)).lethal);
   if(G.duel)G.duel.zone=zone;
   return zone;
 }
@@ -815,10 +1926,12 @@ function playerDraws(G){
 /* Latency and aim are read apart: fast and wide, or slow and shot. */
 function shoot(G,latencyMs){
   let d=G.duel, e=who(G);
+  // read what the crosshair is over before drawing first changes his pose:
+  // the player aimed at the hand on the hip, not at the hand he has not raised
+  const box=boxAt(G,G.aim.x,G.aim.y);
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.reflex=null;
-  const box=boxAt(G,G.aim.x,G.aim.y);
   d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
   const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
   if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
@@ -830,10 +1943,15 @@ function shoot(G,latencyMs){
   const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
   if(hit==="miss"){d.result="miss";return theirReply(G);}
   if(hit==="arm"){
+    // there is nothing to shoot out of an unarmed caller's hand, and the town
+    // can see that as well as the sheriff can
+    if(!e.armed){d.result="wounded_innocent"; G.authority-=2; G.flags.push("offended");
+      return resolve(G,"wounded_innocent");}
     d.result="disarm"; G.arrests++; G.authority+=1; G.flags.push("arrest");
     return resolve(G,"disarmed");
   }
   d.result="kill";
+  if(e.doctor)G.doctor.alive=false;                     // there is no other one
   if(d.unprovoked||!e.armed){G.innocentsKilled++;G.authority-=2;return resolve(G,"innocent_killed");}
   G.badGuysShot++;
   return resolve(G,"killed_him");
@@ -843,24 +1961,40 @@ function theirReply(G){
   if(G.duel.initiator==="you"&&!e.armed)return resolve(G,"missed_him");
   return takeHit(G,"he answered your miss");
 }
-/* The doctor is the difference between a wound and a grave:
- *   insulted        the first ball is the last thing that happens to you
- *   civil and sober he has you inside and patched, and the day goes on
- *   otherwise       nobody comes; one wound is survivable, two are not
- * He must be alive and sober to be any use, however he was spoken to. */
+/* The doctor is the difference between a wound and a grave, and he is in one of
+ * four states by the time the sheriff needs him:
+ *   dead        nothing is survivable; the town has no other one
+ *   hostile     he will not come, and the first ball is the last thing
+ *   drunk       he comes and makes a poor job of it: one wound, no more
+ *   civil       alive, sober and well disposed — patched up, and the day goes on
+ *   neutral     alive and sober but owing nothing: one wound, no more
+ * Not having met him yet counts as neutral; he is in the town either way. */
+function doctorState(G){
+  const d=G.doctor;
+  if(!d.alive)return "dead";
+  if(d.disposition<0)return "hostile";
+  if(!d.sober)return "drunk";
+  return d.disposition>0?"civil":"neutral";
+}
 function takeHit(G,why){
-  const doc=G.doctor;
-  if(doc.disposition<0){
-    G.wounds++; G.alive=false;
+  G.wounds++;
+  const state=doctorState(G);
+  if(state==="dead"){
+    G.alive=false;
+    return finish(G,"killed",why||"no doctor left in Gold Gulch to send for");
+  }
+  if(state==="hostile"){
+    G.alive=false;
     return finish(G,"killed",why||"the doctor would not come");
   }
-  G.wounds++;
-  if(doc.alive&&doc.sober&&doc.disposition>0)return resolve(G,"doctor_saved");
+  if(state==="civil")return resolve(G,"doctor_saved");
   if(G.wounds>=RULES.WOUNDS){
     G.alive=false;
-    return finish(G,"killed",why||"bled out with nobody to send for");
+    return finish(G,"killed",why||(state==="drunk"
+      ?"a second ball, and the doctor's hands no steadier"
+      :"a second ball, and nobody owing you a favour"));
   }
-  return resolve(G,"wounded");
+  return resolve(G,state==="drunk"?"doctor_drunk":"doctor_came");
 }
 
 /* ---- resolution, interludes and the reckoning ---- */
@@ -876,19 +2010,28 @@ function interludeDue(G){
   const done=G.encounter+1;
   return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
 }
+/* The job is a scene, not a line of bookkeeping: being told about it puts the
+ * sheriff in front of it with his own gun still in the leather. */
 function runInterlude(G,job){
   G.interlude=job; G.phase="interlude";
-  if(G.tips[job]){
-    G.authority+=1;
-    G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
-    return resolve(G,"job_stopped");
-  }
-  G.crimesMissed++;
+  G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
+  G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
-  return resolve(G,"job_missed");
+  return {interlude:job,warned:!!G.tips[job]};
+}
+/* Entering it: warned, and it is a gunfight; unwarned, and it is a report. */
+function enterJob(G){
+  const job=G.interlude; if(!job)return null;
+  if(!G.tips[job]){
+    G.crimesMissed++; G.authority-=1;
+    return resolve(G,"job_missed");
+  }
+  G.authority+=1;
+  return theyDraw(G,"ambush");
 }
 function nextEncounter(G){
   if(G.phase==="summary")return null;
+  if(G.phase==="interlude"&&G.interlude)return enterJob(G);   // walk into it
   if(G.pending){                         // he had not finished after all
     const why=G.pending; G.pending=null;
     G.ending=null; G.outcome=null;
@@ -935,8 +2078,30 @@ const modeEl=document.getElementById("mode");
 const muteBtn=document.getElementById("mute");
 
 let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
+let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
 let flash=0, bodyFall=0, said="", react="";
+
+/* ---- one clock for the sound ---- *
+ * Cues used to be scheduled on setTimeout, which has no idea what happened
+ * after it was set. A man's footsteps would arrive after he had been shot, a
+ * church bell after the next visitor had knocked, a reload into the sundown
+ * table. Every scheduled cue now carries the sequence it was scheduled in, and
+ * the frame loop drops any whose sequence has moved on. Advancing the
+ * encounter is a single call, and the street goes quiet with it.
+ */
+let seq=0;
+const queue=[];
+function cueAtMs(ms,fn){queue.push({at:performance.now()+ms,seq:seq,fn:fn});}
+function newSeq(){seq++; queue.length=0;}
+function runQueue(now){
+  if(!queue.length)return;
+  queue.sort((a,b)=>a.at-b.at);
+  while(queue.length&&queue[0].at<=now){
+    const c=queue.shift();
+    if(c.seq===seq)c.fn();
+  }
+}
 
 /* ---- layout: the canvas keeps the scene's proportions inside the top half ---- */
 function fit(){
@@ -945,224 +2110,799 @@ function fit(){
   cv.height=Math.max(100,Math.round(r.height*d));
 }
 addEventListener("resize",()=>{fit();paint();});
+/* 320x200 was shown on a 4:3 screen, so the logical picture is stretched into
+ * the largest 4:3 rectangle the canvas holds rather than into a square grid. */
 const sceneGeom=()=>{
-  const sc=Math.min(cv.width/SCENE.w,cv.height/SCENE.h);
-  return {sc,ox:(cv.width-SCENE.w*sc)/2,oy:(cv.height-SCENE.h*sc)/2};
+  const w=Math.min(cv.width,cv.height*4/3), h=w*3/4;
+  return {sx:w/SCENE.w,sy:h/SCENE.h,ox:(cv.width-w)/2,oy:(cv.height-h)/2};
 };
 
-/* ---- the town and the people, built out of blocks ---- *
- * Every figure is a 12x21 grid of 4-pixel cells, written out as rows of
- * characters and painted cell by cell. Nothing is drawn at a fraction of a
- * cell, so the edges stay hard the way a sprite's do. The hitboxes in
- * content.js are read off this same grid.
- *   . nothing   H hat   F face   B dark (eyes, belt, boots)   C coat
- *   K coat shadow   L legs   A skin   G gunmetal   S star   W linen        */
-const BODY=[
-  "......HHHH......",
-  ".....HHHHHH.....",
-  "....HHHHHHHH....",
-  "...HHHHHHHHHH...",
-  "..HHHHHHHHHHHH..",
-  "....FFFFFFFF....",
-  "....FFFFFFFF....",
-  "....FBFFFFBF....",
-  "....FFFFFFFF....",
-  ".....FFFFFF.....",
-  "...CCCCCCCCCC...",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCKKCCCCC..",
-  "..CCCCCKKCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..CCCCCCCCCCCC..",
-  "..BBBBBBBBBBBB..",
-  "...CCCCCCCCCC...",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "....LLL..LLL....",
-  "...BBBB.BBBB...."];
-/* The gun arm is its own overlay so the weapon hitbox can follow it up. */
-const ARM={
-  0:{10:"..C.............",11:"..C.............",12:"..C.............",
-     13:"..C.............",14:"..C.............",15:"..C.............",
-     16:"..A.............",17:".AA.............",18:"GGA.............",
-     19:"GG..............",20:"GG..............",21:"..B............."},
-  1:{10:"..C.............",11:".AA.............",12:"GGA.............",
-     13:"GG..............",14:".AA.............",15:"..C............."},
-  2:{11:"..A.............",12:"GGGA............",13:"GGGA............",
-     14:"..C.............",15:"..C............."}};
-/* What makes one visitor look unlike another, on the same frame. */
-const VARIANT={
-  skirt:{19:"...CCCCCCCCCC...",20:"..LLLLLLLLLLLL..",21:"..LLLLLLLLLLLL..",
-         22:".LLLLLLLLLLLLLL.",23:".LLLLLLLLLLLLLL.",24:".LLLLLLLLLLLLLL.",
-         25:"...BBB....BBB...",
-         0:"......HHHH......",1:".....HHHHHH.....",2:".....HHHHHH.....",
-         3:"....HHHHHHHH....",4:"...HHHHHHHHHH..."},
-  collar:{10:"...CCCWWWWCCC...",4:"..HHHHHHHHHHHH.."},
-  cap:{0:"................",1:"................",2:"......HHHH......",
-       3:".....HHHHHH.....",4:"....HHHHHHHH...."},
-  flathat:{0:"................",1:"....HHHHHHHH....",2:"...HHHHHHHHHH...",
-           3:"..HHHHHHHHHHHH..",4:".HHHHHHHHHHHHHH."}};
-const LOOK_BY_ID={
-  deputy:  {C:"#41506b",K:"#33405a",H:"#20283a",L:"#2b3448",S:true},
-  rainmaker:{C:"#241f22",K:"#19161a",H:"#141215",L:"#1d1a1d",variant:"collar"},
-  surveyor:{C:"#55654f",K:"#44513f",H:"#d8cfb4",L:"#3f4a3c",variant:"flathat"},
-  widow:   {C:"#4a3a44",K:"#3a2c34",H:"#2a2028",L:"#33262e",variant:"skirt"},
-  tuner:   {C:"#6a5a3a",K:"#544628",H:"#3a2f1e",L:"#4a3f28",variant:"flathat"},
-  locket:  {C:"#9a7a4a",K:"#7d6138",H:"#7a5a30",L:"#5f4c2e",variant:"cap"}};
-const PAL={sky:["#f2c988","#e8b46a","#dda059","#c9813f"],hill:"#9c6a3c",hill2:"#8a5c33",
-  dust:"#c49a63",road:"#a87f4e",rut:"#9a713f",wood:"#6b4a2a",wood2:"#54381f",
-  dark:"#2a1c10",glass:"#3b2a18",lit:"#e8cf6a",sign:"#e8cf6a",
-  skin:"#e0ac7a",steel:"#9aa0a8",ink:"#f2e6d2",cuff:"#41506b",star:"#e8cf6a",linen:"#e8e0cc"};
+
+/* ---- the palette and the two painters everything else is built from ---- *
+ * The C64's sixteen colours are the whole palette, and every shape is placed on
+ * integer pixels so nothing on screen has a soft edge. */
+const C64={blk:"#000000",wht:"#ffffff",red:"#68372b",cyn:"#70a4b2",pur:"#6f3d86",
+  grn:"#588d43",blu:"#352879",yel:"#b8c76f",org:"#6f4f25",brn:"#433900",
+  lrd:"#9a6759",dgy:"#444444",gry:"#6c6c6c",lgn:"#9ad284",lbl:"#6c5eb5",lgy:"#959595"};
+const px=(x,y,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),
+  Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));};
+const lerp=(x,x0,y0,x1,y1)=>y0+(y1-y0)*(x-x0)/(x1-x0||1);
+/* A colour a step up or down its own ramp: positive toward the light, negative
+ * into the shadow. Flat fields are what made the town read as a different kind
+ * of drawing from the sheriff, and a ramp is the cheapest way off a flat field. */
+const CLAMP=v=>v<0?0:v>255?255:Math.round(v);
+function shade(col,f){
+  if(typeof col!=="string"||col.charAt(0)!=="#"||col.length!==7)return col;
+  const n=parseInt(col.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  if(f>=0){r+=(255-r)*f; g+=(255-g)*f; b+=(255-b)*f;}
+  else{r*=1+f; g*=1+f; b*=1+f;}
+  return "#"+((1<<24)|(CLAMP(r)<<16)|(CLAMP(g)<<8)|CLAMP(b)).toString(16).slice(1);
+}
+
+/* ---- figures ---- *
+ * A caller is a 24x20 grid painted two pixels to a cell, with a one-pixel dark
+ * rim on every edge that meets the air. The rim is what keeps a figure legible
+ * against a lit window or a dark doorway. */
 function cellColour(ch,look){
   switch(ch){
-    case "H":return look.H; case "C":return look.C; case "K":return look.K||look.C;
-    case "L":return look.L||look.C; case "F":return PAL.skin; case "A":return PAL.skin;
-    case "B":return PAL.dark;  case "G":return PAL.steel;
-    case "S":return PAL.star;  case "W":return PAL.linen;
+    case "H":return look.H; case "R":return look.R||look.H;
+    case "C":return look.C; case "K":return look.K||look.C;
+    case "L":return look.L||look.C; case "W":return look.W||C64.wht;
+    case "F":return look.F||C64.lrd; case "A":return look.F||C64.lrd;
+    case "E":return C64.blk; case "B":return C64.blk;
+    case "G":return C64.lgy; case "S":return C64.yel;
+    case "P":return look.P||C64.brn;
     default:return null;
   }
 }
-/* Paint a grid of rows at a cell origin. Rows may be sparse (an overlay). */
-function blocks(rows,x0,y0,look,cell){
-  const k=cell||CELL;                         // the foreground is drawn in bigger blocks
-  for(const key of Object.keys(rows)){
-    const r=+key, line=rows[r];
-    for(let c=0;c<line.length;c++){
-      const col=cellColour(line[c],look);
-      if(!col)continue;
-      ctx.fillStyle=col;
-      ctx.fillRect(x0+c*k,y0+r*k,k,k);
+const LOOK={
+  stranger:{H:C64.brn,C:C64.dgy,K:"#2e2e2e",L:C64.dgy,W:C64.lgy},
+  rose:    {H:C64.brn,R:C64.brn,C:C64.red,K:"#54291f",L:C64.red,W:C64.wht},
+  kid:     {H:C64.org,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.yel},
+  doctor:  {H:C64.blk,C:C64.blu,K:"#241a54",L:C64.blu,W:C64.wht,P:C64.brn},
+  shotgun: {H:C64.lrd,C:C64.lgn,K:C64.grn,L:C64.blu,W:C64.lgn},
+  willie:  {H:C64.grn,C:C64.yel,K:C64.grn,L:C64.brn,W:C64.yel},
+  april:   {H:C64.brn,R:C64.brn,C:C64.grn,K:"#3e6330",L:C64.grn,W:C64.wht,P:C64.dgy},
+  gambler: {H:C64.blk,C:C64.pur,K:"#4c2a5c",L:C64.blk,W:C64.wht,P:C64.wht},
+  deputy:  {H:C64.org,C:C64.lbl,K:"#4a4080",L:C64.blu,W:C64.lgy},
+  belle:   {H:C64.lrd,R:C64.brn,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.cyn,P:C64.yel},
+  lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
+  robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.brn,W:C64.gry}
+};
+function figureRows(fig,pose){
+  const rows=fig.rows.slice();
+  const over=pose==="raise"?fig.raise:(pose==="surrender"?SURRENDER:null);
+  if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
+  return rows;
+}
+/* The silhouette is stamped a pixel larger in black and the colours laid over
+ * it, which gives a one-pixel rim at any cell size: that rim is what keeps a
+ * figure legible against a lit window or a dark doorway. */
+function drawFigure(rows,x0,y0,look,cw,ch){
+  const w=cw||FIGCW, h=ch||FIGCH, at=(r,c)=>(rows[r]&&rows[r][c])||".";
+  let cols=0; for(const r of rows)if(r.length>cols)cols=r.length;
+  ctx.fillStyle=C64.blk;
+  for(let r=0;r<rows.length;r++)for(let c=0;c<cols;c++){
+    if(cellColour(at(r,c),look)===null)continue;
+    ctx.fillRect(Math.round(x0+c*w)-1,Math.round(y0+r*h)-1,w+2,h+2);
+  }
+  // The light comes from the left, as it does in the sheriff's own drawing, so
+  // each row is lit along the edge it turns toward the light and dropped a step
+  // along the edge it turns away. A flat silhouette becomes a body.
+  for(let r=0;r<rows.length;r++){
+    let l=-1,rt=-1;
+    for(let c=0;c<cols;c++)if(cellColour(at(r,c),look)!==null){if(l<0)l=c;rt=c;}
+    const round=rt-l>2;
+    for(let c=0;c<cols;c++){
+      const col=cellColour(at(r,c),look); if(!col)continue;
+      let k=col;
+      if(round&&rt-c<=1)k=shade(col,-0.24);
+      else if(round&&c-l<=0)k=shade(col,0.18);
+      px(x0+c*w,y0+r*h,w,h,k);
     }
   }
 }
-function visitor(enc,armState){
-  const look=LOOK_BY_ID[enc.id]||LOOK_BY_ID.deputy;
-  ctx.fillStyle="rgba(60,40,22,.30)";                     // his shadow, also in cells
-  for(let c=3;c<13;c++)ctx.fillRect(SPRX+c*CELL,SPRY+SPR.h*CELL,CELL,CELL);
-  const body=Object.fromEntries(BODY.map((line,i)=>[i,line]));
-  if(look.variant)Object.assign(body,VARIANT[look.variant]);
-  blocks(body,SPRX,SPRY,look);
-  blocks(ARM[armState]||ARM[0],SPRX,SPRY,look);
-  if(look.S)blocks({14:"....S..........."},SPRX,SPRY,look);   // a star, on the one who wears one
+function visitor(enc,pose){
+  const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
+  const rows=figureRows(fig,pose);
+  let lowest=0;
+  for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow, on the grid
+  ctx.fillRect(SPRX+4*FIGCW,SPRY+(lowest+1)*FIGCH,16*FIGCW,FIGCH);
+  drawFigure(rows,SPRX,SPRY,look);
 }
-/* The sheriff's own hand and gun, across the low corner, on the same grid. */
-/* The sheriff's own forearm and revolver across the low right corner: his hand
- * is the only part of him the player ever sees. 16 cells wide, 10 tall. */
-/* The sheriff fills the bottom of the frame: his shoulder, his forearm and his
- * revolver, seen from just behind his own hip. 22 cells across, 13 down. */
-const OWN={
-  holstered:[
-    "...................BBB",
-    "................BBBCCC",
-    "............BBBCCCCCCC",
-    "............CCCCCCCCCC",
-    ".........CCCAAAAACCCCC",
-    "......CCCCAAAAAAAACCCC",
-    "....CCCCAAAAAAAAAACCCC",
-    "...BBBGGGGGAAAAAACCCCC",
-    "..BBGGGGGGGBBBBBBCCCCC",
-    "..BBGGGGGBBBBBBBBBBBBB",
-    "...BBBBBBBBBBBBBBBBBBB",
-    "....BBBBBBBBBBBBBBBBBB",
-    ".....BBBBBBBBBBBBBBBBB"],
-  drawn:[
-    "BBBBB.................",
-    "GGGGGBB...............",
-    "GGGGGGGBB.............",
-    ".BBGGGGGGGGG..........",
-    "...BAAAAAGGGGG........",
-    "..BAAAAAAAAGGGG.......",
-    "..BCCAAAAAAAAGG.......",
-    "..BCCCCAAAAAAAAB......",
-    "...BCCCCCCAAAAAAB.....",
-    "....BCCCCCCCCAAAAB....",
-    ".....BCCCCCCCCCCCCB...",
-    "......BCCCCCCCCCCCCCB.",
-    ".......BCCCCCCCCCCCCCB"]};
-/* He is nearest the camera, so his blocks are the biggest thing on screen:
- * seven scene-pixels to a cell against the street's four. */
-const OWN_CELL=CELL*1.5;
+
+/* ---- the sheriff ---- *
+ * Not an arm: the man himself, at the left edge of the frame with his back to
+ * us, so the street is seen past his shoulder. He is drawn by the same painter
+ * every caller is drawn by — the same letters, the same look table, the same
+ * one-pixel black rim — only on a coarser cell, because he is the nearest thing
+ * in the picture and nothing else in it is allowed to be bigger. The same
+ * figure carries every screen; only the gun hand changes.
+ */
+/* His artwork, keyed off its background and scaled to the picture's own grid,
+ * then reduced to a 64-colour indexed image so the page carries it without
+ * asking the network for anything. It is drawn, never smoothed: at this size
+ * one of its pixels is one of the street's.
+ *
+ * The drawing has the revolver already in his hand, so it is the drawn pose.
+ * While he is only talking, the frame shows the strip below the gun arm —
+ * his hip, the cartridge belt and the holster — and clearing leather brings
+ * the whole of him up. */
+const SHERIFF_SRC="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIEAAADICAMAAAD4KXLGAAAAwFBMVEUAAABONiktMDvEubZYLRY8HQ4PIktMJxOWh3xDIxF3RCe7sa0fNWZnOR5AT3alnJkdDgeKeG8lFBiYj40XCgYuFw1VYIBfWFTu498iOnQnHhqknqFNRkcRFB0wFwoIBQQPCQYCAgNHJCBRTU0CCyEVEhIHHEktRoImEglXMR3PxMGTYDwqJycRKl/g19J5c3LKwb1mYWEEFDYICRCzqaZAPT4AAABfWltHQ0SGf35WUlNwamrTycWvpaLWzcnezs/b8nkBAAAAQHRSTlMA////////////////////////////////////////////////////////////////////////////////////EyueMQAAIoRJREFUeNq1XIlim9iSjUEIIYQhAiyZYBZjbJAQCAnEJtD//9WcutjpfjM9nTwHM96SvGkOtZw6VbfwN883XN/3XdeNIsFxDM91PU2MI8+LjGgpfvv6y3c1zTAiR3AkukRJ0BzPdw0N/+BGy+evRxA5Dm5Pt8bnTFkqMxEoItjiAtNEsfT1CAwtkqQZ3RxXjB9ne7qWoqPBPd4s/nobCMIsnuHRZxJMsWR3V2ALXJLp+Z4kml+LQBBEZTaDEcQokkSYQZkxFOO1FATNE74WAh6dLgGZIIozXMpyv9zDADH9tFjsYwE58pUIJEEQTAeXgGBUZrA/3X+v0P3fLyUyzS+0gxNpyDqHmUBh4aiQIRQGZR/HIxDFJKBfg8DwKBs0E56gRJzFkohLiePZbKmIP2MC3ogB4isQeBowaOAEkcIAUTFGg0jpEH94AoaBcfYgCvMrEHia5oAQGQAGgpxAtx6/4vb4C/o3Zf8difocTY3Ahw3AyTCxwO7O0mEMB3pyogr8GItA8xxTbADFxHUBYaiBi4CAQgC3oxvvyQ4K7k9BQU7Z76U7mEUwXFcTJy0XhobLkURBBATywjImE9CTKxSadM1AlXEEG3he6HoopIIyIQQDZdDA7VGPJHLCkuUhfZsp7/efScr++e57DIpOyuTpjIolTIlAM2ACcgEhEPHw49MrY/SJwmwm7PfCci+4Sd3mTZNlteW6ZjQhH1AgAgCFgsiinm6OSBQVZhdFUpbmfm96Zdcc092QDseiDY31ZAigT2ACZCOJ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";
+const OWN={x:0,y:0,w:129,h:200,rest:138};
+let sheriffImg=null;
+if(typeof Image==="function"){
+  sheriffImg=new Image();
+  sheriffImg.onload=function(){paint();};
+  sheriffImg.src=SHERIFF_SRC;
+}
 function ownGun(out){
-  const rows=Object.fromEntries((out?OWN.drawn:OWN.holstered).map((l,i)=>[i,l]));
-  const x0=SCENE.w-20*OWN_CELL, y0=SCENE.h-12*OWN_CELL;
-  blocks(rows,x0,y0,{C:PAL.cuff,K:PAL.cuff,H:PAL.dark,L:PAL.cuff},OWN_CELL);
-}
-/* A reticle of blocks, with a dark cell behind every light one so it reads
- * over a white shirt or a black doorway alike. */
-const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
-function crosshair(){
-  const a=G.aim;
-  const x=Math.round(a.x*SCENE.w/CELL)*CELL, y=Math.round(a.y*SCENE.h/CELL)*CELL;
-  ctx.fillStyle="rgba(20,14,8,.85)";
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL+1,y+dy*CELL+1,CELL,CELL);
-  ctx.fillStyle=G.duel&&G.duel.drawn?"#ffe9a8":PAL.ink;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*CELL,y+dy*CELL,CELL,CELL);
-}
-const grid=v=>Math.round(v/CELL)*CELL;                     // nothing lands off the grid
-function facade(name){
-  ctx.fillStyle=PAL.wood;  ctx.fillRect(0,grid(40),SCENE.w,grid(96));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(40),SCENE.w,CELL*2);
-  for(let y=grid(52);y<grid(136);y+=CELL*3){
-    ctx.fillStyle="rgba(0,0,0,.10)"; ctx.fillRect(0,y,SCENE.w,CELL);
+  if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
+  ctx.imageSmoothingEnabled=false;
+  if(out)ctx.drawImage(sheriffImg,OWN.x,OWN.y,OWN.w,OWN.h);
+  else{
+    const t=OWN.rest, h=OWN.h-t;
+    ctx.drawImage(sheriffImg,0,t,OWN.w,h,OWN.x,OWN.y+t,OWN.w,h);
   }
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(24),grid(64),grid(48),grid(48));
-  ctx.fillStyle="rgba(232,207,106,.16)"; ctx.fillRect(grid(28),grid(68),grid(40),grid(40));
-  ctx.fillStyle=PAL.glass; ctx.fillRect(grid(240),grid(64),grid(48),grid(36));
-  ctx.fillStyle=PAL.dark;  ctx.fillRect(grid(140),grid(60),grid(40),grid(76));
-  ctx.fillStyle=PAL.sign;  ctx.font="700 12px monospace";
+}
+
+/* ---- the title card ---- *
+ * A 1985 title screen is a plate of wood type over a scene, and the machine had
+ * no typeface to do it with: the letters were drawn. These are drawn too — five
+ * by seven cells, stamped at whatever size the plate needs, with a hard black
+ * rim and a drop shadow, which is what gives a flat colour the weight of
+ * painted wood. Nothing here is the browser's text: at this size a font would
+ * be soft, and nothing else in the picture is.
+ */
+const GLYPH={
+  " ":".....|.....|.....|.....|.....|.....|.....",
+  "$":"..#..|.####|#.#..|.###.|..#.#|####.|..#..",
+  "&":".##..|#..#.|#..#.|.##..|#.#.#|#..#.|.##.#",
+  "\'":"..#..|..#..|.....|.....|.....|.....|.....",
+  "-":".....|.....|.....|#####|.....|.....|.....",
+  ".":".....|.....|.....|.....|.....|.##..|.##..",
+  "0":".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",
+  "1":"..#..|.##..|..#..|..#..|..#..|..#..|.###.",
+  "2":".###.|#...#|....#|...#.|..#..|.#...|#####",
+  "3":"####.|....#|....#|.###.|....#|....#|####.",
+  "4":"...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",
+  "5":"#####|#....|####.|....#|....#|#...#|.###.",
+  "6":".###.|#....|#....|####.|#...#|#...#|.###.",
+  "7":"#####|....#|...#.|..#..|.#...|.#...|.#...",
+  "8":".###.|#...#|#...#|.###.|#...#|#...#|.###.",
+  "9":".###.|#...#|#...#|.####|....#|....#|.###.",
+  "A":".###.|#...#|#...#|#####|#...#|#...#|#...#",
+  "B":"####.|#...#|#...#|####.|#...#|#...#|####.",
+  "C":".####|#....|#....|#....|#....|#....|.####",
+  "D":"####.|#...#|#...#|#...#|#...#|#...#|####.",
+  "E":"#####|#....|#....|####.|#....|#....|#####",
+  "F":"#####|#....|#....|####.|#....|#....|#....",
+  "G":".####|#....|#....|#..##|#...#|#...#|.####",
+  "H":"#...#|#...#|#...#|#####|#...#|#...#|#...#",
+  "I":"#####|..#..|..#..|..#..|..#..|..#..|#####",
+  "J":"..###|...#.|...#.|...#.|...#.|#..#.|.##..",
+  "K":"#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
+  "L":"#....|#....|#....|#....|#....|#....|#####",
+  "M":"#...#|##.##|#.#.#|#...#|#...#|#...#|#...#",
+  "N":"#...#|##..#|#.#.#|#..##|#...#|#...#|#...#",
+  "O":".###.|#...#|#...#|#...#|#...#|#...#|.###.",
+  "P":"####.|#...#|#...#|####.|#....|#....|#....",
+  "Q":".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
+  "R":"####.|#...#|#...#|####.|#.#..|#..#.|#...#",
+  "S":".####|#....|#....|.###.|....#|....#|####.",
+  "T":"#####|..#..|..#..|..#..|..#..|..#..|..#..",
+  "U":"#...#|#...#|#...#|#...#|#...#|#...#|.###.",
+  "V":"#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
+  "W":"#...#|#...#|#...#|#...#|#.#.#|##.##|#...#",
+  "X":"#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
+  "Y":"#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",
+  "Z":"#####|....#|...#.|..#..|.#...|#....|#####"};
+const GLYPH_W=5, GLYPH_H=7;
+function textWidth(str,cell,track){return str.length*(GLYPH_W*cell+(track==null?cell:track))-(track==null?cell:track);}
+function stamp(str,x,y,cell,fill,rim,shadow,track){
+  const gap=(track==null?cell:track);
+  const rows=(g)=>(GLYPH[g]||GLYPH[" "]).split("|");
+  const each=(dx,dy,paint)=>{
+    let cx=x;
+    for(const ch of str){
+      const r=rows(ch.toUpperCase());
+      for(let j=0;j<GLYPH_H;j++)for(let i=0;i<GLYPH_W;i++)
+        if(r[j][i]==="#")paint(cx+i*cell+dx,y+j*cell+dy,j);
+      cx+=GLYPH_W*cell+gap;
+    }
+  };
+  if(shadow)each(cell,cell,(px_,py_)=>px(px_,py_,cell,cell,shadow));
+  if(rim)for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]])
+    each(dx,dy,(px_,py_)=>px(px_,py_,cell,cell,rim));
+  // the face is lit across its own height, the way a painted sign catches light
+  each(0,0,(px_,py_,j)=>px(px_,py_,cell,cell,
+    typeof fill==="function"?fill(j):fill));
+}
+const TITLE={a:"LAW",b:"OF THE",c:"WEST",town:"GOLD GULCH"};
+const TP={                                    /* the title card's own palette */
+  bg:"#0b0b2e", bg2:"#14143f", ink:"#f4efe2", gold:"#e8a13a", gold2:"#b4701a",
+  rim:"#0a0608", vine:"#7fb7d8", vine2:"#c9e6f4", leaf:"#3f8f5c", leaf2:"#69c07f",
+  box:"#2f8f4f", box2:"#1c5c33", boxin:"#07070f",
+  paper:"#e6dcc0", paper2:"#c2b493", red:"#a8352a"};
+/* ---- filigree ---- *
+ * The border on a title screen of this kind is engraved scrollwork, and it was
+ * drawn a pixel at a time because there was no other way to get it. Same here:
+ * a stem that wanders, curls that wind in on themselves, and leaves hung off
+ * the outside of every bend.
+ */
+function spiral(cx,cy,r0,turns,dir,col){
+  const n=Math.max(8,Math.round(turns*54));
+  for(let i=0;i<=n;i++){
+    const t=i/n, a=dir*t*turns*Math.PI*2, r=r0*(1-t*0.84);
+    px(cx+Math.cos(a)*r,cy+Math.sin(a)*r,1,1,col);
+  }
+}
+function leaf(cx,cy,rw,rh,col){
+  for(let y=-rh;y<=rh;y++)for(let x=-rw;x<=rw;x++)
+    if((x/rw)*(x/rw)+(y/rh)*(y/rh)<=1)px(cx+x,cy+y,1,1,col);
+}
+function vine(x0,y0,x1,y1,amp,side){
+  const n=Math.round(Math.hypot(x1-x0,y1-y0));
+  const at=t=>[x0+(x1-x0)*t+Math.sin(t*Math.PI*3.1)*amp, y0+(y1-y0)*t];
+  for(let i=0;i<=n;i++){
+    const t=i/n, [x,y]=at(t);
+    px(x-1,y,1,1,TP.vine); px(x,y,1,1,TP.vine2); px(x+1,y,1,1,TP.vine);
+    // a second stem shadowing the first is what makes an engraving of a line
+    const [x2]=at(Math.min(1,t+0.045));
+    px(x2+side*3,y,1,1,TP.vine);
+  }
+  for(let k=0;k<5;k++){
+    const t=0.09+k*0.205, [x,y]=at(t);
+    spiral(x+side*7,y,6,1.25,(k%2?1:-1)*side,TP.vine2);
+    leaf(x-side*6,y+4,5,2,TP.leaf); leaf(x-side*6,y+3,4,1,TP.leaf2);
+    leaf(x+side*2,y-7,2,4,TP.leaf); leaf(x+side*2,y-8,1,3,TP.leaf2);
+  }
+}
+function corner(x,y,sx,sy){
+  spiral(x+sx*9,y+sy*8,7,1.3,sx*sy,TP.vine2);
+  spiral(x+sx*22,y+sy*5,5,1.1,-sx*sy,TP.vine);
+  leaf(x+sx*16,y+sy*12,4,2,TP.leaf); leaf(x+sx*16,y+sy*11,3,1,TP.leaf2);
+  for(let i=0;i<16;i++)px(x+sx*(26+i),y+sy*2,1,1,i%3?TP.vine:TP.vine2);
+}
+/* ---- the poster the town nails up, and the gun that answers it ---- */
+function poster(x,y,w,h){
+  ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(x+2,y+2,w,h);
+  px(x,y,w,h,TP.paper);
+  dither(x,y,w,h,TP.paper,TP.paper2,0.22);
+  px(x,y,w,1,"#f4ecd6"); px(x,y+h-1,w,1,TP.paper2);
+  px(x+2,y+2,w-4,1,"#8a7a58"); px(x+2,y+h-3,w-4,1,"#8a7a58");
+  const t="REWARD", tw=textWidth(t,2,1);
+  stamp(t,x+Math.round((w-tw)/2),y+5,2,"#231a10",null,null,1);
+  const d="$500", dw=textWidth(d,2,2);
+  stamp(d,x+Math.round((w-dw)/2),y+20,2,TP.red,null,null,2);
+  for(let k=0;k<4;k++){                     // the small print, as much as fits
+    const ly=y+34+k*5; if(ly>y+h-4)break;
+    px(x+5,ly,w-10,1,"#9c8e6e");
+  }
+  for(const [nx,ny] of [[x+1,y+1],[x+w-3,y+1],[x+1,y+h-3],[x+w-3,y+h-3]])
+    px(nx,ny,2,2,"#6b5a3a");
+}
+function titleGun(){
+  // his own revolver, lifted out of the drawing the game already carries
+  if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
+  ctx.imageSmoothingEnabled=false;
+  ctx.save();
+  ctx.translate(308,156); ctx.scale(-1,1);          // pointing back into the card
+  ctx.drawImage(sheriffImg,58,84,68,46,0,0,76,52);
+  ctx.restore();
+}
+function titleCard(now){
+  px(0,0,SCENE.w,SCENE.h,TP.bg);
+  dither(0,0,SCENE.w,SCENE.h,TP.bg,TP.bg2,0.4);
+  // the engraved border: a panel down each side, a flourish in each corner
+  vine(14,18,14,SCENE.h-20,6,-1);
+  vine(SCENE.w-14,18,SCENE.w-14,SCENE.h-20,6,1);
+  corner(11,10,1,1); corner(SCENE.w-12,10,-1,1);
+  /* The name is set in three parts and staggered, the way a wood-type poster
+     sets a long title: the first word large and high, the joining words small
+     and tucked in beside it, the last word large and dropped. */
+  const face=j=>j<2?"#ffffff":j<4?"#f4d089":TP.gold2;
+  stamp(TITLE.a,30,12,6,face,TP.rim,"rgba(0,0,0,.6)");
+  stamp(TITLE.b,144,28,2,j=>j<3?TP.gold:TP.gold2,TP.rim,null,2);
+  stamp(TITLE.c,108,52,6,face,TP.rim,"rgba(0,0,0,.6)");
+  // the town, small, on the rule between the name and the credits
+  const t=TITLE.town, tw=textWidth(t,2,3);
+  px(34,102,SCENE.w-68,1,TP.gold2);
+  px(30,100,4,5,TP.gold); px(SCENE.w-34,100,4,5,TP.gold);
+  ctx.fillStyle=TP.bg; ctx.fillRect((SCENE.w-tw)/2-6,97,tw+12,12);
+  stamp(t,Math.round((SCENE.w-tw)/2),99,2,TP.ink,null,null,3);
+  // the credit box, bordered the way the original bordered its own, and saying
+  // who this is after rather than claiming to be them
+  const bx=10,by=114,bw=SCENE.w-20,bh=44;
+  px(bx,by,bw,bh,TP.box); px(bx+2,by+2,bw-4,bh-4,TP.box2);
+  px(bx+4,by+4,bw-8,bh-8,TP.boxin);
+  const centred=(str,cell,y2,col,track)=>{
+    const wdt=textWidth(str,cell,track);
+    stamp(str,Math.round((SCENE.w-wdt)/2),y2,cell,col,null,null,track);
+    return wdt;
+  };
+  centred("INSPIRED BY ALAN MILLER",2,by+7,TP.ink,2);
+  centred("ORIGINAL MUSIC BY ED BOGAS",1,by+24,TP.gold,2);
+  centred("AN INDEPENDENT UNOFFICIAL RECREATION",1,by+33,"#8f9fb8",2);
+  poster(6,SCENE.h-40,68,38);
+  titleGun();
+  const blink=Math.floor(now/560)%2===0;
+  if(blink){
+    const s3="PRESS FIRE", w3=textWidth(s3,2,3), sx=145-Math.round(w3/2);
+    ctx.fillStyle="rgba(8,6,14,.78)";
+    ctx.fillRect(sx-7,SCENE.h-38,w3+14,GLYPH_H*2+7);
+    stamp(s3,sx,SCENE.h-35,2,"#e8cf6a",TP.rim,null,3);
+  }
+}
+
+/* ---- the street ---- *
+ * The 1985 frame, drawn with the craft the machine's artists used: ordered
+ * dithering between two colours wherever a flat field would show, clapboard
+ * siding on every wall, framed and mullioned windows, panelled doors, awnings
+ * with the shadow they cast, plank boardwalks, and light that comes from the
+ * left so every edge knows which side it is on. Nothing has a soft edge.
+ */
+const HORIZON=118;
+const PEOPLE=[{x:206,w:5,h:13},{x:216,w:5,h:12},{x:120,w:5,h:13}];
+const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
+/* A 4x4 ordered matrix: the one a C64 artist would have dithered with. */
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+function dither(x,y,w,h,a,b,amount){
+  const t=Math.round(Math.max(0,Math.min(1,amount))*16);
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){
+    const X=Math.round(x)+i, Y=Math.round(y)+j;
+    ctx.fillStyle=BAYER[(j&3)*4+(i&3)]<t?b:a;
+    ctx.fillRect(X,Y,1,1);
+  }
+}
+function skyband(y0,y1,a,b){
+  const n=y1-y0;
+  for(let j=0;j<n;j++)dither(0,y0+j,SCENE.w,1,a,b,j/(n-1||1));
+}
+/* ---- the palette of the town ---- */
+const T={
+  sky1:"#3c2fb4", sky2:"#5a4fd0", sky3:"#8a86e8", haze:"#b9b4e4",
+  cloud:"#ffffff", cloud2:"#c8c4e8", cloudsh:"#9a95c8",
+  hill:"#4a4a72", hill2:"#34345a",
+  dirt:"#b4b0a8", dirt2:"#9c988f", dirt3:"#cac6bd", dirtsh:"#807c74",
+  board:"#c8a878", boardsh:"#8a6a3a", boardtr:"#6a4a22",
+  green:"#6f8f5c", greensh:"#4c6b3e",
+  adobe:"#a97e4c", adobesh:"#7a5630",
+  brick:"#a85a4a", bricksh:"#7a3a30", stone:"#d8c8ae",
+  white:"#e9e2d2", whitesh:"#bfb6a2",
+  stn:"#8b5a38", stnsh:"#5f3b22", awn:"#d8c060", awnsh:"#a08828",
+  tank:"#a8392e", tanksh:"#76241c",
+  glass:"#2b2f6a", lit:"#e8d060", dark:"#241a12",
+  tree:"#4a7a3a", tree2:"#6f9e4e", trunk:"#6a4a2a",
+  iron:"#1c1c1e", iron2:"#4a4a50", iron3:"#8e8e96", shine:"#e6e6ee",
+  tie:"#6a4a2a", rail:"#9a9aa2", ballast:"#8e8a82"};
+/* ---- where each caller is, what is over the door and what is parked ---- */
+const PLACES={
+  STREET:      {sign:"GOLD GULCH HOTEL",     prop:"coach"},
+  SALOON:      {sign:"MAGUIRE'S SALOON",     prop:"barrels"},
+  DOCTOR:      {sign:"DR FINCH SURGEON",     prop:"crates"},
+  SCHOOL:      {sign:"GOLD GULCH SCHOOL",    prop:"fence"},
+  JAIL:        {sign:"GOLD GULCH JAIL",      prop:"crates"},
+  CORRAL:      {sign:"BELLE HOLLISTER",      prop:"fence"},
+  "STAGE ROAD":{sign:"MORGAN EXPRESS CO",    prop:"coach"},
+  "THE CUT":   {sign:"GOLD GULCH & WESTERN", prop:"loco"},
+  BANK:        {sign:"J P MORGAN BANK",      prop:"crates"}};
+
+function sky(){
+  skyband(0,14,T.sky1,T.sky2);
+  skyband(14,34,T.sky2,T.sky3);
+  skyband(34,52,T.sky3,T.haze);
+  for(const [cx,cy,w] of [[26,12,40],[96,8,54],[168,16,46],[236,6,50],[292,20,36]]){
+    for(let k=0;k<4;k++){                                  // stepped, lit on top
+      const inset=[0,5,11,19][k], hh=[3,3,3,2][k];
+      px(cx+inset,cy+7-k*3,w-inset*2,hh,k?T.cloud:T.cloud2);
+    }
+    dither(cx+3,cy+8,w-6,3,T.cloud2,T.cloudsh,0.55);
+  }
+  for(let x=0;x<SCENE.w;x++){                              // the rim of hills
+    const h=Math.round(50+7*Math.sin(x/33)+4*Math.sin(x/11));
+    px(x,h,1,4,T.hill); px(x,h+4,1,HORIZON-h-4,T.hill2);
+  }
+  dither(0,46,SCENE.w,10,T.hill2,T.haze,0.4);
+}
+/* ---- ground: one broad dirt plaza, tonal rather than striped ---- */
+function ground(){
+  px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,T.dirt);
+  dither(0,HORIZON,SCENE.w,10,T.dirt,T.dirt2,0.55);        // it packs hard at the walls
+  for(let i=0;i<14;i++){                                   // broad patches of wear
+    const x=(hash(i,5)%300)-20, y=HORIZON+4+(hash(i,9)%70);
+    const w=30+(hash(i,13)%70), h=6+(hash(i,17)%14);
+    dither(x,y,w,h,T.dirt,(i%3)?T.dirt3:T.dirt2,0.22);
+  }
+  dither(0,SCENE.h-22,SCENE.w,22,T.dirt,T.dirtsh,0.30);    // shadow at the near edge
+  for(let i=0;i<90;i++){                                   // stones, lit and shadowed
+    const x=(hash(i,3)%SCENE.w), y=HORIZON+2+(hash(i,7)%(SCENE.h-HORIZON-4));
+    const w=1+(hash(i,11)%3);
+    px(x,y,w,1,T.dirt3); px(x,y+1,w,1,T.dirtsh);
+  }
+}
+/* ---- buildings: each one its own design, not five of the same ---- */
+function windowPane(x,y,w,h,lit,frame){
+  px(x-1,y-1,w+2,h+2,frame);
+  px(x,y,w,h,lit?T.lit:T.glass);
+  dither(x,y,w,h,lit?T.lit:T.glass,lit?T.awnsh:"#171a44",0.4);
+  px(x+((w/2)|0),y,1,h,frame); px(x,y+((h/2)|0),w,1,frame);
+  px(x,y,w,1,lit?T.cloud:T.iron3);
+}
+function boarded(x0,x1,top){                               // tan boards, false front
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.board);
+  dither(x0,top,w,HORIZON-top,T.board,T.boardsh,0.26);
+  for(let y=top+5;y<HORIZON;y+=3)px(x0,y,w,1,T.boardsh);
+  px(x0,top,w,5,T.boardtr); px(x0,top,w,1,T.stone); px(x0,top+5,w,1,T.dark);
+  px(x0,top+5,2,HORIZON-top-5,T.boardtr); px(x1-2,top+5,2,HORIZON-top-5,T.boardtr);
+  windowPane(x0+7,top+12,10,11,hash(x0,1)%3!==0,T.boardtr);
+  px(x0+4,HORIZON-24,w-8,3,T.boardtr); px(x0+4,HORIZON-21,w-8,1,T.dark);
+  dither(x0+4,HORIZON-20,w-8,5,T.board,T.dark,0.5);
+  for(const p of [x0+5,x1-8])px(p,HORIZON-21,2,21,T.boardtr);
+  px(x0+((w/2)|0)-6,HORIZON-18,13,18,T.dark);
+  px(x0+((w/2)|0)-5,HORIZON-17,11,17,"#14100a");
+}
+function plastered(x0,x1,top,wall,sh){                     // green or white plaster
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,wall);
+  dither(x0,top,w,HORIZON-top,wall,sh,0.22);
+  px(x0,top,w,4,sh); px(x0,top,w,1,T.stone);               // parapet
+  px(x0,top+4,w,1,"rgba(0,0,0,.35)");
+  px(x1-3,top+4,3,HORIZON-top-4,sh);                       // the shaded side
+  windowPane(x0+6,top+11,9,10,false,sh);
+  windowPane(x1-16,top+11,9,10,hash(x0,2)%2===0,sh);
+  windowPane(x0+6,top+30,9,10,false,sh);
+  px(x1-17,top+30,13,HORIZON-top-30,T.dark);
+  px(x1-16,top+31,11,HORIZON-top-31,"#14100a");
+}
+function adobe(x0,x1,top){                                 // squat, arched, sun-baked
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.adobe);
+  dither(x0,top,w,HORIZON-top,T.adobe,T.adobesh,0.24);
+  px(x0,top,w,3,T.stone); px(x0,top+3,w,2,T.adobesh);
+  for(let i=0;i<3;i++){                                    // deep-set arched windows
+    const wx=x0+5+i*((w-10)/3|0), wy=top+10;
+    px(wx,wy+3,9,10,T.dark);
+    for(let k=0;k<5;k++)px(wx+k,wy+3-Math.round(Math.sqrt(25-(k-2)*(k-2))),1,1,T.dark);
+    px(wx+1,wy+5,7,8,T.glass);
+  }
+  px(x0+((w/2)|0)-6,HORIZON-20,13,20,T.dark);
+  px(x0+((w/2)|0)-5,HORIZON-19,11,19,"#14100a");
+  px(x0,HORIZON-3,w,3,T.adobesh);
+}
+function brickHouse(x0,x1,top,carry){                      // the one the board hangs on
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.brick);
+  for(let y=top+3;y<HORIZON;y+=3){                         // courses
+    px(x0,y,w,1,T.bricksh);
+    for(let x=x0+((y/3|0)%2?0:3);x<x1;x+=6)px(x,y-2,1,2,T.bricksh);
+  }
+  px(x0,top,w,4,T.stone); px(x0,top+4,w,1,T.dark);
+  px(x0,top,2,HORIZON-top,T.stone); px(x1-2,top,2,HORIZON-top,T.bricksh);
+  for(let i=0;i<3;i++)windowPane(x0+8+i*((w-16)/3|0),top+30,10,12,i===1,T.stone);
+  px(x0+4,HORIZON-26,w-8,4,T.awn); px(x0+4,HORIZON-22,w-8,1,T.awnsh);
+  dither(x0+4,HORIZON-21,w-8,5,T.brick,T.dark,0.5);
+  for(const p of [x0+6,x1-9])px(p,HORIZON-22,2,22,T.stone);
+  px(x0+((w/2)|0)-8,HORIZON-20,17,20,T.dark);
+  px(x0+((w/2)|0)-7,HORIZON-19,15,19,T.glass);
+}
+function station(x0,x1,top){                               // brick, striped awning
+  const w=x1-x0;
+  px(x0,top,w,HORIZON-top,T.stn);
+  for(let y=top+3;y<HORIZON;y+=3){
+    px(x0,y,w,1,T.stnsh);
+    for(let x=x0+((y/3|0)%2?0:3);x<x1;x+=6)px(x,y-2,1,2,T.stnsh);
+  }
+  px(x0,top,w,5,T.stone); px(x0,top+5,w,1,T.dark);
+  for(let i=0;i<3;i++)windowPane(x0+6+i*((w-12)/3|0),top+12,9,12,i!==1,T.stone);
+  px(x0+2,HORIZON-30,w-4,7,T.awn);                          // the striped awning
+  for(let x=x0+2;x<x1-2;x+=4)px(x,HORIZON-30,2,7,T.awnsh);
+  px(x0+2,HORIZON-23,w-4,1,T.dark);
+  dither(x0+2,HORIZON-22,w-4,5,T.stn,T.dark,0.5);
+  px(x0+((w/2)|0)-7,HORIZON-20,15,20,T.glass);
+  px(x0+((w/2)|0)-8,HORIZON-21,17,1,T.stone);
+}
+function watertower(cx,base){
+  px(cx-14,base-46,28,22,T.tank);
+  dither(cx-14,base-46,28,22,T.tank,T.tanksh,0.35);
+  px(cx-14,base-46,28,3,T.iron3); px(cx-14,base-28,28,3,T.tanksh);
+  px(cx-16,base-49,32,4,T.iron2);
+  for(const dx of [-12,-4,4,12])px(cx+dx,base-24,3,24,T.trunk);
+  px(cx-14,base-16,28,2,T.trunk);
+  px(cx+2,base-24,2,14,T.iron2);
+}
+function treeAt(x,base,r){
+  px(x,base-r-6,4,r+6,T.trunk); px(x,base-r-6,1,r+6,T.tree2);
+  for(const [dx,dy,rr] of [[2,-r-4,r],[-r+4,-r+2,r-3],[r-2,-r+2,r-3],[2,-r+4,r-2]]){
+    for(let y=-rr;y<=rr;y++){const h=Math.round(Math.sqrt(Math.max(0,rr*rr-y*y)));
+      px(x+dx-h,base+dy+y,h*2,1,T.tree);}
+  }
+  for(const [dx,dy,rr] of [[2,-r-4,r],[-r+4,-r+2,r-3]])
+    for(let y=-rr;y<=-rr/3;y++){const h=Math.round(Math.sqrt(Math.max(0,rr*rr-y*y)));
+      px(x+dx-h,base+dy+y,Math.round(h*1.2),1,T.tree2);}
+}
+const ROW=[
+  {kind:"board",   x0:34, x1:74,  top:64},
+  {kind:"green",   x0:74, x1:110, top:56},
+  {kind:"adobe",   x0:110,x1:146, top:62},
+  {kind:"brick",   x0:146,x1:214, top:40, carry:true},
+  {kind:"white",   x0:214,x1:250, top:58},
+  {kind:"station", x0:250,x1:296, top:46}];
+function buildings(){
+  watertower(276,HORIZON);
+  for(const b of ROW){
+    if(b.kind==="board")boarded(b.x0,b.x1,b.top);
+    else if(b.kind==="green")plastered(b.x0,b.x1,b.top,T.green,T.greensh);
+    else if(b.kind==="white")plastered(b.x0,b.x1,b.top,T.white,T.whitesh);
+    else if(b.kind==="adobe")adobe(b.x0,b.x1,b.top);
+    else if(b.kind==="brick")brickHouse(b.x0,b.x1,b.top,b.carry);
+    else station(b.x0,b.x1,b.top);
+  }
+  // A dark turn at each frontage edge, so the row reads as solids standing in
+  // light rather than as coloured paper laid side by side.
+  for(const b of ROW){
+    ctx.fillStyle="rgba(18,12,8,.30)"; ctx.fillRect(b.x1-2,b.top,2,HORIZON-b.top);
+    ctx.fillStyle="rgba(255,228,170,.13)"; ctx.fillRect(b.x0,b.top,1,HORIZON-b.top);
+    ctx.fillStyle="rgba(18,12,8,.22)"; ctx.fillRect(b.x0,b.top,b.x1-b.x0,1);
+  }
+  treeAt(68,HORIZON,11); treeAt(148,HORIZON,9);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+  for(let i=0;i<7;i++)                                  // what the row throws down
+    px(0,HORIZON+i,SCENE.w,1,"rgba(26,18,10,"+(0.20-i*0.028).toFixed(3)+")");
+}
+/* ---- the board over the middle building ---- */
+function painted(text,x,y,w,h,size){
+  while(size>4&&text.length*size*0.62>w-4)size--;
+  px(x,y,w,h,T.trunk); px(x,y,w,1,T.stone); px(x+1,y+1,w-2,h-2,T.dark);
+  ctx.fillStyle=T.awn; ctx.font="700 "+size+"px monospace";
   ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(name,SCENE.w/2,grid(46));
-  ctx.fillStyle=PAL.wood2; ctx.fillRect(0,grid(136),SCENE.w,CELL*2);   // boardwalk
-  for(const px of [grid(16),grid(300)]){ctx.fillStyle=PAL.wood;ctx.fillRect(px,grid(68),CELL,grid(68));}
+  ctx.fillText(text,x+w/2,y+h/2+1);
+}
+function signboard(text){
+  const words=text.split(" ");
+  let lines=[text];
+  if(text.length>12&&words.length>1){
+    let best=1e9,cut=1;
+    for(let i=1;i<words.length;i++){
+      const m=Math.max(words.slice(0,i).join(" ").length,words.slice(i).join(" ").length);
+      if(m<best){best=m;cut=i;}
+    }
+    lines=[words.slice(0,cut).join(" "),words.slice(cut).join(" ")];
+  }
+  const longest=Math.max.apply(null,lines.map(t=>t.length));
+  const size=longest<=11?8:6;
+  const bx=150, bw=62, by=46, bh=lines.length>1?20:13;
+  px(bx-1,by-1,bw+2,bh+2,T.dark);
+  px(bx,by,bw,bh,T.trunk); px(bx,by,bw,2,T.stone); px(bx+2,by+2,bw-4,bh-4,T.dark);
+  ctx.fillStyle=T.awn; ctx.font="700 "+(longest<=11?7:6)+"px monospace";
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  lines.forEach((t,i)=>ctx.fillText(t,bx+bw/2,by+bh/2+1+(i-(lines.length-1)/2)*(size+2)));
+}
+
+/* ---- what is parked in the near right ---- */
+function rails(){
+  /* Two rails running out of the bottom-right corner toward the town, with
+     sleepers between them and ballast under the lot. */
+  const ax=258, ay=HORIZON+2, bx=392, by=SCENE.h+6;       // the vanishing pair
+  for(let t=0;t<=1.0001;t+=0.01){
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    dither(cx-half-8,y,half*2+16,3,T.ballast,T.dirtsh,0.5);
+  }
+  for(let t=0;t<=1.0001;t+=0.055){                        // sleepers
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    const h=Math.max(1,Math.round(1+t*5));
+    px(cx-half-6,y,half*2+12,h,T.tie);
+    px(cx-half-6,y,half*2+12,1,"#8a6a3a");
+  }
+  for(let t=0;t<=1.0001;t+=0.004){                        // the rails themselves
+    const y=ay+(by-ay)*t, half=3+t*44, cx=ax+(bx-ax)*t*0.42;
+    const w=Math.max(1,Math.round(1+t*3));
+    px(cx-half,y,w,1,T.rail); px(cx+half-w,y,w,1,T.rail);
+  }
+}
+function loco(){
+  rails();
+  const cx=296, cy=100, R=33;
+  /* The boiler runs back off the right edge: a cylinder, so it is banded
+     light at the top quarter and dark along the bottom. */
+  const BT=62, BB=142;
+  px(268,BT,56,BB-BT,T.iron2);
+  for(let y=BT;y<BB;y++){
+    const t=(y-BT)/(BB-BT);                               // 0 top .. 1 bottom
+    const c=t<0.18?T.iron3:t<0.30?T.iron2:t<0.72?T.iron2:T.iron;
+    px(268,y,56,1,c);
+  }
+  dither(268,BT+10,56,16,T.iron3,T.iron2,0.5);            // the roll of the light
+  dither(268,BB-28,56,20,T.iron2,T.iron,0.55);
+  for(const by of [BT+2,BB-14]){                          // boiler bands
+    px(268,by,56,3,T.iron); px(268,by,56,1,T.iron3);
+  }
+  px(266,BT,2,BB-BT,T.iron); px(268,BT,1,BB-BT,T.iron3);  // the near edge, hard
+  px(268,BT,56,1,T.iron); px(268,BB-1,56,1,T.iron);
+  /* The smokebox door. Flat plate, rim ring, one seam of rivets, a hinge
+     strap down the middle and a handle boss at the centre. */
+  for(let y=-R;y<=R;y++){
+    const h=Math.round(Math.sqrt(Math.max(0,R*R-y*y)));
+    px(cx-h,cy+y,h*2,1,T.iron2);
+    const lit=Math.max(0,1-(y+R)/(R*1.3));                // light from up-left
+    dither(cx-h,cy+y,h,1,T.iron3,T.iron2,0.25+lit*0.45);
+    dither(cx,cy+y,h,1,T.iron2,T.iron,0.30+(1-lit)*0.4);
+  }
+  ring(cx,cy,R,2,T.iron3); ring(cx,cy,R-2,1,T.iron);      // the rim
+  ring(cx,cy,R-6,1,T.iron);                               // the rivet seam
+  for(let a=0;a<360;a+=15){
+    const t=a*Math.PI/180;
+    px(cx+Math.cos(t)*(R-6)-1,cy+Math.sin(t)*(R-6)-1,2,2,T.iron3);
+  }
+  px(cx-2,cy-R+3,4,R*2-6,T.iron);                         // the hinge strap
+  px(cx-2,cy-R+3,1,R*2-6,T.iron3);
+  px(cx-6,cy-6,12,12,T.iron3); px(cx-4,cy-4,8,8,T.iron);  // the handle boss
+  px(cx-5,cy-1,10,2,T.iron3); px(cx-1,cy-5,2,10,T.iron3);
+  /* The stack: a straight column that flares into a lip at the crown. */
+  px(cx-10,18,20,44,T.iron2);
+  for(let y=18;y<62;y++)dither(cx-10,y,10,1,T.iron3,T.iron2,0.4);
+  for(let y=18;y<62;y++)dither(cx,y,10,1,T.iron2,T.iron,0.45);
+  px(cx-15,12,30,8,T.iron2); px(cx-15,12,30,2,T.iron3);
+  px(cx-15,20,30,2,T.iron); px(cx-15,12,7,8,T.iron3);
+  /* The headlamp is bolted to the smokebox front, above the door. */
+  px(cx-11,60,22,18,T.iron); px(cx-9,62,18,14,T.lit);
+  dither(cx-9,62,18,14,T.lit,T.shine,0.4);
+  px(cx-11,59,22,2,T.iron3); px(cx-11,77,22,2,T.iron3);
+  px(cx-4,78,8,4,T.iron2);
+  /* Pilot beam and cowcatcher. */
+  px(262,144,68,9,T.iron2); px(262,144,68,2,T.iron3); px(262,151,68,2,T.iron);
+  for(let i=0;i<10;i++){
+    const x=264+i*7, len=20+Math.abs(4.5-i)*4;
+    px(x,153,4,len,T.iron2); px(x,153,1,len,T.iron3); px(x+3,153,1,len,T.iron);
+  }
+  px(260,152,72,4,T.iron3); px(260,156,72,2,T.iron);
+}
+function ring(cx,cy,r,w,col){
+  for(let a=0;a<360;a+=0.5){
+    const t=a*Math.PI/180;
+    px(cx+Math.cos(t)*r-(w>>1),cy+Math.sin(t)*r-(w>>1),w,w,col);
+  }
+}
+function propAt(kind){
+  if(kind==="loco")return loco();
+  if(kind==="coach"){
+    px(250,64,70,46,T.trunk); dither(250,64,70,46,T.trunk,T.stnsh,0.3);
+    px(250,64,70,4,T.awn); px(250,68,70,1,T.dark);
+    for(const wx of [258,286]){
+      px(wx-1,73,20,18,T.dark); px(wx,74,18,16,T.glass);
+      dither(wx,74,18,16,T.glass,"#171a44",0.5); px(wx,74,18,3,T.awn);
+    }
+    px(246,110,78,6,T.iron2); px(246,110,78,1,T.iron3);
+    px(252,116,6,20,T.trunk); px(302,116,6,24,T.trunk);
+    for(const [wx,r] of [[266,20],[308,25]]){
+      for(let y=-r;y<=r;y++){const h=Math.round(Math.sqrt(Math.max(0,r*r-y*y)));
+        px(wx-h,132+y,h*2,1,T.trunk);}
+      for(let y=-r+4;y<=r-4;y++){const h=Math.round(Math.sqrt(Math.max(0,(r-4)*(r-4)-y*y)));
+        px(wx-h,132+y,h*2,1,T.dirt2);}
+      for(let a=0;a<10;a++){const t=a*0.628;
+        for(let k=0;k<r-3;k++)px(wx+Math.cos(t)*k,132+Math.sin(t)*k,2,2,T.trunk);}
+      px(wx-3,129,6,6,T.awn);
+    }
+  } else if(kind==="barrels"){
+    for(const [bx,by,bw,bh] of [[252,104,28,44],[288,116,30,50],[258,148,32,36]]){
+      px(bx,by,bw,bh,T.board); dither(bx,by,bw,bh,T.board,T.boardsh,0.3);
+      px(bx,by,3,bh,T.stone); px(bx+bw-4,by,4,bh,T.boardsh);
+      for(const hy of [by+2,by+((bh/2)|0)-1,by+bh-5])px(bx,hy,bw,3,T.trunk);
+      px(bx,by,bw,2,T.stone);
+      ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
+    }
+  } else if(kind==="crates"){
+    for(const [bx,by,bw,bh] of [[248,112,44,38],[294,126,26,30],[256,150,48,40]]){
+      px(bx,by,bw,bh,T.trunk); px(bx+2,by+2,bw-4,bh-4,T.board);
+      dither(bx+2,by+2,bw-4,bh-4,T.board,T.boardsh,0.28);
+      px(bx+2,by+2,bw-4,1,T.stone);
+      px(bx+2,by+((bh/2)|0)-1,bw-4,2,T.trunk);
+      px(bx+((bw/2)|0)-1,by+2,2,bh-4,T.trunk);
+      ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(bx-3,by+bh,bw+6,2);
+    }
+  } else {
+    for(let i=0;i<4;i++){
+      const x=244+i*26, y=110+i*12, h=76-i*8;
+      px(x,y,9,h,T.trunk); px(x,y,3,h,"#8a6a3a"); px(x,y,9,2,T.board);
+    }
+    for(let k=0;k<3;k++)for(let i=0;i<3;i++){
+      const x=244+i*26, y=120+i*12+k*18;
+      px(x,y,28,6,T.board); px(x,y,28,1,"#8a6a3a"); px(x,y+5,28,1,T.trunk);
+    }
+  }
+}
+/* The sheriff is a drawing with a warm key from the left, a cool shadow and
+ * corners that fall away. The town was painted flat, under no light at all, and
+ * that — not its colours — is what made the two read as different kinds of
+ * picture. The town is graded to meet the drawing rather than the drawing being
+ * flattened to meet the town. */
+function ramp(make,stops){
+  // A context without gradients still gets the light, in bands rather than a
+  // sweep: the picture is 320 across, so the difference is small and the page
+  // never depends on a canvas feature it might not have.
+  let g=null;
+  try{ g=make(); }catch(e){ g=null; }
+  if(g&&typeof g.addColorStop==="function"){
+    for(const [at,col] of stops)g.addColorStop(at,col);
+    return g;
+  }
+  return null;
+}
+function grade(){
+  const warm=ramp(()=>ctx.createLinearGradient(0,0,SCENE.w*0.75,SCENE.h),
+    [[0,"rgba(255,214,152,.15)"],[0.45,"rgba(255,238,210,.04)"],[1,"rgba(26,22,44,.22)"]]);
+  if(warm){ctx.fillStyle=warm; ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  else{
+    ctx.fillStyle="rgba(255,214,152,.10)"; ctx.fillRect(0,0,SCENE.w*0.45,SCENE.h);
+    ctx.fillStyle="rgba(26,22,44,.14)"; ctx.fillRect(SCENE.w*0.45,0,SCENE.w*0.55,SCENE.h);
+  }
+  const vig=ramp(()=>ctx.createRadialGradient(SCENE.w*0.48,SCENE.h*0.44,24,
+                                              SCENE.w*0.48,SCENE.h*0.44,SCENE.w*0.70),
+    [[0,"rgba(0,0,0,0)"],[1,"rgba(22,16,32,.30)"]]);
+  if(vig){ctx.fillStyle=vig; ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  else for(let i=0;i<6;i++){
+    ctx.fillStyle="rgba(22,16,32,.05)";
+    ctx.fillRect(0,0,SCENE.w,4-i); ctx.fillRect(0,SCENE.h-(4-i),SCENE.w,4-i);
+  }
+}
+function town(now,armed){
+  sky();
+  const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
+  ground();
+  buildings();
+  signboard(here.sign);
+  if(!armed)for(const p of PEOPLE){
+    px(p.x,HORIZON-p.h,p.w,p.h,T.hill); px(p.x,HORIZON-p.h,p.w,2,T.dark);
+  }
+  propAt(here.prop);
 }
 function drawScene(now){
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sc,g.sc);
-  for(let i=0;i<5;i++){ctx.fillStyle=PAL.sky[Math.min(3,i)];ctx.fillRect(0,i*CELL*2,SCENE.w,CELL*2);}
-  ctx.fillStyle=PAL.hill; ctx.fillRect(0,grid(40),SCENE.w,grid(12));
-  for(let i=0;i<6;i++){                                    // hills, stepped in cells
-    ctx.fillStyle=PAL.hill2;
-    for(let k=0;k<4;k++)
-      ctx.fillRect(grid(i*56+k*CELL*2),grid(52)-k*CELL,CELL*2*(4-k)+CELL*4,CELL);
+  ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
+  if(G.phase==="intro"){
+    if(build.rows>=10)titleCard(now);
+    if(build.rows<10){ctx.fillStyle="#000";
+      ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));}
+    ctx.restore(); return;
   }
-  ctx.fillStyle=PAL.dust; ctx.fillRect(0,grid(52),SCENE.w,SCENE.h-grid(52));
+  const armed=G.mode==="gun"||(G.duel&&G.duel.drawn)||G.phase==="tell";
+  town(now,armed);
   const enc=who(G);
-  if(enc)facade(enc.place||"STREET");
-  ctx.fillStyle=PAL.road; ctx.fillRect(0,grid(140),SCENE.w,SCENE.h-grid(140));
-  for(let i=0;i<26;i++){                                   // ruts, one cell each
-    ctx.fillStyle=i%3?PAL.rut:"#cdaa7a";
-    ctx.fillRect(grid((i*47)%SCENE.w),grid(146+((i*37)%40)),CELL,CELL);
-  }
   if(enc&&build.rows>=6){
-    const arm=G.duel?(G.duel.drawn?2:1):(G.phase==="tell"?1:0);
-    if(G.outcome==="killed_him"||G.outcome==="murder"){
+    const pose=(G.outcome==="surrendered")?"surrender"
+      :(G.duel&&(G.duel.drawn||G.phase==="tell"))?"raise":"idle";
+    if(G.outcome==="killed_him"||G.outcome==="innocent_killed"){
       ctx.save();ctx.translate(FIG.cx,FIG.ground);ctx.rotate(Math.min(1.4,bodyFall));
-      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,0);ctx.restore();
-    } else visitor(enc,arm);
+      ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
+    } else visitor(enc,pose);
   }
-  ownGun(G.mode==="gun");
+  // The street and the man standing in it are both fifty feet off, so both sit
+  // in the same air. The sheriff is a foot away and stands outside it.
+  grade();
+  ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
-  if(flash>0){ctx.fillStyle="rgba(255,242,192,"+Math.min(1,flash*6)+")";
+  if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
   if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
-  ctx.fillStyle="rgba(20,14,8,.6)"; ctx.fillRect(0,SCENE.h-CELL*3,SCENE.w,CELL*3);
-  ctx.fillStyle=PAL.ink; ctx.font="700 8px monospace";
-  ctx.textAlign="left"; ctx.textBaseline="middle";
-  const counted=Math.min(G.encounter+1,CAST.length);
-  ctx.fillText(G.phase==="summary"?"GOLD GULCH   SUNDOWN"
-    :((enc?enc.name.toUpperCase():"GOLD GULCH")+"   "+counted+" OF "+CAST.length),
-    4,SCENE.h-6);
-  ctx.textAlign="right";
-  ctx.fillText(G.wounds?"WOUNDED":"UNHURT",SCENE.w-4,SCENE.h-6);
   ctx.restore();
+}
+/* A reticle of blocks, dark behind light, so it reads over a lit window or a
+ * black doorway alike. */
+const RETICLE=[[-4,0],[-3,0],[3,0],[4,0],[0,-4],[0,-3],[0,3],[0,4],[0,0]];
+function crosshair(){
+  const a=G.aim;
+  const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
+  ctx.fillStyle=C64.blk;
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2+1,y+dy*2+1,2,2);
+  ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2,y+dy*2,2,2);
 }
 
 /* ---- the five-line matrix ---- *
@@ -1179,78 +2919,154 @@ function fitText(){
   }
 }
 
+/* ---- sound test ---- *
+ * Every cue the game can make, on a screen of its own, so the pistol, the tell,
+ * the bells and the eleven entrance themes can be heard without playing a day
+ * to reach them. Reached from the title; it is a screen, not a game phase, so
+ * nothing in the engine knows about it. */
+const CUES=()=>Object.keys(SOUNDS);
+const MUSIC=["title","dawn","dusk","badge","romance","respect","disgrace","piano"];
+function cueKind(name){
+  return name.indexOf("th_")===0?"entrance theme"
+    :MUSIC.indexOf(name)>=0?"music":"sound effect";
+}
+function playCue(name){
+  if(name.indexOf("th_")===0)SND.theme(name);
+  else if(typeof SND[name]==="function")SND[name]();
+}
+function soundCmd(what){
+  const list=CUES();
+  if(what==="play")playCue(list[cueAt]);
+  else if(what==="next")cueAt=(cueAt+1)%list.length;
+  else if(what==="prev")cueAt=(cueAt+list.length-1)%list.length;
+  else if(what==="back"){screen=null;SND.cut();}
+  paint();
+}
+function paintSound(){
+  const list=CUES(), name=list[cueAt];
+  lineEls[0].className="npc";
+  lineEls[0].textContent=(cueAt+1)+" of "+list.length+" \u00b7 "+name+" \u00b7 "+cueKind(name);
+  ["Play it","Next","Previous","Back to the street"].forEach((t,i)=>
+    setChoice(lineEls[i+1],i+1,t,i===0?"sel":""));
+  modeEl.textContent="GOLD GULCH \u00b7 SOUND TEST";
+  scoreEl.textContent=name;
+  fitText();
+}
+
+/* A reply is written as two elements — the number and the words — so the words
+ * can hang under themselves when they wrap. An empty slot collapses. */
+function setChoice(el,n,text,cls){
+  el.className="choice"+(cls?" "+cls:"")+(text?"":" empty");
+  while(el.firstChild)el.removeChild(el.firstChild);
+  if(!text)return;
+  const num=document.createElement("b"); num.className="num"; num.textContent=n+". ";
+  const txt=document.createElement("span"); txt.className="txt"; txt.textContent=text;
+  el.appendChild(num); el.appendChild(txt);
+}
+/* Name on the left, count on the right, one to a row. */
+function setTable(el,rows){
+  el.className="choice table";
+  while(el.firstChild)el.removeChild(el.firstChild);
+  const t=document.createElement("div"); t.className="tbl";
+  for(const [k,v] of rows){
+    const a=document.createElement("span"); a.className="k"; a.textContent=k;
+    const b=document.createElement("span"); b.className="v"; b.textContent=String(v);
+    t.appendChild(a); t.appendChild(b);
+  }
+  el.appendChild(t);
+}
 function beat(){return nodeOf(G);}
+/* Who is in front of you, where you are in the day, and how it is going. It
+ * lives above the picture rather than over it: the 320x200 frame carries no
+ * chrome of its own, the way the machine's did not. */
+function hud(){
+  const e=who(G), n=Math.min(G.encounter+1,CAST.length);
+  const dot=" \u00b7 ";
+  // on the title the card is carrying the name; the strip says it twice otherwise
+  const where=G.phase==="intro"?""
+    :G.phase==="summary"?"GOLD GULCH"+dot+"SUNDOWN"
+    :G.interlude?(((e&&e.name)||"")+dot+"A ROBBERY")
+    :e?(e.name+dot+n+"/"+CAST.length):"GOLD GULCH";
+  const mode=G.mode==="gun"?dot+"GUN":(G.phase==="dialogue"?dot+"TALK":"");
+  modeEl.textContent=where+mode;
+  scoreEl.textContent=G.phase==="intro"?""
+    :"auth "+G.authority+dot+"arr "+G.arrests+(G.wounds?dot+"WOUNDED":"");
+}
+const JOB_PROMPT={stage:"Ride for the ford",train:"Get down to the cut",
+  bank:"Round the back of the bank"};
 function paint(){
+  if(screen==="sound")return paintSound();
   const b=beat(), live=build.rows>=10;
   if(G.phase==="summary"){return paintSummary();}
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
     lineEls[0].className="npc";
-    lineEls[1].textContent="1. Pin on the badge";
-    lineEls[1].className="choice sel";
-    const done=CAST.filter(written).length;
-    lineEls[2].textContent=done+" of "+CAST.length+" callers written so far.";
-    lineEls[2].className="choice dim";
+    setChoice(lineEls[1],1,"Pin on the badge","sel");
+    setChoice(lineEls[2],2,"Sound test");
+    lineEls[3].className="choice dim note";
     lineEls[3].textContent="An original recreation inspired by the 1985 game.";
-    lineEls[3].className="choice dim";
+    lineEls[4].className="choice dim note";
     lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
-    lineEls[4].className="choice dim";
-    modeEl.textContent="GOLD GULCH"; scoreEl.textContent="";
-    fitText(); return;
+    hud(); fitText(); return;
   }
   lineEls[0].className="npc";
+  if(G.phase==="interlude"){
+    const job=JOBS[G.interlude]||{};
+    lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
+    setChoice(lineEls[1],1,G.tips[G.interlude]
+      ?(JOB_PROMPT[G.interlude]||"Go"):"Hear it out","sel");
+    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
+    hud(); fitText(); return;
+  }
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
-    lineEls[1].textContent=(G.encounter>=CAST.length-1)?"1. End the day":"1. Walk on down the street";
-    lineEls[1].className="choice sel";
-    for(let i=2;i<5;i++){lineEls[i].textContent="";lineEls[i].className="choice";}
-    scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests;
-    modeEl.textContent=who(G)?who(G).name.toUpperCase():"";
-    fitText(); return;
+    setChoice(lineEls[1],1,(G.encounter>=CAST.length-1)
+      ?"End the day":"Walk on down the street","sel");
+    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
+    hud(); fitText(); return;
   }
-  lineEls[0].textContent=!b?"["+(who(G)?who(G).name:"this caller")+" is not written yet]"
-    :b.npc;
+  const him=who(G);
+  lineEls[0].textContent=b?b.npc
+    :(him&&him.standoff)?him.standoff
+    :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
+    :"Nobody is saying anything. The street has gone quiet.";
   const replies=b?b.replies:[];
   for(let i=0;i<4;i++){
-    const r=replies[i];
-    lineEls[i+1].textContent=r?(i+1)+". "+r.text:"";
-    lineEls[i+1].className="choice"+(live&&G.mode==="talk"&&cursor===i?" sel":"")+
-      (G.mode==="gun"?" dim":"");
+    // the cursor stays visible with the gun out, so holstering does not lose your place
+    setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
+      (live&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
   }
-  modeEl.textContent=G.mode==="gun"?"GUN DRAWN — down to holster":"TALKING — up to draw";
-  scoreEl.textContent="Authority "+G.authority+"   arrests "+G.arrests+
-    (G.wounds?"   wounded":"");
-  fitText();
+  hud(); fitText();
 }
 const OUTCOME_LINES={
   disarmed:"His gun is in the dust and his wrists are in irons.",
   killed_him:"He is dead in the street, and the street saw who fired.",
   innocent_killed:"He never went for a gun. Gold Gulch watched you shoot him anyway.",
   missed_him:"Your shot goes into the facade behind him. Nobody moves.",
+  wounded_innocent:"You have shot the arm off a man who never had a gun in it, in front of the street.",
   wounded:"You are hit, and on your feet, which is more than some manage.",
   doctor_saved:"The doctor has you inside and the ball out before the dust settles.",
-  doctor_came:"The doctor comes, unhurried, and does the work without looking at you.",
+  doctor_came:"The doctor comes, unhurried, and does the work without once looking at you.",
+  doctor_drunk:"The doctor comes with the bottle still on him and makes a poor, slow job of it.",
   turns_away:"He turns and walks, which is not the same as leaving.",
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
-  job_stopped:"You were waiting for them. It was over before the horses were tied.",
-  job_missed:"It happened while you were up the street, and nobody had told you it would.",
+  job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
-const outcomeLine=()=>OUTCOME_LINES[G.outcome]||"The matter settles.";
+function outcomeLine(){
+  if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  return OUTCOME_LINES[G.outcome]||"The matter settles.";
+}
 function paintSummary(){
   const o=G.over;
   lineEls[0].className="npc";
   lineEls[0].textContent=(o.alive?"SUNDOWN":"THE STREET KEPT YOU")+" — "+o.score+" points";
-  const cats=Object.entries(o.categories);
-  lineEls[1].className="choice dim"; lineEls[1].textContent=cats.slice(0,3).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[2].className="choice dim"; lineEls[2].textContent=cats.slice(3,5).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[3].className="choice dim"; lineEls[3].textContent=cats.slice(5).map(([k,v])=>k+" · "+v).join("     ");
-  lineEls[4].className="choice sel"; lineEls[4].textContent="1. Ride in again";
-  scoreEl.textContent=o.score+" points";
-  modeEl.textContent="SUNDOWN";
-  fitText();
+  setTable(lineEls[1],Object.entries(o.categories));
+  setChoice(lineEls[2],2,""); setChoice(lineEls[3],3,"");
+  setChoice(lineEls[4],1,"Ride in again","sel act");
+  hud(); fitText();
 }
 
 /* ---- full screen ---- *
@@ -1300,59 +3116,139 @@ for(const t of ["gesturestart","gesturechange","gestureend"])
 const inUI=e=>!!e.target?.closest?.("#app");
 document.addEventListener?.("contextmenu",e=>{if(gameMode||inUI(e))e.preventDefault?.();});
 document.addEventListener?.("dblclick",e=>{if(gameMode)e.preventDefault?.();});
-document.addEventListener?.("visibilitychange",()=>{if(!document.hidden&&gameMode)keepAwake();});
+/* Going away. A thumb still down when the page is backgrounded would otherwise
+ * be held forever, and a cue scheduled before it went would land on a street
+ * nobody is watching. The context is suspended rather than torn down; a gesture
+ * on the way back is what resumes it, as it was what started it. */
+document.addEventListener?.("visibilitychange",()=>{
+  if(document.hidden){releaseAll(); newSeq(); SND.suspend(); return;}
+  if(gameMode)keepAwake();
+});
+addEventListener("pagehide",()=>{releaseAll(); newSeq(); SND.suspend();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
 /* The theme belongs to the title screen, and it needs a gesture before the
  * audio context exists at all, so the first tap or key is where it starts. */
 let themePlayed=false;
+/* A gesture unlocks the audio and does nothing else with it. The title cue is
+ * scheduled behind the unlock rather than played inside it, so a player who
+ * presses FIRE straight through never hears it start under the dawn: starting
+ * the day cancels the sequence it was scheduled in. */
+/* The title music runs for as long as he is looking at the title, which is what
+ * a title screen did: it comes round again rather than playing once and leaving
+ * him in silence. Starting the day moves the sequence, and the loop goes with
+ * it. */
+function titleLoop(){
+  if(G.phase!=="intro")return;
+  SND.title();
+  cueAtMs(SND.spec.lengthOf(SOUNDS.title)*1000+900,titleLoop);
+}
+/* Returns true when this was the gesture that woke the audio. On the title that
+ * gesture is spent on the music and nothing else: a browser will not make a
+ * sound until it is asked to, so the press that asks is the press that raises
+ * the title theme, and the next one starts the day. With the sound off there is
+ * nothing to raise and the press goes straight through. */
 function firstGesture(){
-  if(themePlayed||G.phase!=="intro")return;
-  themePlayed=true; SND.title();
+  SND.unlock();
+  if(themePlayed||G.phase!=="intro")return false;
+  themePlayed=true; cueAtMs(0,titleLoop);
+  return SND.on;
+}
+/* Back to the title from the sundown table: the music starts over with it. */
+function toTitle(){
+  newSeq(); SND.stopAll(); themePlayed=false;
+  G=newDay({}); G.phase="intro"; cursor=0; said=""; react="";
+  build={at:performance.now(),rows:0};
+  themePlayed=true; cueAtMs(0,titleLoop);
+  paint();
 }
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
+  // whatever was sounding — the title, the sundown, the last man's theme — is
+  // over, and nothing it scheduled is still owed
+  newSeq(); SND.stopAll();
   SND.dawn();
   G=newDay({}); cursor=0; said=""; react="";
-  beginEncounter(G); openDialogue(G); newScene();
-  SND.badge();
+  beginEncounter(G); openDialogue(G);
+  // the badge follows the dawn rather than landing on top of it, and the day's
+  // first visitor follows the badge
+  const d=SND.spec.lengthOf(SOUNDS.dawn)*1000;
+  const b=SND.spec.lengthOf(SOUNDS.badge)*1000;
+  cueAtMs(d+60,()=>SND.badge());
+  newScene(d+b+160);
 }
 /* Each visitor is audible before he is visible: his own arrival over the door
  * and the boardwalk. */
-function newScene(){
+function newScene(after){
   build={at:performance.now(),rows:0};
   said=""; react=""; cursor=0;
-  SND.door(); setTimeout(()=>SND.step(),260);
-  const e=who(G);
+  const t0=after||0, e=who(G);
+  cueAtMs(t0,()=>SND.door());                       // the door, then the boardwalk
+  cueAtMs(t0+260,()=>SND.step());
   (e&&e.arrive||[]).forEach((cue,i)=>{
-    if(typeof SND[cue]==="function")setTimeout(()=>SND[cue](),420+i*520);
+    if(typeof SND[cue]==="function")cueAtMs(t0+420+i*520,()=>SND[cue]());
   });
+  // and then his own theme, which is how you know who is in the street
+  const theme=e&&e.theme;
+  if(theme)cueAtMs(t0+700,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
+}
+/* A navigation click marks a selection changing. Walking into a wall is not a
+ * selection changing, and neither is a reply that is not there. */
+function moveCursor(d){
+  if(build.rows<10)return;
+  const b=beat(); const n=b&&b.replies?b.replies.length:0;
+  if(n<1)return;
+  const was=cursor;
+  cursor=((cursor+d)%n+n)%n;
+  if(cursor!==was)SND.click();
+  paint();
+}
+/* Putting the gun up is one sound, the same one whichever way he does it: the
+ * HOL control, Escape, or walking the sights off the bottom of the street. */
+function putUp(){
+  if(G.mode!=="gun")return;
+  holster(G); SND.holster(); paint();
 }
 function up(){
+  if(screen==="sound"){soundCmd("prev");return;}
   if(G.phase==="intro")return;
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
-    SND.holster(); SND.cock(); setTimeout(()=>SND.aim(),140); paint(); return;
+    SND.cut();                                  // the theme stops where the gun starts
+    // leather out of the holster, the hammer back, the sights settling: once
+    SND.leather(); SND.cock(); cueAtMs(140,()=>SND.aim());
+    paint(); return;
   }
-  if(G.mode==="gun"){moveAim(G,0,-1);SND.click();}
+  if(G.mode==="gun")moveAim(G,0,-1);            // the sights make no sound
 }
 function down(){
+  if(screen==="sound"){soundCmd("next");return;}
   if(G.mode==="gun"){
     // down walks the crosshair down the scene; pulled past the bottom it
     // holsters, which is the way out of a stand-off. HOL and Escape do it at once.
-    if(G.aim.y>=0.995){holster(G);SND.holster();paint();return;}
-    moveAim(G,0,1); SND.click(); return;
+    if(G.aim.y>=0.995){putUp();return;}
+    moveAim(G,0,1); return;                     // the sights make no sound
   }
-  if(G.phase==="dialogue"&&build.rows>=10){cursor=(cursor+1)%4;SND.click();paint();}
+  if(G.phase==="dialogue"&&build.rows>=10)moveCursor(1);
 }
-function left(){if(G.mode==="gun"){moveAim(G,-1,0);SND.click();}
-  else if(G.phase==="dialogue"){cursor=(cursor+3)%4;SND.click();paint();}}
-function right(){if(G.mode==="gun"){moveAim(G,1,0);SND.click();}
-  else if(G.phase==="dialogue"){cursor=(cursor+1)%4;SND.click();paint();}}
+function left(){if(screen==="sound"){soundCmd("prev");return;}
+  if(G.mode==="gun"){moveAim(G,-1,0);return;}
+  if(G.phase==="dialogue")moveCursor(-1);}
+function right(){if(screen==="sound"){soundCmd("next");return;}
+  if(G.mode==="gun"){moveAim(G,1,0);return;}
+  if(G.phase==="dialogue")moveCursor(1);}
 function fire(){
+  if(screen==="sound"){soundCmd("play");return;}
   if(G.phase==="intro"){startDay();paint();return;}
   if(G.phase==="summary"){startDay();paint();return;}
   if(G.phase==="resolve"){advance();return;}
+  if(G.phase==="interlude"){
+    const warned=!!G.tips[G.interlude];
+    enterJob(G);
+    if(warned){SND.cut();SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
+    else settleSound();
+    paint(); return;
+  }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
@@ -1367,12 +3263,15 @@ function fire(){
   const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
   say(G,cursor);
-  if(G.phase==="tell"){G.tell.at=performance.now();SND.tell();SND.tension();}
+  if(G.phase==="tell"){G.tell.at=performance.now();SND.cut();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
   paint();
 }
 function choose(i){                       // the 1-4 keys and the tapped lines
-  if(G.phase==="intro"){startDay();paint();return;}
+  if(screen==="sound"){soundCmd(["play","next","prev","back"][i]||"play");return;}
+  if(G.phase==="intro"){
+    if(i===1){screen="sound";cueAt=0;SND.unlock();paint();return;}
+    startDay();paint();return;}
   if(G.phase!=="dialogue"||G.mode!=="talk")return;
   cursor=Math.max(0,Math.min(3,i)); fire();
 }
@@ -1384,40 +3283,59 @@ function afterShot(before){
   paint();
 }
 function settleSound(){
+  SND.cut();                              // the theme is over; this is the answer
   const o=G.outcome;
   const flags=(G.ending&&G.ending.flags)||[];
   if(flags.indexOf("offended")>=0)SND.penalty();
-  if(flags.some(f=>f.indexOf("tip_")===0)){SND.clue();SND.point();}
+  if(flags.some(f=>f.indexOf("tip_")===0)){SND.tipoff();SND.point();}
   else if(o==="surrendered"){SND.respect();SND.thread();}
   else if(o==="departed"||o==="walked_away"||o==="turns_away")SND.step();
   else if(o==="disarmed"){SND.ricochet();SND.wound();}
+  else if(o==="wounded_innocent"){SND.wound();SND.disgrace();}
   else if(o==="killed_him"){SND.hit();SND.death();bodyFall=0.01;}
   else if(o==="innocent_killed"){SND.hit();SND.death();SND.disgrace();bodyFall=0.01;}
-  else if(o==="missed_him"){SND.ricochet();setTimeout(()=>SND.graze(),220);}
+  else if(o==="missed_him"){SND.ricochet();cueAtMs(220,()=>SND.graze());}
   else if(o==="wounded"){SND.gunshot();SND.hit();}
-  else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();setTimeout(()=>SND.patch(),400);}
-  else if(o==="job_stopped"){SND.thread();SND.respect();}
+  else if(o==="doctor_saved"||o==="doctor_came"){SND.gunshot();SND.hit();cueAtMs(400,()=>SND.patch());}
   else if(o==="job_missed"){SND.alarm();SND.robbery();}
   else SND.clock();
-  if(o==="killed_him"||o==="innocent_killed")setTimeout(()=>SND.churchbell(),900);
-  if(G.duel&&G.duel.fired)setTimeout(()=>SND.reload(),1200);
+  if(o==="killed_him"||o==="innocent_killed")cueAtMs(900,()=>SND.churchbell());
+  if(G.duel&&G.duel.fired)cueAtMs(1200,()=>SND.reload());
   if(G.phase==="summary")endSound();
 }
 function endSound(){
-  SND.dusk();
-  setTimeout(()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();},700);
+  SND.cut(); SND.dusk();
+  cueAtMs(700,()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();});
 }
 function advance(){
   if(G.phase==="summary")return;
+  // the last man's footsteps, bell and reload are no longer owed to anyone
+  newSeq(); SND.cut();
   const r=nextEncounter(G);
   if(G.phase==="summary"){endSound();paint();return;}
-  openDialogue(G); newScene(); SND.clock(); SND.wind(); paint();
+  if(G.phase!=="interlude")openDialogue(G);
+  newScene(); SND.clock(); SND.wind(); paint();
+  if(G.phase==="interlude")cueAtMs(300,()=>{if(G.phase==="interlude")SND.theme("th_job");});
 }
 const CONTROL={up,down,left,right,fire,
   full:toggleGameMode,
-  holster:()=>{holster(G);paint();},
-  mute:()=>{const on=SND.toggle();muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
-    muteBtn.setAttribute("aria-pressed",on?"true":"false");}};
+  holster:putUp,
+  mute:()=>{const on=SND.toggle(); if(!on)newSeq(); showSound(on);
+    try{localStorage.setItem("lotw.sound",on?"1":"0");}catch(e){}}};
+function showSound(on){
+  if(!muteBtn)return;
+  muteBtn.textContent=on?"SOUND ON":"SOUND OFF";
+  muteBtn.setAttribute("aria-pressed",on?"true":"false");
+}
+/* A player who turned the sound off does not want it back on every reload. The
+ * preference is restored through quiet(), never through toggle(), so restoring
+ * it is not itself the gesture that builds an AudioContext. */
+(function restoreSound(){
+  let off=false;
+  try{off=localStorage.getItem("lotw.sound")==="0";}catch(e){}
+  if(off)SND.quiet();
+  showSound(SND.on);
+})();
 /* Every on-screen control carries data-cmd; the same names are the key map, so
  * a control can never exist that no handler covers.
  *
@@ -1429,6 +3347,27 @@ const CONTROL={up,down,left,right,fire,
 const REPEAT_DELAY=320, REPEAT_RATE=90;
 const REPEATS=new Set(["up","down","left","right"]);
 let held=null;                        // {cmd, at, next, el}
+/* With the gun out the directions are not a menu and should not behave like
+ * one. Every held direction, from the pad or from the keys, goes into one set
+ * and the loop integrates them, so two at once give a diagonal and the sights
+ * run instead of stepping on a repeat timer. A duel is scored on how long the
+ * shot took; a control that waits 320ms before it will move twice is a control
+ * that loses it. */
+const DIRV={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+const pressed=new Set();
+let aimRun=0, aimTick=0;
+const aiming=()=>G.mode==="gun"&&G.phase!=="intro"&&screen!=="sound";
+function runAim(now){
+  if(!pressed.size||!aiming()){aimRun=0;aimTick=0;return;}
+  let dx=0,dy=0;
+  for(const c of pressed){const v=DIRV[c]; if(v){dx+=v[0];dy+=v[1];}}
+  if(!dx&&!dy){aimRun=0;return;}
+  const dt=aimTick?Math.min(64,now-aimTick):16; aimTick=now;
+  aimRun=Math.min(1,aimRun+dt/300);            // the sights take a moment to run
+  const m=Math.sqrt(dx*dx+dy*dy);
+  const k=(0.55+aimRun*1.40)*dt/1000/RULES.AIM_STEP;
+  moveAim(G,dx/m*k,dy/m*k);
+}
 function runCmd(cmd,el){
   if(cmd==="choose")choose(+el.dataset.index);
   else if(CONTROL[cmd])CONTROL[cmd]();
@@ -1439,36 +3378,116 @@ function releaseHeld(){
   if(held&&held.el&&held.el.classList)held.el.classList.remove("on");
   held=null;
 }
+function releaseAll(){pressed.clear();aimRun=0;aimTick=0;releaseHeld();}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
-    e.preventDefault(); SND.unlock(); firstGesture();
+    e.preventDefault();
+    if(firstGesture()){paint();return;}          // that press raised the music
     const cmd=el.dataset.cmd;
     // capture can throw if the pointer has already gone; the press still counts
     try{el.setPointerCapture?.(e.pointerId);}catch(err){}
     runCmd(cmd,el);
-    if(REPEATS.has(cmd))held={cmd,el,next:performance.now()+REPEAT_DELAY};
+    if(REPEATS.has(cmd)){
+      pressed.add(cmd);
+      if(!aiming())held={cmd,el,next:performance.now()+REPEAT_DELAY};
+    }
   });
-  for(const t of ["pointerup","pointercancel","lostpointercapture","pointerleave"])
-    el.addEventListener(t,()=>{if(held&&held.el===el)releaseHeld();});
+  // Capture is taken on the press, so a thumb that slides off the button still
+  // owns the gesture: only letting go, or the system taking it away, ends it.
+  // pointerleave is not letting go.
+  for(const t of ["pointerup","pointercancel","lostpointercapture"])
+    el.addEventListener(t,()=>{
+      if(el.dataset.cmd)pressed.delete(el.dataset.cmd);
+      if(held&&held.el===el)releaseHeld();
+    });
 });
 /* Nothing on this page is text to be selected or dragged. */
 document.addEventListener?.("selectstart",e=>{
   if(!e.target?.closest?.("input,textarea"))e.preventDefault?.();
 });
 document.addEventListener?.("dragstart",e=>e.preventDefault?.());
-addEventListener("blur",releaseHeld);
+addEventListener("blur",releaseAll);
+/* The arrows, the same four under the left hand, and the numeric keypad, so a
+ * player reaches for whichever of the three they already use. */
 const KEYS={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
-  Enter:"fire"," ":"fire",Escape:"holster",m:"mute",g:"full",F11:"full"};
+  w:"up",s:"down",a:"left",d:"right",
+  "8":"up","2":"down","4":"left","6":"right",
+  Enter:"fire"," ":"fire",f:"fire",
+  Escape:"holster",h:"holster",m:"mute",g:"full",F11:"full"};
+function keyCmd(e){
+  // the keypad digits are directions; the row above the letters picks a reply
+  if(e.code&&e.code.indexOf("Numpad")===0)return KEYS[e.code.slice(6)]||null;
+  return KEYS[e.key]||KEYS[(e.key||"").toLowerCase()]||null;
+}
+/* The browser's own key repeat never does anything. A held key is a held key:
+ * it goes into the same set the pad fills, and whatever repeating it should do
+ * is done by the frame loop, on the frame loop's clock. That is what makes a
+ * held key and a held thumb the same thing. */
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
-  SND.unlock(); firstGesture();
-  if(/^[1-4]$/.test(e.key)){e.preventDefault();choose(+e.key-1);paint();return;}
-  const cmd=KEYS[e.key]||KEYS[(e.key||"").toLowerCase()];
+  if(firstGesture()){e.preventDefault();paint();return;}
+  if(/^[1-4]$/.test(e.key)&&!(e.code&&e.code.indexOf("Numpad")===0)){
+    e.preventDefault();
+    if(!e.repeat){choose(+e.key-1);paint();}
+    return;
+  }
+  const cmd=keyCmd(e);
   if(!cmd)return;
   e.preventDefault();
+  if(e.repeat)return;                       // the OS may not act on the player's behalf
+  if(DIRV[cmd]){
+    pressed.add(cmd);
+    CONTROL[cmd]();
+    // with the gun out the loop runs the sights; in the dialogue it repeats
+    // the menu, on the same clock and after the same wait as the pad
+    if(!aiming())held={cmd,el:null,next:performance.now()+REPEAT_DELAY};
+    paint(); return;
+  }
   CONTROL[cmd]();
   paint();
 });
+addEventListener("keyup",e=>{
+  const cmd=keyCmd(e);
+  if(cmd){
+    pressed.delete(cmd);
+    if(held&&held.cmd===cmd&&!held.el)releaseHeld();
+  }
+  if(!pressed.size){aimRun=0;aimTick=0;}
+});
+
+/* ---- the street itself, as a sight ---- *
+ * With the gun out, a thumb on the picture lays the sights where it lands and
+ * drags them from there. It does not fire: a shot costs a man's life and an
+ * arrest, so it stays on FIRE and on the keys, where it cannot be an accident.
+ */
+function scenePoint(e){
+  const r=cv.getBoundingClientRect?.();
+  if(!r||!r.width||!r.height)return null;
+  const d=Math.min(devicePixelRatio||1,2.5), g=sceneGeom();
+  const x=(((e.clientX-r.left)*(cv.width/(r.width*d))*d)-g.ox)/g.sx;
+  const y=(((e.clientY-r.top)*(cv.height/(r.height*d))*d)-g.oy)/g.sy;
+  return {x:x/SCENE.w,y:y/SCENE.h};
+}
+let laying=false;
+function layOn(e){
+  if(!aiming())return;
+  const p=scenePoint(e); if(!p)return;
+  if(p.x<-0.04||p.x>1.04||p.y<-0.04||p.y>1.04)return;
+  e.preventDefault?.();
+  setAim(G,p.x,p.y); SND.click(); paint();
+}
+if(cv.addEventListener){
+  cv.addEventListener("pointerdown",e=>{
+    SND.unlock(); firstGesture();
+    if(!aiming())return;
+    laying=true;
+    try{cv.setPointerCapture?.(e.pointerId);}catch(err){}
+    layOn(e);
+  });
+  cv.addEventListener("pointermove",e=>{if(laying)layOn(e);});
+  for(const t of ["pointerup","pointercancel","lostpointercapture"])
+    cv.addEventListener(t,()=>{laying=false;});
+}
 
 /* ---- the loop ----
  * One rAF loop, wrapped. Where there is no rAF - a headless harness - the
@@ -1481,12 +3500,17 @@ function frame(now){
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
+    runAim(now);
+    runQueue(now);
     if(flash>0)flash-=1/60;
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
       const before=G.phase;
       const ev=tick(G,now);
+      // a man who outdraws you ends the encounter, and sometimes the day, from
+      // inside the loop rather than from a keypress: repaint either way
       if(ev&&G.phase==="resolve"){settleSound();paint();}
+      if(ev&&G.phase==="summary"){endSound();paint();}
       if(before==="tell"&&G.phase==="duel"){SND.holster();}
     }
     drawScene(now);
