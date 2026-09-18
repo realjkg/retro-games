@@ -2244,8 +2244,45 @@ function ownGun(out){
   if(out)ctx.drawImage(sheriffImg,OWN.x,OWN.y,OWN.w,OWN.h);
   else{
     const t=OWN.rest, h=OWN.h-t;
-    ctx.drawImage(sheriffImg,0,t,OWN.w,h,OWN.x,OWN.y+t,OWN.w,h);
+    const strip=restingStrip(t,h);
+    if(strip)ctx.drawImage(strip,OWN.x,OWN.y+t);
+    else ctx.drawImage(sheriffImg,0,t,OWN.w,h,OWN.x,OWN.y+t,OWN.w,h);
   }
+}
+/* With the gun down the frame holds the strip below his gun arm. Cut clean,
+ * that reads as a rendering fault rather than a crop: a straight horizontal
+ * line ruled across a man. So the top of the strip goes down into shadow over
+ * eight rows, on the same ordered matrix as everything else, and the edge
+ * becomes him falling away into the dark nearest the camera.
+ *
+ * It is built once on its own canvas and kept, because the shadow has to fall
+ * on him and nowhere else: laid straight onto the street it would stipple the
+ * dirt beside him as well, which is a worse fault than the one it fixes.
+ */
+const FADE=8;
+let restStrip=null;
+function restingStrip(t,h){
+  if(restStrip!==null)return restStrip;
+  restStrip=false;
+  try{
+    const cv2=document.createElement("canvas");
+    cv2.width=OWN.w; cv2.height=h;
+    const c=cv2.getContext("2d");
+    if(!c||!c.drawImage||!c.fillRect)return restStrip;
+    c.imageSmoothingEnabled=false;
+    c.drawImage(sheriffImg,0,t,OWN.w,h,0,0,OWN.w,h);
+    c.globalCompositeOperation="source-atop";      // only where he already is
+    for(let k=0;k<FADE;k++){
+      const amt=Math.round((1-(k+0.5)/FADE)*16);
+      for(let i=0;i<OWN.w;i++){
+        if(BAYER[((t+k)&3)*4+(i&3)]>=amt)continue;
+        c.fillStyle="#0b0906"; c.fillRect(i,k,1,1);
+      }
+    }
+    c.globalCompositeOperation="source-over";
+    restStrip=cv2;
+  }catch(e){ restStrip=false; }
+  return restStrip;
 }
 
 /* ---- the title card ---- *
@@ -2449,11 +2486,19 @@ const PEOPLE=[{x:206,w:5,h:13},{x:216,w:5,h:12},{x:120,w:5,h:13}];
 const hash=(a,b)=>((a*73856093)^(b*19349663))>>>0;
 /* A 4x4 ordered matrix: the one a C64 artist would have dithered with. */
 const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+/* The matrix is read at the pixel's own place on the screen, not at its place
+ * inside whatever rectangle is being filled. Reading it from the rectangle's
+ * own corner gives two wrong pictures: a band filled a row at a time never
+ * leaves the matrix's first row, so a 4x4 dither collapses into a 1x4 one and
+ * the sky comes out in vertical stripes; and two dithered shapes that meet
+ * anywhere but on a multiple of four show a seam where each restarts the
+ * pattern. Indexing by the screen keeps one continuous weave under everything. */
 function dither(x,y,w,h,a,b,amount){
   const t=Math.round(Math.max(0,Math.min(1,amount))*16);
+  const x0=Math.round(x), y0=Math.round(y);
   for(let j=0;j<h;j++)for(let i=0;i<w;i++){
-    const X=Math.round(x)+i, Y=Math.round(y)+j;
-    ctx.fillStyle=BAYER[(j&3)*4+(i&3)]<t?b:a;
+    const X=x0+i, Y=y0+j;
+    ctx.fillStyle=BAYER[(Y&3)*4+(X&3)]<t?b:a;
     ctx.fillRect(X,Y,1,1);
   }
 }

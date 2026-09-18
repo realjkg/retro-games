@@ -23,7 +23,20 @@ function openPage(setup,cold){
   // no pretendToBeVisual: the page's loop must not keep the harness alive.
   // The canvas stub goes in before the page's scripts run, because they capture
   // the 2d context at load and jsdom has none.
-  const ctx2d=new Proxy({},{get:(t,k)=>k==='canvas'?{width:320,height:200}:()=>{}});
+  // The stub records what was painted where, in the colour that was set, so a
+  // test can read the picture back without a real canvas. Everything else on a
+  // 2d context is a no-op.
+  const painted=[];
+  const state={fillStyle:'#000000'};
+  const ctx2d=new Proxy(state,{
+    get:(t,k)=>{
+      if(k==='canvas')return {width:320,height:200};
+      if(k==='fillStyle')return t.fillStyle;
+      if(k==='fillRect')return (x,y,w,h)=>painted.push({x,y,w,h,c:t.fillStyle});
+      if(k==='__painted')return painted;
+      return ()=>{};
+    },
+    set:(t,k,v)=>{t[k]=v;return true;}});
   const dom=new JSDOM(HTML,{runScripts:"dangerously",
     url:"https://example.invalid/law-of-the-west/",
     beforeParse(win){win.HTMLCanvasElement.prototype.getContext=()=>ctx2d;
@@ -41,7 +54,7 @@ function openPage(setup,cold){
   // the ones about that moment wants the page already awake, so the gesture is
   // marked used here rather than in forty call sites.
   if(!cold)ev('themePlayed=true;');
-  return {dom,w,errors,ev,
+  return {dom,w,errors,ev,painted,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
     ready(){ev('build').rows=10;ev('paint()');},
     el:id=>w.document.getElementById(id),
@@ -826,4 +839,41 @@ test('9q. the title is a drawn plate and its music comes round again',
   assert.equal(rlog.slice(n).filter(c=>c==='title').length,0,
     'the title music played on over the day');
   assert.deepEqual(r.errors,[]);
+});
+
+test('9r. the dither is one weave over the whole picture, not a stripe per row',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  const at=(rows)=>{
+    p.painted.length=0;
+    rows();
+    const grid={};
+    for(const q of p.painted)grid[q.x+','+q.y]=q.c;
+    return grid;
+  };
+  // A band laid down a row at a time is what the sky is made of. Read from each
+  // rectangle's own corner the matrix never leaves its first row, every row
+  // comes out identical, and the sky is vertical stripes.
+  const band=at(()=>{for(let y=0;y<4;y++)p.ev(`dither(0,${y},8,1,"#000000","#ffffff",0.5)`);});
+  const row=y=>[0,1,2,3,4,5,6,7].map(x=>band[x+','+y]).join('');
+  const rows=[row(0),row(1),row(2),row(3)];
+  assert.equal(new Set(rows).size>1,true,
+    'every row of the band came out the same: '+rows[0]);
+  // and the four rows together are the matrix, so each column varies too
+  const cols=[0,1,2,3].map(x=>[0,1,2,3].map(y=>band[x+','+y]).join(''));
+  assert.equal(new Set(cols).size>1,true,'every column came out the same');
+
+  // Two shapes that meet must share one weave: the same pixel gets the same
+  // answer whichever rectangle painted it.
+  const whole=at(()=>p.ev('dither(0,0,8,4,"#000000","#ffffff",0.5)'));
+  const split=at(()=>{p.ev('dither(0,0,8,2,"#000000","#ffffff",0.5)');
+                      p.ev('dither(0,2,8,2,"#000000","#ffffff",0.5)');});
+  for(let y=0;y<4;y++)for(let x=0;x<8;x++)
+    assert.equal(split[x+','+y],whole[x+','+y],
+      'a seam at '+x+','+y+': split '+split[x+','+y]+' vs whole '+whole[x+','+y]);
+  // an offset rectangle keeps the weave too, rather than restarting it
+  const off=at(()=>p.ev('dither(2,1,6,3,"#000000","#ffffff",0.5)'));
+  for(let y=1;y<4;y++)for(let x=2;x<8;x++)
+    assert.equal(off[x+','+y],whole[x+','+y],'the weave restarted at '+x+','+y);
+  assert.deepEqual(p.errors,[]);
 });
