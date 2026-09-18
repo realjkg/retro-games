@@ -39,6 +39,18 @@ const C64={blk:"#000000",wht:"#ffffff",red:"#68372b",cyn:"#70a4b2",pur:"#6f3d86"
 const px=(x,y,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),
   Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));};
 const lerp=(x,x0,y0,x1,y1)=>y0+(y1-y0)*(x-x0)/(x1-x0||1);
+/* A colour a step up or down its own ramp: positive toward the light, negative
+ * into the shadow. Flat fields are what made the town read as a different kind
+ * of drawing from the sheriff, and a ramp is the cheapest way off a flat field. */
+const CLAMP=v=>v<0?0:v>255?255:Math.round(v);
+function shade(col,f){
+  if(typeof col!=="string"||col.charAt(0)!=="#"||col.length!==7)return col;
+  const n=parseInt(col.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  if(f>=0){r+=(255-r)*f; g+=(255-g)*f; b+=(255-b)*f;}
+  else{r*=1+f; g*=1+f; b*=1+f;}
+  return "#"+((1<<24)|(CLAMP(r)<<16)|(CLAMP(g)<<8)|CLAMP(b)).toString(16).slice(1);
+}
 
 /* ---- figures ---- *
  * A caller is a 24x20 grid painted two pixels to a cell, with a one-pixel dark
@@ -87,9 +99,20 @@ function drawFigure(rows,x0,y0,look,cw,ch){
     if(cellColour(at(r,c),look)===null)continue;
     ctx.fillRect(Math.round(x0+c*w)-1,Math.round(y0+r*h)-1,w+2,h+2);
   }
-  for(let r=0;r<rows.length;r++)for(let c=0;c<cols;c++){
-    const col=cellColour(at(r,c),look); if(!col)continue;
-    px(x0+c*w,y0+r*h,w,h,col);
+  // The light comes from the left, as it does in the sheriff's own drawing, so
+  // each row is lit along the edge it turns toward the light and dropped a step
+  // along the edge it turns away. A flat silhouette becomes a body.
+  for(let r=0;r<rows.length;r++){
+    let l=-1,rt=-1;
+    for(let c=0;c<cols;c++)if(cellColour(at(r,c),look)!==null){if(l<0)l=c;rt=c;}
+    const round=rt-l>2;
+    for(let c=0;c<cols;c++){
+      const col=cellColour(at(r,c),look); if(!col)continue;
+      let k=col;
+      if(round&&rt-c<=1)k=shade(col,-0.24);
+      else if(round&&c-l<=0)k=shade(col,0.18);
+      px(x0+c*w,y0+r*h,w,h,k);
+    }
   }
 }
 function visitor(enc,pose){
@@ -341,8 +364,17 @@ function buildings(){
     else if(b.kind==="brick")brickHouse(b.x0,b.x1,b.top,b.carry);
     else station(b.x0,b.x1,b.top);
   }
+  // A dark turn at each frontage edge, so the row reads as solids standing in
+  // light rather than as coloured paper laid side by side.
+  for(const b of ROW){
+    ctx.fillStyle="rgba(18,12,8,.30)"; ctx.fillRect(b.x1-2,b.top,2,HORIZON-b.top);
+    ctx.fillStyle="rgba(255,228,170,.13)"; ctx.fillRect(b.x0,b.top,1,HORIZON-b.top);
+    ctx.fillStyle="rgba(18,12,8,.22)"; ctx.fillRect(b.x0,b.top,b.x1-b.x0,1);
+  }
   treeAt(68,HORIZON,11); treeAt(148,HORIZON,9);
   px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+  for(let i=0;i<7;i++)                                  // what the row throws down
+    px(0,HORIZON+i,SCENE.w,1,"rgba(26,18,10,"+(0.20-i*0.028).toFixed(3)+")");
 }
 /* ---- the board over the middle building ---- */
 function painted(text,x,y,w,h,size){
@@ -505,6 +537,40 @@ function propAt(kind){
     }
   }
 }
+/* The sheriff is a drawing with a warm key from the left, a cool shadow and
+ * corners that fall away. The town was painted flat, under no light at all, and
+ * that — not its colours — is what made the two read as different kinds of
+ * picture. The town is graded to meet the drawing rather than the drawing being
+ * flattened to meet the town. */
+function ramp(make,stops){
+  // A context without gradients still gets the light, in bands rather than a
+  // sweep: the picture is 320 across, so the difference is small and the page
+  // never depends on a canvas feature it might not have.
+  let g=null;
+  try{ g=make(); }catch(e){ g=null; }
+  if(g&&typeof g.addColorStop==="function"){
+    for(const [at,col] of stops)g.addColorStop(at,col);
+    return g;
+  }
+  return null;
+}
+function grade(){
+  const warm=ramp(()=>ctx.createLinearGradient(0,0,SCENE.w*0.75,SCENE.h),
+    [[0,"rgba(255,214,152,.15)"],[0.45,"rgba(255,238,210,.04)"],[1,"rgba(26,22,44,.22)"]]);
+  if(warm){ctx.fillStyle=warm; ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  else{
+    ctx.fillStyle="rgba(255,214,152,.10)"; ctx.fillRect(0,0,SCENE.w*0.45,SCENE.h);
+    ctx.fillStyle="rgba(26,22,44,.14)"; ctx.fillRect(SCENE.w*0.45,0,SCENE.w*0.55,SCENE.h);
+  }
+  const vig=ramp(()=>ctx.createRadialGradient(SCENE.w*0.48,SCENE.h*0.44,24,
+                                              SCENE.w*0.48,SCENE.h*0.44,SCENE.w*0.70),
+    [[0,"rgba(0,0,0,0)"],[1,"rgba(22,16,32,.30)"]]);
+  if(vig){ctx.fillStyle=vig; ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  else for(let i=0;i<6;i++){
+    ctx.fillStyle="rgba(22,16,32,.05)";
+    ctx.fillRect(0,0,SCENE.w,4-i); ctx.fillRect(0,SCENE.h-(4-i),SCENE.w,4-i);
+  }
+}
 function town(now,armed){
   sky();
   const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
@@ -531,6 +597,9 @@ function drawScene(now){
       ctx.translate(-FIG.cx,-FIG.ground);visitor(enc,"idle");ctx.restore();
     } else visitor(enc,pose);
   }
+  // The street and the man standing in it are both fifty feet off, so both sit
+  // in the same air. The sheriff is a foot away and stands outside it.
+  grade();
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
