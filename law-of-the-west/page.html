@@ -14,7 +14,8 @@
 <style>
 :root{
   --bg:#120d09; --panel:#1d1610; --panel2:#2a2016; --ink:#f2e6d2; --dim:#b09a7c;
-  --gold:#d8a441; --line:#40311f; --npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+  --gold:#d8a441; --line:#40311f; --sign:#e8cf6a;--npc:#e8cf6a; --sel:#d8a441; --selink:#1a1207;
+  --selbg:rgba(216,164,65,.17);
   --dlg:1;
 }
 @media (prefers-color-scheme: light){
@@ -45,21 +46,53 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
 #top{position:relative;flex:1 1 50%;min-height:0;background:#000;overflow:hidden}
 #scene{width:100%;height:100%;display:block;image-rendering:pixelated}
 #bar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;
-  gap:8px;padding:3px 6px;font-size:11px;color:var(--ink);background:rgba(10,7,4,.55);
-  pointer-events:none}
+  gap:8px;padding:2px 6px;font-size:10px;line-height:13px;color:var(--sign);
+  background:rgba(10,7,4,.78);pointer-events:none;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden}
+/* The picture is 4:3, so upright the scene zone is exactly that and the words
+   take whatever is left: no black band between the street and the dialogue. */
+@media (orientation:portrait){#top{flex:0 0 auto;aspect-ratio:4/3}}
 #bottom{flex:1 1 50%;min-height:0;display:flex;flex-direction:column;gap:4px;padding:6px;
   background:var(--panel);border-top:2px solid var(--line)}
 /* The words must never be cut off: every line sizes to its own content, and the
    panel scrolls as a last resort rather than clipping what a character said. */
 #panel{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;
   overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.npc,.choice{overflow-wrap:break-word;word-break:normal;hyphens:auto}
-.npc{color:var(--npc);font-size:calc(14px * var(--dlg));line-height:1.35;padding:4px 6px;flex:0 0 auto;
-  border-bottom:1px solid var(--line)}
-.choice{font-size:calc(13px * var(--dlg));line-height:1.3;padding:5px 6px;border:1px solid transparent;
-  border-radius:6px;color:var(--ink);cursor:pointer;flex:0 0 auto}
-.choice.sel{background:var(--sel);color:var(--selink);font-weight:700;border-color:var(--sel)}
-.choice.dim{opacity:.45}
+/* The four replies share whatever the visitor's line leaves, up to a limit, so
+   the room under them becomes tap area instead of dead space. */
+#replies{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:3px}
+/* The matrix is set the way the machine set it: upper case, one width per
+   character, tightly stacked. */
+.npc,.choice{overflow-wrap:break-word;word-break:normal;hyphens:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  text-transform:uppercase;letter-spacing:.01em}
+.npc{color:var(--npc);font-size:calc(13px * var(--dlg));line-height:1.3;padding:5px 6px 7px;flex:0 0 auto;
+  border-bottom:2px solid var(--line)}
+/* A reply is a number in its own column and the words beside it, so a line that
+   wraps hangs under its own text rather than under the number. */
+.choice{font-size:calc(12px * var(--dlg));line-height:1.3;padding:4px 7px;
+  border:1px solid transparent;border-left:4px solid transparent;border-radius:4px;
+  color:var(--ink);cursor:pointer;flex:1 1 auto;max-height:82px;min-height:0;
+  display:grid;grid-template-columns:auto 1fr;gap:0 7px;
+  align-content:center;align-items:start}
+.choice .num{color:var(--gold);opacity:.75;font-weight:700}
+.choice .txt{min-width:0}
+.choice.empty{flex:0 0 0;max-height:0;padding:0;border:0;overflow:hidden}
+.choice.sel{background:var(--selbg);border-color:var(--sel);font-weight:700}
+.choice.sel .num{color:var(--sel);opacity:1}
+.choice.dim{opacity:.55}
+/* A note is a line of information, not something to press. */
+.choice.note{cursor:default;flex:0 0 auto;max-height:none;font-size:calc(11px * var(--dlg))}
+/* An action that should not swell to fill the screen on its own. */
+.choice.act{flex:0 0 auto}
+/* The reckoning, as a table rather than a run-on line: name left, count right. */
+.choice.table{cursor:default;flex:0 0 auto;max-height:none;display:block;padding:5px 7px}
+.tbl{display:grid;grid-template-columns:1fr auto;gap:3px 14px;
+  font-size:calc(11px * var(--dlg));line-height:1.35}
+.tbl .k{color:var(--dim)}
+.tbl .v{color:var(--gold);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.choice.dim.sel{opacity:.8;background:none}
 .choice.locked{opacity:.5;font-style:italic}
 .choice.locked.sel{background:var(--panel2);color:var(--dim);border-color:var(--line);font-weight:400}
 #pads{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -85,15 +118,28 @@ body.gamemode #app{padding:env(safe-area-inset-top) env(safe-area-inset-right) e
 body.gamemode #top{flex:1 1 46%}
 body.gamemode #bottom{flex:1 1 54%;border-top-width:3px}
 body.gamemode #meta{display:none}
-body.gamemode .npc{font-size:calc(15px * var(--dlg))}
-body.gamemode .choice{font-size:calc(14px * var(--dlg));padding:7px 8px}
+body.gamemode .npc{font-size:calc(14px * var(--dlg))}
+body.gamemode .choice{font-size:calc(13px * var(--dlg));padding:6px 8px}
 
+@media (orientation:portrait){body.gamemode #top{flex:0 0 auto;aspect-ratio:4/3}}
 body.gamemode .dpad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,42px)}
 body.gamemode .abtn{width:68px;height:68px}
+/* Landscape: the scene zone is itself 4:3, so the picture fills it edge to
+   edge instead of being letterboxed inside a full-height column. Its width is
+   whichever is smaller — a shade under two thirds of the window, or as wide as
+   the window is tall allows — so on a phone held sideways the street runs the
+   full height and the words keep a column they can be read in. */
 @media (orientation:landscape){
-  body.gamemode #app{flex-direction:row}
-  body.gamemode #top{flex:1 1 50%;height:100%}
-  body.gamemode #bottom{flex:1 1 50%;height:100%;border-top:0;border-left:3px solid var(--line)}
+  /* Sideways the two zones sit beside each other whether or not the day was
+     opened full screen: a picture letterboxed into a wide short box was the
+     worst of both, black down each side and the street too small to read. */
+  #app{flex-direction:row;align-items:center}
+  #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
+    height:auto;aspect-ratio:4/3}
+  #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
+    border-top:0;border-left:2px solid var(--line)}
+  #pads{margin-top:auto}
+  body.gamemode #bottom{border-left-width:3px}
   body.gamemode #pads{margin-top:auto}
   body.gamemode .npc{font-size:13px}
   body.gamemode .choice{font-size:12px;padding:5px 7px}
@@ -111,10 +157,12 @@ body.gamemode .abtn{width:68px;height:68px}
   <div id="bottom">
     <div id="panel" role="group" aria-label="Dialogue">
       <div id="line0" class="npc">LAW OF THE WEST — GOLD GULCH</div>
-      <div id="line1" class="choice sel" data-cmd="choose" data-index="0"></div>
-      <div id="line2" class="choice" data-cmd="choose" data-index="1"></div>
-      <div id="line3" class="choice" data-cmd="choose" data-index="2"></div>
-      <div id="line4" class="choice" data-cmd="choose" data-index="3"></div>
+      <div id="replies">
+        <div id="line1" class="choice sel" data-cmd="choose" data-index="0"></div>
+        <div id="line2" class="choice" data-cmd="choose" data-index="1"></div>
+        <div id="line3" class="choice" data-cmd="choose" data-index="2"></div>
+        <div id="line4" class="choice" data-cmd="choose" data-index="3"></div>
+      </div>
     </div>
     <div id="pads">
       <div class="dpad">
