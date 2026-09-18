@@ -58,14 +58,16 @@ const SOUNDS={
              seq:[[0,0,0.55],[-2,0.55,0.55]]}],
   /* An identity sting rather than a melody: a three-note motif, answered twice,
      low in the register. The high voice is a glint, never the lead. */
-  title:   [{w:"pulse",f0:146.83,vol:0.19,cut:1500,cut1:2100,pw:0.16,pw1:0.5,res:9,
-             seq:[[0,0,0.9],[7,0.95,0.55],[10,1.55,1.5],
-                  [0,3.4,0.75],[7,4.2,0.5],[3,4.75,1.1],
-                  [0,6.1,1.9]]},
-            {w:"tri",f0:73.42,vol:0.2,cut:520,res:3,
-             seq:[[0,0,1.55],[0,1.55,1.8],[7,3.4,1.35],[0,4.75,1.3],[0,6.1,1.9]]},
-            {w:"pulse",f0:1174.66,pw:0.5,vol:0.035,cut:5200,res:6,
-             seq:[[0,1.6,0.14],[7,3.5,0.14],[0,6.2,0.4]]}],
+  /* The title. Three voices, as the machine had: a melody in D minor over a
+   * walking bass and a brush on two and four. Newly written — the dramatic job
+   * is the one the original's title music did, wide and unhurried before a
+   * single shot is fired, and none of the notes are its notes. */
+  title:   [{w:"pulse",f0:293.66,vol:0.165,cut:1700,cut1:2600,pw:0.20,pw1:0.46,res:9,
+             seq:[[7,0.00,0.34],[0,0.34,1.02],[3,1.36,0.34],[5,1.70,0.34],[7,2.04,0.68],[5,2.72,0.34],[3,3.06,0.34],[2,3.40,0.34],[0,3.74,0.98],[7,4.72,0.34],[10,5.06,0.34],[12,5.40,1.02],[10,6.42,0.34],[8,6.76,0.34],[7,7.10,0.68],[5,7.78,0.34],[3,8.12,1.02],[12,9.14,0.51],[15,9.65,0.51],[14,10.16,0.34],[12,10.50,0.34],[10,10.84,0.68],[8,11.52,0.34],[7,11.86,0.34],[5,12.20,0.68],[3,12.88,0.34],[2,13.22,0.34],[0,13.56,1.62],[7,15.26,0.34],[3,15.60,0.34],[0,15.94,2.20]]},
+            {w:"tri",f0:73.42,vol:0.20,cut:560,cut1:420,res:3,
+             seq:[[0,0.00,1.30],[0,1.36,1.30],[-4,2.72,1.30],[-2,4.08,0.58],[0,4.72,1.30],[3,6.08,1.30],[-2,7.44,1.30],[0,8.80,0.30],[0,9.14,1.30],[3,10.50,0.96],[-4,11.52,1.30],[-2,12.88,0.62],[0,13.56,1.62],[0,15.26,0.62],[0,15.94,2.20]]},
+            {w:"noise",f0:1,vol:0.055,cut:2400,cut1:600,res:4,
+             seq:[[0,0.34,0.06],[0,1.02,0.06],[0,1.70,0.06],[0,2.38,0.06],[0,3.06,0.06],[0,3.74,0.06],[0,4.42,0.06],[0,5.10,0.06],[0,5.78,0.06],[0,6.46,0.06],[0,7.14,0.06],[0,7.82,0.06],[0,8.50,0.06],[0,9.18,0.06],[0,9.86,0.06],[0,10.54,0.06],[0,11.22,0.06],[0,11.90,0.06],[0,12.58,0.06],[0,13.26,0.06],[0,13.94,0.06],[0,14.62,0.06],[0,15.30,0.06],[0,15.98,0.06],[0,16.66,0.06],[0,17.34,0.06]]}],
   dusk:    [{w:"pulse",f0:110,pw:0.22,pw1:0.5,vol:0.17,cut:1800,cut1:900,res:8,
              seq:[[0,0,0.5],[-2,0.52,0.5],[-3,1.04,0.4],[-4,1.46,0.4],
                   [-5,1.88,0.45],[-7,2.35,0.6]]},
@@ -348,11 +350,17 @@ const SND=(function(){
    */
   const VOICES=3;
   function peak(list){
+    // Times are written in seconds and added up in binary, so a note that ends
+    // exactly where the next begins can end a quarter of a femtosecond after
+    // it. Counting to the millisecond is finer than anything audible and finer
+    // than the frame the notes are quantised to, and it does not mistake that
+    // for a fourth voice.
+    const ms=t=>Math.round(t*1000);
     const ev=[];
     for(const v of list){
       const notes=v.seq||[[0,0,v.dur]];
       for(const n of notes){
-        ev.push([(v.dly||0)+n[1],1]); ev.push([(v.dly||0)+n[1]+n[2],-1]);
+        ev.push([ms((v.dly||0)+n[1]),1]); ev.push([ms((v.dly||0)+n[1]+n[2]),-1]);
       }
     }
     ev.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);

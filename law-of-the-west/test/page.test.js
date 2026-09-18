@@ -18,7 +18,7 @@ const HTML=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
 const open_pages=[];
 process.on('exit',()=>open_pages.forEach(d=>{try{d.window.close();}catch(e){}}));
 
-function openPage(setup){
+function openPage(setup,cold){
   if(jsdomMissing)throw new Error('jsdom is not installed');
   // no pretendToBeVisual: the page's loop must not keep the harness alive.
   // The canvas stub goes in before the page's scripts run, because they capture
@@ -37,6 +37,10 @@ function openPage(setup){
   // window properties, so the page's scope is reached through its own eval
   const ev=code=>w.eval(code);
   assert.ok(ev('typeof SND')==='object','the page did not build SND');
+  // On the title the first gesture is spent raising the music. Every test but
+  // the ones about that moment wants the page already awake, so the gesture is
+  // marked used here rather than in forty call sites.
+  if(!cold)ev('themePlayed=true;');
   return {dom,w,errors,ev,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
     ready(){ev('build').rows=10;ev('paint()');},
@@ -657,13 +661,18 @@ test('9i. holstering is the holster cue and nothing else',
 
 test('9j. the title, the dawn and the badge never overlap',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
-  const p=openPage();
+  const p=openPage(null,true);                 // cold: no gesture has been spent
   const log=p.log();
   p.frame(0);
-  p.tap('[data-cmd="fire"]');                  // the gesture and the day at once
+  p.tap('[data-cmd="fire"]');                  // the first press raises the music
+  for(let t=0;t<=40;t+=20)p.frame(t);
+  assert.equal(p.G().phase,'intro','the first press started the day as well');
+  assert.ok(log.indexOf('title')>=0,'the first press raised nothing');
+  log.length=0;
+  p.tap('[data-cmd="fire"]');                  // and the next one starts the day
   for(let t=0;t<=12000;t+=100)p.frame(t);
   assert.equal(log.indexOf('title'),-1,
-    'the title started under the dawn: '+log.join(','));
+    'the title played on under the dawn: '+log.join(','));
   const d=log.indexOf('dawn'), b=log.indexOf('badge');
   assert.ok(d>=0&&b>d,'the badge did not follow the dawn: '+log.join(','));
   const door=log.indexOf('door');
@@ -767,4 +776,51 @@ test('9p. the artwork, the budget, the offline rule and the hard pixels all hold
   // and nothing on the way to the screen is smoothed
   assert.match(HTML,/image-rendering:pixelated/,'the canvas is smoothed by CSS');
   assert.match(HTML,/imageSmoothingEnabled=false/,'his artwork is smoothed');
+});
+
+test('9q. the title is a drawn plate and its music comes round again',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  // the letters are drawn, not set: every character the card uses has a glyph
+  const T=p.ev('TITLE');
+  const used=[T.line1,T.line2,T.town,'AN ORIGINAL RECREATION','PRESS FIRE'].join('');
+  for(const ch of used)
+    assert.ok(p.ev(`!!GLYPH[${JSON.stringify(ch)}]`),'no glyph for '+JSON.stringify(ch));
+  assert.equal(p.ev('GLYPH.A.split("|").length'),p.ev('GLYPH_H'),'a glyph is the wrong height');
+  for(const k of p.ev('Object.keys(GLYPH)'))
+    for(const row of p.ev(`GLYPH[${JSON.stringify(k)}].split("|")`))
+      assert.equal(row.length,p.ev('GLYPH_W'),'glyph '+k+' is ragged');
+  // and the plate fits the picture it is painted on
+  for(const [line,cell] of [[T.line1,4],[T.line2,6]])
+    assert.ok(p.ev(`textWidth(${JSON.stringify(line)},${cell})`)<=320,
+      JSON.stringify(line)+' is wider than the frame');
+
+  // the card is painted on the title and nowhere else
+  p.ev('build.rows=10;'); p.frame(0);
+  assert.equal(p.G().phase,'intro');
+  p.tap('[data-cmd="fire"]'); p.frame(20);
+  assert.notEqual(p.G().phase,'intro','the day did not start');
+  assert.deepEqual(p.errors,[]);
+
+  // the music comes round again for as long as he is looking at the title
+  const r=openPage(null,true);                    // cold: the gesture is unspent
+  const rlog=r.log();
+  r.frame(0);
+  assert.equal(r.w.eval('firstGesture()'),true,'the first gesture was not spent on the music');
+  assert.equal(r.w.eval('firstGesture()'),false,'a later gesture was spent again');
+  r.frame(1);
+  assert.ok(rlog.indexOf('title')>=0,'the title never played: '+rlog.join(','));
+  const len=r.ev('SND.spec.lengthOf(SOUNDS.title)')*1000;
+  assert.ok(len>8000,'the title music is only '+(len/1000).toFixed(1)+'s');
+  assert.ok(r.ev('queue.length')>0,'the title did not queue its own return');
+  for(let t=0;t<=len+1200;t+=200)r.frame(t);
+  assert.ok(rlog.filter(c=>c==='title').length>=2,
+    'the title music did not come round again: '+rlog.join(','));
+  // and starting the day takes the loop with it
+  const n=rlog.length;
+  r.w.eval('startDay()');
+  for(let t=len+1400;t<=len*2+2000;t+=200)r.frame(t);
+  assert.equal(rlog.slice(n).filter(c=>c==='title').length,0,
+    'the title music played on over the day');
+  assert.deepEqual(r.errors,[]);
 });

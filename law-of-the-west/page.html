@@ -130,11 +130,16 @@ body.gamemode .abtn{width:68px;height:68px}
    the window is tall allows — so on a phone held sideways the street runs the
    full height and the words keep a column they can be read in. */
 @media (orientation:landscape){
-  body.gamemode #app{flex-direction:row;align-items:center}
-  body.gamemode #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
+  /* Sideways the two zones sit beside each other whether or not the day was
+     opened full screen: a picture letterboxed into a wide short box was the
+     worst of both, black down each side and the street too small to read. */
+  #app{flex-direction:row;align-items:center}
+  #top{flex:0 1 auto;width:min(62%,calc((100vh - 6px) * 4 / 3));
     height:auto;aspect-ratio:4/3}
-  body.gamemode #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
-    border-top:0;border-left:3px solid var(--line)}
+  #bottom{flex:1 1 0;min-width:0;height:100%;align-self:stretch;
+    border-top:0;border-left:2px solid var(--line)}
+  #pads{margin-top:auto}
+  body.gamemode #bottom{border-left-width:3px}
   body.gamemode #pads{margin-top:auto}
   body.gamemode .npc{font-size:13px}
   body.gamemode .choice{font-size:12px;padding:5px 7px}

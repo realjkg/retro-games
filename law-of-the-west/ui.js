@@ -181,6 +181,106 @@ function ownGun(out){
   }
 }
 
+/* ---- the title card ---- *
+ * A 1985 title screen is a plate of wood type over a scene, and the machine had
+ * no typeface to do it with: the letters were drawn. These are drawn too — five
+ * by seven cells, stamped at whatever size the plate needs, with a hard black
+ * rim and a drop shadow, which is what gives a flat colour the weight of
+ * painted wood. Nothing here is the browser's text: at this size a font would
+ * be soft, and nothing else in the picture is.
+ */
+const GLYPH={
+  " ":".....|.....|.....|.....|.....|.....|.....",
+  "&":".##..|#..#.|#..#.|.##..|#.#.#|#..#.|.##.#",
+  "\'":"..#..|..#..|.....|.....|.....|.....|.....",
+  "-":".....|.....|.....|#####|.....|.....|.....",
+  ".":".....|.....|.....|.....|.....|.##..|.##..",
+  "0":".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",
+  "1":"..#..|.##..|..#..|..#..|..#..|..#..|.###.",
+  "2":".###.|#...#|....#|...#.|..#..|.#...|#####",
+  "3":"####.|....#|....#|.###.|....#|....#|####.",
+  "4":"...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",
+  "5":"#####|#....|####.|....#|....#|#...#|.###.",
+  "6":".###.|#....|#....|####.|#...#|#...#|.###.",
+  "7":"#####|....#|...#.|..#..|.#...|.#...|.#...",
+  "8":".###.|#...#|#...#|.###.|#...#|#...#|.###.",
+  "9":".###.|#...#|#...#|.####|....#|....#|.###.",
+  "A":".###.|#...#|#...#|#####|#...#|#...#|#...#",
+  "B":"####.|#...#|#...#|####.|#...#|#...#|####.",
+  "C":".####|#....|#....|#....|#....|#....|.####",
+  "D":"####.|#...#|#...#|#...#|#...#|#...#|####.",
+  "E":"#####|#....|#....|####.|#....|#....|#####",
+  "F":"#####|#....|#....|####.|#....|#....|#....",
+  "G":".####|#....|#....|#..##|#...#|#...#|.####",
+  "H":"#...#|#...#|#...#|#####|#...#|#...#|#...#",
+  "I":"#####|..#..|..#..|..#..|..#..|..#..|#####",
+  "J":"..###|...#.|...#.|...#.|...#.|#..#.|.##..",
+  "K":"#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
+  "L":"#....|#....|#....|#....|#....|#....|#####",
+  "M":"#...#|##.##|#.#.#|#...#|#...#|#...#|#...#",
+  "N":"#...#|##..#|#.#.#|#..##|#...#|#...#|#...#",
+  "O":".###.|#...#|#...#|#...#|#...#|#...#|.###.",
+  "P":"####.|#...#|#...#|####.|#....|#....|#....",
+  "Q":".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
+  "R":"####.|#...#|#...#|####.|#.#..|#..#.|#...#",
+  "S":".####|#....|#....|.###.|....#|....#|####.",
+  "T":"#####|..#..|..#..|..#..|..#..|..#..|..#..",
+  "U":"#...#|#...#|#...#|#...#|#...#|#...#|.###.",
+  "V":"#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
+  "W":"#...#|#...#|#...#|#...#|#.#.#|##.##|#...#",
+  "X":"#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
+  "Y":"#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",
+  "Z":"#####|....#|...#.|..#..|.#...|#....|#####"};
+const GLYPH_W=5, GLYPH_H=7;
+function textWidth(str,cell,track){return str.length*(GLYPH_W*cell+(track==null?cell:track))-(track==null?cell:track);}
+function stamp(str,x,y,cell,fill,rim,shadow,track){
+  const gap=(track==null?cell:track);
+  const rows=(g)=>(GLYPH[g]||GLYPH[" "]).split("|");
+  const each=(dx,dy,paint)=>{
+    let cx=x;
+    for(const ch of str){
+      const r=rows(ch.toUpperCase());
+      for(let j=0;j<GLYPH_H;j++)for(let i=0;i<GLYPH_W;i++)
+        if(r[j][i]==="#")paint(cx+i*cell+dx,y+j*cell+dy,j);
+      cx+=GLYPH_W*cell+gap;
+    }
+  };
+  if(shadow)each(cell,cell,(px_,py_)=>px(px_,py_,cell,cell,shadow));
+  if(rim)for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]])
+    each(dx,dy,(px_,py_)=>px(px_,py_,cell,cell,rim));
+  // the face is lit across its own height, the way a painted sign catches light
+  each(0,0,(px_,py_,j)=>px(px_,py_,cell,cell,
+    typeof fill==="function"?fill(j):fill));
+}
+const TITLE={line1:"LAW OF THE",line2:"WEST",town:"GOLD GULCH"};
+function titleCard(now){
+  // the street goes down to a silhouette so the plate has something to sit on
+  ctx.fillStyle="rgba(10,7,16,.62)"; ctx.fillRect(0,0,SCENE.w,SCENE.h);
+  const g=ramp(()=>ctx.createLinearGradient(0,0,0,SCENE.h),
+    [[0,"rgba(232,168,72,.20)"],[0.5,"rgba(0,0,0,0)"],[1,"rgba(12,8,20,.55)"]]);
+  if(g){ctx.fillStyle=g;ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  const face=j=>j<2?"#f6dc9a":j<4?"#e0a83c":"#b47a1e";
+  const c1=4, c2=6;
+  stamp(TITLE.line1,Math.round((SCENE.w-textWidth(TITLE.line1,c1))/2),16,
+        c1,face,"#140c06","rgba(0,0,0,.55)");
+  stamp(TITLE.line2,Math.round((SCENE.w-textWidth(TITLE.line2,c2))/2),52,
+        c2,face,"#140c06","rgba(0,0,0,.55)");
+  // a rule under the plate, and the town's name on it
+  const y=102;
+  px(46,y,228,2,"#8a5a12"); px(46,y,228,1,"#e0a83c");
+  px(40,y-2,6,6,"#e0a83c"); px(274,y-2,6,6,"#e0a83c");
+  const t=TITLE.town, tw=textWidth(t,2,3);
+  ctx.fillStyle="rgba(10,7,16,.72)";
+  ctx.fillRect((SCENE.w-tw)/2-7,y+8,tw+14,GLYPH_H*2+8);
+  stamp(t,Math.round((SCENE.w-tw)/2),y+12,2,"#efe4c8","#140c06",null,3);
+  // and a line of small type along the foot, which is where 1985 put it
+  const s2="AN ORIGINAL RECREATION", s3="PRESS FIRE";
+  stamp(s2,Math.round((SCENE.w-textWidth(s2,1,2))/2),SCENE.h-13,1,"#a89878",null,null,2);
+  const blink=Math.floor(now/560)%2===0;
+  if(blink)stamp(s3,Math.round((SCENE.w-textWidth(s3,2,3))/2),SCENE.h-34,2,
+                 "#e8cf6a","#140c06",null,3);
+}
+
 /* ---- the street ---- *
  * The 1985 frame, drawn with the craft the machine's artists used: ordered
  * dithering between two colours wherever a flat field would show, clapboard
@@ -621,6 +721,7 @@ function drawScene(now){
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
   grade();
+  if(G.phase==="intro"&&build.rows>=10)titleCard(now);
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
@@ -720,7 +821,8 @@ function beat(){return nodeOf(G);}
 function hud(){
   const e=who(G), n=Math.min(G.encounter+1,CAST.length);
   const dot=" \u00b7 ";
-  const where=G.phase==="intro"?"GOLD GULCH"
+  // on the title the card is carrying the name; the strip says it twice otherwise
+  const where=G.phase==="intro"?""
     :G.phase==="summary"?"GOLD GULCH"+dot+"SUNDOWN"
     :G.interlude?(((e&&e.name)||"")+dot+"A ROBBERY")
     :e?(e.name+dot+n+"/"+CAST.length):"GOLD GULCH";
@@ -871,10 +973,33 @@ let themePlayed=false;
  * scheduled behind the unlock rather than played inside it, so a player who
  * presses FIRE straight through never hears it start under the dawn: starting
  * the day cancels the sequence it was scheduled in. */
+/* The title music runs for as long as he is looking at the title, which is what
+ * a title screen did: it comes round again rather than playing once and leaving
+ * him in silence. Starting the day moves the sequence, and the loop goes with
+ * it. */
+function titleLoop(){
+  if(G.phase!=="intro")return;
+  SND.title();
+  cueAtMs(SND.spec.lengthOf(SOUNDS.title)*1000+900,titleLoop);
+}
+/* Returns true when this was the gesture that woke the audio. On the title that
+ * gesture is spent on the music and nothing else: a browser will not make a
+ * sound until it is asked to, so the press that asks is the press that raises
+ * the title theme, and the next one starts the day. With the sound off there is
+ * nothing to raise and the press goes straight through. */
 function firstGesture(){
   SND.unlock();
-  if(themePlayed||G.phase!=="intro")return;
-  themePlayed=true; cueAtMs(0,()=>{if(G.phase==="intro")SND.title();});
+  if(themePlayed||G.phase!=="intro")return false;
+  themePlayed=true; cueAtMs(0,titleLoop);
+  return SND.on;
+}
+/* Back to the title from the sundown table: the music starts over with it. */
+function toTitle(){
+  newSeq(); SND.stopAll(); themePlayed=false;
+  G=newDay({}); G.phase="intro"; cursor=0; said=""; react="";
+  build={at:performance.now(),rows:0};
+  themePlayed=true; cueAtMs(0,titleLoop);
+  paint();
 }
 function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
@@ -1095,7 +1220,8 @@ function releaseHeld(){
 function releaseAll(){pressed.clear();aimRun=0;aimTick=0;releaseHeld();}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
-    e.preventDefault(); SND.unlock(); firstGesture();
+    e.preventDefault();
+    if(firstGesture()){paint();return;}          // that press raised the music
     const cmd=el.dataset.cmd;
     // capture can throw if the pointer has already gone; the press still counts
     try{el.setPointerCapture?.(e.pointerId);}catch(err){}
@@ -1138,7 +1264,7 @@ function keyCmd(e){
  * held key and a held thumb the same thing. */
 addEventListener("keydown",e=>{
   if(e.ctrlKey||e.metaKey||e.altKey)return;
-  firstGesture();
+  if(firstGesture()){e.preventDefault();paint();return;}
   if(/^[1-4]$/.test(e.key)&&!(e.code&&e.code.indexOf("Numpad")===0)){
     e.preventDefault();
     if(!e.repeat){choose(+e.key-1);paint();}
