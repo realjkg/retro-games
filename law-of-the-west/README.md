@@ -99,13 +99,21 @@ three people on the boardwalk who leave the moment a gun comes out.
 with spoked wheels, a locomotive with its smokebox door and cowcatcher and the
 rails running out of frame, barrels, crates, or a corral fence in perspective.
 
-**The sheriff's own arm is the foreground.** A sleeve billows in from the left
-edge at the height of the caller's chest — shaded as cloth, with the light along
-the top of the arm, the shadow beneath it and folds running its length — into a
-dark cuff, a black fist and the revolver — cylinder, hammer and a level barrel reaching most of the
-way across to the man he is talking to. 44×26 cells at three pixels each, the
-largest thing on the screen. His face is the one part of him the player never
-sees; when the gun is holstered the same arm holds it muzzle-down.
+**It is his eyes you are looking through.** The sheriff's arm runs out of the
+**top-left corner** of the frame rather than in from the side, which is what
+says whose arm it is: his shoulder is at the camera, not across the street. The
+sleeve billows down across the picture — shaded as cloth, light along the top of
+the arm, shadow beneath it, folds running its length — into a dark cuff, a black
+fist, and the revolver held in it: cylinder, hammer, trigger guard and a level
+barrel reaching most of the way to the man he is talking to. 44×40 cells at
+three pixels each, the largest thing on the screen, rimmed a pixel in light grey
+so a dark gun over a dark doorway is never just a hole. Holstered, the same hand
+holds it muzzle-down.
+
+**And a hitching rail at his own boots**, nearer than anything else on the
+ground, dark across the bottom-left. Between the two, the player is standing in
+the street rather than watching it. His face is the one part of him there is
+never any of.
 
 Everything is stepped a column at a time with integer edges, so the diagonals
 stair the way a bitmap's do, and the palette is the C64's sixteen colours.
