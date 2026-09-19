@@ -815,15 +815,15 @@ const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
  * in the right place when it happens; a sheriff who was not reads about it. */
 const JOBS={
  stage:{id:"stage", name:"The Stage Road", place:"STAGE ROAD", theme:"th_job",
-   armed:true, arrive:["wagon"],
+   armed:true, arrive:["wagon"], temper:"hostile", masked:true,
    brief:"The Thursday coach comes down the grade with the mine's money aboard, and two men step out of the rocks above the ford.",
    missed:"They took it at the ford while you were up the street. The driver is alive. Nobody else saw a thing worth telling."},
  train:{id:"train", name:"The Westbound", place:"THE CUT", theme:"th_job",
-   armed:true, arrive:["wagon","crowd"],
+   armed:true, arrive:["wagon","crowd"], temper:"hostile", masked:true,
    brief:"The westbound comes into the cut at a walking pace, and a man drops off the payroll car's step with his coat open.",
    missed:"The payroll car was opened at the cut and the westbound came in two hours late with nothing in it."},
  bank:{id:"bank", name:"The Bank", place:"BANK", theme:"th_job",
-   armed:true, arrive:["crowd"],
+   armed:true, arrive:["crowd"], temper:"hostile", masked:true,
    brief:"The back wall of the bank has a door in it that was not there yesterday, and a man in the alley turns round with his hand already moving.",
    missed:"They went through the back wall while you were at the other end of town, and the flour sack went with them."}
 };
@@ -831,7 +831,8 @@ const JOBS={
 const CAST=[
  /* 1 ------------------------------------------------------------- */
  {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
-  armed:true, arrive:["wagon","crowd"],
+  armed:true, arrive:["wagon","crowd"], temper:"patient",
+  hatline:"The derby goes into the dirt behind him and both hands are up before it lands. “London felt,” he says, to nobody in particular, and does not move again.",
   balk:"He takes his hands out of his coat and holds them where you can see them. “I'll say the rest of it when that is back in the leather.”",
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
@@ -881,7 +882,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 2 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
-  armed:false, arrive:["piano","bottle"],
+  armed:false, arrive:["piano","bottle"], temper:"coward",
   balk:"She stops with her hand on the bottle and does not pour. \u201cPut that away or take it outside, Sheriff. I can wait all afternoon.\u201d",
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
@@ -931,7 +932,8 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 3 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
-  armed:true, arrive:["hooves","spurs"],
+  armed:true, arrive:["hooves","spurs"], temper:"hostile",
+  hatline:"The brim spins off him and he does not turn to watch it go. Whatever he rode up this street to be offered, he has stopped wanting it.",
   balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
@@ -973,7 +975,8 @@ const CAST=[
   ends:{}},
  /* 4 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
-  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
+  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"], temper:"patient",
+  hatline:"The derby comes off and he does not flinch, or duck, or put his hands anywhere. He picks it up, looks at the hole in it, and then looks at you.",
   balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
@@ -1026,7 +1029,8 @@ const CAST=[
          flags:[], authority:0}}},
  /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
-  armed:true, arrive:["spurs","crowd"],
+  armed:true, arrive:["spurs","crowd"], temper:"hostile",
+  hatline:"The hat goes into the road and the new gun comes level, and the showing of it is over.",
   balk:"He lets the new gun hang and says nothing more about it. Whatever he came up the street to show you, the showing is over.",
   rounds:{
    opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
@@ -1080,7 +1084,8 @@ const CAST=[
         flags:["depart"], authority:0}}},
  /* 6 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
-  armed:false, arrive:["crowd"],
+  armed:false, arrive:["crowd"], temper:"coward",
+  hatline:"The cap goes into the road and the boy goes down after it with both arms over his head. He is nine years old and he never had a gun on him.",
   balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
@@ -1136,7 +1141,8 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 7 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
-  armed:false, arrive:["crowd"],
+  armed:false, arrive:["crowd"], temper:"coward",
+  hatline:"The bonnet comes off her and she is down in the dirt with her arms over her head, in front of the schoolhouse, in front of the window full of children.",
   balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
@@ -1186,7 +1192,8 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 8 ------------------------------------------------------------- */
  {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
-  armed:true, arrive:["piano","crowd"],
+  armed:true, arrive:["piano","crowd"], temper:"patient",
+  hatline:"The topper turns over twice and lands crown-down in the road. He looks at it, then at you, and puts his hands up without any hurry at all.",
   balk:"He sets the deck down square on the rail and folds his hands on it. “I'll wait. I am a patient man about most things, Sheriff.”",
   rounds:{
    opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
@@ -1236,7 +1243,8 @@ const CAST=[
         flags:["depart"], authority:1}}},
  /* 9 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
-  armed:true, arrive:["hooves"],
+  deputy:true, armed:true, arrive:["hooves"], temper:"patient",
+  hatline:"Your own deputy's hat is in the road and your own deputy has his hands up in the middle of the street, in front of everybody who can see the jail door.",
   balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
@@ -1292,7 +1300,8 @@ const CAST=[
         flags:["depart"], authority:-1}}},
  /* 10 ------------------------------------------------------------ */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
-  armed:true, arrive:["hooves"],
+  armed:true, arrive:["hooves"], temper:"hostile",
+  hatline:"The hat goes off her and she does not go after it, and she does not take her eyes off you while it falls.",
   balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
@@ -1344,13 +1353,17 @@ const CAST=[
         flags:["depart"], authority:1}}},
  /* 11 ------------------------------------------------------------ */
  {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
-  armed:true, arrive:["spurs"], forcedDuel:true,
+  armed:true, arrive:["spurs"], forcedDuel:true, temper:"hostile",
+  hatline:"The hat goes. He has not said one word since noon and he does not start now.",
   standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
   rounds:{}, ends:{}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
 /* What a caller does when the gun comes out before he has been answered: he
  * stops talking, and does not start again while it is out. */
+/* What the street sees when a hat comes off. A masked man's goes with it. */
+const HAT_UNMASKED="The Stetson goes, and it takes the bandana down with it. He is standing in the daylight with his face out in front of the whole street, and then he is running.";
+const HAT_LINE="The hat turns over twice and lands in the road, and whoever was wearing it has stopped doing anything else at all.";
 const BALK_LINE="He is looking at the gun in your hand and not at you, and he has stopped talking.";
 
 /* ============ the pixel grid ============
@@ -1654,7 +1667,11 @@ function figBoxes(S,stand,up){
   const lethal=[CX-half,R.shoulder+2,CX+half,R.waist-1];
   const gone=[Math.max(0,CX-half-9),R.waist,CX-half-2,Math.min(SPR.h-1,R.beltEnd+9)];
   const rgone=[Math.max(0,CX-half-14),R.chest-4,CX-half-2,R.chest+3];
-  return {lethal:lethal,
+  // His hat, wherever the builder put it, and only the part of it that is clear
+  // of his face: a ball through a Stetson takes the Stetson, and a ball an inch
+  // lower takes the man, so the two must not be the same target.
+  const hat=figInk(stand,"H",0,R.eye-2);
+  return {lethal:lethal, hat:hat,
           weapon:figInk(stand,"G",R.waist-2,SPR.h-1)||gone,
           raised:figInk(up,"G",0,R.waist-1)||rgone};
 }
@@ -1678,6 +1695,7 @@ const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
 function boxesFor(e){
   const b=figureOf(e).box||DEFAULT_BOX;
   return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
+          hat:b.hat?cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3]):null,
           weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
           weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
 }
@@ -1688,6 +1706,19 @@ function boxesFor(e){
  * ROW[1] is x0 74, top 56, and plastered() puts that window at x1-16, top+11 -
  * and the box is that pane with a cell of slack round it. */
 const SNIPER_BOX={x:92, y:65, w:13, h:14};
+/* Where the sights may not go. A gunsight that can be walked back over the
+ * sheriff's own sleeve, glove and revolver is a gunsight aimed at the man
+ * holding it, and at 320 by 200 he is a third of the picture. This is the right
+ * edge of his own drawing, banded ten rows at a time and read at full level,
+ * which is the only pose the sights exist in; the reticle's centre is kept a
+ * few pixels clear of it. Nothing is clamped vertically, because walking them
+ * off the bottom of the street is how a stand-off is ended. */
+const SHERIFF_EDGE=[45,57,61,62,61,59,59,59,61,124,119,99,94,88,45,74,75,74,73,73];
+const SIGHT_CLEAR=4;
+function sightFloor(y){
+  const b=Math.max(0,Math.min(SHERIFF_EDGE.length-1,Math.floor(y*SCENE.h/10)));
+  return (SHERIFF_EDGE[b]+SIGHT_CLEAR)/SCENE.w;
+}
 const HITBOX=boxesFor(null);             // the default, for anything asking without a caller
 
 
@@ -1706,6 +1737,17 @@ const RULES={
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
   REFLEX_MIN:1500, REFLEX_MAX:2600,
+  /* How long a man stands there with a gun in his face before he does something
+   * about it, and what he does. It was one window and one answer for all of
+   * them, which made every caller the same man wearing a different hat. A
+   * hostile one is quick and answers it; a patient one gives you a long moment
+   * to think better of it; a frightened one is quicker than either and runs,
+   * and the street remembers that the badge did that to him. */
+  TEMPERS:{
+    hostile:{reflex:[900,1600],  flee:0},
+    patient:{reflex:[2200,3400], flee:-1},
+    coward: {reflex:[700,1400],  flee:-2}
+  },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
@@ -1743,7 +1785,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
-    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0, hatOff:false,
     atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
@@ -1777,7 +1819,7 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.spoke=false; G.balked=false; G.blackout=false;
+  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
@@ -1863,16 +1905,19 @@ function terminal(G,id){
 }
 
 /* ---- the gun, which is always available ---- */
+const temperOf=e=>(e&&RULES.TEMPERS[e.temper])||RULES.TEMPERS.patient;
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  G.aim.x=Math.max(sightFloor(G.aim.y),G.aim.x);
   // A man who has a gun pointed at him before he has been answered stops
   // talking, and does not start again while it is out. Keeping it on him is
   // still the sheriff's business: the reflex below decides what he does about
   // it, which is answer it if he is armed and leave if he is not.
   if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
-  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
+  const t=temperOf(who(G)).reflex;
+  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,t[0],t[1]))};
   return G.mode;
 }
 function holster(G){
@@ -1886,14 +1931,16 @@ function holster(G){
  * unless the gun is out. */
 function setAim(G,x,y){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,x));
   G.aim.y=Math.max(0,Math.min(1,y));
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,x));
   return G.aim;
 }
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
+  // the sights are pushed back out of him whichever way they got there: moved
+  // down the picture into his shoulder, as much as dragged left across it
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
 function tick(G,nowMs){
@@ -1913,7 +1960,12 @@ function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
+    // Nobody unarmed is a threat, but frightening one off the street with a gun
+    // is a thing the town watched the badge do, and it costs what it costs.
+    const cost=temperOf(e).flee;
+    G.authority+=cost;
+    if(cost<0)G.flags.push("offended");
+    return resolve(G,cost<=-2?"fled":"walked_away");
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
@@ -1932,6 +1984,8 @@ const weaponBox=G=>{const b=boxesFor(who(G));
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
   if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
+  const hb=G.hatOff?null:boxesFor(who(G)).hat;
+  if(hb&&inBox(px,py,hb))return "hat";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -1973,6 +2027,43 @@ function shoot(G,latencyMs){
     G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
     G.flags.push("sniper_down"); G.reflex=null;
     return resolve(G,"sniper_down");
+  }
+  /* His hat. A ball an inch above a man is a different sentence from a ball
+   * through him, and who he is decides which. An armed man who was giving you
+   * time to think better of it gives it up instead, and that is the best piece
+   * of policing in the game: an arrest, nobody hurt, and the street watching.
+   * An armed man who was already minded to answer you is now minded to answer
+   * you bareheaded and at once. And anybody with no gun at all has just been
+   * shot at, which the street also watched. Mid-duel it is showing off, and
+   * showing off is a miss. */
+  if(box==="hat"&&!G.hatOff&&e){
+    if(d&&d.drawn){d.fired=true;d.result="miss";d.zone="off";return theirReply(G);}
+    G.hatOff=true; G.reflex=null;
+    // A hold-up man's Stetson takes his bandana down with it, and a man whose
+    // face the whole street has just seen does not stay to finish the job. No
+    // arrest, no body, and the job stopped: that is the shot of the day.
+    if(e.masked){
+      G.authority+=2; G.flags.push("hat_off","unmasked");
+      return resolve(G,"hat_unmasked");
+    }
+    // He is your deputy. The street can see the jail door from here.
+    if(e.deputy){
+      G.authority-=2; G.flags.push("offended");
+      return resolve(G,"hat_deputy");
+    }
+    if(!e.armed){
+      G.authority-=2; G.flags.push("offended");
+      // and the man who decides whether your next wound is survivable does not
+      // forget being shot at, whatever else he does about it
+      if(e.doctor)G.doctor.disposition-=2;
+      return resolve(G,"hat_scared");
+    }
+    if(e.temper==="hostile"){
+      G.flags.push("hat_off");
+      return theyDraw(G,"ambush");
+    }
+    G.arrests++; G.authority+=2; G.flags.push("arrest","hat_off");
+    return resolve(G,"hat_yield");
   }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
@@ -2082,7 +2173,10 @@ function runInterlude(G,job){
   if(by){
     G.atLarge=G.atLarge.filter(function(id){return id!==by;});
     const him=castOf(by);
-    G.jobEnc=Object.assign({},j,{figure:by,
+    // a man you met this morning is not wearing anything over his face, and his
+    // temper is his own rather than the outlaw's
+    G.jobEnc=Object.assign({},j,{figure:by, masked:false,
+      temper:(him&&him.temper)||j.temper, hatline:him&&him.hatline,
       name:j.name+" \u2014 "+(him?him.name:"someone you know"),
       brief:j.brief+" You have seen that coat before today."});
   }else{ G.jobEnc=null; }
@@ -2466,7 +2560,10 @@ function expressOn(head,mood,blink,eyeRow){
 }
 function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
-  const rows=figureRows(fig,pose);
+  let rows=figureRows(fig,pose);
+  // a man whose hat has been shot off is drawn without it, and it is drawn
+  // going where it went
+  if(G.hatOff)rows=rows.map(r=>r.replace(/H/g,"."));
   let lowest=0;
   for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
   const t=(now||0)/1000, ph=phaseOf(enc.figure||enc.id||"x");
@@ -2547,29 +2644,77 @@ if(typeof Image==="function"){
 }
 /* The drawing has one pose and it is the levelled one, so a whole man drawn
  * whole is a man aiming a revolver at everyone he speaks to, and holstering is
- * a word with nothing behind it. The forearm leaves his body at row 90 and
- * nothing of him is out there but arm, so the picture comes apart along that
- * line: the body in three pieces that tile exactly around the gap, and the arm
- * as one piece hinged at the elbow. At level it reassembles to the pixel; down
- * it is the same arm, lowered. He draws and holsters with his own hand. */
-const ARM={sx:60,sy:88,w:69,h:50}, ELBOW={x:60,y:98}, DOWN=1.34;
+ * a word with nothing behind it. So the picture is hinged.
+ *
+ * It was hinged on a rectangle at the elbow, and that was wrong: a rectangle
+ * cannot contain an arm that has a body to the left of it, so the cut took the
+ * hand and the revolver and left the sleeve behind. Lowered, he had a sleeve
+ * pointing at nothing and a glove hanging under it. The arm is an outline, not
+ * a box - traced down the seam where the sleeve leaves his back, round the
+ * armpit, and out past the muzzle - and it turns about the shoulder, which is
+ * where an arm turns. At level it reassembles to the pixel; lowered, the whole
+ * arm goes down with the gun in it. He draws and holsters with his own hand. */
+const ARMPOLY=[[74,80],[72,104],[60,110],[46,118],[43,140],[129,140],[129,80]];
+const SHOULDER={x:52,y:112}, DOWN=1.42;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
+/* A shot is the one thing the arm does that is not a position it settles into.
+ * The barrel throws up and comes back down, and it is over in a fifth of a
+ * second: past the hinge, because recoil takes the gun above level, and the
+ * muzzle flare sits on the end of the barrel rather than over the whole
+ * picture. Without it a revolver going off looks like the street blinking. */
+let kickAt=-1e9; const KICK_MS=190, KICK=0.20;
+const MUZZLE={x:126,y:96};            // the end of the barrel at full level
+function kickNow(now){
+  const t=(now-kickAt)/KICK_MS;
+  if(t<0||t>=1)return 0;
+  return Math.sin(t*Math.PI)*(1-t*0.35);
+}
+let nowFrame=0;                       // the frame's own clock, for the kick
+function armSubPath(dx){
+  ctx.moveTo(dx+ARMPOLY[0][0],ARMPOLY[0][1]);
+  for(let i=1;i<ARMPOLY.length;i++)ctx.lineTo(dx+ARMPOLY[i][0],ARMPOLY[i][1]);
+  ctx.closePath();
+}
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
-  const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean), below=ARM.sy+ARM.h;
-  ctx.drawImage(img,0,0,ARM.sx,OWN.h,               dx,0,ARM.sx,OWN.h);
-  ctx.drawImage(img,ARM.sx,0,ARM.w,ARM.sy,          dx+ARM.sx,0,ARM.w,ARM.sy);
-  ctx.drawImage(img,ARM.sx,below,ARM.w,OWN.h-below, dx+ARM.sx,below,ARM.w,OWN.h-below);
-  const a=(1-swing)*DOWN;
-  if(a>0.001){
-    ctx.save();
-    ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
-    ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
+  const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean);
+  const k=kickNow(nowFrame), a=(1-swing)*DOWN-k*KICK;
+  // him, with the arm cut out of him: the whole rectangle and the arm's own
+  // outline in one path, filled odd-even, which leaves the arm-shaped hole
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(dx,OWN.y,OWN.w,OWN.h);
+  armSubPath(dx);
+  ctx.clip("evenodd");
+  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  ctx.restore();
+  // and the arm, the same drawing turned about the shoulder and clipped to the
+  // outline - built after the turn, so the outline turns with it
+  ctx.save();
+  if(Math.abs(a)>0.001){
+    ctx.translate(dx+SHOULDER.x,SHOULDER.y); ctx.rotate(a);
+    ctx.translate(-(dx+SHOULDER.x),-SHOULDER.y);
   }
-  ctx.drawImage(img,ARM.sx,ARM.sy,ARM.w,ARM.h, dx+ARM.sx,ARM.sy,ARM.w,ARM.h);
-  if(a>0.001)ctx.restore();
+  ctx.beginPath(); armSubPath(dx); ctx.clip();
+  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  if(k>0.25)muzzle(dx,a,k);
+  ctx.restore();
+}
+/* The flare, drawn inside the arm's own rotation so it stays on the muzzle
+ * wherever recoil has thrown it: a hot core, a ragged corona, and a lick along
+ * the barrel. Three colours and no gradient, like everything else here. */
+function muzzle(dx,a,k){
+  const x=dx+MUZZLE.x, y=MUZZLE.y, r=Math.round(3+k*5);
+  ctx.fillStyle="#fff6c8";
+  ctx.fillRect(x-1,y-r,3,r*2); ctx.fillRect(x-r,y-1,r*2,3);
+  ctx.fillStyle="#ffd24a";
+  ctx.fillRect(x+1,y-r+2,r,2); ctx.fillRect(x+1,y+r-4,r,2);
+  ctx.fillRect(x-r+2,y-2,2,5); ctx.fillRect(x+r-3,y-2,3,5);
+  ctx.fillStyle="#ff8a1e";
+  ctx.fillRect(x+r-2,y-1,Math.round(k*7),3);
+  ctx.fillRect(x-3,y-r+1,3,2); ctx.fillRect(x-3,y+r-3,3,2);
 }
 
 /* ---- the title card ---- *
@@ -3209,6 +3354,7 @@ function blackLevel(now){
   return 1-u*0.58;                       // never all the way back while he is down
 }
 function drawScene(now){
+  nowFrame=now;
   if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
   if(!G.blackout)blackOn=false;
   const g=sceneGeom();
@@ -3415,7 +3561,11 @@ function paint(){
   // talking, and his four replies are not on offer while it is out. Putting it
   // up hands him back the conversation where he left it.
   const balked=G.balked&&G.mode==="gun";
+  // a man who has just had his hat shot off and is coming for you anyway is
+  // still in the middle of the encounter, so his words for it go up here
+  const hatted=G.hatOff&&(G.phase==="tell"||G.phase==="duel");
   lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :hatted?hatLine()
     :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
@@ -3442,13 +3592,24 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  fled:"They run, and the whole street watches them run, and watches what they were running from.",
+  hat_yield:"", hat_scared:"", hat_deputy:"", hat_unmasked:"",
   outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
+/* A hat coming off is the one shot everybody in the game has their own words
+ * for, because it is the one shot that says something about them rather than
+ * about where it landed. */
+function hatLine(){
+  const him=who(G);
+  if(him&&him.masked)return HAT_UNMASKED;
+  return (him&&him.hatline)||HAT_LINE;
+}
 function outcomeLine(){
   if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  if(G.outcome&&G.outcome.indexOf("hat_")===0)return hatLine();
   return OUTCOME_LINES[G.outcome]||"The matter settles.";
 }
 function paintSummary(){
@@ -3669,7 +3830,7 @@ function fire(){
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
-    SND.gunshot(); flash=0.16;
+    SND.gunshot(); flash=0.10; kickAt=performance.now();
     reloadAt=performance.now()+760;             // and then he reloads it
     const before=G.outcome;
     shoot(G,Math.max(60,lat));

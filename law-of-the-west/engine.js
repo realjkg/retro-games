@@ -12,6 +12,17 @@ const RULES={
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
   REFLEX_MIN:1500, REFLEX_MAX:2600,
+  /* How long a man stands there with a gun in his face before he does something
+   * about it, and what he does. It was one window and one answer for all of
+   * them, which made every caller the same man wearing a different hat. A
+   * hostile one is quick and answers it; a patient one gives you a long moment
+   * to think better of it; a frightened one is quicker than either and runs,
+   * and the street remembers that the badge did that to him. */
+  TEMPERS:{
+    hostile:{reflex:[900,1600],  flee:0},
+    patient:{reflex:[2200,3400], flee:-1},
+    coward: {reflex:[700,1400],  flee:-2}
+  },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
@@ -49,7 +60,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
-    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0, hatOff:false,
     atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
@@ -83,7 +94,7 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.spoke=false; G.balked=false; G.blackout=false;
+  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
@@ -169,16 +180,19 @@ function terminal(G,id){
 }
 
 /* ---- the gun, which is always available ---- */
+const temperOf=e=>(e&&RULES.TEMPERS[e.temper])||RULES.TEMPERS.patient;
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  G.aim.x=Math.max(sightFloor(G.aim.y),G.aim.x);
   // A man who has a gun pointed at him before he has been answered stops
   // talking, and does not start again while it is out. Keeping it on him is
   // still the sheriff's business: the reflex below decides what he does about
   // it, which is answer it if he is armed and leave if he is not.
   if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
-  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
+  const t=temperOf(who(G)).reflex;
+  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,t[0],t[1]))};
   return G.mode;
 }
 function holster(G){
@@ -192,14 +206,16 @@ function holster(G){
  * unless the gun is out. */
 function setAim(G,x,y){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,x));
   G.aim.y=Math.max(0,Math.min(1,y));
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,x));
   return G.aim;
 }
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
+  // the sights are pushed back out of him whichever way they got there: moved
+  // down the picture into his shoulder, as much as dragged left across it
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
 function tick(G,nowMs){
@@ -219,7 +235,12 @@ function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
+    // Nobody unarmed is a threat, but frightening one off the street with a gun
+    // is a thing the town watched the badge do, and it costs what it costs.
+    const cost=temperOf(e).flee;
+    G.authority+=cost;
+    if(cost<0)G.flags.push("offended");
+    return resolve(G,cost<=-2?"fled":"walked_away");
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
@@ -238,6 +259,8 @@ const weaponBox=G=>{const b=boxesFor(who(G));
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
   if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
+  const hb=G.hatOff?null:boxesFor(who(G)).hat;
+  if(hb&&inBox(px,py,hb))return "hat";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -279,6 +302,43 @@ function shoot(G,latencyMs){
     G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
     G.flags.push("sniper_down"); G.reflex=null;
     return resolve(G,"sniper_down");
+  }
+  /* His hat. A ball an inch above a man is a different sentence from a ball
+   * through him, and who he is decides which. An armed man who was giving you
+   * time to think better of it gives it up instead, and that is the best piece
+   * of policing in the game: an arrest, nobody hurt, and the street watching.
+   * An armed man who was already minded to answer you is now minded to answer
+   * you bareheaded and at once. And anybody with no gun at all has just been
+   * shot at, which the street also watched. Mid-duel it is showing off, and
+   * showing off is a miss. */
+  if(box==="hat"&&!G.hatOff&&e){
+    if(d&&d.drawn){d.fired=true;d.result="miss";d.zone="off";return theirReply(G);}
+    G.hatOff=true; G.reflex=null;
+    // A hold-up man's Stetson takes his bandana down with it, and a man whose
+    // face the whole street has just seen does not stay to finish the job. No
+    // arrest, no body, and the job stopped: that is the shot of the day.
+    if(e.masked){
+      G.authority+=2; G.flags.push("hat_off","unmasked");
+      return resolve(G,"hat_unmasked");
+    }
+    // He is your deputy. The street can see the jail door from here.
+    if(e.deputy){
+      G.authority-=2; G.flags.push("offended");
+      return resolve(G,"hat_deputy");
+    }
+    if(!e.armed){
+      G.authority-=2; G.flags.push("offended");
+      // and the man who decides whether your next wound is survivable does not
+      // forget being shot at, whatever else he does about it
+      if(e.doctor)G.doctor.disposition-=2;
+      return resolve(G,"hat_scared");
+    }
+    if(e.temper==="hostile"){
+      G.flags.push("hat_off");
+      return theyDraw(G,"ambush");
+    }
+    G.arrests++; G.authority+=2; G.flags.push("arrest","hat_off");
+    return resolve(G,"hat_yield");
   }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
@@ -388,7 +448,10 @@ function runInterlude(G,job){
   if(by){
     G.atLarge=G.atLarge.filter(function(id){return id!==by;});
     const him=castOf(by);
-    G.jobEnc=Object.assign({},j,{figure:by,
+    // a man you met this morning is not wearing anything over his face, and his
+    // temper is his own rather than the outlaw's
+    G.jobEnc=Object.assign({},j,{figure:by, masked:false,
+      temper:(him&&him.temper)||j.temper, hatline:him&&him.hatline,
       name:j.name+" \u2014 "+(him?him.name:"someone you know"),
       brief:j.brief+" You have seen that coat before today."});
   }else{ G.jobEnc=null; }

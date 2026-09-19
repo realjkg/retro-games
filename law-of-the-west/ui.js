@@ -324,7 +324,10 @@ function expressOn(head,mood,blink,eyeRow){
 }
 function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
-  const rows=figureRows(fig,pose);
+  let rows=figureRows(fig,pose);
+  // a man whose hat has been shot off is drawn without it, and it is drawn
+  // going where it went
+  if(G.hatOff)rows=rows.map(r=>r.replace(/H/g,"."));
   let lowest=0;
   for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]))lowest=r;
   const t=(now||0)/1000, ph=phaseOf(enc.figure||enc.id||"x");
@@ -405,29 +408,77 @@ if(typeof Image==="function"){
 }
 /* The drawing has one pose and it is the levelled one, so a whole man drawn
  * whole is a man aiming a revolver at everyone he speaks to, and holstering is
- * a word with nothing behind it. The forearm leaves his body at row 90 and
- * nothing of him is out there but arm, so the picture comes apart along that
- * line: the body in three pieces that tile exactly around the gap, and the arm
- * as one piece hinged at the elbow. At level it reassembles to the pixel; down
- * it is the same arm, lowered. He draws and holsters with his own hand. */
-const ARM={sx:60,sy:88,w:69,h:50}, ELBOW={x:60,y:98}, DOWN=1.34;
+ * a word with nothing behind it. So the picture is hinged.
+ *
+ * It was hinged on a rectangle at the elbow, and that was wrong: a rectangle
+ * cannot contain an arm that has a body to the left of it, so the cut took the
+ * hand and the revolver and left the sleeve behind. Lowered, he had a sleeve
+ * pointing at nothing and a glove hanging under it. The arm is an outline, not
+ * a box - traced down the seam where the sleeve leaves his back, round the
+ * armpit, and out past the muzzle - and it turns about the shoulder, which is
+ * where an arm turns. At level it reassembles to the pixel; lowered, the whole
+ * arm goes down with the gun in it. He draws and holsters with his own hand. */
+const ARMPOLY=[[74,80],[72,104],[60,110],[46,118],[43,140],[129,140],[129,80]];
+const SHOULDER={x:52,y:112}, DOWN=1.42;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
+/* A shot is the one thing the arm does that is not a position it settles into.
+ * The barrel throws up and comes back down, and it is over in a fifth of a
+ * second: past the hinge, because recoil takes the gun above level, and the
+ * muzzle flare sits on the end of the barrel rather than over the whole
+ * picture. Without it a revolver going off looks like the street blinking. */
+let kickAt=-1e9; const KICK_MS=190, KICK=0.20;
+const MUZZLE={x:126,y:96};            // the end of the barrel at full level
+function kickNow(now){
+  const t=(now-kickAt)/KICK_MS;
+  if(t<0||t>=1)return 0;
+  return Math.sin(t*Math.PI)*(1-t*0.35);
+}
+let nowFrame=0;                       // the frame's own clock, for the kick
+function armSubPath(dx){
+  ctx.moveTo(dx+ARMPOLY[0][0],ARMPOLY[0][1]);
+  for(let i=1;i<ARMPOLY.length;i++)ctx.lineTo(dx+ARMPOLY[i][0],ARMPOLY[i][1]);
+  ctx.closePath();
+}
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
-  const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean), below=ARM.sy+ARM.h;
-  ctx.drawImage(img,0,0,ARM.sx,OWN.h,               dx,0,ARM.sx,OWN.h);
-  ctx.drawImage(img,ARM.sx,0,ARM.w,ARM.sy,          dx+ARM.sx,0,ARM.w,ARM.sy);
-  ctx.drawImage(img,ARM.sx,below,ARM.w,OWN.h-below, dx+ARM.sx,below,ARM.w,OWN.h-below);
-  const a=(1-swing)*DOWN;
-  if(a>0.001){
-    ctx.save();
-    ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
-    ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
+  const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean);
+  const k=kickNow(nowFrame), a=(1-swing)*DOWN-k*KICK;
+  // him, with the arm cut out of him: the whole rectangle and the arm's own
+  // outline in one path, filled odd-even, which leaves the arm-shaped hole
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(dx,OWN.y,OWN.w,OWN.h);
+  armSubPath(dx);
+  ctx.clip("evenodd");
+  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  ctx.restore();
+  // and the arm, the same drawing turned about the shoulder and clipped to the
+  // outline - built after the turn, so the outline turns with it
+  ctx.save();
+  if(Math.abs(a)>0.001){
+    ctx.translate(dx+SHOULDER.x,SHOULDER.y); ctx.rotate(a);
+    ctx.translate(-(dx+SHOULDER.x),-SHOULDER.y);
   }
-  ctx.drawImage(img,ARM.sx,ARM.sy,ARM.w,ARM.h, dx+ARM.sx,ARM.sy,ARM.w,ARM.h);
-  if(a>0.001)ctx.restore();
+  ctx.beginPath(); armSubPath(dx); ctx.clip();
+  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  if(k>0.25)muzzle(dx,a,k);
+  ctx.restore();
+}
+/* The flare, drawn inside the arm's own rotation so it stays on the muzzle
+ * wherever recoil has thrown it: a hot core, a ragged corona, and a lick along
+ * the barrel. Three colours and no gradient, like everything else here. */
+function muzzle(dx,a,k){
+  const x=dx+MUZZLE.x, y=MUZZLE.y, r=Math.round(3+k*5);
+  ctx.fillStyle="#fff6c8";
+  ctx.fillRect(x-1,y-r,3,r*2); ctx.fillRect(x-r,y-1,r*2,3);
+  ctx.fillStyle="#ffd24a";
+  ctx.fillRect(x+1,y-r+2,r,2); ctx.fillRect(x+1,y+r-4,r,2);
+  ctx.fillRect(x-r+2,y-2,2,5); ctx.fillRect(x+r-3,y-2,3,5);
+  ctx.fillStyle="#ff8a1e";
+  ctx.fillRect(x+r-2,y-1,Math.round(k*7),3);
+  ctx.fillRect(x-3,y-r+1,3,2); ctx.fillRect(x-3,y+r-3,3,2);
 }
 
 /* ---- the title card ---- *
@@ -1067,6 +1118,7 @@ function blackLevel(now){
   return 1-u*0.58;                       // never all the way back while he is down
 }
 function drawScene(now){
+  nowFrame=now;
   if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
   if(!G.blackout)blackOn=false;
   const g=sceneGeom();
@@ -1273,7 +1325,11 @@ function paint(){
   // talking, and his four replies are not on offer while it is out. Putting it
   // up hands him back the conversation where he left it.
   const balked=G.balked&&G.mode==="gun";
+  // a man who has just had his hat shot off and is coming for you anyway is
+  // still in the middle of the encounter, so his words for it go up here
+  const hatted=G.hatOff&&(G.phase==="tell"||G.phase==="duel");
   lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :hatted?hatLine()
     :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
@@ -1300,13 +1356,24 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  fled:"They run, and the whole street watches them run, and watches what they were running from.",
+  hat_yield:"", hat_scared:"", hat_deputy:"", hat_unmasked:"",
   outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
+/* A hat coming off is the one shot everybody in the game has their own words
+ * for, because it is the one shot that says something about them rather than
+ * about where it landed. */
+function hatLine(){
+  const him=who(G);
+  if(him&&him.masked)return HAT_UNMASKED;
+  return (him&&him.hatline)||HAT_LINE;
+}
 function outcomeLine(){
   if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  if(G.outcome&&G.outcome.indexOf("hat_")===0)return hatLine();
   return OUTCOME_LINES[G.outcome]||"The matter settles.";
 }
 function paintSummary(){
@@ -1527,7 +1594,7 @@ function fire(){
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
-    SND.gunshot(); flash=0.16;
+    SND.gunshot(); flash=0.10; kickAt=performance.now();
     reloadAt=performance.now()+760;             // and then he reloads it
     const before=G.outcome;
     shoot(G,Math.max(60,lat));
