@@ -1243,3 +1243,57 @@ test('31. what the sheriff says changes what he hears back', ()=>{
   assert.notEqual(rep.kind,rep.hard,'the two reputations read alike');
   report.causeEffect={tagged:out.tagged,answering:out.answering,beats:out.beats};
 });
+
+test('34. every hit box is a thing a thumb can be asked to hit', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={small:[], boxes:{}, sniper:null};
+    for(const e of CAST){
+      const b=boxesFor(e);
+      for(const k of Object.keys(b)){
+        if(!b[k])continue;
+        r.boxes[e.id+"/"+k]=[b[k].w,b[k].h];
+        if(b[k].w<TOUCH_MIN||b[k].h<TOUCH_MIN)r.small.push(e.id+"/"+k+" "+b[k].w+"x"+b[k].h);
+      }
+    }
+    r.sniper=[SNIPER_BOX.w,SNIPER_BOX.h];
+    return JSON.stringify(r);
+  })()`));
+  /* The revolver on a man's hip is drawn three pixels by two. On a phone that
+   * is about a fifth of a millimetre of glass, so laying the sights on it was
+   * not difficult, it was impossible - which is why the shot used to be
+   * settled by a lottery instead of by where the sights were. A hit box is not
+   * a drawing and does not have to be its size. */
+  assert.deepEqual(out.small,[],
+    'boxes too small to aim at: '+out.small.join(', '));
+  assert.ok(out.sniper[0]>=9&&out.sniper[1]>=9,
+    'the window is '+out.sniper.join('x'));
+
+  // and the sights, not the clock, decide what the ball hits
+  const shots=JSON.parse(run(`(()=>{
+    const at=(zone,lat)=>{
+      const c={kill:0,disarm:0,miss:0};
+      for(let i=0;i<600;i++){
+        const G=newDay({seed:i+1});
+        G.encounter=CAST.findIndex(e=>e.id==="kid");
+        beginEncounter(G); openDialogue(G); theyDraw(G,"draw");
+        G.tell.delay=1e9;                       // he never fires: only the aim
+        aimAt(G,zone); shoot(G,lat);
+        const x=G.duel.result;
+        if(x==="kill")c.kill++; else if(x==="disarm")c.disarm++; else c.miss++;
+      }
+      return c;
+    };
+    return JSON.stringify({body:at("torso",600), hand:at("arm",600), snap:at("torso",150)});
+  })()`));
+  assert.ok(shots.body.kill>=540,
+    'sights laid on the body, unhurried, killed him only '+shots.body.kill+' times in 600');
+  assert.ok(shots.hand.disarm>=360,
+    'sights laid on his gun hand disarmed him only '+shots.hand.disarm+' times in 600');
+  assert.ok(shots.hand.kill<=shots.hand.disarm/8,
+    'aiming at his gun hand killed him '+shots.hand.kill+' times against '+
+    shots.hand.disarm+' disarms');
+  assert.ok(shots.snap.miss>shots.body.miss,
+    'snatching at the shot costs nothing');
+  report.gun={body:shots.body,hand:shots.hand,snap:shots.snap};
+});

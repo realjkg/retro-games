@@ -945,11 +945,20 @@ const touchable=b=>{
   const w=Math.max(b.w,TOUCH_MIN), h=Math.max(b.h,TOUCH_MIN);
   return {x:Math.round(b.x+(b.w-w)/2), y:Math.round(b.y+(b.h-h)/2), w:w, h:h};
 };
+/* A hat has a man's head directly beneath it - Little Willy's is four pixels
+ * deep - so it cannot be grown the way the others are without eating the shot
+ * that kills him, which would be a worse lie than the one being fixed. Above
+ * the crown there is nothing but sky, and a ball over a man's hat takes it off
+ * just as well as one through it, so it grows upwards only. */
+const touchableUp=b=>{
+  const w=Math.max(b.w,TOUCH_MIN), h=Math.max(b.h,TOUCH_MIN);
+  return {x:Math.round(b.x+(b.w-w)/2), y:Math.round(b.y-(h-b.h)), w:w, h:h};
+};
 const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
 function boxesFor(e){
   const b=figureOf(e).box||DEFAULT_BOX;
   return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
-          hat:b.hat?cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3]):null,
+          hat:b.hat?touchableUp(cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3])):null,
           weapon:touchable(cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3])),
           weaponRaised:touchable(cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3]))};
 }
