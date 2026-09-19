@@ -94,8 +94,20 @@ const found=(agent,run,what,detail,trace)=>{
               title:document.title, pic:pic, btns:btns};
     });
 
-    const trace=[];
+    const trace=[], script=[];
     let prev=await look(), same=0, lastChange=Date.now(), ended=false;
+    /* Everything a player would have read, in the order he read it. Invariants
+     * only catch what somebody thought of; a transcript can be read back by a
+     * person, and incoherence shows up in it that no assertion was written
+     * for. */
+    const record=(press,s)=>{
+      const line=(s.panel[0]||'').trim();
+      const reps=s.panel.slice(1).filter(Boolean).map(x=>x.trim());
+      const key=line+'\u0001'+reps.join('\u0001')+'\u0001'+s.status;
+      if(script.length&&script[script.length-1].key===key)return;
+      script.push({key:key,press:press,status:s.status,line:line,reps:reps});
+    };
+    record('(open)',prev);
     const badWord=/\b(undefined|NaN|\[object|null)\b/;
 
     for(let step=0;step<STEPS&&!ended;step++){
@@ -144,6 +156,7 @@ const found=(agent,run,what,detail,trace)=>{
             'unchanged through '+same+' taps on "'+(now.panel[0]||'').slice(0,60)+'"',trace);
       } else { same=0; lastChange=Date.now(); }
 
+      record(cmd,now);
       if(/RIDE IN AGAIN/i.test(now.panel.join(' '))){ ended=true; }
       prev=now;
       await p.waitForTimeout(who.wait[0]+rnd()*(who.wait[1]-who.wait[0]));
@@ -153,6 +166,11 @@ const found=(agent,run,what,detail,trace)=>{
       String(trace.length)+' presses and still going: "'+(prev.panel[0]||'').slice(0,70)+'"',trace);
     for(const e of errs)found(who.name,run,'the page threw',e,trace);
     await p.screenshot({path:path.join(OUT,'run'+run+'-'+who.name+'.png')});
+    const text=script.map(x=>
+      '['+String(x.press).padEnd(8)+'] '+(x.status||'').padEnd(34)+'\n'+
+      '   NPC  '+x.line+'\n'+
+      x.reps.map(r=>'        '+r).join('\n')).join('\n\n');
+    fs.writeFileSync(path.join(OUT,'run'+run+'-'+who.name+'.txt'),text);
     await ctx.close();
     console.log('run '+run+' ('+who.name+'): '+trace.length+' presses, '+
       (ended?'day ended':'DID NOT END')+', findings so far '+findings.length);
