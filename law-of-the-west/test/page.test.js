@@ -644,7 +644,10 @@ test('9g. drawing cuts the visitor theme in the same frame',
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.frame(0);
   p.w.eval('newSeq();newScene()');
   const log=p.log();
-  for(let t=0;t<=900;t+=50)p.frame(t);
+  // his theme comes up partway through the walk, so the walk is what this
+  // waits out - not a number that happened to be longer than it once was
+  const walk=p.ev('WALK_MS');
+  for(let t=0;t<=walk;t+=50)p.frame(t);
   const theme=log.findIndex(c=>c.indexOf('theme:')===0);
   assert.ok(theme>=0,'no theme to cut: '+log.join(','));
   p.ready();
