@@ -72,9 +72,9 @@ function iconPNG(sprite,size){
  }
  // The hero, centred, at whatever scale fits him into two thirds of the icon.
  const u=Math.floor(H*.62/sprite.h), ox=Math.round((W-sprite.w*u)/2), oy=Math.round(H*.21);
- rect(ox+2*u,oy+sprite.h*u,8*u,2.6*u,"#ff8c28");         // the rocket, lit
- rect(ox+3*u,oy+sprite.h*u,6*u,2*u,"#ffc24a");
- rect(ox+4.5*u,oy+sprite.h*u,3*u,1.2*u,"#fff4c0");
+ rect(ox+1*u,oy+12*u,3*u,7*u,"#ff8c28");                 // the jetpack, burning
+ rect(ox+1*u,oy+12*u,3*u,5.5*u,"#ffc24a");
+ rect(ox+1.6*u,oy+12*u,1.6*u,4*u,"#fff4c0");
  for(const r of runs(sprite))rect(ox+r.x*u,oy+r.y*u,r.w*u,u,r.colour);
  rect(ox+(sprite.w+1)*u,oy+8*u,4*u,2*u,"#ffe14a");       // a ball already on its way
  const raw=Buffer.alloc((W*3+1)*H);
@@ -101,10 +101,10 @@ function tileSVG(sprite){
            `<rect x="0" y="${y}" width="64" height="1" fill="#a8bde0"/>`);
   out.push(`          <rect x="${6+f*15}" y="${y}" width="10" height="3" fill="#0b1020"/>`);
  }
- out.push(`          <rect x="${(ox+2*u).toFixed(2)}" y="${(oy+sprite.h*u).toFixed(2)}" `+
-          `width="${(8*u).toFixed(2)}" height="${(2.4*u).toFixed(2)}" fill="#ff8c28"/>`);
- out.push(`          <rect x="${(ox+3.5*u).toFixed(2)}" y="${(oy+sprite.h*u).toFixed(2)}" `+
-          `width="${(5*u).toFixed(2)}" height="${(1.6*u).toFixed(2)}" fill="#ffc24a"/>`);
+ out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
+          `width="${(3*u).toFixed(2)}" height="${(7*u).toFixed(2)}" fill="#ff8c28"/>`);
+ out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
+          `width="${(3*u).toFixed(2)}" height="${(5*u).toFixed(2)}" fill="#ffc24a"/>`);
  for(const r of runs(sprite))
   out.push(`          <rect x="${(ox+r.x*u).toFixed(2)}" y="${(oy+r.y*u).toFixed(2)}" `+
            `width="${(r.w*u).toFixed(2)}" height="${u.toFixed(2)}" fill="${r.colour}"/>`);

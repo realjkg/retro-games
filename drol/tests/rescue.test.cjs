@@ -422,11 +422,41 @@ test('There is one picture of the hero, and everything draws that one',()=>{
   const src=source;
   const hero=src.slice(src.indexOf('function drawHero('),src.indexOf('function drawRadar('));
   const title=src.slice(src.indexOf('function drawTitle('),src.indexOf('function render('));
-  assert.match(hero,/drawPix\(HERO_PIX,HERO_PAL/,'the game draws the sprite');
+  assert.match(hero,/drawPix\(frame,HERO_PAL/,'the game draws the sprite');
+  assert.match(src,/const HERO_WALK=HERO_PIX\.slice/,'and the walking frame is the same robot');
+  assert.equal(r.run('HERO_WALK.length'),r.run('HERO_PIX.length'));
+  assert.equal(r.run('HERO_WALK.slice(0,13).join("|")===HERO_PIX.slice(0,13).join("|")'),true,
+    'only the legs move');
   assert.match(title,/drawPix\(HERO_PIX,HERO_PAL/,'so does the title card');
   // And so does the tool that writes the icon and the tile on the collection page.
   const art=require('../tools/render-art.js');
   const sprite=art.readSprite();
   assert.equal(sprite.rows.join('|'),rows,'the icon and the tile are generated from the same rows');
   assert.equal(Object.keys(sprite.colours).sort().join(''),palKeys,'and the same colours');
+});
+
+test('Up is the jetpack, down is his feet',()=>{
+  const r=runtime(2,71);clearMaze(r,1);
+  const floor=r.run('G.hero.y');
+  assert.equal(r.run('G.hero.walking'),true,'he starts on his feet');
+  // Held up, he climbs on the jetpack and the flame lights.
+  r.run('keys.U=true;');step(r,30);
+  assert.ok(r.run('G.hero.y')<floor-12,'the jetpack lifts him');
+  assert.equal(r.run('G.hero.walking'),false,'and he is flying, not walking');
+  assert.ok(r.run('G.hero.thrust')>.5,'with the rocket lit');
+  // Held down, he comes back to the floor and walks it. (Over a hole, down is how
+  // you drop a storey, so this one is sealed.)
+  r.run(`for(let x=0;x<MAPW;x++)G.L.map[x][slabRow(1)]=SLAB;
+   delete keys.U;keys.D=true;`);
+  step(r,60);
+  assert.ok(Math.abs(r.run('G.hero.y')-floor)<2,'down puts him back on the floor');
+  assert.equal(r.run('G.hero.walking'),true,'which is walking');
+  assert.equal(r.run('G.hero.thrust'),0,'the jetpack is off');
+  // Walking is slower than flying, and the legs animate while he does it.
+  r.run('keys.R=true;');step(r,60);
+  const walked=Math.abs(r.run('G.hero.vx'));
+  assert.ok(walked>0&&walked<=r.run('WALK_SPEED')+1,`he walks at walking pace (${walked})`);
+  assert.ok(r.run('G.hero.step')>0,'the stride is running');
+  r.run('keys.U=true;');step(r,40);
+  assert.ok(Math.abs(r.run('G.hero.vx'))>walked,'the jetpack is the faster way across');
 });

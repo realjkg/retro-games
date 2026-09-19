@@ -17,8 +17,10 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 
 ## Controls
 
-- **◀ ▶** fly sideways. **▲** rises on the backpack, **▼** drops, **HOVER** (Shift/H) holds
-  your height. A floor is only passable where a gap is cut in it.
+- **▲ is the jetpack**: hold it and he flies. **▼ puts him back on his feet**, and on a floor
+  he walks — slower than flying, steadier, and it is also how you drop through a hole to the
+  storey below. **◀ ▶** move either way, **HOVER** (Shift/H) holds your height. A floor is
+  only passable where a gap is cut in it.
 - The big left button (Space/Z/Enter) is **FIRE**, and points the way you are facing.
   The big right button (X/E) sends a ball **straight up**, or **straight down** while ▼ is
   held. Three balls in the air at once, no more.
@@ -88,13 +90,17 @@ node drol/tools/render-art.js --check  # what CI runs
 
 What that means on screen:
 
-- **The robot** is blue and boxy: a pale blue head with a visor that faces the way you fly, a
-  red beacon on an antenna, a backpack that shows its flame the moment you ask it to climb,
-  and a lit chest port that the balls come out of. He throws a shadow on the floor below him,
-  which shrinks as he rises — the one cue that says how high up he is.
+- **The robot** is a green, round-headed bot with a snout, one big eye, orange boots and a
+  jetpack strapped to his back — closer to a cartoon creature than to a tin man, which is how
+  the original's hero reads. The pack burns from its nozzle only while ▲ is held; on a floor
+  with the pack off he walks, and his legs take strides. He throws a shadow on the floor below
+  him, which shrinks as he rises — the one cue that says how high up he is.
 - **The floors** are slabs with three faces: a lit top edge you land on, a stone front, and a
   shadow under it, with brickwork seams offset storey by storey and a bright lip either side
   of every hole. Behind them is a pillared back wall, so the maze has a depth to stand in.
+- **Nothing else in the maze is his green.** The hero owns that hue, so the "hopping,
+  beer-belly aliens" are violet, the serpents teal and the boy's lizard a yellower green: at
+  twelve pixels, colour is what tells you what a thing is before shape does.
 - **Each scene has one palette**, the way a machine with a handful of colours would have done
   it: steel blue for the boy's scene, violet for the girl's and the witch doctor's, and a
   burnt red-brown for the descent to the mother.
@@ -121,7 +127,8 @@ joystick game:
   portrait phones with safe-area padding, no page zoom, and no scroll bounce.
 - The original fires where the joystick points; here the second button is the vertical shot,
   so the pad hand is not asked to aim and fly at once. Both buttons say which way the next
-  ball leaves the chest.
+  ball leaves the chest, and the pad says which of ▲ and ▼ is the jetpack and which is his
+  feet.
 - **HOVER** holds your height — the one thing an analogue-feeling backpack is hard to do with
   two digital buttons on glass.
 - The scope can be switched off, which is not a thing the original offered; on a phone those
@@ -268,7 +275,13 @@ Two details the sources disagree on, and how they are resolved here:
   [review](https://www.lemon64.com/review/drol/1162) — the witch doctor's curse, the children
   lured into multi-levelled ruins, the per-level enemy lists, the pets, and the mother bound
   at the lower right of the third level.
-- Contemporary reviews, for what it looked like: a small **blue** robot, and ANALOG
+- [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
+  generic-looking robot across a four story map layout. The robot levitates and is able to
+  shoot multi-coloured balls out of his chest." The hero here is drawn to that and to what the
+  owner of this repository could see in a photograph of the original that I could not open
+  from this environment: a bot with a jetpack, shaped more like a cartoon creature than a tin
+  man.
+- Contemporary reviews, for what else it looked like: ANALOG
   Computing's February 1984 line that Drol had "some of the best pseudo-3D graphics I've ever
   seen" — the two facts the art here is drawn towards, since no screenshot of the original was
   reachable from where this was built.
@@ -296,7 +309,9 @@ magnet that eats shots and drags you, shooting the toy to root the child, the re
 scene order through to the loop back to scene one, the pet bonus, the third scene's three
 trapdoors and the thing behind the wrong two, the curse, lives and the respawn's
 invulnerability, extra robots at every 10,000 points, the scope switch and the rows it hands
-back and remembers the switch, the way the view is sized to its box, the full-screen toggle,
+back and remembers the switch, the jetpack against his feet — that ▲ climbs and lights the
+pack, that ▼ lands him and that walking is slower than flying — the way the view is sized to
+its box, the full-screen toggle,
 the button labels, the settings and best score that survive a reload, the browser that refuses
 storage altogether, the install button, the one sprite that the game, the title card, the icon
 and the collection tile all draw from, the rules that stop a held control turning into a text
