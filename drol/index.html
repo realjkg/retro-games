@@ -10,7 +10,7 @@
      which is the only way to stop iOS sliding its toolbars over a game in play. -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#0b1020">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,7 +36,7 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 #status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
-#stage{position:relative;width:100%;aspect-ratio:8/5;background:#000;border:1px solid var(--line);
+#stage{position:relative;width:100%;aspect-ratio:173/117;background:#000;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
@@ -102,8 +102,8 @@ body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
    space the page chrome gave back goes to the pads instead of to black bars. */
-body.fs #stage{width:min(100%,calc(58svh * 8 / 5));max-width:100%;margin:0 auto;border-radius:0;
-  aspect-ratio:8/5;border-left:0;border-right:0}
+body.fs #stage{width:min(100%,calc(58svh * 173 / 117));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:173/117;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
@@ -119,7 +119,7 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 8 / 5));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 117));max-width:60vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
   body.fs .sbtn{width:66px;height:38px}
@@ -132,7 +132,7 @@ body.fs #audio-status{display:none}
 <body>
 <div id="wrap">
   <div id="status" role="status">Loading…</div>
-  <div id="stage"><canvas id="cv" width="346" height="216"></canvas><div id="overlay"></div></div>
+  <div id="stage"><canvas id="cv" width="346" height="234"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow">
       <div class="dpad">
@@ -156,8 +156,8 @@ body.fs #audio-status{display:none}
 // Four storeys, one above the other, all of them on screen at once the way the
 // 1983 original had them: the only scrolling is sideways.
 const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
-const RADAR_H=16;                       // the scope along the top, as in the original
-let VW=346, VH=216;                     // game pixels; fit() reshapes them to the canvas box
+const RADAR_H=34;                       // the panel across the top, as in the original
+let VW=346, VH=234;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
 const HOLEW=3;                          // tiles cut out of a slab to make one hole
 const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
@@ -176,7 +176,7 @@ const FOE={
  scorpion:{n:"a scorpion",    hp:1,sp:38, w:12,h:9, pts:150,shootable:true},
  turkey  :{n:"a turkey",      hp:1,sp:56, w:14,h:11,pts:250,shootable:true},
  monster :{n:"a monster",     hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
- serpent :{n:"a serpent",     hp:1,sp:34, w:16,h:7, pts:200,shootable:true},
+ serpent :{n:"a serpent",     hp:1,sp:34, w:10,h:16,pts:200,shootable:true},
  doctor  :{n:"a witch doctor",hp:3,sp:30, w:12,h:17,pts:400,shootable:true},
  vacuum  :{n:"a vacuum cleaner",hp:2,sp:26, w:16,h:10,pts:250,shootable:true},
  blade   :{n:"a thrown blade",hp:1,sp:96, w:10,h:8, pts:75, shootable:true},
@@ -185,17 +185,18 @@ const FOE={
 // Three scenes, then the whole thing again and harder - the original's only
 // structure. Each scene names its own rescue, its own pet and its own menagerie.
 const SCENES=[
- // Each scene is one palette, the way a machine with a handful of colours would
- // have done it: a dark ground, a stone, a lit top edge for the slabs.
+ // Four colours and a black screen, which is what the machine actually had: the
+ // floors are a bright band with a white edge on top of it, and the background is
+ // nothing at all.
  {name:"The boy and his plane", child:"boy",  toy:"plane",   pet:"lizard",
   foes:["scorpion","scorpion","turkey"],
-  sky:"#0d1526", stone:"#46587c", trim:"#6d84b0", lit:"#a8bde0"},
+  sky:"#000000", stone:"#1a7a9a", trim:"#30b8d8", lit:"#ffffff"},
  {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
   foes:["monster","doctor","magnet","scorpion"],
-  sky:"#170e2a", stone:"#57457e", trim:"#8b74bc", lit:"#c3aee8"},
+  sky:"#000000", stone:"#9a28b4", trim:"#d838c8", lit:"#ffffff"},
  {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
   foes:["serpent","blade","vacuum","monster"],
-  sky:"#240f0d", stone:"#7a4634", trim:"#b4705a", lit:"#e0a088"}
+  sky:"#000000", stone:"#3a34c8", trim:"#6a62e8", lit:"#ffffff"}
 ];
 const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
 const PET_NAME={lizard:"the boy's lizard",gator:"the girl's alligator"};
@@ -206,7 +207,7 @@ function genScene(scene,loop,diff,rand){
  const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(AIR));
  for(let x=0;x<MAPW;x++){map[x][0]=SLAB;for(let f=0;f<FLOORS;f++)map[x][slabRow(f)]=SLAB;}
  for(let y=0;y<MAPH;y++){map[0][y]=SLAB;map[MAPW-1][y]=SLAB;}
- const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],
+ const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],urns:[],
    child:null,toy:null,pet:null,pal:S};
  // Gaps in every slab: the holes you fly up and down through. The lowest slab of
  // the third scene is not holed at random - it carries the three trapdoors.
@@ -242,6 +243,14 @@ function genScene(scene,loop,diff,rand){
   L.child.y=slabRow(L.child.f)*TS-L.child.h;
   L.toy={kind:S.toy,x:L.child.x+40,y:storeyTop(L.child.f)*TS+8,w:12,h:10,
     vx:(rand()<.5?-1:1)*34,vy:12,alive:true,f:L.child.f};
+ }
+ // The third scene has urns standing on its floors, as the original's does: they
+ // soak up a ball apiece and shatter for points, and they are cover.
+ if(scene===2){
+  for(let i=0,n=5+ri(3);i<n;i++){
+   const f=ri(FLOORS), x=6+ri(MAPW-14);
+   L.urns.push({x:x*TS,y:slabRow(f)*TS-14,w:10,h:14,f,hp:2,gone:false});
+  }
  }
  if(S.pet){
   const f=ri(FLOORS);
@@ -283,16 +292,16 @@ function mkFoe(k,x,y,f,dir,loop,diff){
 const HERO_PIX=[
  "...GGGGG....",   // a round head with a snout and one big eye
  "..GGGGGGGG..",
- "..GWWWGGGGG.",
+ "..GWWKGGGGG.",
  "..GWKKGGGGSS",   // the snout, out in front of whichever way he faces
  "..GGGGGGGSSS",
  "..GGGGGGGGS.",
- ".MMMGGGGGG..",   // the strap, where the bot shows
- ".JJJGGGGGG..",   // the jetpack, on his back
- ".JJJGGCCGG..",   // the chest port the balls come out of
- ".JJJGGccGG..",
- ".JJJGGCCGG..",
- ".NNNGGGGGG..",   // the nozzle it burns out of
+ ".MMMGGGGGG..",   // the strap over the shoulder
+ ".JJJGGBBBG..",   // the jetpack on his back, the white front on his chest
+ ".JJJGGBCBG..",   // and the port the balls come out of
+ ".JJJGGBBBG..",
+ ".JJJGGGGGG..",
+ ".NNNGGGGGG..",   // the nozzle the pack burns out of
  "...GGGGGGG..",
  "...GG..GG...",   // legs
  "..OOO..OOO..",   // boots
@@ -304,8 +313,10 @@ const HERO_WALK=HERO_PIX.slice(0,13).concat([
  ".OOO...OOO..",
  ".OOO...OOO.."
 ]);
-const HERO_PAL={G:"#3ec93e",S:"#a8ee66",W:"#f4f8ff",K:"#10204a",M:"#c8d2e8",
- J:"#8e9ab8",N:"#4a5568",C:"#ffe14a",c:"#fff4c0",O:"#ff8c28"};
+// Violet-blue on black with a white front, which is what the machine actually put
+// on the screen: four colours and no shading to speak of.
+const HERO_PAL={G:"#6a62e8",S:"#9a92ff",W:"#ffffff",K:"#100c30",M:"#d8d8ec",
+ J:"#b4b4d4",N:"#6a6a90",B:"#f0f0f8",C:"#ffffff",O:"#e8e8f4"};
 // Draws one of those pictures at any size, facing either way. Runs of the same
 // colour go out as one rectangle, which is what keeps this cheap at title size.
 function drawPix(map,pal,x,y,scale,flip){
@@ -618,7 +629,6 @@ function foeStep(e,dt){
   const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
   if(r.by)e.vy=0;
   if(r.bx)e.dir*=-1;
-  e.y=slabRow(storeyOf(e))*TS-e.h-(Math.sin(e.anim*6)>0?1:0);
  }else if(e.k==="doctor"){
   // stays on his floor, throws a curse down the length of it
   e.vy+=520*dt;
@@ -764,6 +774,14 @@ function stepGame(dt){
    damageFoe(e);s.gone=true;break;
   }
   if(s.gone)continue;
+  for(const u of L.urns)if(!u.gone&&overlap(s,u)){
+   s.gone=true;
+   if(--u.hp<=0){u.gone=true;addScore(120);killSound();
+    L.fx.push({x:u.x+u.w/2,y:u.y+u.h/2,t:0,life:.25,r:8});}
+   else blockSound();
+   break;
+  }
+  if(s.gone)continue;
   // A curse outruns the backpack, so climbing out of its way was the only answer
   // to a witch doctor. A ball will also knock one out of the air, which is the
   // answer the rest of the game teaches.
@@ -790,6 +808,7 @@ function stepGame(dt){
   else if(h.alive&&overlap(c,h)){killHero("a witch doctor's curse");c.gone=true;}
  }
  L.curses=L.curses.filter(c=>!c.gone);
+ L.urns=L.urns.filter(u=>!u.gone);
  for(const e of L.foes)if(!e.dead)foeStep(e,dt);
  toyStep(dt);childStep(dt);petStep(dt);trapStep(dt);
  for(const f of L.fx){f.t+=dt;if(f.t>f.life)f.gone=true;}
@@ -980,14 +999,16 @@ function diffMenu(){
 }
 function helpMenu(back){
  showMenu("The controls",
-  "◀ ▶ fly sideways. ▲ rises on the backpack, ▼ drops, HOVER holds your "+
-  "height. Floors are only passable where a gap is cut in them.",
+  "▲ is the jetpack: hold it and he flies. ▼ puts him back on his feet, and on a floor "+
+  "he walks — slower, but steady, and it is how you drop through a hole. ◀ ▶ move either "+
+  "way, HOVER holds your height.",
   [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
   "FIRE sends a ball the way you are facing; the second button sends one straight up, or "+
   "straight down while ▼ is held. Three balls in the air at once, no more. Shoot the toy "+
   "and the child stops chasing it, which is the only way to catch them. Touch the child to "+
   "rescue them; touch the pet for a bonus. Magnets swallow shots and pull you in. RADAR is the "+
-  "scope along the top: it shows the whole maze at once. FULL SCREEN hides the page and leaves "+
+  "panel along the top: the scope in the middle of it holds the whole maze at once, with a "+
+  "line per storey and a dot for everything on it. FULL SCREEN hides the page and leaves "+
   "the maze and the pad.");
 }
 function pauseMenu(){
@@ -1023,29 +1044,24 @@ function drawTiles(){
   for(let x=lo;x<=hi;x++){
    if(G.L.map[x][slabRow(f)]!==SLAB)continue;
    const sxx=sx(x*TS), syy=sy(y);
-   c.fillStyle=P.stone;c.fillRect(sxx,syy,TS,TS);            // the front face
-   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,3);              // the top you land on
-   c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,1);
-   c.fillStyle="rgba(0,0,0,.45)";c.fillRect(sxx,syy+TS-3,TS,3);
-   // brickwork: a seam every other tile, offset by storey so it never lines up
-   if((x+f)%2){c.fillStyle="rgba(0,0,0,.22)";c.fillRect(sxx,syy+3,1,TS-6);}
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,6);              // the band
+   c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);               // the white edge you land on
+   c.fillStyle=P.stone;c.fillRect(sxx,syy+6,TS,3);           // its underside
    // the lip either side of a hole, so a gap reads as an edge you can fall past
-   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,1,TS-3);}
-   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sxx+TS-1,syy,1,TS-3);}
+   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,9);}
+   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,9);}
   }
  }
- // The roof over the top storey, and the two end walls, blocked out the same way.
+ // The roof over the top storey, and the two end walls.
  for(let x=lo;x<=hi;x++){
   const sxx=sx(x*TS);
-  c.fillStyle=P.stone;c.fillRect(sxx,sy(0),TS,TS);
-  c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sxx,sy(0)+TS-3,TS,3);
-  if(x%2){c.fillStyle="rgba(0,0,0,.18)";c.fillRect(sxx,sy(0),1,TS-3);}
+  c.fillStyle=P.trim;c.fillRect(sxx,sy(0)+TS-6,TS,6);
+  c.fillStyle=P.lit;c.fillRect(sxx,sy(0)+TS-2,TS,2);
  }
  for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
   const sxx=sx(wx*TS), syy=sy(y*TS);
-  c.fillStyle=P.stone;c.fillRect(sxx,syy,TS,TS);
-  c.fillStyle=(y%2)?"rgba(255,255,255,.07)":"rgba(0,0,0,.25)";c.fillRect(sxx,syy,TS,TS);
-  c.fillStyle=P.lit;c.fillRect(sx(wx*TS)+(wx?0:TS-1),syy,1,TS);
+  c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,TS);
+  c.fillStyle=P.lit;c.fillRect(sxx+(wx?0:TS-2),syy,2,TS);
  }
  // The three trapdoors of the third scene: shut, they are boards across the hole
  // with a hinge at either end. Sprung, the flap hangs down through it and the
@@ -1053,35 +1069,22 @@ function drawTiles(){
  for(const t of G.L.traps){
   const sxx=sx(t.x), syy=sy(t.y);
   if(!t.sprung){
-   c.fillStyle="#8a6a34";c.fillRect(sxx,syy+2,t.w,TS-2);
-   c.fillStyle="#caa24a";c.fillRect(sxx,syy+2,t.w,2);
-   c.fillStyle="rgba(0,0,0,.45)";
-   for(let i=6;i<t.w;i+=8)c.fillRect(sxx+i,syy+2,1,TS-2);    // the boards
-   c.fillStyle="#e8d0a0";c.fillRect(sxx+1,syy+4,2,3);c.fillRect(sxx+t.w-3,syy+4,2,3);  // hinges
+   c.fillStyle="#e8e8f4";c.fillRect(sxx,syy+2,t.w,TS-2);     // white boards
+   c.fillStyle="#ffffff";c.fillRect(sxx,syy+2,t.w,2);
+   c.fillStyle="#d838c8";
+   for(let i=6;i<t.w;i+=8)c.fillRect(sxx+i,syy+2,1,TS-2);    // in a magenta frame
+   c.fillRect(sxx,syy+2,1,TS-2);c.fillRect(sxx+t.w-1,syy+2,1,TS-2);
   }else{
-   c.fillStyle=t.safe?"#6fd08a":"#d05a4a";
+   c.fillStyle=t.safe?"#40c050":"#e03030";
    c.fillRect(sxx+1,syy+TS-2,t.w-2,2);                       // what is left of the frame
-   c.fillStyle="#6a4a22";c.fillRect(sxx+t.w-4,syy+TS,3,8);   // the flap, hanging open
-   c.fillStyle="#8a6a34";c.fillRect(sxx+1,syy+TS,3,6);
+   c.fillStyle="#b4b4d4";c.fillRect(sxx+t.w-4,syy+TS,3,8);   // the flap, hanging open
+   c.fillStyle="#e8e8f4";c.fillRect(sxx+1,syy+TS,3,6);
   }
  }
 }
-// Behind everything: a back wall with pillars in it, so the maze has a depth for
-// the floors to stand in rather than a hole where a background should be.
-function drawBackWall(){
- const c=ctx, P=G.L.pal, cam=G.cam;
- const x0=Math.floor(cam.x/(TS*4))-1, x1=Math.ceil((cam.x+VW)/(TS*4))+1;
- for(let f=0;f<FLOORS;f++){
-  const top=storeyTop(f)*TS, bot=slabRow(f)*TS;
-  c.fillStyle="rgba(255,255,255,.035)";c.fillRect(0,sy(top),VW,bot-top);
-  for(let i=x0;i<=x1;i++){
-   const px0=sx(i*TS*4);
-   c.fillStyle="rgba(255,255,255,.05)";c.fillRect(px0,sy(top+3),TS,bot-top-3);   // pillar
-   c.fillStyle="rgba(0,0,0,.18)";c.fillRect(px0+TS,sy(top+3),3,bot-top-3);       // its shadow
-  }
-  c.fillStyle="rgba(0,0,0,.22)";c.fillRect(0,sy(bot-4),VW,4);                    // skirting
- }
-}
+// There is nothing behind the floors. On the machine this ran on the background
+// was black, and the black is what makes four colours look like more.
+function drawBackWall(){}
 /* The menagerie, drawn the way the machines of 1983 drew things: a handful of
    blocks each, two frames of animation, and one bright colour to tell it apart
    from the floor at a glance. */
@@ -1116,15 +1119,19 @@ function drawFoe(e){
   c.fillStyle="#241038";c.fillRect(x+(d>0?8:3),y+3+hop,2,2);
   c.fillStyle="#6e3a9a";c.fillRect(x+(d>0?11:0),y+6+hop,2,4);// arm
  }else if(e.k==="serpent"){
-  c.fillStyle="#2fa8a0";
-  for(let i=0;i<4;i++){                                      // a body that slithers
-   const yy=y+2+(Math.sin(e.anim*8+i*1.1)>0?0:2);
-   c.fillRect(x+i*4,yy,4,4);
-   c.fillStyle=i%2?"#25867f":"#2fa8a0";
-  }
-  c.fillStyle="#1d6a66";c.fillRect(x+(d>0?12:0),y+1,5,4);    // head
-  c.fillStyle="#ffe14a";c.fillRect(x+(d>0?15:0),y+2,1,1);
-  c.fillStyle="#e04a6a";c.fillRect(x+(d>0?16:-1),y+3,1,1);   // tongue
+  // Coiled and upright, swaying where it stands: the shape the original put on
+  // these floors, not a snake laid out flat.
+  const sw=Math.sin(e.anim*5)>0?0:1, hx=d>0?x+1+sw:x-1-sw;
+  c.fillStyle="#6a62e8";
+  c.fillRect(hx+(d>0?1:0),y,6,3);                            // the head, over the coil
+  c.fillRect(x+3,y+3,5,3);                                   // the neck coming down
+  c.fillRect(x+1,y+6,8,3);                                   // the coil
+  c.fillRect(x+(d>0?5:1),y+9,4,3);
+  c.fillRect(x+1,y+12,8,4);                                  // the tail curled under
+  c.fillStyle="#9a92ff";
+  c.fillRect(x+2,y+7,6,1);c.fillRect(x+2,y+13,6,1);
+  c.fillStyle="#ffffff";c.fillRect(hx+(d>0?5:1),y+1,1,1);    // the eye
+  c.fillStyle="#e03030";c.fillRect(hx+(d>0?7:-1),y+1,2,1);   // the tongue
  }else if(e.k==="doctor"){
   c.fillStyle="#3a2c58";c.fillRect(x+2,y+7,8,10);            // robe
   c.fillStyle="#54407e";c.fillRect(x+2,y+7,8,2);
@@ -1144,11 +1151,15 @@ function drawFoe(e){
   c.fillStyle=beat?"#4ad8ff":"#2a90b8";c.fillRect(x+(d>0?0:12),y+4,2,3);
   c.fillStyle="#3a4456";c.fillRect(x+4,y+9,3,2);c.fillRect(x+9,y+9,3,2);  // wheels
  }else if(e.k==="blade"){
-  c.fillStyle="#d8dce8";                                      // an axe head over a handle
-  if(beat){c.fillRect(x+1,y+3,10,2);c.fillRect(x+4,y,3,8);}
-  else{c.fillRect(x+2,y+1,7,2);c.fillRect(x+2,y+5,7,2);}
-  c.fillStyle="#f4f8ff";c.fillRect(x+3,y+3,5,1);
-  c.fillStyle="#8a5e2a";c.fillRect(x+4,y+3,2,2);
+  // A sword thrown down the length of the floor, hilt first to whichever end it
+  // came from - white blade, red hilt, exactly as the machine drew it.
+  const p=d>0?1:-1, bx=d>0?x:x+9;
+  c.fillStyle="#ffffff";c.fillRect(d>0?x+2:x,y+3,8,2);       // the blade
+  c.fillStyle="#d8dce8";c.fillRect(d>0?x+2:x,y+3,8,1);
+  c.fillStyle="#e03030";
+  c.fillRect(bx,y+1,2,6);                                    // the cross guard
+  c.fillRect(bx+(d>0?-1:1),y+3,1,2);                         // and the pommel
+  if(beat){c.fillStyle="#9a92ff";c.fillRect(d>0?x+9:x-1,y+4,2,1);}   // the whistle of it
  }else if(e.k==="magnet"){
   c.fillStyle="#3a4668";c.fillRect(x+5,y-3,4,4);             // the stem it hangs from
   c.fillStyle="#d84a4a";c.fillRect(x,y+1,14,6);              // the horseshoe
@@ -1225,7 +1236,7 @@ function drawHero(){
   const k=clamp(1-G.deathT/1.3,0,1);
   for(let i=0;i<9;i++){
    const a=i*0.7, r=k*30;
-   c.fillStyle=i%3===0?"#ffc24a":i%3===1?"#3ec93e":"#c8d2e8";
+   c.fillStyle=i%3===0?"#ffffff":i%3===1?"#6a62e8":"#d838c8";
    c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r*.7),4,4);
   }
   return;
@@ -1237,52 +1248,76 @@ function drawHero(){
  c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
  c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
  if(h.thrust>0){                                  // the jetpack burning, out of its nozzle
-  const len=Math.round(3+7*h.thrust+(Math.floor(G.time*24)%2));
+  const len=Math.round(2+5*h.thrust+(Math.floor(G.time*24)%2));
   const nx=h.face<0?x+9:x+1;
-  c.fillStyle="rgba(255,140,40,"+(.45+.55*h.thrust).toFixed(2)+")";
+  c.fillStyle="rgba(216,56,200,"+(.45+.55*h.thrust).toFixed(2)+")";
   c.fillRect(nx,y+12,3,len);
-  c.fillStyle="#ffc24a";c.fillRect(nx,y+12,3,Math.max(2,len-3));
-  c.fillStyle="#fff4c0";c.fillRect(nx+1,y+12,1,Math.max(1,len-5));
+  c.fillStyle="#ff8ae8";c.fillRect(nx,y+12,3,Math.max(2,len-3));
+  c.fillStyle="#ffffff";c.fillRect(nx+1,y+12,1,Math.max(1,len-5));
  }
  const frame=(h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
  drawPix(frame,HERO_PAL,x,y,1,h.face<0);
  // The chest port pulses - the sprite's own two pixels, repainted rather than
  // drawn again somewhere else.
  const glow=.55+.45*Math.sin(G.time*8);
- c.fillStyle="rgba(255,240,150,"+glow.toFixed(2)+")";
- c.fillRect(x+(h.face<0?4:6),y+8,2,2);
+ c.fillStyle="rgba(255,255,255,"+glow.toFixed(2)+")";
+ c.fillRect(x+(h.face<0?4:7),y+8,1,1);
 }
 function drawRadar(){
- const c=ctx, L=G.L, w=VW, h=RADAR_H;
- c.fillStyle="#05070f";c.fillRect(0,0,w,h);
- c.fillStyle="#1d2745";c.fillRect(0,h-1,w,1);
- const k=w/(MAPW*TS), row=f=>Math.round(2+f*((h-5)/(FLOORS-1)));
- c.fillStyle="#22304e";
- for(let f=0;f<FLOORS;f++)c.fillRect(2,row(f)+2,w-4,1);
- const dot=(x,f,col,wide)=>{c.fillStyle=col;c.fillRect(clamp(Math.round(x*k),1,w-3),row(f),wide||2,3);};
- for(const e of L.foes)if(!e.dead)dot(e.x,storeyOf(e),e.k==="magnet"?"#d84a4a":"#ff7a5a");
- if(L.pet&&!L.pet.freed)dot(L.pet.x,L.pet.f,"#6ad06a");
- if(L.toy&&L.toy.alive)dot(L.toy.x,L.toy.f,"#4ad8ff");
+ const c=ctx, L=G.L, W=VW, H=RADAR_H;
+ c.fillStyle="#000";c.fillRect(0,0,W,H);
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ // left: the score, and how many robots are left, with one of them drawn beside it
+ c.fillStyle="#e8e8f4";c.fillText("SCORE",3,2);
+ c.fillText(String(G.score).padStart(6," "),3,11);
+ drawPix(HERO_PIX,HERO_PAL,3,22,.7,false);
+ c.fillStyle="#e8e8f4";c.fillText(String(Math.max(0,G.lives)).padStart(2,"0"),18,23);
+ // right: the best so far, and the name of the game in the red it was written in
+ c.textAlign="right";
+ c.fillStyle="#e8e8f4";c.fillText("HISCORE",W-3,2);
+ c.fillText(String(Math.max(G.best,G.score)).padStart(6," "),W-3,11);
+ c.fillStyle="#40c050";                                    // the green bars beside the name
+ for(let i=0;i<3;i++)c.fillRect(W-64,21+i*4,18,3);
+ c.textAlign="left";
+ c.font="bold 13px ui-rounded,Helvetica,Arial,sans-serif";
+ c.fillStyle="#e03030";c.fillText("Drol",W-42,20);
+ c.font="8px monospace";
+ // middle: the scope, a box with one line per storey and a dot for everything on it
+ const bx=Math.round(W*.31), bw=Math.round(W*.38), by=2, bh=H-6;
+ c.fillStyle="#d838c8";c.fillRect(bx,by,bw,bh);
+ c.fillStyle="#000";c.fillRect(bx+2,by+2,bw-4,bh-4);
+ const k=(bw-8)/(MAPW*TS), row=f=>by+4+Math.round(f*((bh-11)/(FLOORS-1)));
+ c.fillStyle="#6a62e8";
+ for(let f=0;f<FLOORS;f++)c.fillRect(bx+3,row(f)+2,bw-6,1);
+ c.fillStyle="#3a34c8";
+ for(let i=1;i<4;i++)c.fillRect(bx+3+Math.round((bw-6)*i/4),by+3,1,bh-6);
+ const dot=(x,f,col,wide)=>{c.fillStyle=col;
+  c.fillRect(bx+3+clamp(Math.round(x*k),0,bw-7),row(f),wide||2,3);};
+ for(const e of L.foes)if(!e.dead)dot(e.x,storeyOf(e),e.k==="magnet"?"#e03030":"#d838c8");
+ if(L.pet&&!L.pet.freed)dot(L.pet.x,L.pet.f,"#40c050");
+ if(L.toy&&L.toy.alive)dot(L.toy.x,L.toy.f,"#6ad0ff");
  if(L.child&&!L.child.freed)dot(L.child.x,L.child.f,"#ffe14a",3);
  if(G.hero)dot(G.hero.x,storeyOf(G.hero),"#ffffff",3);
 }
 function drawHUD(){
  const c=ctx, top=viewTop();
  c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
- c.fillStyle="rgba(5,7,15,.72)";c.fillRect(0,top,VW,11);
- c.fillStyle="#e8eeff";c.fillText("SCORE "+G.score,3,top+2);
- c.textAlign="center";
- c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
- c.textAlign="right";
- c.fillStyle="#ffc24a";c.fillText("▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
- c.textAlign="left";
+ if(!G.radar){                                   // with the panel off, the bare minimum
+  c.fillStyle="rgba(0,0,0,.72)";c.fillRect(0,top,VW,11);
+  c.fillStyle="#e8e8f4";c.fillText("SCORE "+G.score,3,top+2);
+  c.textAlign="center";
+  c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
+  c.textAlign="right";
+  c.fillStyle="#6a62e8";c.fillText("▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
+  c.textAlign="left";
+ }
  if(G.msgT>0){
-  c.fillStyle="rgba(5,7,15,.75)";c.fillRect(0,VH-12,VW,12);
-  c.fillStyle="#ffc24a";c.fillText(G.msg,3,VH-10);
+  c.fillStyle="rgba(0,0,0,.8)";c.fillRect(0,VH-12,VW,12);
+  c.fillStyle="#ff8ae8";c.fillText(G.msg,3,VH-10);
  }
  if(G.phase==="cheer"){
   c.textAlign="center";c.font="bold 14px ui-rounded,Helvetica,Arial,sans-serif";
-  c.fillStyle="#ffe14a";c.fillText("RESCUED",VW/2,top+Math.round(viewH()*.36));
+  c.fillStyle="#ffffff";c.fillText("RESCUED",VW/2,top+Math.round(viewH()*.36));
   c.font="8px monospace";c.textAlign="left";
  }
 }
@@ -1303,19 +1338,12 @@ function drawTitle(){
  // menu's scrim takes over.
  const rows=[.50,.61,.72,.83].map(k=>Math.round(H*k));
  rows.forEach((y,f)=>{
-  const above=f?rows[f-1]+6:Math.round(H*.34);
-  c.fillStyle="rgba(120,150,200,.05)";c.fillRect(0,above,W,y-above);
-  for(let px0=(f%2?18:0);px0<W;px0+=48){                     // pillars in the back wall
-   c.fillStyle="rgba(150,180,230,.06)";c.fillRect(px0,above,10,y-above);
-   c.fillStyle="rgba(0,0,0,.18)";c.fillRect(px0+10,above,3,y-above);
-  }
-  c.fillStyle=f%2?"#46587e":"#3b4c6e";c.fillRect(0,y,W,6);   // the slab
-  c.fillStyle="#6d82a6";c.fillRect(0,y,W,2);
-  c.fillStyle="#a8bde0";c.fillRect(0,y,W,1);
-  c.fillStyle="rgba(0,0,0,.5)";c.fillRect(0,y+5,W,2);
+  c.fillStyle="#3a34c8";c.fillRect(0,y,W,7);                 // the band
+  c.fillStyle="#6a62e8";c.fillRect(0,y,W,5);
+  c.fillStyle="#ffffff";c.fillRect(0,y,W,2);                 // the white edge
   const gx=Math.round(W*[.62,.20,.38,.54][f]);               // the holes you fly through,
                                                              // kept clear of the cast
-  c.fillStyle="#070b16";c.fillRect(gx,y,30,7);
+  c.fillStyle="#000000";c.fillRect(gx,y,30,7);
  });
  // The robot, the same twelve-by-sixteen picture the game draws, at four times
  // the size and lit by his own rocket: the card and the sprite are one drawing.
@@ -1377,6 +1405,14 @@ function render(){
   c.fillStyle="#d84a6a";c.fillRect(x,y+p.h-7,p.w,7);
   c.fillStyle="#f0e8d0";for(let i=0;i<3;i++)c.fillRect(x+2+i*5,y+p.h-6,2,4);
  }
+ for(const u of G.L.urns){                                    // the urns of the third scene
+  const ux=sx(u.x), uy=sy(u.y);
+  c.fillStyle="#e8e8f4";c.fillRect(ux+1,uy+3,8,8);
+  c.fillStyle="#ffffff";c.fillRect(ux+2,uy+4,3,6);
+  c.fillStyle="#b4b4d4";c.fillRect(ux,uy+1,10,2);            // the lip
+  c.fillStyle="#e8e8f4";c.fillRect(ux+2,uy+11,6,3);          // the foot
+  c.fillStyle="#b4b4d4";c.fillRect(ux+1,uy+13,8,1);
+ }
  drawPet();drawToy();drawChild();
  for(const e of G.L.foes)if(!e.dead)drawFoe(e);
  for(const s of G.L.shots){c.fillStyle=s.hue;c.fillRect(sx(s.x),sy(s.y),s.w,s.h);}
@@ -1409,7 +1445,7 @@ function updateStatus(){
 // The drawing surface takes the shape of the box it sits in: with the scope off
 // the maze simply gets those sixteen rows back.
 function fit(force){
- const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||216;
+ const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||234;
  if(!w||!hh)return;
  const s=clamp(w/346,1,6);
  const nw=clamp(Math.round(w/s),260,560), nh=clamp(Math.round(hh/s),150,MAPH*TS+RADAR_H);

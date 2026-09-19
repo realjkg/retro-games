@@ -24,9 +24,10 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 - The big left button (Space/Z/Enter) is **FIRE**, and points the way you are facing.
   The big right button (X/E) sends a ball **straight up**, or **straight down** while ▼ is
   held. Three balls in the air at once, no more.
-- **RADAR** (R) is the scope along the top: it holds the whole maze at once — you, the child,
-  the toy, the pet and everything hunting you. Switching it off hands those rows back to the
-  maze, which is worth doing on a small phone.
+- **RADAR** (R) switches the panel along the top: the scope in the middle of it holds the
+  whole maze at once — you, the child, the toy, the pet and everything hunting you — with the
+  score, the robots you have left and the high score either side. Switching it off hands
+  those rows back to the maze, which is worth doing on a small phone.
 - **MENU** (Esc/P) pauses, and the pause screen carries the controls card, the music switch,
   the scope switch and the full-screen switch.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
@@ -67,13 +68,27 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 
 ## The look of it
 
-The sprites and the maze are drawn to the original's description rather than copied from it.
-I could not open a screenshot or a disk image from where this was built, so nothing here is
-traced: what the art follows is what the sources say the 1983 game looked like — a small
-**blue robot** with a rocket backpack, a maze of chunky floors seen from the side, and
-ANALOG Computing's February 1984 note that it had "some of the best pseudo-3D graphics I've
-ever seen". Everything is therefore an homage in the idiom of the machines it ran on, not a
-reproduction of anyone's pixels.
+The art is drawn from a photograph of the original running, supplied by the owner of this
+repository — I cannot reach a screenshot or a disk image from where this is built, so that
+photograph is the only sight of the game anyone here has had. Nothing is traced from it:
+what it settled were the things descriptions could not, and every pixel below was drawn to
+match what it showed rather than copied out of it.
+
+What the photograph settled:
+
+- **The screen is black**, and the floors are bright bands with a white edge along the top —
+  not shaded stone. Four colours and a black background is what the machine had.
+- **The hero is violet-blue with a white front**, round-headed and snouted, with the pack on
+  his back: a bot shaped like a cartoon creature.
+- **The top of the screen is a panel, not a strip**: SCORE at the left with a little robot
+  and the count of them beside it, a magenta-framed scope in the middle with a line per
+  storey and a dot for everything on it, HISCORE at the right, and the game's name in red
+  beside three green bars.
+- **The serpents are coiled and upright**, swaying where they stand, with a red tongue.
+- **Thrown weapons are swords**: a white blade with a red hilt, crossing a floor.
+- **White urns stand on the floors** of the scene the photograph shows. They are here too:
+  a ball apiece stops in them, two shatters one for points, and they are cover while they
+  last.
 
 **There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
 twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
@@ -88,35 +103,38 @@ node drol/tools/render-art.js          # rewrite the icons and the collection ti
 node drol/tools/render-art.js --check  # what CI runs
 ```
 
+The rest is an homage in the idiom of the machine, not a reproduction: what the photograph
+did not show, nobody here has seen.
+
 What that means on screen:
 
-- **The robot** is a green, round-headed bot with a snout, one big eye, orange boots and a
-  jetpack strapped to his back — closer to a cartoon creature than to a tin man, which is how
-  the original's hero reads. The pack burns from its nozzle only while ▲ is held; on a floor
-  with the pack off he walks, and his legs take strides. He throws a shadow on the floor below
-  him, which shrinks as he rises — the one cue that says how high up he is.
-- **The floors** are slabs with three faces: a lit top edge you land on, a stone front, and a
-  shadow under it, with brickwork seams offset storey by storey and a bright lip either side
-  of every hole. Behind them is a pillared back wall, so the maze has a depth to stand in.
-- **Nothing else in the maze is his green.** The hero owns that hue, so the "hopping,
-  beer-belly aliens" are violet, the serpents teal and the boy's lizard a yellower green: at
-  twelve pixels, colour is what tells you what a thing is before shape does.
-- **Each scene has one palette**, the way a machine with a handful of colours would have done
-  it: steel blue for the boy's scene, violet for the girl's and the witch doctor's, and a
-  burnt red-brown for the descent to the mother.
+- **The robot** is violet-blue with a white front, round-headed and snouted, one big eye,
+  pale boots and a jetpack strapped to his back. The pack burns from its nozzle only while ▲
+  is held; on a floor with the pack off he walks, and his legs take strides. He throws a
+  shadow on the floor below him, which shrinks as he rises — the one cue that says how high
+  up he is.
+- **The floors** are bands with a white edge along the top and a darker line beneath, with a
+  bright lip either side of every hole. There is nothing behind them: the background is black,
+  which is what makes four colours look like more.
+- **Each scene has one colour**, as the machine would have done it: cyan for the boy's scene,
+  magenta for the girl's and the witch doctor's, and the photograph's blue for the descent to
+  the mother, which is the scene the photograph shows.
 - **The menagerie is a handful of blocks each, two frames apiece**, with one bright colour so
   you can tell what it is at a glance: the scorpion's tail curls over its back, the turkey
   flaps, the monster hops on its belly, the serpent's body ripples along, the witch doctor
   carries a lit staff under a red headdress, the vacuum has a mouth and wheels, the axe spins,
   and the magnet is a red horseshoe with a field pulsing out of it.
-- **The trapdoors** of the third scene are boards across the hole with a hinge at either end
-  while they are shut, and a flap hanging through it once sprung — green if that was the safe
-  one, red if it was not.
+- **The trapdoors** of the third scene are white boards in a magenta frame while they are
+  shut, and a flap hanging through the hole once sprung — green if that was the safe one, red
+  if it was not.
 - **The title card** is the same cast at twice the size: the robot hovering with a ball
   already on its way, the boy along the floor to the right, and the witch doctor to the left
   with his staff lit.
 - **The icon and the gallery tile** are that same sprite, scaled up and generated from it, so
   the game looks like itself from the collection page, the home screen and the browser tab.
+- **The panel along the top** carries what the photograph carries: score, robots left, the
+  scope, the high score and the name of the game. Switch the scope off and it collapses to a
+  single line, which is worth doing on a small phone.
 
 ## Mobile tweaks
 
@@ -277,10 +295,10 @@ Two details the sources disagree on, and how they are resolved here:
   at the lower right of the third level.
 - [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
   generic-looking robot across a four story map layout. The robot levitates and is able to
-  shoot multi-coloured balls out of his chest." The hero here is drawn to that and to what the
-  owner of this repository could see in a photograph of the original that I could not open
-  from this environment: a bot with a jetpack, shaped more like a cartoon creature than a tin
-  man.
+  shoot multi-coloured balls out of his chest."
+- **A photograph of the original running**, supplied by the owner of this repository, which is
+  where the palette, the panel across the top, the coiled serpents, the swords, the urns and
+  the shape of the hero come from. It is the only sight of the game this work has had.
 - Contemporary reviews, for what else it looked like: ANALOG
   Computing's February 1984 line that Drol had "some of the best pseudo-3D graphics I've ever
   seen" — the two facts the art here is drawn towards, since no screenshot of the original was
@@ -314,7 +332,9 @@ pack, that ▼ lands him and that walking is slower than flying — the way the 
 its box, the full-screen toggle,
 the button labels, the settings and best score that survive a reload, the browser that refuses
 storage altogether, the install button, the one sprite that the game, the title card, the icon
-and the collection tile all draw from, the rules that stop a held control turning into a text
+and the collection tile all draw from, every kind of thing in the maze moving and being drawn
+without throwing — the test that catches a sprite pasted into the AI by mistake, which is a
+thing that happened — the rules that stop a held control turning into a text
 selection, and the music engine — that it
 plays, follows the game state, quickens round after round, and answers both the mute and the
 music switch. They verify audio events and mute, not subjective sound authenticity.

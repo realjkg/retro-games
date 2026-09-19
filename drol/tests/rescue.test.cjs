@@ -460,3 +460,31 @@ test('Up is the jetpack, down is his feet',()=>{
   r.run('keys.U=true;');step(r,40);
   assert.ok(Math.abs(r.run('G.hero.vx'))>walked,'the jetpack is the faster way across');
 });
+
+test('Every kind of thing in the maze can move and be drawn without falling over',()=>{
+  // This is the test that would have caught a sprite being pasted into the AI:
+  // an exception in either one shows up here rather than as a frozen screen.
+  const r=runtime(2,73);
+  for(const scene of [0,1,2]){
+    r.run(`G.scene=${scene};startScene();G.hero.inv=999;
+     G.L.foes=Object.keys(FOE).map((k,i)=>mkFoe(k,(14+i*6)*TS,slabRow(i%FLOORS)*TS-FOE[k].h,
+       i%FLOORS,i%2?1:-1,0,0));
+     G.L.curses=[{x:30*TS,y:slabRow(1)*TS-12,w:7,h:7,vx:-130,vy:0,t:0,gone:false}];
+     G.L.plants=[{x:30*TS,y:slabRow(2)*TS,w:20,h:10,t:.5,grown:true}];`);
+    const before=r.run('G.L.foes.map(e=>e.x+","+e.y).join("|")');
+    step(r,60);
+    r.run('render();updateStatus();updatePads();');
+    assert.equal(r.run('G.L.foes.every(e=>isFinite(e.x)&&isFinite(e.y))'),true,
+      `scene ${scene+1}: nothing has flown off to NaN`);
+    assert.notEqual(r.run('G.L.foes.map(e=>e.x+","+e.y).join("|")'),before,
+      `scene ${scene+1}: the menagerie actually moves`);
+  }
+  // And each kind individually, in case one of them is the quiet one.
+  for(const k of r.run('Object.keys(FOE)')){
+    r.run(`G.scene=2;startScene();G.hero.inv=999;
+     G.L.foes=[mkFoe("${k}",20*TS,slabRow(1)*TS-FOE["${k}"].h,1,1,0,0)];`);
+    step(r,40);
+    r.run('render();');
+    assert.equal(r.run('G.L.foes.length'),1,k+' survives being stepped');
+  }
+});

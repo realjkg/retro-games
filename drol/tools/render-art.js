@@ -56,25 +56,19 @@ function iconPNG(sprite,size){
   for(let j=Math.max(0,Math.round(y));j<Math.min(H,Math.round(y+h));j++)
    for(let i=Math.max(0,Math.round(x));i<Math.min(W,Math.round(x+w));i++){
     const o=(j*W+i)*3;buf[o]=c[0];buf[o+1]=c[1];buf[o+2]=c[2];}};
- rect(0,0,W,H,"#0b1020");
- rect(0,0,W,H*.52,"#121a31");
- for(let i=0;i<5;i++){                                   // the pillared back wall
-  rect(W*(.03+i*.2),0,W*.055,H,"#172038");
-  rect(W*(.085+i*.2),0,W*.016,H,"#0a0f1e");
- }
+ rect(0,0,W,H,"#000000");                                // black, as the machine had it
  for(let f=0;f<4;f++){                                   // four floors, each with a hole
   const y=H*(.15+f*.23);
-  rect(0,y,W,H*.055,f%2?"#46587c":"#3b4c6e");
-  rect(0,y,W,H*.018,"#6d84b0");
-  rect(0,y,W,H*.008,"#a8bde0");
-  rect(0,y+H*.045,W,H*.012,"#080c18");
-  rect(W*(.06+f*.24),y,W*.15,H*.06,"#0b1020");
+  rect(0,y,W,H*.055,"#3a34c8");
+  rect(0,y,W,H*.038,"#6a62e8");
+  rect(0,y,W,H*.014,"#ffffff");                          // the white edge you land on
+  rect(W*(.06+f*.24),y,W*.15,H*.06,"#000000");
  }
  // The hero, centred, at whatever scale fits him into two thirds of the icon.
  const u=Math.floor(H*.62/sprite.h), ox=Math.round((W-sprite.w*u)/2), oy=Math.round(H*.21);
- rect(ox+1*u,oy+12*u,3*u,7*u,"#ff8c28");                 // the jetpack, burning
- rect(ox+1*u,oy+12*u,3*u,5.5*u,"#ffc24a");
- rect(ox+1.6*u,oy+12*u,1.6*u,4*u,"#fff4c0");
+ rect(ox+1*u,oy+12*u,3*u,7*u,"#d838c8");                 // the jetpack, burning
+ rect(ox+1*u,oy+12*u,3*u,5.5*u,"#ff8ae8");
+ rect(ox+1.6*u,oy+12*u,1.6*u,4*u,"#ffffff");
  for(const r of runs(sprite))rect(ox+r.x*u,oy+r.y*u,r.w*u,u,r.colour);
  rect(ox+(sprite.w+1)*u,oy+8*u,4*u,2*u,"#ffe14a");       // a ball already on its way
  const raw=Buffer.alloc((W*3+1)*H);
@@ -97,14 +91,14 @@ function tileSVG(sprite){
  const out=[START,'        <svg viewBox="0 0 64 64">'];
  for(let f=0;f<4;f++){                                   // the four floors behind him
   const y=3+f*17;
-  out.push(`          <rect x="0" y="${y}" width="64" height="3" fill="${f%2?"#46587c":"#3b4c6e"}"/>`+
-           `<rect x="0" y="${y}" width="64" height="1" fill="#a8bde0"/>`);
-  out.push(`          <rect x="${6+f*15}" y="${y}" width="10" height="3" fill="#0b1020"/>`);
+  out.push(`          <rect x="0" y="${y}" width="64" height="3" fill="#6a62e8"/>`+
+           `<rect x="0" y="${y}" width="64" height="1" fill="#ffffff"/>`);
+  out.push(`          <rect x="${6+f*15}" y="${y}" width="10" height="3" fill="#000000"/>`);
  }
  out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
-          `width="${(3*u).toFixed(2)}" height="${(7*u).toFixed(2)}" fill="#ff8c28"/>`);
+          `width="${(3*u).toFixed(2)}" height="${(7*u).toFixed(2)}" fill="#d838c8"/>`);
  out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
-          `width="${(3*u).toFixed(2)}" height="${(5*u).toFixed(2)}" fill="#ffc24a"/>`);
+          `width="${(3*u).toFixed(2)}" height="${(5*u).toFixed(2)}" fill="#ff8ae8"/>`);
  for(const r of runs(sprite))
   out.push(`          <rect x="${(ox+r.x*u).toFixed(2)}" y="${(oy+r.y*u).toFixed(2)}" `+
            `width="${(r.w*u).toFixed(2)}" height="${u.toFixed(2)}" fill="${r.colour}"/>`);

@@ -155,15 +155,15 @@ function makeAgent(K){                       // K: the geometry constants of the
    const c=mid(e), dx=c.x-me.x, dy=c.y-me.y;
    if(Math.abs(dy)>K.FLOORH*K.TS*.55)continue;
    const d=Math.hypot(dx,dy);
-   // A magnet cannot be shot and cannot be outflown from close up, so it is
-   // given a wider berth than anything that can be killed - but only overhead.
-   // Its reach stops short of the floor, so the way past one, and the way to a
-   // child standing under one, is low.
-   const sameFloor=Math.abs(dy)<K.FLOORH*K.TS*.5;
-   // A magnet overhead is survivable at floor level: its pull only beats the
-   // backpack inside about seventeen pixels, so a child standing under one is
-   // reached by flying low and holding ▼, not by keeping clear.
-   const keepOut=e.k==="magnet"?(sameFloor?(dy<-12?20:56):26):e.k==="vacuum"?70:46;
+   // A magnet cannot be shot, and from close up cannot be outflown either. The
+   // berth is the distance at which its pull starts beating the jetpack - read
+   // from the game rather than guessed, and nothing to do with which floor the
+   // thing is on. A child standing under a magnet is reached by flying low.
+   const keepOut=e.k==="magnet"?K.MAGNET_REACH*.8:
+                 e.k==="vacuum"?K.VACUUM_REACH*.6:46;
+   // Unless what you came for is standing inside that field, in which case there
+   // is no version of this where you keep clear of it.
+   if((e.k==="magnet"||e.k==="vacuum")&&Math.hypot(g.x-c.x,g.y-c.y)<keepOut)continue;
    if(d<keepOut){flee+=dx>0?-1:1;panic=true;}
   }
 
@@ -185,7 +185,9 @@ function makeAgent(K){                       // K: the geometry constants of the
    if(memory.fleeT>0)memory.fleeT--;
    else{memory.fleeDir=flee>0?1:-1;memory.fleeT=30;}
    if(memory.fleeDir>0)keys.R=true;else keys.L=true;
-   if(dy<0||memory.fleeT%2)keys.U=true;             // rising is usually the way out
+   // Get off the floor. Walking is slower than flying and everything that hops,
+   // walks or slithers is down here with you.
+   keys.U=true;
   }else{
    if(dx>6)keys.R=true;else if(dx<-6)keys.L=true;
    if(dy<-5)keys.U=true;else if(dy>5)keys.D=true;
@@ -247,7 +249,8 @@ function makeAgent(K){                       // K: the geometry constants of the
 /* ---------- one game ---------- */
 function play(opts){
  const run=boot(opts.seed);
- const K=run("({TS,FLOORH,FLOORS,MAPW,MAPH})");
+ // The geometry and the two pull ranges, read from the game rather than guessed.
+ const K=run("({TS,FLOORH,FLOORS,MAPW,MAPH,MAGNET_REACH,VACUUM_REACH})");
  const decide=makeAgent(K);
  run(`newGame(${opts.diff},${opts.seed});`);
  const log={seed:opts.seed,diff:opts.diff,score:0,rescues:[],deaths:[],scenesSeen:0,
