@@ -1452,3 +1452,19 @@ function frame(now){
 }
 globalThis.__frame=frame;
 fit(); paint(); if(RAF)RAF(frame);
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout; the worker keeps the game playable without a signal. */
+function isStandaloneApp(){
+  try{
+    if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+    if(typeof matchMedia!=="function")return false;
+    return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+  }catch(e){return false;}
+}
+if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
+   typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('gamemode');}
