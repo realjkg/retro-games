@@ -15,11 +15,19 @@ const RULES={
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
-  WOUNDS:2
+  WOUNDS:2,
+  // the man at the window: how often, how many in a day, how long before the
+  // sash goes up, and how long after that before he fires
+  SNIPER_ODDS:0.3, SNIPERS:2,
+  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
+  SNIPER_MIN:5200, SNIPER_MAX:8200
 };
-/* Where each job falls in the day. Every job sits after the callers who could
- * have warned about it: the stage after Rose, the train after Miss April, the
- * bank after the Doctor, the new gun, Willy and the Deputy. */
+/* The phases in which the street is still happening and a second gun in it can
+ * do something. On the resolve screen and between encounters it cannot. */
+const LIVE=["dialogue","aiming","tell","duel"];
+/* The three jobs sit between callers, each after everybody who could have
+ * warned about it: the stage after Rose, the train after the Dude and Miss
+ * April, the bank after the Doctor, the new gun, Willy and the Deputy. */
 const INTERLUDES=[{after:4,job:"stage"},{after:8,job:"train"},{after:10,job:"bank"}];
 
 const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
@@ -41,6 +49,8 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -50,7 +60,19 @@ function newDay(opts){const G=rawDay(opts); G.doctor.sober=G.rng()>=0.3; return 
 const newGame=newDay;                      // the page calls it this
 /* During a robbery the man in front of the sheriff is the robber, not the next
  * caller, and every rule below reads him through the same accessor. */
-const who=G=>(G.interlude?JOBS[G.interlude]:CAST[G.encounter])||null;
+const who=G=>(G.interlude?(G.jobEnc||JOBS[G.interlude]):CAST[G.encounter])||null;
+const castOf=id=>CAST.filter(e=>e.id===id)[0]||null;
+/* Who is loose. An armed man who walks out of his encounter unstopped - sent
+ * off, told to leave the territory, given offence and gone, or simply cleverer
+ * than the sheriff - is a man the town may hear from again. Arrested, shot or
+ * dead, he is not; unarmed, he is not either, because a schoolteacher does not
+ * go through the back wall of a bank. */
+function atLarge(G,why){
+  const e=who(G);
+  if(!e||!e.armed||G.interlude)return;
+  if(G.atLarge.indexOf(e.id)<0)G.atLarge.push(e.id);
+  if(why)G.log.push("at large: "+e.id+" ("+why+")");
+}
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
@@ -61,6 +83,18 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
+  G.spoke=false; G.balked=false; G.blackout=false;
+  // Somebody at the window over the street, on some encounters and not others,
+  // and never more than twice in a day: a day where every caller brings a
+  // second gun is a day about windows rather than about people. The doctor's
+  // own scene is indoors, so nobody is above it.
+  G.sniper=null;
+  if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
+    G.snipers++;
+    G.sniper={alive:true,fired:false,shown:false,at:null,
+      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
+      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+  }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
@@ -76,8 +110,10 @@ function openDialogue(G){
  * or is answered with a hand rather than a sentence. */
 function say(G,index){
   if(G.phase!=="dialogue")return null;
+  if(G.balked&&G.mode==="gun")return null;   // he is not talking to a gun
   const n=nodeOf(G); if(!n)return null;
   const reply=n.replies[index]; if(!reply)return null;
+  G.spoke=true;
   if(reply.action)return act(G,reply.action);
   if(reply.end)return terminal(G,reply.end);
   if(reply.next){
@@ -95,7 +131,19 @@ function act(G,kind){
     G.arrests++; G.authority+=1; G.flags.push("surrender","arrest");
     return resolve(G,"surrendered");
   }
-  if(kind==="depart"){G.flags.push("depart");return resolve(G,"departed");}
+  if(kind==="depart"){
+    G.flags.push("depart"); atLarge(G,"sent off unstopped");
+    return resolve(G,"departed");
+  }
+  // Outsmarted. Not a bullet and not the end of the day: the sheriff wakes up
+  // where he was standing, poorer in the town's estimation, with one caller
+  // already come and gone while he was down and the man who did it loose.
+  if(kind==="trick"){
+    G.authority-=2; G.flags.push("outsmarted");
+    G.incapacitated=true; G.blackout=true;
+    atLarge(G,"outsmarted");
+    return resolve(G,"outsmarted");
+  }
   return resolve(G,"nothing");
 }
 function terminal(G,id){
@@ -114,6 +162,9 @@ function terminal(G,id){
     if(f==="doctor_sober")G.doctor.sober=true;
   }
   G.authority+=t.authority||0;
+  // a man who walked out of it unstopped, or who left having taken offence
+  const f=t.flags||[];
+  if(f.indexOf("offended")>=0||f.indexOf("depart")>=0)atLarge(G,"left unstopped");
   return resolve(G,id);
 }
 
@@ -121,6 +172,11 @@ function terminal(G,id){
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  // A man who has a gun pointed at him before he has been answered stops
+  // talking, and does not start again while it is out. Keeping it on him is
+  // still the sheriff's business: the reflex below decides what he does about
+  // it, which is answer it if he is armed and leave if he is not.
+  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
   return G.mode;
@@ -147,10 +203,23 @@ function moveAim(G,dx,dy){
   return G.aim;
 }
 function tick(G,nowMs){
+  // The man at the window keeps his own clock, and it runs whatever the two in
+  // the street are doing. The sash goes up first, which is the only warning
+  // there is; a while after that he fires.
+  const sn=G.sniper;
+  if(sn&&sn.alive&&!sn.fired&&LIVE.indexOf(G.phase)>=0){
+    if(sn.at==null)sn.at=nowMs;
+    const t=nowMs-sn.at;
+    if(!sn.shown&&t>=sn.show)sn.shown=true;
+    if(t>=sn.limit){
+      sn.fired=true;
+      return takeHit(G,"a rifle out of the window over the street");
+    }
+  }
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");
+    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
@@ -168,6 +237,7 @@ const weaponBox=G=>{const b=boxesFor(who(G));
   return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?b.weaponRaised:b.weapon;};
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
+  if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -202,6 +272,14 @@ function shoot(G,latencyMs){
   // read what the crosshair is over before drawing first changes his pose:
   // the player aimed at the hand on the hip, not at the hand he has not raised
   const box=boxAt(G,G.aim.x,G.aim.y);
+  // A ball through the window is not a duel with the man in the street, and it
+  // ends the encounter whatever was being said: nobody carries on a
+  // conversation after that.
+  if(box==="sniper"){
+    G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
+    G.flags.push("sniper_down"); G.reflex=null;
+    return resolve(G,"sniper_down");
+  }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.reflex=null;
@@ -242,15 +320,29 @@ function theirReply(G){
  *   civil       alive, sober and well disposed — patched up, and the day goes on
  *   neutral     alive and sober but owing nothing: one wound, no more
  * Not having met him yet counts as neutral; he is in the town either way. */
+/* Whether the doctor comes, and how willingly, is not only about the doctor.
+ * A sheriff who has shot men who never drew, or put the whole street's back up,
+ * is a sheriff Gold Gulch is slower to send for - so the town's standing moves
+ * his disposition a step either way before it is read. */
+function doctorStanding(G){
+  let n=G.doctor.disposition;
+  n-=G.innocentsKilled;                     // the town saw all of them
+  if(G.flags.filter(f=>f==="offended").length>=2)n-=1;
+  if(G.authority>=3)n+=1;                   // a sheriff worth patching up
+  return n;
+}
 function doctorState(G){
   const d=G.doctor;
   if(!d.alive)return "dead";
-  if(d.disposition<0)return "hostile";
+  const n=doctorStanding(G);
+  if(n<0)return "hostile";
   if(!d.sober)return "drunk";
-  return d.disposition>0?"civil":"neutral";
+  return n>0?"civil":"neutral";
 }
+/* Being shot is not a line of bookkeeping either: the street goes out, and the
+ * next thing the sheriff knows is whether anybody came. */
 function takeHit(G,why){
-  G.wounds++;
+  G.wounds++; G.blackout=true;
   const state=doctorState(G);
   if(state==="dead"){
     G.alive=false;
@@ -279,13 +371,27 @@ function resolve(G,outcome){
   return {outcome,ending:G.ending};
 }
 /* A job the sheriff was warned about is one he can be standing in front of. */
+/* A job that has come due happens, and a job the sheriff was carried past by
+ * being knocked down still happens: the test is "after", not "exactly at". */
 function interludeDue(G){
   const done=G.encounter+1;
-  return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
+  return INTERLUDES.find(i=>i.after<=done&&!G.results.some(r=>r.outcome==="job_"+i.job));
 }
 /* The job is a scene, not a line of bookkeeping: being told about it puts the
  * sheriff in front of it with his own gun still in the leather. */
 function runInterlude(G,job){
+  // Whoever the sheriff let go most recently is the man in the alley. If he let
+  // nobody go, it is an outlaw nobody in Gold Gulch can name.
+  const by=G.atLarge.length?G.atLarge[G.atLarge.length-1]:null;
+  const j=JOBS[job];
+  G.by=by;
+  if(by){
+    G.atLarge=G.atLarge.filter(function(id){return id!==by;});
+    const him=castOf(by);
+    G.jobEnc=Object.assign({},j,{figure:by,
+      name:j.name+" \u2014 "+(him?him.name:"someone you know"),
+      brief:j.brief+" You have seen that coat before today."});
+  }else{ G.jobEnc=null; }
   G.interlude=job; G.phase="interlude";
   G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
@@ -312,8 +418,10 @@ function nextEncounter(G){
   }
   const due=interludeDue(G);
   if(due&&G.interlude!==due.job)return runInterlude(G,due.job);
-  G.interlude=null;
+  G.interlude=null; G.by=null; G.jobEnc=null;
   G.encounter++;
+  // knocked down: the street went on without him, and one caller came and went
+  if(G.incapacitated){G.incapacitated=false; G.skipped++; G.encounter++;}
   if(G.encounter>=CAST.length)return finish(G,"dusk");
   return beginEncounter(G);
 }

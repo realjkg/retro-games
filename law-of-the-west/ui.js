@@ -1054,7 +1054,21 @@ function town(now,armed){
   }
   propAt(here.prop);
 }
+/* Being shot puts the street out. It comes back the way a man comes back: all
+ * at once to nothing, then slowly to a dim version of where he was lying, and
+ * it stays dim until he is on his feet and walking on. */
+let blackAt=-1e9, blackOn=false;
+const BLACK_OUT=420, BLACK_BACK=1500;
+function blackLevel(now){
+  if(!G.blackout)return 0;
+  const t=now-blackAt;
+  if(t<BLACK_OUT)return 1;
+  const u=Math.min(1,(t-BLACK_OUT)/BLACK_BACK);
+  return 1-u*0.58;                       // never all the way back while he is down
+}
 function drawScene(now){
+  if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
+  if(!G.blackout)blackOn=false;
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
@@ -1083,16 +1097,37 @@ function drawScene(now){
   }
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
+  sniperInWindow();
   grade();
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
+    ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  const black=blackLevel(now);                             // he has been shot
+  if(black>0){ctx.fillStyle="rgba(0,0,0,"+black.toFixed(3)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
   if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
   ctx.restore();
+}
+/* The man at the window over the street. He is small and he is behind glass,
+ * so what there is to see is the pane going dark where he is standing in it and
+ * a barrel out over the sill. That is the whole warning; the rest is whether
+ * the sheriff is looking at anything but the man in front of him. */
+function sniperInWindow(){
+  const sn=G.sniper;
+  if(!sn||!sn.alive||!sn.shown)return;
+  const bx=SNIPER_BOX, x=bx.x+2, y=bx.y+2, w=bx.w-4, h=bx.h-4;
+  px(x,y,w,h,"rgba(8,6,5,.92)");                      // he fills the lit pane
+  px(x+3,y+1,5,3,C64.brn);                            // the crown of a hat
+  px(x+2,y+4,7,1,C64.brn);                            // and its brim
+  px(x+3,y+5,4,3,"#7d5f43");                          // a face, in shadow
+  px(x-6,y+8,12,2,C64.lgy);                           // the barrel out over the sill
+  px(x-7,y+8,2,2,C64.wht);                            // and the glint off its muzzle
+  px(x-6,y+10,12,1,"rgba(0,0,0,.6)");
+  px(x,y+h,w,1,"rgba(0,0,0,.55)");
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
@@ -1217,7 +1252,9 @@ function paint(){
   }
   lineEls[0].className="npc";
   if(G.phase==="interlude"){
-    const job=JOBS[G.interlude]||{};
+    // who(G) rather than JOBS: when the sheriff let somebody go this morning,
+    // the job carries that man's name and his own line about the coat
+    const job=who(G)||JOBS[G.interlude]||{};
     lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
     setChoice(lineEls[1],1,G.tips[G.interlude]
       ?(JOB_PROMPT[G.interlude]||"Go"):"Hear it out","sel");
@@ -1232,15 +1269,20 @@ function paint(){
     hud(); fitText(); return;
   }
   const him=who(G);
-  lineEls[0].textContent=b?b.npc
+  // A caller who had a gun pointed at him before he was answered has stopped
+  // talking, and his four replies are not on offer while it is out. Putting it
+  // up hands him back the conversation where he left it.
+  const balked=G.balked&&G.mode==="gun";
+  lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
     :"Nobody is saying anything. The street has gone quiet.";
-  const replies=b?b.replies:[];
+  const replies=(b&&!balked)?b.replies:[];
   for(let i=0;i<4;i++){
     // the cursor stays visible with the gun out, so holstering does not lose your place
     setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
-      (live&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
+      (live&&!balked&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
   }
   hud(); fitText();
 }
@@ -1258,6 +1300,8 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
+  sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
@@ -1763,7 +1807,11 @@ function frame(now){
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
       const before=G.phase;
+      const sashWas=!!(G.sniper&&G.sniper.shown);
       const ev=tick(G,now);
+      // the sash going up is the only warning the street gives, so it makes a
+      // noise: once, when it goes up, and never again for that window
+      if(!sashWas&&G.sniper&&G.sniper.shown){SND.creak();SND.tension();}
       // a man who outdraws you ends the encounter, and sometimes the day, from
       // inside the loop rather than from a keypress: repaint either way
       if(ev&&G.phase==="resolve"){settleSound();paint();}

@@ -46,7 +46,7 @@ test('2. eleven callers, in order, and every written tree is sound', ()=>{
             else {seen[r.next]=true;walk(r.next,d+1);}
           }
           if(r.end){ends.add(r.end); if(!e.ends[r.end])bad.push(where+" -> "+r.end+": no such ending");}
-          if(r.action&&!["draw","ambush","delayed","surrender","depart"].includes(r.action))
+          if(r.action&&!["draw","ambush","delayed","surrender","depart","trick"].includes(r.action))
             bad.push(where+": unknown action "+r.action);
         });
       };
@@ -88,7 +88,8 @@ function playDay(seed,chooser,opts){
       else if(G.phase==="approach")openDialogue(G);
       else break;
     }
-    return JSON.stringify({phase:G.phase,over:G.over,alive:G.alive,
+    return JSON.stringify({phase:G.phase,over:G.over,alive:G.alive,skipped:G.skipped,
+      atLarge:G.atLarge,
       encounters:G.results.length,met:G.met,tips:G.tips,flags:G.flags,
       results:G.results.map(r=>r.who+":"+r.outcome)});
   })()`));
@@ -101,7 +102,10 @@ test('3. a day runs all eleven callers in order and ends at sundown', ()=>{
     assert.equal(r.phase,'summary','day '+i+' never reached sundown');
     assert.ok(r.over,'no reckoning');
     for(const k of Object.keys(r.over.categories))seen[k]=true;
-    if(r.alive)assert.equal(r.met.length,11,'day '+i+' met '+r.met.length+' callers');
+    // a sheriff who was outsmarted spent an encounter on the boardwalk, so the
+    // day is eleven callers less however many came while he was down
+    if(r.alive)assert.equal(r.met.length,11-r.skipped,
+      'day '+i+' met '+r.met.length+' of '+(11-r.skipped)+' callers');
   }
   assert.deepEqual(Object.keys(seen).sort(),
     ["authority maintained","bad guys shot","crimes missed","crooks captured",
@@ -247,7 +251,8 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   const abox={};vm.createContext(abox);
   vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
   const S=abox.S, cues=Object.keys(S);
-  const arrivals=new Set(JSON.parse(run('JSON.stringify(CAST.flatMap(e=>e.arrive||[]))')));
+  const arrivals=new Set(JSON.parse(run('JSON.stringify('+
+    'CAST.concat(Object.keys(JOBS).map(k=>JOBS[k])).flatMap(e=>e.arrive||[]))')));
   const themes=JSON.parse(run('JSON.stringify(CAST.map(e=>e.theme))'));
   const named=new Set(themes.concat('th_job'));
   const RESERVED=['romance','title','dusk','dawn','badge'];
@@ -282,7 +287,7 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   report.themes=[...named];
 });
 
-test('11. eleven figures, no two alike, each with hitboxes over his own art', ()=>{
+test('11. twelve figures, no two alike, each with hitboxes over his own art', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
     const bad=[], seen=new Map();
@@ -352,7 +357,7 @@ test('12. every caller is reachable and every action class occurs across the day
     return JSON.stringify({actions,ends,unwritten});
   })()`));
   assert.deepEqual(out.unwritten,['lastgun'],'the only caller without words is the last one');
-  for(const a of ['draw','ambush','delayed','surrender','depart'])
+  for(const a of ['draw','ambush','delayed','surrender','depart','trick'])
     assert.ok(out.actions[a]>0,'no caller ever answers with "'+a+'"');
   report.actions=out.actions;
 });
@@ -464,6 +469,249 @@ test('16. all three robberies happen, in their place, and only once each', ()=>{
   for(const i of sources.jobs)
     assert.ok(sources.first[i.job]<=i.after,
       'nobody can warn about the '+i.job+' job before it happens');
+});
+
+/* The three mechanics the 1985 description names that this build did not have:
+ * a gun in a man's face before he has been answered, the blackout when the
+ * sheriff is the one hit, and a doctor whose willingness is not only about the
+ * doctor. */
+test('17. a gun drawn before he is answered stops him talking until it is up', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:17});
+    beginEncounter(G); openDialogue(G);
+    r.opening=G.phase;
+    drawGun(G,0);
+    r.balked=G.balked;
+    r.saidAnyway=say(G,0);                 // he is not talking to a gun
+    r.stillOpening=G.node;
+    holster(G);
+    r.afterHolster=G.phase;
+    r.saysNow=!!say(G,0);                  // and the conversation is handed back
+    // but a gun drawn after he has been answered is not the same thing
+    const H=newDay({seed:18});
+    beginEncounter(H); openDialogue(H); say(H,0);
+    drawGun(H,0);
+    r.lateDraw=H.balked;
+    // every caller has words for it, and none of them runs long
+    r.lines=CAST.filter(e=>written(e)).map(e=>e.balk?e.balk.length:0);
+    r.fallback=typeof BALK_LINE;
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.opening,'dialogue');
+  assert.equal(out.balked,true,'the gun came out first and he carried on regardless');
+  assert.equal(out.saidAnyway,null,'he answered a man pointing a gun at him');
+  assert.equal(out.stillOpening,'opening','the conversation moved on without him');
+  assert.equal(out.afterHolster,'dialogue');
+  assert.equal(out.saysNow,true,'putting it up did not hand the conversation back');
+  assert.equal(out.lateDraw,false,'drawing after he was answered counts as balking him');
+  assert.equal(out.fallback,'string','no line for a caller who has none of his own');
+  for(const n of out.lines)assert.ok(n>20&&n<=150,'a balk line is '+n+' characters');
+});
+
+test('18. being shot blacks the street out, and the doctor reads the whole town', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:19}); G.doctor.sober=true; G.doctor.disposition=1;
+    beginEncounter(G);
+    r.before=G.blackout;
+    takeHit(G,"shot");
+    r.after=G.blackout;
+    r.outcome=G.outcome;
+    beginEncounter(G);                     // and it lifts when he walks on
+    r.next=G.blackout;
+    // a sheriff who shoots men who never drew is one the town is slower to send for
+    const K=newDay({seed:20}); K.doctor.sober=true; K.doctor.disposition=1;
+    r.civil=doctorState(K);
+    K.innocentsKilled=2;
+    r.afterKillings=doctorState(K);
+    // and one the street stands behind is patched up
+    const P=newDay({seed:21}); P.doctor.sober=true; P.doctor.disposition=0;
+    r.neutral=doctorState(P);
+    P.authority=3;
+    r.afterStanding=doctorState(P);
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.before,false);
+  assert.equal(out.after,true,'he was shot and the street stayed lit');
+  assert.equal(out.outcome,'doctor_saved');
+  assert.equal(out.next,false,'the blackout never lifted');
+  assert.equal(out.civil,'civil');
+  assert.equal(out.afterKillings,'hostile',
+    'the doctor does not care how many men the sheriff shot who never drew');
+  assert.equal(out.neutral,'neutral');
+  assert.equal(out.afterStanding,'civil',
+    'the town standing behind the sheriff counts for nothing with the doctor');
+});
+
+test('19. the second gun at the window shows itself, can be shot, and shoots back', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // he is not on every caller, and never more than twice in a day
+    const counts=[], where=new Set(); let enc=0, sn=0;
+    for(let seed=0;seed<40;seed++){
+      const G=newDay({seed}); let n=0;
+      for(let i=0;i<CAST.length;i++){
+        G.encounter=i; beginEncounter(G); enc++;
+        if(G.sniper){n++;sn++;where.add(i);}
+      }
+      counts.push(n);
+    }
+    r.most=Math.max.apply(null,counts);
+    r.rate=sn/enc;
+    r.callers=where.size;
+    // find a day that has one, and walk its clock
+    let G=null;
+    for(let seed=0;seed<60&&!G;seed++){
+      const H=newDay({seed}); H.encounter=0; beginEncounter(H);
+      if(H.sniper)G=H;
+    }
+    r.found=!!G;
+    openDialogue(G);
+    r.hiddenAtFirst=boxAt(G,(SNIPER_BOX.x+3)/SCENE.w,(SNIPER_BOX.y+3)/SCENE.h);
+    tick(G,0); tick(G,G.sniper.show+1);
+    r.shown=G.sniper.shown;
+    r.nowATarget=boxAt(G,(SNIPER_BOX.x+3)/SCENE.w,(SNIPER_BOX.y+3)/SCENE.h);
+    // the sash goes up before he fires, or there was no warning at all
+    r.warning=G.sniper.limit-G.sniper.show;
+    r.phaseStill=G.phase;
+    // shoot him
+    const shot=newDay({seed:0});
+    Object.assign(shot,{sniper:{alive:true,fired:false,shown:true,at:0,show:0,limit:9e9}});
+    shot.encounter=0; shot.phase="aiming"; shot.mode="gun";
+    shot.aim={x:(SNIPER_BOX.x+3)/SCENE.w,y:(SNIPER_BOX.y+3)/SCENE.h};
+    shoot(shot,300);
+    r.outcome=shot.outcome; r.badGuys=shot.badGuysShot;
+    r.windowEmpty=shot.sniper.alive;
+    // and if he is left alone he fires
+    const hit=newDay({seed:0}); hit.encounter=0; beginEncounter(hit); openDialogue(hit);
+    hit.sniper={alive:true,fired:false,shown:false,at:null,show:10,limit:20};
+    hit.doctor.sober=true; hit.doctor.disposition=1;
+    tick(hit,0); tick(hit,25);
+    r.fired=hit.sniper.fired; r.wounds=hit.wounds; r.blackout=hit.blackout;
+    // but not once the street is over
+    const past=newDay({seed:0}); past.encounter=0; beginEncounter(past);
+    past.phase="resolve";
+    past.sniper={alive:true,fired:false,shown:true,at:0,show:0,limit:10};
+    tick(past,999);
+    r.firedAfter=past.sniper.fired;
+    return JSON.stringify(r);
+  })()`));
+  assert.ok(out.most<=2,'a day had '+out.most+' men at the window');
+  // some callers bring one and most do not: a street where every window has a
+  // rifle in it is a game about windows rather than about people
+  assert.ok(out.rate>0.1&&out.rate<0.4,
+    'a window over '+(out.rate*100).toFixed(0)+'% of encounters');
+  // and never the same caller twice over: which encounter has one is the
+  // surprise, not whether the day has one somewhere in it
+  assert.ok(out.callers>=5,'only '+out.callers+' callers ever bring one');
+  assert.equal(out.found,true,'no seed in sixty put a man at the window');
+  assert.equal(out.hiddenAtFirst,null,'the window was a target before the sash went up');
+  assert.equal(out.shown,true,'the sash never went up');
+  assert.equal(out.nowATarget,'sniper','the sash went up and he still cannot be shot');
+  assert.ok(out.warning>=1200,'only '+out.warning+'ms between the sash and the shot');
+  assert.equal(out.phaseStill,'dialogue','the sash going up ended the conversation');
+  assert.equal(out.outcome,'sniper_down');
+  assert.equal(out.badGuys,1,'shooting him off the sill counted for nothing');
+  assert.equal(out.windowEmpty,false);
+  assert.equal(out.fired,true,'he was left alone and never fired');
+  assert.equal(out.wounds,1,'his shot did nothing');
+  assert.equal(out.blackout,true,'being shot from a window does not black the street out');
+  assert.equal(out.firedAfter,false,'he fired into an encounter that was already over');
+});
+
+/* The two things a caller can leave behind him: a grievance the town hears from
+ * again at the next robbery, and a sheriff on the boardwalk with his hat off. */
+test('20. a man you let go is the man in the alley', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // an armed man sent off unstopped goes on the list
+    const G=newDay({seed:30}); G.encounter=0; beginEncounter(G); openDialogue(G);
+    act(G,"depart");
+    r.outcome=G.outcome; r.loose=G.atLarge.slice();
+    // an unarmed one never does, however she left
+    const U=newDay({seed:31}); U.encounter=1;      // Miss Rose, unarmed
+    beginEncounter(U); openDialogue(U); act(U,"depart");
+    r.unarmedLoose=U.atLarge.slice();
+    // nor does one who is arrested, or one who is shot
+    const A=newDay({seed:31}); A.encounter=0; beginEncounter(A); openDialogue(A);
+    act(A,"surrender"); r.arrestedLoose=A.atLarge.slice();
+    // and when a job comes due he is the man in the alley
+    const J=newDay({seed:32}); J.encounter=3; J.atLarge=["stranger"];
+    runInterlude(J,"bank");
+    const him=who(J);
+    r.by=J.by; r.figure=him.figure; r.named=him.name.indexOf("A Dude")>=0;
+    r.briefGrew=him.brief.length>JOBS.bank.brief.length;
+    r.jobName=JOBS.bank.name;
+    r.armed=him.armed; r.stillLoose=J.atLarge.slice();
+    r.box=boxesFor(him).lethal.w===boxesFor({figure:"stranger"}).lethal.w;
+    // with nobody loose it is an outlaw nobody can name
+    const N=newDay({seed:33}); N.encounter=3; runInterlude(N,"bank");
+    r.anon=N.by; r.anonName=who(N).name;
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.outcome,'departed');
+  assert.deepEqual(out.loose,['stranger'],'he was sent off and nobody noted it');
+  assert.deepEqual(out.unarmedLoose,[],'the saloon hostess is down for a bank job');
+  assert.deepEqual(out.arrestedLoose,[],'a man in a cell is on the at-large list');
+  assert.equal(out.by,'stranger');
+  assert.equal(out.figure,'stranger','the robbery drew somebody else');
+  assert.equal(out.named,true,'his name is not on the robbery');
+  assert.equal(out.briefGrew,true,'nothing in the scene says you have met him');
+  assert.equal(out.armed,true);
+  assert.deepEqual(out.stillLoose,[],'he did the job and stayed on the list');
+  assert.equal(out.box,true,'the hitboxes are not the ones off his own drawing');
+  assert.equal(out.anon,null);
+  assert.equal(out.anonName,out.jobName,'an unnamed outlaw came with a name');
+});
+
+test('21. being outsmarted costs a caller, not the day', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:34}); G.encounter=0; beginEncounter(G); openDialogue(G);
+    const auth=G.authority;
+    act(G,"trick");
+    r.outcome=G.outcome; r.alive=G.alive; r.docked=auth-G.authority;
+    r.blackout=G.blackout; r.loose=G.atLarge.slice(); r.down=G.incapacitated;
+    r.wounds=G.wounds;                       // it is not a bullet
+    const at=G.encounter;
+    nextEncounter(G);
+    r.jumped=G.encounter-at; r.upAgain=!G.incapacitated; r.skipped=G.skipped;
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.outcome,'outsmarted');
+  assert.equal(out.alive,true,'being outsmarted killed him');
+  assert.equal(out.wounds,0,'being outsmarted counted as a bullet');
+  assert.equal(out.docked,2,'it cost the sheriff nothing with the town');
+  assert.equal(out.blackout,true,'he was knocked down and the street stayed lit');
+  assert.deepEqual(out.loose,['stranger'],'the man who did it is not at large');
+  assert.equal(out.down,true);
+  assert.equal(out.jumped,2,'the street did not go on without him');
+  assert.equal(out.upAgain,true,'he never got up');
+  assert.equal(out.skipped,1);
+});
+
+test('22. a day with a man down in it still runs all three robberies', ()=>{
+  // every caller answered with reply 1, which takes the Dude's trick early on
+  let tricked=0, jobs=0, days=0;
+  for(let i=0;i<120;i++){
+    const r=playDay(i,(enc,round,x)=>Math.floor(x*4));
+    if(!r.alive)continue;
+    days++;
+    const ran=new Set(r.results.filter(o=>/:job_/.test(o))
+      .map(o=>o.split(':')[0]));
+    assert.equal(ran.size,3,'day '+i+' ran '+ran.size+' of three robberies');
+    jobs+=ran.size;
+    if(r.skipped)tricked++;
+    assert.ok(r.skipped<=2,'day '+i+' was outsmarted '+r.skipped+' times');
+  }
+  assert.ok(days>20,'only '+days+' days survived to check');
+  assert.ok(tricked>0,'nobody in a hundred and twenty days was ever outsmarted');
 });
 
 test('report', ()=>{
