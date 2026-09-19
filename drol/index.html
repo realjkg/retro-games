@@ -309,13 +309,15 @@ const HERO_PIX=[
  "......WWWWWWWWWWWR..",
  ".........WWWWWWWWR..",
  "...........WWWWWWWW.",
+ "...............WWWW.",   // the last of the tail, which the photograph has
 ];
 // The same robot with his skirt swung the other way, for when he is walking.
 const HERO_WALK=HERO_PIX.slice(0,15).concat([
  ".........WWWWWWWW...",
- ".......WWWWWWWWWWWR.",
- "..........WWWWWWWWR.",
- "............WWWWWWWW",
+ ".......WWWWWWWWWWW..",
+ "..........WWWWWWWW..",
+ "............WWWWWWW.",
+ "................WWWW"
 ]);
 // Three colours and the black behind them, sampled from the photograph.
 const HERO_PAL={B:"#4a3ce8",W:"#eeeeee",R:"#e04040"};
@@ -1251,9 +1253,9 @@ function drawHero(){
  c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
  if(h.thrust>0){                                  // the jetpack burning, out of its nozzle
   const len=Math.round(3+6*h.thrust+(Math.floor(G.time*24)%2));
-  const nx=h.face<0?x+14:x-1;                    // under the pack, whichever way he faces
-  c.fillStyle="#e04040";c.fillRect(nx,y+13,3,len);
-  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+13,2,Math.max(2,len-2));
+  const nx=h.face<0?x+15:x-2;                    // under the pack, whichever way he faces
+  c.fillStyle="#e04040";c.fillRect(nx+(h.face<0?1:0),y+13,1,len);
+  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+13,1,len);
  }
  // The picture is twenty across and the body that collides is sixteen, so he is
  // drawn around his box rather than inside it.

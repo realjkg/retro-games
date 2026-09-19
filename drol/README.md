@@ -78,8 +78,11 @@ nearest of the four colours on screen, mirrored (he faces left in the photograph
 the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
 That is where the shape comes from: the blue dome, the white eye with its blue pupil, the red
 band across his middle, the white vent the balls come out of, the red collar, the white of him
-below it, and the pack on his back with its own red band and a nozzle under it. Everything else
-on screen is drawn to match what the photograph shows rather than copied out of it.
+below it, and the pack on his back with its own red band and a nozzle under it. Read back and
+compared against the photograph pixel by pixel, **393 of the 400 pixels are identical**; the
+seven that are not are the jetpack's flame, which the game draws live so that it can go out
+when you let go of ▲. Everything else on screen is drawn to match what the photograph shows
+rather than copied out of it.
 
 What the photograph settled:
 
