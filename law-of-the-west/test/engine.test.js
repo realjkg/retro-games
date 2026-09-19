@@ -1046,6 +1046,80 @@ test('28. no clock resolves a scene while the street is being read', ()=>{
     'only '+out.reactionWindow+'ms to answer the last gunfighter');
 });
 
+/* Every journey, not one path through each. Eleven callers, every reply at
+ * every node, to whatever it ends in - and the day that ends must be able to
+ * say which of them you just had. */
+test('29. every path of every caller reaches an ending that reads as its own', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={paths:0, perCaller:{}, dead:[], deep:[], ends:{}, actions:{}};
+    CAST.forEach((e,i)=>{
+      if(!written(e)){r.perCaller[e.id]=0; return;}
+      let n=0;
+      const walk=(node,depth,seenHere)=>{
+        if(depth>RULES.ROUNDS+1){r.deep.push(e.id+"/"+node);return;}
+        const nd=e.rounds[node];
+        if(!nd){r.dead.push(e.id+"/"+node);return;}
+        nd.replies.forEach((x,j)=>{
+          if(x.action){n++; r.actions[x.action]=(r.actions[x.action]||0)+1; return;}
+          if(x.end){
+            n++;
+            const t=e.ends[x.end];
+            if(!t){r.dead.push(e.id+"/"+node+"["+j+"] -> "+x.end);return;}
+            const key=e.id+":"+x.end;
+            r.ends[key]={text:(t.text||"").length, flags:(t.flags||[]).join("+")};
+            return;
+          }
+          if(x.next){
+            if(seenHere.indexOf(x.next)>=0){n++; return;}   // a loop is an ending
+            walk(x.next,depth+1,seenHere.concat([node]));
+          }
+        });
+      };
+      (e.roots||["opening"]).forEach(root=>walk(root,1,[]));
+      r.perCaller[e.id]=n; r.paths+=n;
+    });
+    return JSON.stringify(r);
+  })()`));
+
+  assert.deepEqual(out.dead,[],'paths that go nowhere: '+out.dead.join(', '));
+  assert.deepEqual(out.deep,[],'paths deeper than the three-exchange limit: '+out.deep.join(', '));
+  // every caller who speaks has a tree worth walking
+  for(const id of Object.keys(out.perCaller)){
+    if(id==='lastgun'){assert.equal(out.perCaller[id],0,'the last gunfighter grew words');continue;}
+    assert.ok(out.perCaller[id]>=8,
+      id+' has only '+out.perCaller[id]+' ways out of his encounter');
+  }
+  assert.ok(out.paths>=150,'only '+out.paths+' journeys across the whole cast');
+  // every authored ending has words and a record of what happened
+  const ends=Object.keys(out.ends);
+  assert.ok(ends.length>=28,'only '+ends.length+' authored endings are reachable');
+  for(const k of ends)
+    assert.ok(out.ends[k].text>40,k+' ends on '+out.ends[k].text+' characters');
+  // and every action class is still spoken for
+  for(const a of ['draw','ambush','delayed','surrender','depart','trick'])
+    assert.ok(out.actions[a]>0,'no reply anywhere answers with "'+a+'"');
+  report.journeys={paths:out.paths,endings:ends.length,perCaller:out.perCaller};
+});
+
+test('30. no two kinds of conclusion read the same', ()=>{
+  const {run}=load();
+  const fs2=require('fs');
+  const ui=fs2.readFileSync(path.join(ROOT,'ui.js'),'utf8');
+  assert.match(ui,/function walkOn\(\)/,'the conclusion is not chosen at all');
+  // the flag table is what the authored endings are read through; the outcome
+  // table covers the gun. Between them nothing may fall through to the default.
+  const flags=JSON.parse(run(`JSON.stringify(CAST.flatMap(e=>
+    Object.keys(e.ends||{}).map(k=>(e.ends[k].flags||[]).join("+"))))`));
+  const known=['date','offended','doctor_insulted','doctor_civil','doctor_sober',
+               'tip_train','tip_stage','tip_bank','arrest','depart'];
+  const orphan=flags.filter(f=>f&&!f.split('+').some(x=>known.includes(x)));
+  assert.deepEqual(orphan,[],
+    'authored endings whose flags no conclusion reads: '+orphan.join(', '));
+  for(const k of known)
+    assert.ok(ui.includes('"'+k+'"'),'walkOn never looks at the '+k+' flag');
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));

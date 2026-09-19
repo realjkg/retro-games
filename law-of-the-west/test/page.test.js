@@ -1079,3 +1079,38 @@ test('9x. firing kicks the barrel up and puts a flare on the muzzle, briefly',
   assert.equal(flare(),0,'the muzzle flares with the gun at rest');
   assert.deepEqual(p.errors,[]);
 });
+
+test('9y. the caller moves the way a person does, not the way a block does',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  // Three horizontal bands of his bounding box, read off the paint log. If the
+  // whole figure is one offset applied to one drawing, all three bands change
+  // together on every frame and never apart - which is what "he moves like a
+  // block" means, and it is measurable.
+  const n=p.ev('figureOf(who(G)).rows.length');
+  const SPRY=p.ev('SPRY'), FIGCH=p.ev('FIGCH');
+  const headY=SPRY+Math.round(n*0.26)*FIGCH, hipY=SPRY+Math.round(n*0.62)*FIGCH;
+  const sig=[];
+  for(let t=0;t<6000;t+=150){
+    p.painted.length=0;
+    p.ev('walkAt=-1e9; reactAt=-1e9; visitor(who(G),"idle",'+t+');');
+    const band=(a,b)=>p.painted.filter(r=>r.y>=a&&r.y<b&&r.w<40)
+      .map(r=>r.x+':'+r.y).join(' ');
+    sig.push([band(-1e9,headY),band(headY,hipY),band(hipY,1e9)]);
+  }
+  const distinct=i=>new Set(sig.map(s=>s[i])).size;
+  const name=['head','torso','legs'];
+  for(let i=0;i<3;i++)
+    assert.ok(distinct(i)>=3,
+      'his '+name[i]+' holds only '+distinct(i)+' pose(s) across four seconds');
+  // and the bands must come apart: one moving while another holds still is the
+  // difference between a man shifting his weight and a picture being slid
+  let apart=0;
+  for(let k=1;k<sig.length;k++){
+    const d=[0,1,2].map(i=>sig[k][i]!==sig[k-1][i]);
+    if(d.some(Boolean)&&!d.every(Boolean))apart++;
+  }
+  assert.ok(apart>=4,'his bands never moved independently ('+apart+' frames)');
+  assert.deepEqual(p.errors,[]);
+});

@@ -2624,7 +2624,6 @@ function visitor(enc,pose,now){
   // pixel of sway on a 48-pixel figure is not the gesture it was on a 24-pixel
   // one. GEST is what one unit of body language is worth in screen pixels.
   const breath=Math.sin(t*1.7+ph)>0.55?-1:0;
-  const sway=Math.round(Math.sin(t*0.63+ph)*1.2)*GEST;
   // an eye shuts for a moment, on his own clock and not on anyone else's
   const cyc=3.1+((ph*7)%2.4), blink=(t+ph)%cyc<0.13;
   // and he answers before he answers: a flinch back, a nod in, a beat taken
@@ -2638,22 +2637,52 @@ function visitor(enc,pose,now){
   }
   const walk=walkNow(now||0);
   const lean=mood.lean*GEST, rise=mood.rise*2;
-  const bdx=sway+lean+(walk?walk.dx:0), bdy=breath+rise+(walk?walk.bob:0);
-  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow goes with him
-  ctx.fillRect(SPRX+Math.round(SPR.w*0.24)+(walk?walk.dx:0),
-               SPRY+(lowest+1)*FIGCH,Math.round(SPR.w*0.52),2*FIGCH);
   const cut=headOf(fig);
-  const body=rows.map((r,i)=>i>=cut.head?r:"");
   const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
-  if(walk){
-    // his legs go under him: the lower third takes the stride, the rest rides it
-    const knee=Math.round(rows.length*0.68);
-    drawFigure(rows.map((r,i)=>(i>=cut.head&&i<knee)?r:""),SPRX+bdx,SPRY+bdy,look);
-    drawFigure(rows.map((r,i)=>i>=knee?r:""),SPRX+bdx+walk.boot*GEST,SPRY+bdy,look);
-  } else drawFigure(body,SPRX+bdx,SPRY+bdy,look);
+  /* A person is not a rectangle that slides. Everything above was one offset
+   * applied to the whole figure, so he moved the way a block moves - which is
+   * the complaint, and it is fair. A body shifting its weight turns about
+   * itself: the hips go one way and the shoulders come back the other to keep
+   * the head over the feet, and the head arrives last because a head always
+   * arrives last. Three bands with three different offsets is the whole trick
+   * at this size, and it costs three draws instead of two.
+   */
+  /* In pixels, not GEST units: rounding a small number and then multiplying by
+   * two quantises every band to 0, 2 or 4, which is how the articulation came
+   * to be there in the arithmetic and absent on the screen - the head's share
+   * never cleared a half pixel, so the head never moved at all. */
+  const SWAY=1.15;                                   // rad/s: a shift every few seconds
+  const w=Math.sin(t*SWAY+ph);                       // the weight, hip to hip
+  const wLag=Math.sin((t-0.22)*SWAY+ph);             // what the head has caught up to
+  const hipX=Math.round(w*3);
+  const shoX=-Math.round(w*2);                       // the counter-turn
+  const headX=-Math.round(wLag*2);
+  // planted, he stands tall on that leg; caught between, he settles a little
+  const settle=Math.round((1-Math.abs(w))*1.4);
+  // and the head keeps a slower time of its own
+  const headY=Math.round(Math.sin(t*0.71+ph*1.7)*1.2);
+  const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
+  // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
+  // he leans into it and comes upright as he arrives
+  const wob=walk?(1-Math.abs(Math.cos(walk.t*Math.PI*STRIDE))):0;
+  const wbob=walk?-Math.round(wob*1.6):0;
+  const wlean=walk?Math.round((1-walk.t)*2)*GEST:0;
+  const legX=(walk?walk.dx:0);
+  const torsoX=legX+lean+wlean+shoX;
+  const headDX=legX+lean+wlean+headX;
+  const bdy=breath+rise+wbob+settle;
+  ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow goes with him
+  ctx.fillRect(SPRX+Math.round(SPR.w*0.24)+legX+Math.round(hipX*0.5),
+               SPRY+(lowest+1)*FIGCH,Math.round(SPR.w*0.52),2*FIGCH);
+  const band=(a,b)=>rows.map((r,i)=>(i>=a&&i<b)?r:"");
+  // legs: they carry the weight and, walking, the stride
+  drawFigure(band(hips,rows.length),
+    SPRX+legX+hipX+(walk?walk.boot*GEST:0),SPRY+(walk?wbob:0),look);
+  // torso: comes back the other way, and breathes
+  drawFigure(band(cut.head,hips),SPRX+torsoX,SPRY+bdy,look);
   // The shoulders come up, the head stays where it was: that is what hunching
   // is. Letting the rise carry the head too only opens a gap at his neck.
-  drawFigure(head,SPRX+bdx+rdx,SPRY+bdy-rise+rdy,look);
+  drawFigure(head,SPRX+headDX+rdx,SPRY+bdy-rise+rdy+headY,look);
 }
 
 /* ---- the sheriff ---- *
@@ -3722,7 +3751,25 @@ const WALK_ON={
   doctor_drunk:"Get back on your feet",
   job_missed:"Walk back up the street"
 };
-function walkOn(){return WALK_ON[G.outcome]||"Walk on down the street";}
+/* An authored ending is not an outcome name - terminal() resolves on the end's
+ * own id, so "peaceful", "tip", "date", "cold" and twenty-seven others went
+ * straight past the table above and every conversation in the game finished on
+ * the same sentence. What they do carry is flags, which are the record of what
+ * actually happened, so the way you leave is read off those. */
+function walkOn(){
+  if(WALK_ON[G.outcome])return WALK_ON[G.outcome];
+  const f=(G.ending&&G.ending.flags)||[];
+  const has=k=>f.indexOf(k)>=0;
+  if(has("date"))return "Walk on, and count the days to Saturday";
+  if(has("offended"))return "Leave it where it lies and walk on";
+  if(has("doctor_insulted"))return "Walk on, and hope you stay whole";
+  if(has("doctor_civil")||has("doctor_sober"))return "Walk on, with the doctor behind you";
+  if(has("tip_train")||has("tip_stage")||has("tip_bank"))
+    return "Take what you were told up the street";
+  if(has("arrest"))return "Walk him to the jail";
+  if(has("depart"))return "Watch them go, then walk on";
+  return "Let it lie and walk on";
+}
 const OUTCOME_LINES={
   disarmed:"His gun is in the dust and his wrists are in irons.",
   killed_him:"He is dead in the street, and the street saw who fired.",
@@ -3910,7 +3957,7 @@ function walkNow(now){
   const t=(now-walkAt)/WALK_MS;
   if(t<0||t>=1)return null;
   const e=1-Math.pow(1-t,1.7);                      // slowing as he arrives
-  return {dx:Math.round(WALK_FROM*(1-e)),
+  return {t:t, dx:Math.round(WALK_FROM*(1-e)),
           bob:(Math.floor(t*STRIDE*2)%2)?-1:0,
           boot:(Math.floor(t*STRIDE)%2)?1:-1};
 }

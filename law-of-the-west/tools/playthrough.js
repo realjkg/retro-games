@@ -50,6 +50,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     phase:G.phase, mode:G.mode, enc:G.encounter, node:G.node, round:G.round,
     interlude:G.interlude, outcome:G.outcome, wounds:G.wounds, alive:G.alive,
     who:(typeof who==='function'&&who(G))?(who(G).id||G.interlude):null,
+    walkOn:document.getElementById('line1').textContent,
     line:document.getElementById('line0').textContent,
     replies:[1,2,3,4].map(i=>document.getElementById('line'+i).textContent).filter(Boolean),
     swing:typeof swing!=='undefined'?swing:null,
@@ -59,104 +60,130 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
   const tap=async sel=>{ await p.click(sel,{force:true}); await p.waitForTimeout(80); };
   const shot=async name=>p.screenshot({path:path.join(SHOTS,name+'.png')});
 
-  /* ---- the title, and the first gesture ---- */
-  let s=await state();
-  ok(s.phase==='intro','the page did not open on the title, it opened on '+s.phase);
-  note.push('title: sound button reads "'+s.sound+'" with SND.on='+s.sndOn+' state='+s.sndState);
-  ok(!(s.sndOn&&s.sndState==='none'&&/SOUND: ON/.test(s.sound)),
-    'the button reads "'+s.sound+'" before any audio context exists, so it claims sound that cannot play');
-
-  await tap('[data-cmd="fire"]');                    // first gesture: raises the music
-  await tap('[data-cmd="fire"]');                    // and this one starts the day
-  await p.waitForFunction(()=>G.phase!=='intro',null,{timeout:8000});
-
-  /* ---- every caller, in order ---- */
+  /* Four passes through the day, each taking a different one of the four
+   * replies, so between them every branch of every caller is walked and every
+   * caller is met - a day where the sheriff is killed at the eighth man is a
+   * real day, but it is not a test of the other three. */
+  /* What each caller was written to say, read out of the page's own tables, so
+   * the assertion is against the authored line and not against a copy of it. */
   const expected=await p.evaluate(()=>CAST.map(e=>({
     id:e.id, name:e.name, place:e.place, armed:!!e.armed,
     opening:e.rounds&&e.rounds.opening?e.rounds.opening.npc:null,
     drunk:e.rounds&&e.rounds.opening_drunk?e.rounds.opening_drunk.npc:null
   })));
-  const seen=[], places=[], hours=[];
-  /* Met means his scene began, not that he spoke: the last gunfighter never
-   * says a word and goes straight to a tell. */
-  const meet=async(s)=>{
-    const e=expected[s.enc];
-    if(!e||s.interlude||seen.indexOf(e.id)>=0)return false;
-    seen.push(e.id); places.push(e.place);
-    hours.push(await p.evaluate(()=>hue().sky1));
-    return true;
-  };
+  const met=new Set(), conclusions=[], hours=[], places=[];
+  let reachedSundown=0;
 
-  for(let guard=0; guard<200; guard++){
-    s=await state();
-    if(s.phase==='summary')break;
+  for(let branch=0; branch<4; branch++){
+    if(branch)await p.reload();
+    await p.waitForFunction(()=>typeof G!=='undefined',null,{timeout:15000});
+    let s=await state();
 
-    if(s.phase==='dialogue'){
-      const e=expected[s.enc];
-      if(await meet(s)){
-        await shot(String(seen.length).padStart(2,'0')+'-'+e.id);
-        /* the line on screen must be the line that was written for him */
-        if(s.round===1&&e.opening){
-          const want=[e.opening,e.drunk].filter(Boolean);
-          ok(want.indexOf(s.line)>=0,
-            e.id+': the panel opened on "'+s.line.slice(0,60)+'…" not his authored opening line');
+    if(!branch){
+      ok(s.phase==='intro','the page did not open on the title, it opened on '+s.phase);
+      note.push('title: sound button reads "'+s.sound+'" with SND.on='+s.sndOn+
+        ' state='+s.sndState);
+      ok(!(s.sndOn&&s.sndState==='none'&&/SOUND: ON/.test(s.sound)),
+        'the button reads "'+s.sound+'" before any audio context exists');
+    }
+    await tap('[data-cmd="fire"]');                  // the gesture that raises the music
+    await tap('[data-cmd="fire"]');                  // and the one that starts the day
+    await p.waitForFunction(()=>G.phase!=='intro',null,{timeout:8000});
+
+    const metHere=new Set();
+    for(let guard=0; guard<300; guard++){
+      s=await state();
+      if(s.phase==='summary'){ if(s.alive)reachedSundown++; break; }
+
+      if(s.phase==='dialogue'){
+        const e=expected[s.enc];
+        if(e&&!s.interlude&&!metHere.has(e.id)){
+          metHere.add(e.id);
+          const first=!met.has(e.id);
+          met.add(e.id);
+          if(first){
+            places.push(e.place);
+            hours.push(await p.evaluate(()=>hue().sky1));
+            await shot(String(s.enc+1).padStart(2,'0')+'-'+e.id);
+          }
+          if(s.round===1&&e.opening){
+            const want=[e.opening,e.drunk].filter(Boolean);
+            ok(want.indexOf(s.line)>=0,
+              e.id+': opened on "'+s.line.slice(0,50)+'…" not his authored line');
+          }
+          ok(s.replies.length===4,e.id+': '+s.replies.length+' replies, not four');
+
+          if(!branch){
+            /* he is still there to talk to after a person-sized pause */
+            const before=await state();
+            await p.waitForTimeout(6000);
+            const after=await state();
+            ok(after.phase===before.phase&&after.enc===before.enc,
+              e.id+': went from '+before.phase+' to '+after.phase+
+              ' in six seconds while nobody touched the controls');
+            /* and the gun comes out, aims, and goes away */
+            await tap('[data-cmd="up"]');
+            const drawn=await state();
+            ok(drawn.mode==='gun',e.id+': up did not draw (mode='+drawn.mode+')');
+            await p.waitForTimeout(400);
+            const sw=await p.evaluate(()=>swing);
+            ok(sw>0.9,e.id+': the arm never came up (swing='+sw+')');
+            await shot(String(s.enc+1).padStart(2,'0')+'-'+e.id+'-drawn');
+            await tap('[data-cmd="holster"]');
+            ok((await state()).mode==='talk',e.id+': HOL did not put it away');
+          }
         }
-        ok(s.replies.length===4,e.id+': '+s.replies.length+' replies on screen, not four');
-
-        /* he must still be there to talk to after a person-sized pause */
-        const before=await state();
-        await p.waitForTimeout(6000);
-        const after=await state();
-        ok(after.phase===before.phase&&after.enc===before.enc,
-          e.id+': the encounter went from '+before.phase+' to '+after.phase+
-          ' in six seconds while nobody touched the controls');
-
-        /* the gun: out, sights on screen, and away again */
-        await tap('[data-cmd="up"]');
-        const drawn=await state();
-        ok(drawn.mode==='gun',e.id+': pressing up did not draw the gun (mode='+drawn.mode+')');
-        await p.waitForTimeout(400);
-        const aimed=await p.evaluate(()=>({swing:swing,aim:G.aim,
-          lit:(function(){const c=document.getElementById('scene');return !!c;})()}));
-        ok(aimed.swing>0.9,e.id+': the arm never came up (swing='+aimed.swing+')');
-        await shot(String(seen.length).padStart(2,'0')+'-'+e.id+'-drawn');
-        await tap('[data-cmd="holster"]');
-        const put=await state();
-        ok(put.mode==='talk',e.id+': HOL did not put the gun away (mode='+put.mode+')');
+        for(let k=0;k<branch;k++)await tap('[data-cmd="down"]');
+        await tap('[data-cmd="fire"]');
       }
-      await tap('[data-cmd="fire"]');                 // speak the highlighted reply
+      else if(s.phase==='aiming'){ await tap('[data-cmd="holster"]'); }
+      else if(s.phase==='tell'||s.phase==='duel'){
+        const e=expected[s.enc];
+        if(e&&!s.interlude&&!met.has(e.id)){
+          met.add(e.id); places.push(e.place);
+          hours.push(await p.evaluate(()=>hue().sky1));
+          await shot(String(s.enc+1).padStart(2,'0')+'-'+e.id+'-duel');
+        }
+        await tap('[data-cmd="fire"]');
+      }
+      else if(s.phase==='interlude'){
+        if(branch===0)await shot('job-'+s.interlude);
+        await tap('[data-cmd="fire"]');
+      }
+      else if(s.phase==='resolve'){
+        if(!s.interlude&&expected[s.enc])
+          conclusions.push({who:expected[s.enc].id,outcome:s.outcome,
+                            line:s.line.slice(0,46),walkOn:s.walkOn});
+        await tap('[data-cmd="fire"]');
+      }
+      else if(s.phase==='approach'){ await tap('[data-cmd="fire"]'); }
+      else { note.push('unexpected phase '+s.phase); break; }
     }
-    else if(s.phase==='aiming'){ await tap('[data-cmd="holster"]'); }
-    else if(s.phase==='tell'||s.phase==='duel'){
-      if(!s.interlude&&await meet(s))
-        await shot(String(seen.length).padStart(2,'0')+'-'+expected[s.enc].id+'-duel');
-      const t0=Date.now();
-      await tap('[data-cmd="fire"]');
-      note.push('duel with '+s.who+': answered in '+(Date.now()-t0)+' ms');
-    }
-    else if(s.phase==='interlude'){
-      await shot('job-'+s.interlude);
-      await tap('[data-cmd="fire"]');
-    }
-    else if(s.phase==='resolve'||s.phase==='approach'){ await tap('[data-cmd="fire"]'); }
-    else { note.push('unexpected phase '+s.phase); break; }
+    note.push('pass '+branch+': met '+metHere.size+', '+
+      ((await state()).alive?'alive':'killed')+' at '+(await state()).phase);
   }
 
-  s=await state();
   await shot('99-sundown');
-  ok(s.phase==='summary','the day never reached sundown; it stopped in '+s.phase);
-  ok(seen.length===expected.length,
-    'met '+seen.length+' of '+expected.length+' callers: '+seen.join(', '));
+  const missing=expected.map(e=>e.id).filter(id=>!met.has(id));
+  ok(missing.length===0,'never met: '+missing.join(', '));
+  ok(reachedSundown>0,'not one of the four passes reached sundown alive');
   note.push('places in order: '+places.join(' '));
   note.push('sky at each caller: '+hours.join(' '));
-  /* Five callers share STREET and two of them are consecutive, and that cannot
-   * be fixed by moving them: most of the cast say where they are in their own
-   * written lines. What can be fixed is the street being the same photograph
-   * every time, so what is asserted is that the day visibly moves. */
   const dull=hours.filter((h,i)=>i&&h===hours[i-1]);
-  ok(dull.length===0,'two encounters in a row under an identical sky: '+dull.join(', '));
+  ok(dull.length===0,'two encounters in a row under an identical sky');
   ok(new Set(hours).size===hours.length,
     'only '+new Set(hours).size+' distinct skies across '+hours.length+' callers');
+
+  /* Eleven journeys must not finish on the same sentence. */
+  note.push('conclusions ('+conclusions.length+'):');
+  const byWho={};
+  for(const c of conclusions)if(!byWho[c.who])byWho[c.who]=c;
+  for(const k of Object.keys(byWho))
+    note.push('  '+k.padEnd(9)+(byWho[k].outcome+'').padEnd(16)+'| '+byWho[k].walkOn);
+  const buttons=conclusions.map(c=>c.walkOn.replace(/^1\.\s*/,''));
+  ok(new Set(buttons).size>=5,
+    'the day ends on only '+new Set(buttons).size+' different conclusions: '+
+    [...new Set(buttons)].join(' / '));
 
   /* ---- locking the phone must not cost you the scene ---- */
   await p.reload();
@@ -166,7 +193,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
   const pre=await state();
   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});
     document.dispatchEvent(new Event('visibilitychange'));});
-  await p.waitForTimeout(9000);                       // nine seconds in another app
+  await p.waitForTimeout(9000);
   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{value:false,configurable:true});
     document.dispatchEvent(new Event('visibilitychange'));
     window.dispatchEvent(new Event('focus'));});
