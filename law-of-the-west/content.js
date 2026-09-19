@@ -41,9 +41,10 @@ const JOBS={
 };
 
 const CAST=[
- /* 1 ---------------------------------------------------------------- */
+ /* 1 ------------------------------------------------------------- */
  {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
   armed:true, arrive:["wagon","crowd"],
+  balk:"He takes his hands out of his coat and holds them where you can see them. “I'll say the rest of it when that is back in the leather.”",
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
     replies:[
@@ -90,10 +91,10 @@ const CAST=[
         flags:["depart"], authority:0},
    offended:{text:"He looks at you the way a man looks at weather, and walks away without another word.",
         flags:["depart","offended"], authority:-1}}},
-
- /* 2 ---------------------------------------------------------------- */
+ /* 2 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
+  balk:"She stops with her hand on the bottle and does not pour. \u201cPut that away or take it outside, Sheriff. I can wait all afternoon.\u201d",
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
     replies:[
@@ -140,10 +141,10 @@ const CAST=[
         flags:["depart"], authority:0},
    cold:{text:"She turns to the next man at the bar and does not turn back.",
         flags:["depart","offended"], authority:-1}}},
-
- /* 3 ---------------------------------------------------------------- */
+ /* 3 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
+  balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
     replies:[
@@ -182,10 +183,10 @@ const CAST=[
      {text:"\"My word, and the judge's mercy after.\"", action:"surrender"},
      {text:"\"My word is a cell. Nothing after it.\"", action:"draw"}]}},
   ends:{}},
-
- /* 4 ---------------------------------------------------------------- */
+ /* 4 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
   armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
+  balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
    opening_drunk:{npc:"Sheriff. I have had a night of it and a bottle after the night, and I am ashamed of neither. Ask me what you like, but ask it slowly.",
@@ -235,10 +236,10 @@ const CAST=[
          flags:["doctor_sober","doctor_civil"], authority:1},
    still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
          flags:[], authority:0}}},
-
- /* 5 ---------------------------------------------------------------- */
+ /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
   armed:true, arrive:["spurs","crowd"],
+  balk:"He lets the new gun hang and says nothing more about it. Whatever he came up the street to show you, the showing is over.",
   rounds:{
    opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
     replies:[
@@ -289,10 +290,10 @@ const CAST=[
         flags:["tip_bank","depart"], authority:1},
    warned:{text:"He goes, and not toward the livery, and the new gun stays in the leather the whole length of the street.",
         flags:["depart"], authority:0}}},
-
- /* 6 ---------------------------------------------------------------- */
+ /* 6 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
   armed:false, arrive:["crowd"],
+  balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
     replies:[
@@ -345,10 +346,10 @@ const CAST=[
         flags:["depart"], authority:0},
    scared:{text:"He runs. Two women outside the milliner's watch him go, and then look at you for rather a long time.",
         flags:["depart","offended"], authority:-1}}},
-
- /* 7 ---------------------------------------------------------------- */
+ /* 7 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
   armed:false, arrive:["crowd"],
+  balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
     replies:[
@@ -395,10 +396,10 @@ const CAST=[
         flags:["depart"], authority:0},
    alienated:{text:"\"Good day, Sheriff,\" she says, in the voice she keeps for boys who have not done the work.",
         flags:["depart","offended"], authority:-1}}},
-
- /* 8 ---------------------------------------------------------------- */
+ /* 8 ------------------------------------------------------------- */
  {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
   armed:true, arrive:["piano","crowd"],
+  balk:"He sets the deck down square on the rail and folds his hands on it. “I'll wait. I am a patient man about most things, Sheriff.”",
   rounds:{
    opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
     replies:[
@@ -445,10 +446,10 @@ const CAST=[
   ends:{
    repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
         flags:["depart"], authority:1}}},
-
- /* 9 ---------------------------------------------------------------- */
+ /* 9 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
   armed:true, arrive:["hooves"],
+  balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
     replies:[
@@ -501,10 +502,10 @@ const CAST=[
         flags:["tip_bank","offended"], authority:-1},
    dismissed:{text:"He hangs his hat back on the nail and says nothing at all, which from him is a great deal.",
         flags:["depart"], authority:-1}}},
-
- /* 10 --------------------------------------------------------------- */
+ /* 10 ------------------------------------------------------------ */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
   armed:true, arrive:["hooves"],
+  balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
     replies:[
@@ -553,14 +554,16 @@ const CAST=[
         flags:["date"], authority:1},
    steers:{text:"She drives them back at first light, Kinch counts them twice, and she does not look at you once the whole way down.",
         flags:["depart"], authority:1}}},
-
- /* 11 --------------------------------------------------------------- */
+ /* 11 ------------------------------------------------------------ */
  {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
   armed:true, arrive:["spurs"], forcedDuel:true,
   standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
   rounds:{}, ends:{}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
+/* What a caller does when the gun comes out before he has been answered: he
+ * stops talking, and does not start again while it is out. */
+const BALK_LINE="He is looking at the gun in your hand and not at you, and he has stopped talking.";
 
 /* ============ the pixel grid ============
  * A 320x200 logical screen, presented in 4:3 the way a C64 was. The sheriff
@@ -749,11 +752,6 @@ function buildFigure(S,pose){
     }
     figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
   }
-  // A brand new shotgun, carried across him for everyone to see. It is drawn
-  // in the prop colour, not in gunmetal: the gun the crosshair is looking for
-  // is the one on his hip, and two of them on one man is two answers.
-  if(S.longgun&&!up)for(let i=0;i<22;i++)
-    figPut(g,CX-9+i,raised?R.chest+1:R.chest+9-Math.round(i*0.55),"P");
   /* neck, head, hair, hat */
   if(!up)figTaper(g,R.neck-1,R.shoulder,CX,Wd.neckW,CX,Wd.neckW+1,"A");
   figDisc(g,CX,(R.faceTop+R.faceBot)/2,Wd.faceW/2,(R.faceBot-R.faceTop)/2+1,"F");
@@ -773,6 +771,12 @@ function buildFigure(S,pose){
   }else if(S.hat==="cap"){
     figDisc(g,CX,R.brim,Wd.hatCrown/2*0.85,(R.brim-R.crown)/2,"H");
     figSpan(g,R.brim+1,CX-2,Wd.hatBrim*0.5,"H");
+  }else if(S.hat==="sombrero"){          // a brim you can see coming up the street
+    figDisc(g,CX,R.brim-3,Wd.hatCrown/2*0.82,(R.brim-R.crown)/2+2,"H");
+    figTaper(g,R.brim-1,R.brimEnd,CX,Wd.hatBrim*1.34,CX,Wd.hatBrim*1.1,"H");
+  }else if(S.hat==="topper"){            // a tall silk hat, and nothing else like it
+    figTaper(g,R.crown,R.brim-1,CX,Wd.hatCrown*0.78,CX,Wd.hatCrown*0.82,"H");
+    figTaper(g,R.brim,R.brim+1,CX,Wd.hatBrim*0.72,CX,Wd.hatBrim*0.66,"H");
   }else if(S.hat==="bonnet"){
     figDisc(g,CX,R.brim-1,Wd.hatCrown/2+1,(R.brim-R.crown)/2+2,"H");
     figTaper(g,R.brim,R.brim+2,CX,Wd.hatBrim*0.62,CX,Wd.hatBrim*0.5,"H");
@@ -792,32 +796,55 @@ function buildFigure(S,pose){
     for(let y=ey+2;y<=ey+4;y++)if(g[y]&&g[y][CX-1]==="F")figPut(g,CX-1,y,"R");
     for(let x=CX-2;x<=CX+1;x++)if(g[mid+4]&&g[mid+4][x]==="F")figPut(g,x,mid+4,"R");
   }
+  // A brand new shotgun, carried across him for everyone to see. It is drawn in
+  // the prop colour, not in gunmetal: the gun the crosshair is looking for is
+  // the one on his hip, and two of them on one man is two answers.
+  if(S.longgun&&!up)for(let i=0;i<22;i++)
+    figPut(g,CX-9+i,raised?R.chest+1:R.chest+9-Math.round(i*0.55),"P");
+  // Nobody who means to be recognised wears one. It goes on in linen rather
+  // than in black, and below the eyes rather than over them: a dark band across
+  // a face that already has two black eyes on it reads as a moustache.
+  if(S.mask){
+    for(let y=R.eye+3;y<=R.faceBot;y++)
+      for(let x=0;x<SPR.w;x++)if(g[y][x]==="F")figPut(g,x,y,"W");
+    for(let x=0;x<SPR.w;x++)if(g[R.eye+3][x]==="W")figPut(g,x,R.eye+3,"K");
+  }
   if(S.star)for(let y=R.chest;y<R.chest+3;y++)figSpan(g,y,CX-Wd.chestW*0.28,3,"S");
   if(S.prop==="bag")figTaper(g,R.hand-1,R.hand+7,CX+wristX+1,9,CX+wristX+1,9,"P");
-  if(S.prop==="cards")figTaper(g,R.hand-3,R.hand+1,CX+wristX,6,CX+wristX,6,"P");
   if(S.prop==="slate")figTaper(g,R.chest+1,R.chest+11,CX+wristX,9,CX+wristX,9,"P");
+  if(S.prop==="cards")figTaper(g,R.hand-3,R.hand+1,CX+wristX,6,CX+wristX,6,"P");
   if(S.prop==="rope")figDisc(g,CX+wristX,R.hand,4,4,"P");
   return g.map(r=>r.join(""));
 }
 
 /* What each of them is made of. The spec is the whole difference between one
  * caller and the next; everything else about them is the same draughtsman. */
+/* Twelve specs, and no two of them may read as each other at forty-eight pixels
+ * across. Colour is not enough for that - four men in Stetsons and jackets are
+ * four men in Stetsons and jackets whatever colour their coats are - so the
+ * silhouette does the telling: a dude wears a derby, the Kid a sombrero, the
+ * Gambler a topper, the boy a cap, Miss April a bonnet, the two other women
+ * their hair, Belle a working hat over a jacket because she rustles cattle for
+ * a living and is not dressed for a saloon, the Doctor and the last man frock
+ * coats of very different colours, the man with the new gun a vest and the gun
+ * itself, the Deputy a star, and the outlaw of the hold-ups a bandana over his
+ * face, which nobody who means to be recognised wears. */
 const FIGSPEC={
-  stranger:{hat:"stetson", coat:"jacket",              gun:"holster"},
+  stranger:{hat:"derby", coat:"jacket",                gun:"holster"},
   rose:    {hat:"none", hair:"long", coat:"dress",     gun:"none", wide:0.94},
-  kid:     {hat:"stetson", coat:"jacket",              gun:"holster", wide:0.94},
+  kid:     {hat:"sombrero", coat:"jacket",             gun:"holster", wide:0.94},
   doctor:  {hat:"derby", coat:"frock",                 gun:"none", prop:"bag"},
   shotgun: {hat:"stetson", coat:"vest", longgun:true,  gun:"holster"},
   willie:  {hat:"cap", hair:"short", coat:"vest",      gun:"none",
             tall:0.7, wide:0.76, headWide:0.92},
   april:   {hat:"bonnet", hair:"long", coat:"dress",   gun:"none", wide:0.92,
             prop:"slate"},
-  gambler: {hat:"derby", coat:"frock",                 gun:"holster", prop:"cards"},
+  gambler: {hat:"topper", coat:"frock",                gun:"holster", prop:"cards"},
   deputy:  {hat:"stetson", coat:"jacket",              gun:"holster", star:true},
-  belle:   {hat:"none", hair:"long", coat:"dress",     gun:"holster", wide:0.96,
+  belle:   {hat:"stetson", hair:"long", coat:"jacket", gun:"holster", wide:0.96,
             prop:"rope"},
   lastgun: {hat:"stetson", coat:"frock",               gun:"holster", wide:1.06},
-  robber:  {hat:"stetson", coat:"jacket",              gun:"holster", wide:1.04}
+  robber:  {hat:"stetson", coat:"jacket", mask:true,   gun:"holster", wide:1.04}
 };
 /* The bullet's three targets are not guessed and not hand-tuned per figure:
  * they are read off the drawing that was just made. The weapon box is where
@@ -866,4 +893,11 @@ function boxesFor(e){
           weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
           weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
 }
+/* The second gun. Not every caller comes alone: on some encounters a sash goes
+ * up at the lit window over the street and a rifle comes out of it, and the
+ * sheriff who is looking only at the man in front of him is the sheriff who
+ * gets shot from above. The pane is the upper right one on the green front -
+ * ROW[1] is x0 74, top 56, and plastered() puts that window at x1-16, top+11 -
+ * and the box is that pane with a cell of slack round it. */
+const SNIPER_BOX={x:92, y:65, w:13, h:14};
 const HITBOX=boxesFor(null);             // the default, for anything asking without a caller
