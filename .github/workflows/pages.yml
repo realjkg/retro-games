@@ -1,7 +1,12 @@
 name: Deploy GitHub Pages
 
+# The tests run on pull requests as well as on main. They used to run only after
+# a merge, which meant every pull request was mergeable the moment it existed and
+# a red build was something you found out about afterwards.
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -10,8 +15,11 @@ permissions:
   pages: write
   id-token: write
 
+# One group per ref, not one for the whole repository: under a single shared
+# group a pull request run cancels an in-flight deploy of main, which is what
+# happened to run 34.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,6 +43,8 @@ jobs:
 
   deploy:
     needs: test
+    # Nothing is published from a pull request; it is checked and no more.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

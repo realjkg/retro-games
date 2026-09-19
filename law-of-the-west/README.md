@@ -13,7 +13,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The deliverable: one self-contained page, everything inline, 133 KB |
+| `index.html` | The deliverable: one self-contained page, everything inline, 239 KB |
 | `page.html` | The markup and CSS shell, with a `/* SCRIPTS */` marker |
 | `sid-audio.js` | The SID-idiom synth, 54 cues; the synthesis is untouched |
 | `content.js` | The eleven callers, the three robberies, the figure builder and the hitboxes |
@@ -25,9 +25,9 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `test/` | The sandbox harness and the tests |
 
 ```
-node tools/assemble.js       # index.html, and its size against the 160 KB budget
-node --test test/*.test.js   # 31 tests; numbers land in test/last-report.json
-node tools/render-sounds.js  # 54 wavs plus 00-all-sounds.wav (gitignored)
+node tools/assemble.js       # index.html, and its size against the 256 KB budget
+node --test test/*.test.js   # 68 tests; numbers land in test/last-report.json
+node tools/render-sounds.js  # 55 wavs plus 00-all-sounds.wav (gitignored)
 ```
 
 `index.html` is committed and is what runs; the four scripts exist so the source
