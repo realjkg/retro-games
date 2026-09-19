@@ -1170,3 +1170,43 @@ test('9z. a caller who is done walks off before the street is anyone else\'s',
   assert.equal(p.ev('exitDir("killed_him")'),0,'a dead man walked away');
   assert.deepEqual(p.errors,[]);
 });
+
+test('9A. FIRE answers a drawn gun in one press, and the sights are where they are tested',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  // A man goes for his gun. Answering used to take two deliberate presses -
+  // UP to clear leather, then FIRE - inside a window measured in tenths of a
+  // second, which no person could make. One press is the whole motion.
+  p.ev('theyDraw(G,"draw"); G.tell.delay=99999; paint();');
+  for(let t=0;t<400;t+=16)p.frame(1000+t);
+  assert.equal(p.G().mode,'talk','he drew on his own');
+  assert.ok(!p.G().duel.fired,'the gun went off before anybody pressed anything');
+  p.tap('[data-cmd="fire"]');
+  // one press clears leather, fires, and settles the scene: the gun is already
+  // back in the holster by the time this looks, which is the whole point
+  assert.ok(p.G().duel.fired,'one press on FIRE did not answer a drawn gun');
+  assert.ok(p.G().duel.latency>0,'the shot was not timed against his warning');
+  // and it is laid on the man, not left wherever the sights happened to be
+  assert.notEqual(p.G().duel.zone,'off','a snap shot went nowhere near him');
+  assert.ok(p.G().outcome,'the shot settled nothing');
+
+  // The reticle is drawn about the point the ball is judged against. It used
+  // to be laid down from that point rightwards and downwards, so the mark a
+  // player lines up sat a pixel off the place that was tested.
+  const q=openPage();
+  q.tap('[data-cmd="fire"]'); q.ready();
+  q.press('ArrowUp');
+  q.ev('G.aim={x:0.5,y:0.5};');
+  q.painted.length=0;
+  q.ev('crosshair();');
+  const marks=q.painted.filter(r=>r.w<=4&&r.h<=4);
+  assert.ok(marks.length>=20,'the reticle drew '+marks.length+' blocks');
+  const cx=(Math.min(...marks.map(m=>m.x))+Math.max(...marks.map(m=>m.x+m.w)))/2;
+  const cy=(Math.min(...marks.map(m=>m.y))+Math.max(...marks.map(m=>m.y+m.h)))/2;
+  assert.equal(cx,0.5*q.ev('SCENE.w'),'the sights sit '+
+    (cx-0.5*q.ev('SCENE.w'))+'px across from the point they test');
+  assert.equal(cy,0.5*q.ev('SCENE.h'),'the sights sit '+
+    (cy-0.5*q.ev('SCENE.h'))+'px down from the point they test');
+  assert.deepEqual(p.errors,[]); assert.deepEqual(q.errors,[]);
+});

@@ -168,6 +168,13 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
       }
       else if(s.phase==='aiming'){ await tap('[data-cmd="holster"]'); }
       else if(s.phase==='tell'||s.phase==='duel'){
+        /* One of the four plays it badly on purpose. Answering a drawn gun is
+         * one press now and the windows are set to what a person can manage,
+         * so a pass that always answers promptly never dies - and then neither
+         * reckoning screen but one is ever seen. A player who hesitates past
+         * every window there is gets shot, which is the other half of the day
+         * and has to be looked at too. */
+        if(branch===3)await p.waitForTimeout(1700);
         const e=expected[s.enc];
         if(e&&!s.interlude&&!met.has(e.id)){
           met.add(e.id); places.push(e.place);

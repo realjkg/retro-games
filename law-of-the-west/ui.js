@@ -1331,12 +1331,17 @@ const CORNERS=[[-5,-5],[-4,-5],[-5,-4], [5,-5],[4,-5],[5,-4],
 function crosshair(){
   const a=G.aim;
   const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
+  /* Drawn about the point that is tested. The blocks used to be laid down from
+   * (x,y) rightwards and downwards, so the mark a player lines up sat a pixel
+   * below and right of the place the ball was judged against - on a picture
+   * where a man is seventeen pixels across, that is a miss he cannot account
+   * for. Both rings are centred on the point now. */
   ctx.fillStyle=C64.blk;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
   ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2,y+dy*2,2,2);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2,y+dy*2,2,2);
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
 }
 
 /* ---- the five-line matrix ---- *
@@ -1803,6 +1808,17 @@ function fire(){
     if(warned){SND.cut();SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
     else settleSound();
     paint(); return;
+  }
+  /* A sheriff with a man drawing on him does not press one button to clear
+   * leather and a second one to use it. Until now he did, and FIRE with the
+   * gun still holstered did nothing whatever while the other man shot him:
+   * two deliberate presses inside an ambush's window, which no person can
+   * make. In a fight FIRE is the whole motion - the gun comes out and goes
+   * off, laid on the body, because that is what a snap shot is. Drawing first
+   * with UP is still how he picks a shot, and now the only way to pick one. */
+  if(G.mode!=="gun"&&(G.phase==="tell"||G.phase==="duel")){
+    drawGun(G,performance.now()); drawnAt=performance.now();
+    aimAt(G,"torso"); SND.leather();
   }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
