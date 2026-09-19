@@ -93,19 +93,24 @@ function cellColour(ch,look){
     default:return null;
   }
 }
+/* C64 "brown" is #433900, which is a very dark olive - on felt and on hair,
+ * lifted by the light ramp, it comes out moss green, and half the cast were
+ * walking about with weeds on their heads. The palette's actual brown is the
+ * one it calls orange. Nothing is added to the sixteen; the right one of them
+ * is used. */
 const LOOK={
-  stranger:{H:C64.brn,C:C64.dgy,K:"#2e2e2e",L:C64.dgy,W:C64.lgy},
-  rose:    {H:C64.brn,R:C64.brn,C:C64.red,K:"#54291f",L:C64.red,W:C64.wht},
-  kid:     {H:C64.org,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.yel},
+  stranger:{H:C64.org,C:C64.dgy,K:"#2e2e2e",L:C64.dgy,W:C64.lgy},
+  rose:    {H:C64.org,R:C64.org,C:C64.red,K:"#54291f",L:C64.red,W:C64.wht},
+  kid:     {H:C64.org,C:C64.red,K:"#2e2700",L:C64.red,W:C64.yel},
   doctor:  {H:C64.blk,C:C64.blu,K:"#241a54",L:C64.blu,W:C64.wht,P:C64.brn},
   shotgun: {H:C64.lrd,C:C64.lgn,K:C64.grn,L:C64.blu,W:C64.lgn,P:C64.lgy},
-  willie:  {H:C64.grn,C:C64.yel,K:C64.grn,L:C64.brn,W:C64.yel},
-  april:   {H:C64.brn,R:C64.brn,C:C64.grn,K:"#3e6330",L:C64.grn,W:C64.wht,P:C64.dgy},
+  willie:  {H:C64.grn,C:C64.yel,K:C64.grn,L:C64.org,W:C64.yel},
+  april:   {H:C64.org,R:C64.org,C:C64.grn,K:"#3e6330",L:C64.grn,W:C64.wht,P:C64.dgy},
   gambler: {H:C64.blk,C:C64.pur,K:"#4c2a5c",L:C64.blk,W:C64.wht,P:C64.wht},
   deputy:  {H:C64.org,C:C64.lbl,K:"#4a4080",L:C64.blu,W:C64.lgy},
-  belle:   {H:C64.lrd,R:C64.brn,C:C64.brn,K:"#2e2700",L:C64.brn,W:C64.cyn,P:C64.yel},
+  belle:   {H:C64.lrd,R:C64.org,C:C64.org,K:"#2e2700",L:C64.org,W:C64.cyn,P:C64.yel},
   lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
-  robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.brn,W:C64.gry}
+  robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.org,W:C64.gry}
 };
 function figureRows(fig,pose){
   const rows=fig.rows.slice();
@@ -1707,7 +1712,12 @@ function startDay(){
  * own feet and stops where he means to stand, and his theme comes up under him
  * as he arrives - which is the whole of an entrance: a door, a walk, and a tune
  * that tells you who it is before he has said anything. */
-const WALK_MS=1500, WALK_FROM=86, STRIDE=6;
+/* How long a scene takes to happen. Played on a phone the day came at you in
+ * a rush: a caller crossed the street in a second and a half, the panel built
+ * under him in six tenths, and the next man was already walking on before the
+ * last one had been read. A western is paced by men taking their time, and
+ * none of this is a loading screen to be got through. */
+const WALK_MS=2100, WALK_FROM=86, STRIDE=6;
 let walkAt=-1e9;
 function newScene(after){
   build={at:performance.now(),rows:0};
@@ -1738,7 +1748,7 @@ function walkNow(now){
  * him - back up the street, or ahead of the sheriff to the jail - and the day
  * moves on when he is gone. A killed man does not walk anywhere, which is what
  * the zero is for. */
-const EXIT_MS=1400, EXIT_TO=130;
+const EXIT_MS=1900, EXIT_TO=130;
 let leaving=null;                                   // {at, dir}
 const exitDir=o=>(o==="killed_him"||o==="innocent_killed")?0
   :(o==="surrendered"||o==="arrest")?-1:1;
@@ -1949,6 +1959,7 @@ function showSound(on){
  * what holding a control should, which is also why the browser never gets long
  * enough to decide the player meant to select something. */
 const REPEAT_DELAY=320, REPEAT_RATE=90;
+const ROW_MS=95;        // the picture comes in ten bands, at this much each
 const REPEATS=new Set(["up","down","left","right"]);
 let held=null;                        // {cmd, at, next, el}
 /* With the gun out the directions are not a menu and should not behave like
@@ -2121,7 +2132,7 @@ function frame(now){
       shiftQueue(gap);
     }
     lastNow=now;
-    if(build.rows<10&&now-build.at>60*build.rows){
+    if(build.rows<10&&now-build.at>ROW_MS*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }

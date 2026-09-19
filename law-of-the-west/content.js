@@ -656,8 +656,11 @@ const BONE={
   thigh:53, knee:65, ankle:76, ground:83,
   elbow:33, wrist:46, hand:51,
   hatCrown:13, hatBrim:23, faceW:11, neckW:6,
-  shoulderW:21, chestW:20, waistW:15, hipW:18,
-  upperArm:6, foreArm:5, handW:5, thighW:9, calfW:7, bootW:9
+  /* A man is about two and a half heads across the shoulders, and narrower at
+   * the waist than at the chest. He was thirty cells wide from shoulder to
+   * hip and the same width all the way down - a door with a face on it. */
+  shoulderW:18, chestW:16, waistW:12, hipW:14,
+  upperArm:4, foreArm:4, handW:4, thighW:9, calfW:7, bootW:9
 };
 const CX=24;                                      // he stands on the middle of it
 
@@ -708,10 +711,14 @@ function figLayout(S){
   for(const k of ["hatCrown","hatBrim","faceW","neckW","shoulderW","chestW","waistW",
                   "hipW","upperArm","foreArm","handW","thighW","calfW","bootW"])
     Wd[k]=BONE[k]*(head.indexOf(k)>=0?hw:ws);
-  // The arm hangs outside the chest, not inside it: a sleeve buried in the
-  // torso is what made him a slab with a head on it.
-  const armX=(Wd.chestW/2+Wd.upperArm/2-1.5);
-  return {R:R, Wd:Wd, armX:armX, elbowX:armX+1, wristX:armX+0.5,
+  /* The arm hangs outside the chest with daylight between the two. That was
+   * the intention before and the arithmetic did the opposite: taking a cell
+   * and a half back off the offset put the sleeve's inner edge inside the
+   * ribs, so arms and body fused into one rectangle and every caller read as
+   * a slab with a face on it. A body is legible at this size by its outline
+   * and nothing else, so the gap is the whole drawing. */
+  const armX=(Wd.chestW/2+Wd.upperArm/2+1);
+  return {R:R, Wd:Wd, armX:armX, elbowX:armX+0.5, wristX:armX,
           gunSide:-1, holsterX:CX-(Wd.waistW/2+2.5)};
 }
 function buildFigure(S,pose){
@@ -768,11 +775,6 @@ function buildFigure(S,pose){
   }else{
     for(let y=R.waist-1;y<=R.waist+1;y++)figSpan(g,y,CX,Wd.hipW,"B");
   }
-  if(S.gun==="holster"){                   // the holster hangs clear of his hip,
-    const hx=P.holsterX;                   // so the gun is its own target
-    figTaper(g,R.beltEnd+1,R.beltEnd+9,hx,5,hx-1,5,"B");
-    figTaper(g,R.waist,R.beltEnd+2,hx-1,3,hx-1,3,"G");
-  }
   /* arms. The near one is the gun arm and it is the one that moves. */
   const raised=pose==="raise", up=pose==="surrender";
   for(const s of [1,-1]){
@@ -795,6 +797,14 @@ function buildFigure(S,pose){
       figDisc(g,wx,R.hand,Wd.handW/2,Wd.handW/2+1,"A");
     }
     figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
+  }
+  /* The holster goes on last, over the sleeve rather than under it. Drawn
+   * before the arm it ended up inside his coat, which is no use to anybody:
+   * the crosshair is asked to find a revolver, so there has to be one to see. */
+  if(S.gun==="holster"){
+    const hx=P.holsterX;
+    figTaper(g,R.beltEnd+1,R.beltEnd+9,hx,5,hx-1,5,"B");
+    figTaper(g,R.waist+2,R.beltEnd+2,hx-1,3,hx-1,3,"G");
   }
   /* neck, head, hair, hat */
   if(!up)figTaper(g,R.neck-1,R.shoulder,CX,Wd.neckW,CX,Wd.neckW+1,"A");
