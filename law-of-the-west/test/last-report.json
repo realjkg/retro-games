@@ -1,21 +1,28 @@
 {
   "written": [
+    "stranger",
     "rose",
     "kid",
     "doctor",
+    "shotgun",
     "willie",
     "april",
+    "gambler",
     "deputy",
     "belle"
   ],
   "order": [
+    "stranger",
     "rose",
     "kid",
     "doctor",
+    "shotgun",
     "willie",
     "april",
+    "gambler",
     "deputy",
-    "belle"
+    "belle",
+    "lastgun"
   ],
   "doctor": {
     "civil": {
@@ -44,30 +51,38 @@
     }
   },
   "themes": [
+    "th_stranger",
     "th_rose",
     "th_kid",
     "th_doctor",
+    "th_shotgun",
     "th_willie",
     "th_april",
+    "th_gambler",
     "th_deputy",
     "th_belle",
+    "th_lastgun",
     "th_job"
   ],
   "figures": [
+    "stranger",
     "rose",
     "kid",
     "doctor",
+    "shotgun",
     "willie",
     "april",
+    "gambler",
     "deputy",
-    "belle"
+    "belle",
+    "lastgun"
   ],
   "actions": {
-    "ambush": 1,
-    "draw": 6,
-    "depart": 3,
-    "delayed": 2,
-    "surrender": 5
+    "delayed": 7,
+    "draw": 13,
+    "depart": 6,
+    "surrender": 9,
+    "ambush": 1
   },
   "doctorStates": {
     "civil": {

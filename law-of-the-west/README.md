@@ -4,10 +4,9 @@ An original recreation of the structure and feel of the 1985 Accolade release
 for the Commodore 64. Part of [retro-games](../README.md), served at
 [/retro-games/law-of-the-west/](https://realjkg.github.io/retro-games/law-of-the-west/).
 
-One day as the sheriff of Gold Gulch: eight characters — the sheriff you play
-and the seven who call on him — three exchanges each with four answers every
-time, robberies you either stood in front of or read about afterwards, and a
-reckoning at sundown. Everything is
+One day as the sheriff of Gold Gulch: eleven callers in the documented order,
+three exchanges each with four answers every time, robberies you either stood in
+front of or read about afterwards, and a reckoning at sundown. Everything is
 newly written, drawn and composed — see **What is faithful, and what is not**.
 
 ## Layout
@@ -17,7 +16,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `index.html` | The deliverable: one self-contained page, everything inline, 133 KB |
 | `page.html` | The markup and CSS shell, with a `/* SCRIPTS */` marker |
 | `sid-audio.js` | The SID-idiom synth, 54 cues; the synthesis is untouched |
-| `content.js` | The seven callers, the three robberies, the figure builder and the hitboxes |
+| `content.js` | The eleven callers, the three robberies, the figure builder and the hitboxes |
 | `engine.js` | Rules only: the day, the trees, the duel, the doctor, the reckoning |
 | `ui.js` | The street, the figures, the five-line matrix, the input, one rAF loop |
 | `tools/assemble.js` | Writes `index.html` from the shell and the four scripts |
@@ -37,34 +36,40 @@ Pages behave identically — no external requests of any kind, asserted by a tes
 
 ## The day
 
-Eight characters. The **Sheriff** is the one you play: he is the near figure at
-the left of every street, seen from behind over his own shoulder, and the only
-one of the eight whose gun you control. The other seven call on him, in this
-order, each with their own tree, their own figure and their own entrance theme:
+The **Sheriff** is the one you play: he is the near figure at the left of every
+street, seen from behind over his own shoulder, and the only gun you control.
+Eleven callers come to him, one at a time, in this order, each with their own
+tree, their own figure and their own entrance theme. Seven of them carry the
+day's plot — Rose, the Kid, the Doctor, Willy, April, the Deputy and Belle — and
+the other four are the ones the street sends: a dude off the train, a man who
+has just bought a gun, a gambler, and whoever it is that waits until evening.
 
 | # | Caller | Who they are | What the encounter is for | Where it can end |
 | ---: | --- | --- | --- | --- |
-| 1 | Miss Rose | The saloon hostess; tries to seduce the sheriff | Who has been asking about the coach | stage tip · a Saturday · ordinary exit · cold |
-| 2 | The Mexicali Kid | A fugitive from across the border | A wanted man testing the badge | surrender · ride on · delayed draw · ambush · a duel |
-| 3 | The Doctor | Grumpy and cynical; will not patch up a sheriff who is too trigger happy | Objects to what the law leaves him to sew up | bank tip · his goodwill · his contempt · coffee |
-| 4 | Little Willy | A kid with a secret to tell | A boy who saw something and was paid not to say | bank tip · keeps his promise · sent home · frightened |
-| 5 | Miss April | The schoolteacher; enjoys spreading gossip | The schoolhouse window looks down on the cut | train tip · a Saturday · ordinary exit · alienated |
-| 6 | The Deputy | Never there to help; challenges the sheriff's authority | Runs in with something he is not sure he saw | bank warning · dismissed · his standing either way |
-| 7 | Belle | A female cattle rustler | Two steers with the wrong burn, and three years of grievance | surrender · drives them back · a dance · a duel |
+| 1 | A Dude | An Easterner off the westbound, in a derby | Takes the measure of the new sheriff | train tip · peaceful exit · offence · a draw |
+| 2 | Miss Rose | The saloon hostess; tries to seduce the sheriff | Who has been asking about the coach | stage tip · a Saturday · ordinary exit · cold |
+| 3 | The Mexicali Kid | A fugitive from across the border | A wanted man testing the badge | surrender · ride on · delayed draw · a duel |
+| 4 | The Doctor | Grumpy and cynical; will not patch up a sheriff who is too trigger happy | Objects to what the law leaves him to sew up | bank tip · his goodwill · his contempt · coffee |
+| 5 | Dude with a New Gun | A man who has just bought one and wants it seen | Shows off the gun, then says why he bought it | put away · bank tip · arrest · ambush |
+| 6 | Little Willy | A kid with a secret to tell | A boy who saw something and was paid not to say | bank tip · keeps his promise · sent home · frightened |
+| 7 | Miss April | The schoolteacher; enjoys spreading gossip | The schoolhouse window looks down on the cut | train tip · a Saturday · ordinary exit · alienated |
+| 8 | The Gambler | Eleven honest nights and a holdout clip | Owes the house, and says what he will do about it | arrest · repayment · departure · turn-and-shoot |
+| 9 | The Deputy | Never there to help; challenges the sheriff's authority | Runs in with something he is not sure he saw | bank warning · dismissed · his standing either way |
+| 10 | Belle | A female cattle rustler | Two steers with the wrong burn, and three years of grievance | surrender · drives them back · a dance · a duel |
+| 11 | The Last Gunfighter | Says nothing at all | A forced duel at the end of the day | a forced duel |
 
-The men in the three hold-ups are not among the eight: they are unnamed
-outlaws, they never speak, and they share one figure.
+No caller comes twice; eleven encounters are eleven different people. The men in
+the three hold-ups are not among them: they never speak, and they share one
+masked figure.
 
 Every ordinary screen is one line from the caller and four replies, and no
 conversation runs past three exchanges. Drawing is never one of the four: the
 gun is always available and always interrupts. A caller can draw at once, wait
 and turn back, put his hands up, or simply leave.
 
-**The robberies.** Three jobs fall between callers — the stage after the third,
-the westbound after the fifth, the bank after the sixth — and each sits after
-somebody who could have warned about it: Rose carries the stage tip and calls
-first, April carries the train tip and calls fifth, and the bank tip is on the
-Doctor, Willy and the Deputy. Warned, the sheriff is standing in
+**The robberies.** Three jobs fall between callers — the stage after the fourth,
+the westbound after the eighth, the bank after the tenth — and each sits after
+everybody who could have warned about it. Warned, the sheriff is standing in
 front of it with his gun still in the leather, and it opens as an ambush;
 unwarned, he reads about it afterwards and it counts against him.
 
@@ -82,7 +87,7 @@ one the reflex clock settles: an armed man answers the gun, an unarmed one walks
 away from it.
 
 **The second gun.** Not every caller comes alone. On some encounters — about
-one in five, never more than twice in a day, and never at the doctor's, whose
+one in six, never more than twice in a day, and never at the doctor's, whose
 scene is indoors — the sash goes up at the lit upstairs window on the green
 front across the street and a rifle comes out of it. The sash makes a noise and
 the pane goes dark behind a hat: that is the whole warning, and it comes a
@@ -185,10 +190,11 @@ hung from the same joint, the same belt, the same boots, the same brow, nose and
 mouth. `buildFigure` draws all of them, and a caller's whole difference is his
 spec — hat, hair, what the coat is cut like, what he carries, how tall and how
 wide he is built. One draughtsman means one standard: nobody is drawn worse than
-anybody else. So the Kid's sombrero, Rose's skirt, the Doctor's derby,
+anybody else. So the Kid's sombrero, Rose's skirt, the Doctor's derby, the
+Gambler's topper, the dude's own derby, the new gun carried across a chest,
 Willy's height and a boy's head on it, April's bonnet and slate, the Doctor's
-bag, the Deputy's star, Belle's hat and rope, and the outlaw's duster are all
-the same hand.
+bag, the Deputy's star, Belle's hat and rope, the last man all in black, and the
+outlaw's bandana are all the same hand.
 
 48×84 is not a taste either. The horizon is at 118 and a caller's boots are at
 150; the sheriff's are at 200 and his own drawing is 129×200. A man that size
@@ -290,9 +296,9 @@ short cues placed on the things that happen.
 | A robbery | `th_job` on the brief; `alarm`, `tell` and `tension` when you ride into it, or `alarm` and `robbery` when you hear about it afterwards |
 | Sundown | the theme cut, `dusk`, then `respect` or `disgrace` at 700 ms |
 
-**Sound test.** Line 2 of the title screen opens a screen that walks all 51 cues
+**Sound test.** Line 2 of the title screen opens a screen that walks all 55 cues
 by name and class, so the pistol, the ricochet, the reload, the church bell and
-the seven entrance themes can all be heard without playing a day to reach them.
+the eleven entrance themes can all be heard without playing a day to reach them.
 Play, next, previous, back are the same four lines the rest of the game uses. A
 test drives the whole list and asserts every cue in `SOUNDS` is reachable
 through it.
@@ -304,24 +310,24 @@ are the supplied table. `node tools/render-sounds.js` renders any of it to wav.
 
 From `node --test test/*.test.js` and 500 simulated days:
 
-- **Coverage.** Seven trees of three exchanges, every one of them written.
+- **Coverage.** Ten trees of three exchanges; the eleventh caller never speaks.
   Every node reachable, every authored ending reached, every action class —
   draw, ambush, delayed, surrender, depart — used by somebody. No visitor line
   over 150 characters, no reply over 92.
-- **500 days**, replies chosen at random. 411 sheriffs saw sundown; scores ran
-  −440 to 1160 with a median of 270. Tips: the bank warning reached 454 days,
-  the stage 228, the train 180. 598 robberies of 1444 went unstopped.
+- **500 days**, replies chosen at random. 300 sheriffs saw sundown; scores ran
+  −300 to 1510 with a median of 390. Tips: the bank warning reached 413 days,
+  the train 253, the stage 208. 481 robberies of 1759 went unstopped.
 - **The doctor**, all five states: civil survives two wounds, neutral and drunk
   survive one and not two, hostile and dead make the first one fatal, and
   shooting him takes the town's only rescue with him.
-- **The figures.** Eight figures — the seven callers and the outlaw of the
+- **The figures.** Twelve figures — the eleven callers and the outlaw of the
   hold-ups — no two alike, every hitbox on the grid, every lethal box over the
   man and every weapon box over actual gunmetal, and no box overlapping another.
 - **The second gun.** Between a tenth and four tenths of encounters have one and
   no day has more than two; the sash always goes up at least 1.2 seconds before
   the shot; the window is not a target until it does; shooting him counts, and
   leaving him alone costs a wound and blacks the street out.
-- **Audio.** 51 cues through the runtime with no non-finite, negative or
+- **Audio.** 55 cues through the runtime with no non-finite, negative or
   out-of-range value; every theme reachable, none needing a fourth voice at
   once, none shorter than 0.8 s or longer than 6. The gunfight, rendered:
   `gunshot` 0.61 s peak 0.33, `ricochet` 0.31 s, `hit` 0.23 s, `wound` 0.35 s,
@@ -346,9 +352,9 @@ dialogue, audiovisual assets, or musical compositions.
 ## What is faithful, and what is not
 
 Not an emulator, a port, or a copy of the original's content. The structure is
-the 1985 design's, taken from its published description: eight characters — the
-sheriff you play and seven who call on him; a day of callers met one at a time
-on one street; one caller line and four replies with up to three exchanges, the
+the 1985 design's, taken from its published description: eleven encounters with
+eleven different people in a set sequence, the sheriff you play being the twelfth
+figure on the street and the only gun you hold; callers met one at a time; one caller line and four replies with up to three exchanges, the
 interaction style the original introduced; a gun drawn on up that puts a
 crosshair on the screen and interrupts anything; a caller who will not talk to a
 gun drawn before he has been answered; surrender and departure and delayed draws

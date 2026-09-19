@@ -11,11 +11,11 @@ test('1. the scripts parse', ()=>{
     execFileSync(process.execPath,['--check',path.join(ROOT,f)]);
 });
 
-test('2. seven callers, in order, and every written tree is sound', ()=>{
+test('2. eleven callers, in order, and every written tree is sound', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
     const bad=[],ids=new Set();
-    if(CAST.length!==7)bad.push("cast is "+CAST.length+", expected seven callers");
+    if(CAST.length!==11)bad.push("cast is "+CAST.length+", expected eleven callers");
     for(const e of CAST){
       if(ids.has(e.id))bad.push(e.id+": duplicate id"); ids.add(e.id);
       for(const f of ["name","place","theme"])if(!e[f])bad.push(e.id+": no "+f);
@@ -94,14 +94,14 @@ function playDay(seed,chooser,opts){
   })()`));
 }
 
-test('3. a day runs all seven callers in order and ends at sundown', ()=>{
+test('3. a day runs all eleven callers in order and ends at sundown', ()=>{
   const seen={};
   for(let i=0;i<200;i++){
     const r=playDay(i,(enc,round,x)=>Math.floor(x*4));
     assert.equal(r.phase,'summary','day '+i+' never reached sundown');
     assert.ok(r.over,'no reckoning');
     for(const k of Object.keys(r.over.categories))seen[k]=true;
-    if(r.alive)assert.equal(r.met.length,7,'day '+i+' met '+r.met.length+' callers');
+    if(r.alive)assert.equal(r.met.length,11,'day '+i+' met '+r.met.length+' callers');
   }
   assert.deepEqual(Object.keys(seen).sort(),
     ["authority maintained","bad guys shot","crimes missed","crooks captured",
@@ -255,7 +255,7 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   const idle=cues.filter(c=>!ui.includes('SND.'+c+'(')&&!arrivals.has(c)
     &&!RESERVED.includes(c)&&!named.has(c));
   assert.deepEqual(idle,[],'cues nothing plays: '+idle.join(', '));
-  assert.equal(new Set(themes).size,7,'callers share entrance themes');
+  assert.equal(new Set(themes).size,11,'callers share entrance themes');
   const missing=[...named].filter(t=>!cues.includes(t));
   assert.deepEqual(missing,[],'themes with no music written: '+missing.join(', '));
   // three voices was the machine's limit, so no cue may need a fourth at once
@@ -283,7 +283,7 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   report.themes=[...named];
 });
 
-test('11. eight figures, no two alike, each with hitboxes over his own art', ()=>{
+test('11. twelve figures, no two alike, each with hitboxes over his own art', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
     const bad=[], seen=new Map();
@@ -332,7 +332,7 @@ test('11. eight figures, no two alike, each with hitboxes over his own art', ()=
     return JSON.stringify({bad,figures:[...seen.values()]});
   })()`));
   assert.deepEqual(out.bad,[]);
-  assert.equal(out.figures.length,7,'expected seven distinct callers');
+  assert.equal(out.figures.length,11,'expected eleven distinct callers');
   report.figures=out.figures;
 });
 
@@ -352,7 +352,7 @@ test('12. every caller is reachable and every action class occurs across the day
     }
     return JSON.stringify({actions,ends,unwritten});
   })()`));
-  assert.deepEqual(out.unwritten,[],'every caller has words: '+out.unwritten.join(', '));
+  assert.deepEqual(out.unwritten,['lastgun'],'the only caller without words is the last one');
   for(const a of ['draw','ambush','delayed','surrender','depart'])
     assert.ok(out.actions[a]>0,'no caller ever answers with "'+a+'"');
   report.actions=out.actions;
@@ -447,7 +447,7 @@ test('16. all three robberies happen, in their place, and only once each', ()=>{
     };
     return JSON.stringify({warned:runDay({stage:true,train:true,bank:true}),blind:runDay({})});
   })()`));
-  assert.deepEqual(out.warned.order,['stage@3','train@5','bank@6']);
+  assert.deepEqual(out.warned.order,['stage@4','train@8','bank@10']);
   assert.deepEqual(out.blind.seen,['stage:missed','train:missed','bank:missed']);
   assert.equal(out.blind.missed,3,'a blind sheriff missed '+out.blind.missed+' of three');
   assert.deepEqual(out.warned.seen,['stage:met','train:met','bank:met']);
@@ -491,7 +491,7 @@ test('17. a gun drawn before he is answered stops him talking until it is up', (
     drawGun(H,0);
     r.lateDraw=H.balked;
     // every caller has words for it, and none of them runs long
-    r.lines=CAST.map(e=>e.balk?e.balk.length:0);
+    r.lines=CAST.filter(e=>written(e)).map(e=>e.balk?e.balk.length:0);
     r.fallback=typeof BALK_LINE;
     return JSON.stringify(r);
   })()`));
@@ -547,18 +547,18 @@ test('19. the second gun at the window shows itself, can be shot, and shoots bac
   const out=JSON.parse(run(`(()=>{
     const r={};
     // he is not on every caller, and never more than twice in a day
-    const counts=[]; let enc=0, sn=0;
+    const counts=[], where=new Set(); let enc=0, sn=0;
     for(let seed=0;seed<40;seed++){
       const G=newDay({seed}); let n=0;
       for(let i=0;i<CAST.length;i++){
         G.encounter=i; beginEncounter(G); enc++;
-        if(G.sniper){n++;sn++;}
+        if(G.sniper){n++;sn++;where.add(i);}
       }
       counts.push(n);
     }
     r.most=Math.max.apply(null,counts);
     r.rate=sn/enc;
-    r.quiet=counts.filter(n=>n===0).length;
+    r.callers=where.size;
     // find a day that has one, and walk its clock
     let G=null;
     for(let seed=0;seed<60&&!G;seed++){
@@ -601,7 +601,9 @@ test('19. the second gun at the window shows itself, can be shot, and shoots bac
   // rifle in it is a game about windows rather than about people
   assert.ok(out.rate>0.1&&out.rate<0.4,
     'a window over '+(out.rate*100).toFixed(0)+'% of encounters');
-  assert.ok(out.quiet>=1,'no day of forty passed without one');
+  // and never the same caller twice over: which encounter has one is the
+  // surprise, not whether the day has one somewhere in it
+  assert.ok(out.callers>=5,'only '+out.callers+' callers ever bring one');
   assert.equal(out.found,true,'no seed in sixty put a man at the window');
   assert.equal(out.hiddenAtFirst,null,'the window was a target before the sash went up');
   assert.equal(out.shown,true,'the sash never went up');

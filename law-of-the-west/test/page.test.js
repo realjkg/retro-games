@@ -104,7 +104,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   const p=openPage();
   p.tap('[data-cmd="fire"]');
   assert.equal(p.G().phase,'dialogue','FIRE did not start the day');
-  assert.equal(p.ev('CAST')[p.G().encounter].id,'rose');       // the day's first caller
+  assert.equal(p.ev('CAST')[p.G().encounter].id,'stranger');   // the day's first caller
   p.ready();                                           // skip the block-load cadence
 
   const texts=[1,2,3,4].map(i=>p.el('line'+i).textContent);
@@ -890,7 +890,7 @@ test('9s. every figure gets a face, wherever its face is drawn',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   const figs=p.ev('Object.keys(FIGURES)');
-  assert.ok(figs.length>=8,'only '+figs.length+' figures');
+  assert.ok(figs.length>=12,'only '+figs.length+' figures');
   const seen={};
   for(const k of figs){
     const cut=p.ev(`headOf(FIGURES[${JSON.stringify(k)}])`);

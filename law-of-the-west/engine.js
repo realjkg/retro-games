@@ -25,11 +25,10 @@ const RULES={
 /* The phases in which the street is still happening and a second gun in it can
  * do something. On the resolve screen and between encounters it cannot. */
 const LIVE=["dialogue","aiming","tell","duel"];
-/* The three jobs sit between callers, each after the point where somebody
- * could have warned about it: Rose carries the stage tip and calls first,
- * April carries the train tip and calls fifth, and the bank tip is on the
- * Doctor, Willy and the Deputy. */
-const INTERLUDES=[{after:3,job:"stage"},{after:5,job:"train"},{after:6,job:"bank"}];
+/* The three jobs sit between callers, each after everybody who could have
+ * warned about it: the stage after Rose, the train after the Dude and Miss
+ * April, the bank after the Doctor, the new gun, Willy and the Deputy. */
+const INTERLUDES=[{after:4,job:"stage"},{after:8,job:"train"},{after:10,job:"bank"}];
 
 const mulberry32=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);
   t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
