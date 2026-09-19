@@ -97,7 +97,9 @@ test('The robot rises on the backpack, sinks without it, and cannot pass through
   const floor=r.run('G.hero.y');
   r.run('keys.U=true;');step(r,40);
   const up=r.run('G.hero.y');
-  assert.ok(up<floor-20,'holding rise climbs');
+  // A storey is forty pixels now, as the original's are, so the room over his
+  // head is twelve rather than twenty.
+  assert.ok(up<floor-8,`holding rise climbs (${(floor-up).toFixed(1)}px)`);
   r.run('delete keys.U;');step(r,120);
   assert.ok(Math.abs(r.run('G.hero.y')-floor)<2,'letting go settles back to the floor');
   // A slab with no gap in it stops him going up.
@@ -221,7 +223,7 @@ test('Scene three has three trapdoors, one of them safe, and the others have tee
 test('Contact costs a robot, invulnerability covers the respawn, and the last one ends it',()=>{
   const r=runtime(2,17);clearMaze(r,1);
   const lives=r.run('G.lives');
-  r.run('G.L.foes=[mkFoe("monster",G.hero.x,G.hero.y,1,1,0,0)];');
+  r.run('G.L.foes=[mkFoe("zombie",G.hero.x,G.hero.y,1,1,0,0)];');
   step(r,2);
   assert.equal(r.run('G.hero.alive'),false);
   assert.equal(r.run('G.lives'),lives-1);
@@ -229,7 +231,7 @@ test('Contact costs a robot, invulnerability covers the respawn, and the last on
   assert.equal(r.run('G.hero.alive'),true,'a fresh robot after the pause');
   assert.ok(r.run('G.hero.inv')>0,'and it cannot be killed the instant it appears');
   assert.equal(r.run('killHero("a test")'),false,'invulnerable is invulnerable');
-  r.run('G.lives=1;G.hero.inv=0;G.L.foes=[mkFoe("monster",G.hero.x,G.hero.y,1,1,0,0)];');
+  r.run('G.lives=1;G.hero.inv=0;G.L.foes=[mkFoe("zombie",G.hero.x,G.hero.y,1,1,0,0)];');
   step(r,2);step(r,90);
   assert.equal(r.run('G.phase'),'over');
 });
@@ -454,7 +456,7 @@ test('Up is the jetpack, down is his feet',()=>{
   assert.equal(r.run('G.hero.walking'),true,'he starts on his feet');
   // Held up, he climbs on the jetpack and the flame lights.
   r.run('keys.U=true;');step(r,30);
-  assert.ok(r.run('G.hero.y')<floor-12,'the jetpack lifts him');
+  assert.ok(r.run('G.hero.y')<floor-8,'the jetpack lifts him');
   assert.equal(r.run('G.hero.walking'),false,'and he is flying, not walking');
   assert.ok(r.run('G.hero.thrust')>.5,'with the rocket lit');
   // Held down, he comes back to the floor and walks it. (Over a hole, down is how
@@ -500,4 +502,30 @@ test('Every kind of thing in the maze can move and be drawn without falling over
     r.run('render();');
     assert.equal(r.run('G.L.foes.length'),1,k+' survives being stepped');
   }
+});
+
+test('Five balls do not kill a turkey. They cook it.',()=>{
+  const r=runtime(2,79);clearMaze(r,1);
+  r.run(`G.score=0;G.hero.inv=99;G.hero.face=1;
+   G.L.foes=[mkFoe("turkey",G.hero.x+40,G.hero.y,1,1,0,0)];
+   G.L.foes[0].sp=0;G.L.foes[0].cool=99;G.L.foes[0].vy=0;`);
+  // He is pinned at the turkey's height: this is about the fifth ball, not about
+  // whether he can hover in one place for five of them.
+  const pin=()=>r.run('G.hero.y=G.L.foes[0].y;G.hero.vy=0;G.hero.cool=0;');
+  for(let i=0;i<4;i++){pin();r.run('shoot(1,0);');step(r,14);}
+  assert.equal(r.run('G.L.foes[0].k'),'turkey','four shots and it is still a turkey');
+  assert.equal(r.run('G.L.foes[0].dead'),false);
+  pin();r.run('shoot(1,0);');step(r,14);
+  assert.equal(r.run('G.L.foes[0].k'),'roast','the fifth cooks it');
+  assert.equal(r.run('G.L.foes[0].dead'),false,'and it is still there to collect');
+  assert.equal(r.run('G.score'),r.run('FOE.turkey.pts'));
+  // It comes down to the floor, it does not chase anybody, and it cannot kill you.
+  step(r,60);
+  assert.equal(r.run('G.L.foes[0].vy'),0,'dinner settles');
+  assert.equal(r.run('Math.round(G.L.foes[0].y+G.L.foes[0].h)'),
+               r.run('slabRow(storeyOf(G.L.foes[0]))*TS'),'on the floor it landed on');
+  r.run('G.hero.inv=0;G.hero.x=G.L.foes[0].x;G.hero.y=G.L.foes[0].y;');
+  step(r,2);
+  assert.equal(r.run('G.hero.alive'),true,'walking into dinner is not fatal');
+  assert.equal(r.run('G.score'),r.run('FOE.turkey.pts+FOE.roast.pts'),'it is worth collecting');
 });

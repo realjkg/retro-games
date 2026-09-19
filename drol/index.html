@@ -36,7 +36,7 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 #status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
-#stage{position:relative;width:100%;aspect-ratio:173/117;background:#000;border:1px solid var(--line);
+#stage{position:relative;width:100%;aspect-ratio:173/97;background:#000;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
@@ -102,8 +102,8 @@ body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
    space the page chrome gave back goes to the pads instead of to black bars. */
-body.fs #stage{width:min(100%,calc(58svh * 173 / 117));max-width:100%;margin:0 auto;border-radius:0;
-  aspect-ratio:173/117;border-left:0;border-right:0}
+body.fs #stage{width:min(100%,calc(58svh * 173 / 97));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:173/97;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
@@ -119,7 +119,7 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 117));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 97));max-width:60vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
   body.fs .sbtn{width:66px;height:38px}
@@ -132,7 +132,7 @@ body.fs #audio-status{display:none}
 <body>
 <div id="wrap">
   <div id="status" role="status">Loading…</div>
-  <div id="stage"><canvas id="cv" width="346" height="234"></canvas><div id="overlay"></div></div>
+  <div id="stage"><canvas id="cv" width="346" height="194"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow">
       <div class="dpad">
@@ -155,9 +155,9 @@ body.fs #audio-status{display:none}
 /* ============ the four-storey maze ============ */
 // Four storeys, one above the other, all of them on screen at once the way the
 // 1983 original had them: the only scrolling is sideways.
-const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
+const TS=10, MAPW=100, FLOORH=4, FLOORS=4, MAPH=FLOORH*FLOORS;
 const RADAR_H=34;                       // the panel across the top, as in the original
-let VW=346, VH=234;                     // game pixels; fit() reshapes them to the canvas box
+let VW=346, VH=194;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
 const HOLEW=4;                          // tiles cut out of a slab to make one hole
 const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
@@ -174,13 +174,16 @@ function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math
 // cleaners, and the swords, daggers, arrows and axes thrown down a storey.
 const FOE={
  scorpion:{n:"a scorpion",    hp:1,sp:38, w:20,h:24,pts:150,shootable:true},
- turkey  :{n:"a turkey",      hp:1,sp:56, w:33,h:14,pts:250,shootable:true},
- monster :{n:"a monster",     hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
+ turkey  :{n:"a turkey",      hp:5,sp:56, w:33,h:14,pts:250,shootable:true},
+ zombie  :{n:"a zombie",      hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
  serpent :{n:"a serpent",     hp:1,sp:34, w:10,h:16,pts:200,shootable:true},
  doctor  :{n:"a witch doctor",hp:3,sp:30, w:12,h:17,pts:400,shootable:true},
  vacuum  :{n:"a vacuum cleaner",hp:2,sp:26, w:16,h:10,pts:250,shootable:true},
  blade   :{n:"a thrown blade",hp:1,sp:96, w:10,h:8, pts:75, shootable:true},
- magnet  :{n:"a magnet",      hp:0,sp:0,  w:14,h:12,pts:0,  shootable:false}
+ magnet  :{n:"a magnet",      hp:0,sp:0,  w:14,h:12,pts:0,  shootable:false},
+ // What a turkey becomes after its fifth ball. It is not a threat and not a
+ // target; it is lunch, and worth a thousand to whoever walks into it.
+ roast   :{n:"dinner",        hp:1,sp:0,  w:16,h:12,pts:1000,shootable:false}
 };
 // Three scenes, then the whole thing again and harder - the original's only
 // structure. Each scene names its own rescue, its own pet and its own menagerie.
@@ -192,10 +195,10 @@ const SCENES=[
   foes:["scorpion","scorpion","turkey"],
   sky:"#000000", stone:"#3a34c8", trim:"#4a3ce8", lit:"#ffffff"},
  {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
-  foes:["monster","doctor","magnet","scorpion"],
+  foes:["zombie","doctor","magnet","scorpion"],
   sky:"#000000", stone:"#4438b8", trim:"#5b50e8", lit:"#ffffff"},
  {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
-  foes:["serpent","blade","vacuum","monster"],
+  foes:["serpent","blade","vacuum","zombie"],
   sky:"#000000", stone:"#2f2aa8", trim:"#4038d8", lit:"#ffffff"}
 ];
 const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
@@ -258,7 +261,7 @@ function genScene(scene,loop,diff,rand){
  }
  if(S.pet){
   const f=ri(FLOORS);
-  L.pet={kind:S.pet,x:(6+ri(MAPW-20))*TS,y:slabRow(f)*TS-10,w:16,h:10,f,dir:rand()<.5?-1:1,freed:false};
+  L.pet={kind:S.pet,x:(6+ri(MAPW-20))*TS,y:slabRow(f)*TS-16,w:34,h:16,f,dir:rand()<.5?-1:1,freed:false};
  }
  // The menagerie. A harder round is a busier maze, exactly as the original's
  // loop back to scene one is.
@@ -497,6 +500,30 @@ function savePrefs(){
    {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best}));
  }catch(e){}
 }
+
+// The pet, with the jetpack the review remembers strapped to its back, read off
+// the same screen. The boy's lizard is the same animal in a lighter green.
+const PET_PIX=[
+ "..............PPPPPPPPPWWW............",
+ ".....gWWGGGGGGPPPPPPPPPPWW............",
+ "..............PPPPPPPPPWWW...gWW......",
+ "...............gWWWWWW.....gWWWWWW....",
+ "..................PP.....gGGWP.gWP....",
+ "..................PP...gGGGGWWWWWWGG..",
+ "................GGWWGG..GGGGGGWWGGGGGG",
+ ".............gGGGGWWGGGGGGGGGGGGGGGGGg",
+ "..............GGGGWWGGGGGGGGGg..GGGGGg",
+ "...........gGGWWGGWWGGGGGGGGGGGG...gGG",
+ "............GGGGGGWWGGGGGGGGGGGGGGGG..",
+ "..........GGGGGGGGWWGGGGGGGG..........",
+ ".....gGGGGGGGGGGGGWWGGGGGg............",
+ "........GGGG..GGGG....GGGG............",
+ ".............gGGWW...gGGWW............",
+ ".............gWWWWWW.gWWWWWW..........",
+ ".................gWW.....gWW..........",
+];
+const PET_PAL={gator:{G:"#6aa84f",g:"#3c6e32",W:"#f4f4f4",P:"#c87878",p:"#96464a"},
+               lizard:{G:"#9ad04a",g:"#5e8a28",W:"#f4f4f4",P:"#c87878",p:"#96464a"}};
 
 /* ---- two of the menagerie, read off the screen the same way ---- */
 // The scorpion: tail curled over its back with a white sting on the end, white
@@ -784,7 +811,7 @@ function foeStep(e,dt){
   if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2/e.agg;}
   else if(e.vy>0&&e.y>e.home+26)e.vy=-70;
   else if(e.vy<0&&e.y<=e.home)  {e.vy=0;e.y=e.home;}
- }else if(e.k==="monster"){
+ }else if(e.k==="zombie"){
   const same=h.alive&&storeyOf(h)===storeyOf(e);
   if(same)e.dir=Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir;
   e.vy+=520*dt;
@@ -813,6 +840,11 @@ function foeStep(e,dt){
   const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
   if(r.by)e.vy=0;
   if(r.bx)e.dir*=-1;
+ }else if(e.k==="roast"){
+  e.vy+=520*dt;                                            // dinner falls to the floor
+  if(moveBody(e,0,e.vy*dt).by)e.vy=0;
+  if(h.alive&&overlap(e,h)){e.dead=true;addScore(FOE.roast.pts);petSound();say("Dinner. +1000.");}
+  return;                                                  // and it does not hunt you
  }else if(e.k==="blade"){
   // swords, daggers, arrows and axes: they cross the storey and come back
   const r=moveBody(e,e.dir*e.sp*dt,0);
@@ -823,7 +855,15 @@ function foeStep(e,dt){
 }
 function damageFoe(e){
  if(!FOE[e.k].shootable){blockSound();return false;}
- if(--e.hp<=0){e.dead=true;addScore(e.pts);killSound();
+ if(--e.hp<=0){
+  // Five shots do not kill a turkey. They cook it. The original's best joke, and
+  // the roast is worth collecting afterwards.
+  if(e.k==="turkey"){
+   e.k="roast";e.w=16;e.h=12;e.vy=0;e.sp=0;e.roast=true;e.hp=1;
+   addScore(e.pts);petSound();say("Well done.");
+   return false;
+  }
+  e.dead=true;addScore(e.pts);killSound();
   G.L.fx.push({x:e.x+e.w/2,y:e.y+e.h/2,t:0,life:.3,r:9});
   return true;}
  killSound();
@@ -879,10 +919,13 @@ function childStep(dt){
 function petStep(dt){
  const p=G.L.pet;
  if(!p||p.freed)return;
- p.x+=p.dir*22*dt;
+ // The pets wear jetpacks too, which is the detail that makes the scene funny:
+ // an alligator hovering a few inches off the floor, drifting.
+ p.bob=(p.bob||0)+dt*3;
+ p.x+=p.dir*26*dt;
  if(p.x<TS*2){p.x=TS*2;p.dir=1;}
  if(p.x>(MAPW-3)*TS){p.x=(MAPW-3)*TS;p.dir=-1;}
- p.y=slabRow(p.f)*TS-p.h;
+ p.y=slabRow(p.f)*TS-p.h-4-Math.round(Math.sin(p.bob)*2);
 }
 function rescue(){
  const c=G.L.child;
@@ -1220,11 +1263,11 @@ function drawTiles(){
   for(let x=lo;x<=hi;x++){
    if(G.L.map[x][slabRow(f)]!==SLAB)continue;
    const sxx=sx(x*TS), syy=sy(y);
-   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band, five deep as it is there
    // The white edge is dashed, as the screen has it: on for six pixels of every
    // ten, which reads as a rail rather than a line.
    if((x%3)!==2){c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);}
-   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,2);           // its underside
+   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,1);           // its underside
    // the lip either side of a hole, so a gap reads as an edge you can fall past
    if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,7);}
    if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,7);}
@@ -1279,7 +1322,7 @@ function drawFoe(e){
   drawPix(SCORPION_PIX,SCORPION_PAL,x-1,y-2,1,d<0);
  }else if(e.k==="turkey"){
   drawPix(BIRD_PIX,BIRD_PAL,x-2,y-1,1,d<0);
- }else if(e.k==="monster"){
+ }else if(e.k==="zombie"){
   const hop=beat?0:1;
   c.fillStyle="#a05ad8";c.fillRect(x+1,y+5+hop,11,7);        // the beer belly
   c.fillStyle="#d8a0f0";c.fillRect(x+2,y+7+hop,9,3);
@@ -1330,6 +1373,12 @@ function drawFoe(e){
   c.fillRect(bx,y+1,2,6);                                    // the cross guard
   c.fillRect(bx+(d>0?-1:1),y+3,1,2);                         // and the pommel
   if(beat){c.fillStyle="#9a92ff";c.fillRect(d>0?x+9:x-1,y+4,2,1);}   // the whistle of it
+ }else if(e.k==="roast"){
+  c.fillStyle="#b4702c";c.fillRect(x+1,y+3,14,8);           // a cooked bird on a plate
+  c.fillStyle="#d89a52";c.fillRect(x+2,y+4,9,4);
+  c.fillStyle="#8a4a18";c.fillRect(x+3,y+9,10,2);
+  c.fillStyle="#f0f0f0";c.fillRect(x,y+11,16,2);            // the plate
+  c.fillStyle="#e8e8e8";c.fillRect(x+4,y,3,3);c.fillRect(x+9,y,3,3);   // the two legs, up
  }else if(e.k==="magnet"){
   c.fillStyle="#3a4668";c.fillRect(x+5,y-3,4,4);             // the stem it hangs from
   c.fillStyle="#d84a4a";c.fillRect(x,y+1,14,6);              // the horseshoe
@@ -1386,16 +1435,12 @@ function drawToy(){
 function drawPet(){
  const c=ctx, p=G.L.pet;
  if(!p||p.freed)return;
- const x=sx(p.x), y=sy(p.y), d=p.dir, step=Math.floor(G.time*6)%2;
- const skin=p.kind==="lizard"?"#b6e04a":"#4a7a4a", dark=p.kind==="lizard"?"#84ad2a":"#2f5232";
- c.fillStyle=skin;c.fillRect(x+1,y+3,14,4);                  // body
- c.fillStyle=dark;c.fillRect(x+1,y+6,14,1);
- c.fillStyle=skin;c.fillRect(x+(d>0?12:0),y+1,4,3);          // head
- c.fillStyle=dark;for(let i=0;i<4;i++)c.fillRect(x+2+i*3,y+1,2,2);       // back plates
- c.fillStyle=dark;c.fillRect(x+(d>0?0:13),y+4,2,2);          // tail
- c.fillStyle=skin;c.fillRect(x+3,y+7,2,step?3:2);c.fillRect(x+10,y+7,2,step?2:3);
- c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);     // eye
- if(p.kind==="gator"){c.fillStyle="#f0f0e0";c.fillRect(x+(d>0?12:0),y+4,4,1);}  // teeth
+ const x=sx(p.x), y=sy(p.y);
+ drawPix(PET_PIX,PET_PAL[p.kind]||PET_PAL.gator,x-2,y-1,1,p.dir<0);
+ // the flame under its pack, which is how it is staying up
+ const len=3+(Math.floor(G.time*18)%2);
+ c.fillStyle="#e04040";c.fillRect(x+(p.dir<0?24:10),y+16,2,len);
+ c.fillStyle="#eeeeee";c.fillRect(x+(p.dir<0?24:10),y+16,1,len);
 }
 // The robot himself is HERO_PIX; what is left here is the flame, the shadow and
 // the coming-apart, which are state rather than picture.
@@ -1621,7 +1666,7 @@ function updateStatus(){
 // The drawing surface takes the shape of the box it sits in: with the scope off
 // the maze simply gets those sixteen rows back.
 function fit(force){
- const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||234;
+ const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||194;
  if(!w||!hh)return;
  const s=clamp(w/346,1,6);
  const nw=clamp(Math.round(w/s),260,560), nh=clamp(Math.round(hh/s),150,MAPH*TS+RADAR_H);

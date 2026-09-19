@@ -53,7 +53,7 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 - **Mother is bound and gagged at the bottom right** of the third scene, and does not move:
   that scene is the trip down to her.
 - The menagerie the manual and the reviews name: **hopping scorpions**, **flying turkeys**,
-  **monsters**, **serpents**, **witch doctors** who throw a curse down the length of their
+  **zombies**, **serpents**, **witch doctors** who throw a curse down the length of their
   floor, **vacuum cleaners** that drag you along the floor they are sweeping, the **swords,
   daggers, arrows and axes** that cross a storey, and **magnets**, which swallow your shots
   instead of dying to them and pull you in. A magnet's pull falls off with distance and stops
@@ -140,13 +140,24 @@ What that means on screen:
   deeper one for the boy's scene, a violet one for the girl's and the witch doctor's, and a
   darker one again for the descent to the mother. Magenta is left to the title screen, which
   is where the original uses it.
+- **A storey is forty pixels**, as the original's are, with a five-pixel band: measured off
+  the screenshots rather than chosen. Mine had been fifty, which is why everything standing in
+  one had looked too small — the robot filled 42% of a storey where he fills 51% on the real
+  thing.
 - **The scorpion and the bird are transcriptions too**, read off a photograph of the
   Commodore 64 version the same way the hero was read off the Apple II one: the scorpion is a
   chunky pink thing with white eyes, a row of white legs and a segmented tail curled over its
   back with a white sting on the end, and the bird is white with green wings out. They are
   **big** — two thirds of the height of a storey, as they are on that screen — where my own
   drawings of them had been a quarter of it, which is most of why the maze had felt empty.
-- **The rest of the menagerie is still mine**: the monster hops on its belly, the serpent
+- **The pets fly.** Both of them wear jetpacks in the original — an alligator hovering a few
+  inches off the floor with a pack strapped to its back, which is the funniest thing on the
+  screen — so the alligator is a transcription too, pack and all, and both pets drift along
+  their floor with a flame under them.
+- **Five balls do not kill a turkey. They cook it.** The fifth turns it into a roast on a
+  plate, which falls to the floor, stops hunting you and is worth a thousand to whoever walks
+  into it. It is the original's best joke and it belongs here.
+- **The rest of the menagerie is still mine**: the zombie hops on its belly, the serpent
   coils and sways, the witch doctor carries a lit staff under a red headdress, the vacuum has
   a mouth and wheels, the axe is a white sword with a red hilt, and the magnet is a red
   horseshoe with a field pulsing out of it.
