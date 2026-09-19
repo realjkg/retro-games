@@ -10,7 +10,7 @@
      which is the only way to stop iOS sliding its toolbars over a game in play. -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#0b1020">
+<meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,7 +36,7 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 #status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
-#stage{position:relative;width:100%;aspect-ratio:8/5;background:#000;border:1px solid var(--line);
+#stage{position:relative;width:100%;aspect-ratio:173/97;background:#000;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
@@ -56,12 +56,15 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
 /* Over the title art the overlay is only a scrim, so the maze shows through. */
-#overlay.splash{background:linear-gradient(rgba(5,8,18,0) 0%,rgba(5,8,18,0) 46%,rgba(5,8,18,.9) 68%);
+#overlay.splash{background:linear-gradient(rgba(0,0,0,0) 0%,rgba(0,0,0,0) 52%,rgba(0,0,0,.55) 66%,rgba(0,0,0,.82) 100%);
   justify-content:flex-end;gap:6px;padding:10px 12px 12px}
 #overlay.splash h1{font-size:15px;margin-bottom:2px;text-shadow:0 1px 3px #000}
 #overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(18,24,44,.92);
   border-color:#3b4a6e;color:#e8eeff}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#101426}
+/* A switch rather than a choice: narrow enough that the wordmark behind the card
+   is still readable. */
+#overlay.splash .menuitem.small{width:auto;padding:5px 14px;font-size:13px;letter-spacing:.04em}
 #overlay.splash .diffgrid .menuitem,#overlay.splash .menugrid .menuitem{width:auto}
 #overlay.splash .sub,#overlay.splash small.tip{color:#c7d2ec;text-shadow:0 1px 2px #000}
 #overlay.splash small.tip{font-size:10px}
@@ -81,8 +84,10 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
-#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+#sound,#fs,#install{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
   padding:9px 12px;min-height:40px}
+#install{border-color:var(--gold);color:var(--gold)}
+#install[hidden]{display:none}
 /* Full screen: the maze and the controls, nothing else. The page goes black in
    both colour schemes so there is no doubt which mode you are in. */
 /* svh is the viewport with the browser's toolbars showing. Sizing to it means a
@@ -93,15 +98,15 @@ body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow
 body.fs .btn{background:#141c33;border-color:#2a3550;color:#e8eeff}
 body.fs .btn:active,body.fs .btn.on{background:#ffc24a;color:#101426;border-color:#ffc24a}
 body.fs .btn.lit{border-color:#ffc24a;color:#ffc24a}
-body.fs #sound,body.fs #fs{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs #sound,body.fs #fs,body.fs #install{background:#141c33;border-color:#2a3550;color:#e8eeff}
 body.fs #fs{border-color:#ffc24a;color:#ffc24a}
 body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
   padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
    space the page chrome gave back goes to the pads instead of to black bars. */
-body.fs #stage{width:min(100%,calc(58svh * 8 / 5));max-width:100%;margin:0 auto;border-radius:0;
-  aspect-ratio:8/5;border-left:0;border-right:0}
+body.fs #stage{width:min(100%,calc(58svh * 173 / 97));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:173/97;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
@@ -117,26 +122,26 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 8 / 5));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 97));max-width:60vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
   body.fs .sbtn{width:66px;height:38px}
   body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
     margin:0;z-index:5;font-size:10px}
-  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+  body.fs #sound,body.fs #fs,body.fs #install{padding:6px 10px;min-height:32px;font-size:11px}
 }
 </style>
 </head>
 <body>
 <div id="wrap">
   <div id="status" role="status">Loading…</div>
-  <div id="stage"><canvas id="cv" width="346" height="216"></canvas><div id="overlay"></div></div>
+  <div id="stage"><canvas id="cv" width="346" height="194"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow">
       <div class="dpad">
-        <div></div><div class="btn" data-k="U">▲<small>rise</small></div><div></div>
+        <div></div><div class="btn" data-k="U">▲<small>jetpack</small></div><div></div>
         <div class="btn" data-k="L">◀</div><div class="btn" id="hovbtn" data-k="HOLD">HOVER</div><div class="btn" data-k="R">▶</div>
-        <div></div><div class="btn" data-k="D">▼<small>drop</small></div><div></div>
+        <div></div><div class="btn" data-k="D">▼<small>walk</small></div><div></div>
       </div>
       <div class="acts">
         <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
@@ -146,18 +151,18 @@ body.fs #audio-status{display:none}
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><button id="install" type="button" hidden>INSTALL</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
 /* ============ the four-storey maze ============ */
 // Four storeys, one above the other, all of them on screen at once the way the
 // 1983 original had them: the only scrolling is sideways.
-const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
-const RADAR_H=16;                       // the scope along the top, as in the original
-let VW=346, VH=216;                     // game pixels; fit() reshapes them to the canvas box
+const TS=10, MAPW=100, FLOORH=4, FLOORS=4, MAPH=FLOORH*FLOORS;
+const RADAR_H=34;                       // the panel across the top, as in the original
+let VW=346, VH=194;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
-const HOLEW=3;                          // tiles cut out of a slab to make one hole
+const HOLEW=4;                          // tiles cut out of a slab to make one hole
 const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
 const storeyTop=f=>f*FLOORH;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -171,24 +176,33 @@ function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math
 // turkeys, monsters, serpents, witch doctors, shot-blocking magnets, vacuum
 // cleaners, and the swords, daggers, arrows and axes thrown down a storey.
 const FOE={
- scorpion:{n:"a scorpion",    hp:1,sp:38, w:12,h:9, pts:150,shootable:true},
- turkey  :{n:"a turkey",      hp:1,sp:56, w:14,h:11,pts:250,shootable:true},
- monster :{n:"a monster",     hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
- serpent :{n:"a serpent",     hp:1,sp:34, w:16,h:7, pts:200,shootable:true},
+ scorpion:{n:"a scorpion",    hp:1,sp:38, w:20,h:21,pts:150,shootable:true},
+ turkey  :{n:"a turkey",      hp:5,sp:56, w:33,h:14,pts:250,shootable:true},
+ zombie  :{n:"a zombie",      hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
+ serpent :{n:"a serpent",     hp:1,sp:34, w:20,h:26,pts:200,shootable:true},
  doctor  :{n:"a witch doctor",hp:3,sp:30, w:12,h:17,pts:400,shootable:true},
  vacuum  :{n:"a vacuum cleaner",hp:2,sp:26, w:16,h:10,pts:250,shootable:true},
- blade   :{n:"a thrown blade",hp:1,sp:96, w:10,h:8, pts:75, shootable:true},
- magnet  :{n:"a magnet",      hp:0,sp:0,  w:14,h:12,pts:0,  shootable:false}
+ blade   :{n:"a thrown blade",hp:1,sp:96, w:29,h:7, pts:75, shootable:true},
+ magnet  :{n:"a magnet",      hp:0,sp:0,  w:14,h:12,pts:0,  shootable:false},
+ // What a turkey becomes after its fifth ball. It is not a threat and not a
+ // target; it is lunch, and worth a thousand to whoever walks into it.
+ roast   :{n:"dinner",        hp:1,sp:0,  w:16,h:12,pts:1000,shootable:false}
 };
 // Three scenes, then the whole thing again and harder - the original's only
 // structure. Each scene names its own rescue, its own pet and its own menagerie.
 const SCENES=[
+ // Four colours and a black screen, which is what the machine actually had: the
+ // floors are a bright band with a white edge on top of it, and the background is
+ // nothing at all.
  {name:"The boy and his plane", child:"boy",  toy:"plane",   pet:"lizard",
-  foes:["scorpion","scorpion","turkey"],           sky:"#101a2e", stone:"#4a5b76", trim:"#6d82a6"},
+  foes:["scorpion","scorpion","turkey"],
+  sky:"#000000", stone:"#3a34c8", trim:"#4a3ce8", lit:"#ffffff"},
  {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
-  foes:["monster","doctor","magnet","scorpion"],   sky:"#1a1130", stone:"#5b4a7a", trim:"#8b76b4"},
+  foes:["zombie","doctor","magnet","scorpion"],
+  sky:"#000000", stone:"#4438b8", trim:"#5b50e8", lit:"#ffffff"},
  {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
-  foes:["serpent","blade","vacuum","monster"],     sky:"#2a1210", stone:"#7a4a36", trim:"#b4715a"}
+  foes:["serpent","blade","vacuum","zombie"],
+  sky:"#000000", stone:"#2f2aa8", trim:"#4038d8", lit:"#ffffff"}
 ];
 const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
 const PET_NAME={lizard:"the boy's lizard",gator:"the girl's alligator"};
@@ -199,7 +213,7 @@ function genScene(scene,loop,diff,rand){
  const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(AIR));
  for(let x=0;x<MAPW;x++){map[x][0]=SLAB;for(let f=0;f<FLOORS;f++)map[x][slabRow(f)]=SLAB;}
  for(let y=0;y<MAPH;y++){map[0][y]=SLAB;map[MAPW-1][y]=SLAB;}
- const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],
+ const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],urns:[],pillars:[],
    child:null,toy:null,pet:null,pal:S};
  // Gaps in every slab: the holes you fly up and down through. The lowest slab of
  // the third scene is not holed at random - it carries the three trapdoors.
@@ -236,16 +250,28 @@ function genScene(scene,loop,diff,rand){
   L.toy={kind:S.toy,x:L.child.x+40,y:storeyTop(L.child.f)*TS+8,w:12,h:10,
     vx:(rand()<.5?-1:1)*34,vy:12,alive:true,f:L.child.f};
  }
+ // Pillars holding the storeys apart, every so often across the maze. They are
+ // scenery: nothing collides with them, and the original's stand in the same way.
+ for(let x=6+ri(10);x<MAPW-6;x+=14+ri(10))
+  for(let f=0;f<FLOORS-1;f++)L.pillars.push({x:x*TS,f});
+ // The third scene has urns standing on its floors, as the original's does: they
+ // soak up a ball apiece and shatter for points, and they are cover.
+ if(scene===2){
+  for(let i=0,n=5+ri(3);i<n;i++){
+   const f=ri(FLOORS), x=6+ri(MAPW-14);
+   L.urns.push({x:x*TS,y:slabRow(f)*TS-31,w:19,h:31,f,hp:2,gone:false});
+  }
+ }
  if(S.pet){
   const f=ri(FLOORS);
-  L.pet={kind:S.pet,x:(6+ri(MAPW-20))*TS,y:slabRow(f)*TS-10,w:16,h:10,f,dir:rand()<.5?-1:1,freed:false};
+  L.pet={kind:S.pet,x:(6+ri(MAPW-20))*TS,y:slabRow(f)*TS-16,w:37,h:14,f,dir:rand()<.5?-1:1,freed:false};
  }
  // The menagerie. A harder round is a busier maze, exactly as the original's
  // loop back to scene one is.
  // Counted, quickened and made bolder by the setting: a bot playing the quiet
  // maze and the swarming one used to die at the same rate, which meant the
  // setting was decoration.
- const n=5+diff*3+loop*3;
+ const n=4+diff*4+loop*3;
  for(let i=0;i<n;i++)spawnFoe(L,S.foes[i%S.foes.length],rand,loop,diff);
  return L;
 }
@@ -265,8 +291,99 @@ function spawnFoe(L,k,rand,loop,diff){
 function mkFoe(k,x,y,f,dir,loop,diff){
  const F=FOE[k];
  return{k,x,y,f,w:F.w,h:F.h,vx:0,vy:0,dir:dir||1,cool:.6+Math.random()*1.2,anim:Math.random()*6,
-  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.09),pts:F.pts,dead:false,home:y,
-  agg:1+loop*.15+diff*.08};    // how often the ones that wait for you stop waiting
+  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.13),pts:F.pts,dead:false,home:y,
+  agg:1+loop*.15+diff*.12};    // how often the ones that wait for you stop waiting
+}
+
+/* ============ the hero, once ============ */
+// One picture of the robot, twelve by sixteen, and everything that draws him -
+// the game, the title card, the app icon, the tile on the collection page -
+// reads it from here. They cannot drift apart because there is only one of him.
+// Three pictures of him, read off the screen: standing on his feet, mid-stride,
+// and flying with the white of him streaming out behind. They line up with each
+// other - the red band across his middle is the ninth row of all three - so the
+// game can swap between them without him jumping.
+const HERO_PIX=[
+ "..........BBBBBB...",
+ "........BBBBBBBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWW",
+ "...B.BBBBBBBBBWWWWB",
+ ".BBB.BBBBBBBWWWWBBB",
+ "BBBBWBBBBBBBWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR",
+ "BBBBWBBBBBWWWWBBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "WWWWWBBBBBWWWWBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".........RRRRRRR...",
+ "........WWWWWWWWW..",
+ "......WWWWWWWWWWWWW",
+ "......WWWWWWWWWWWWW",
+];
+const HERO_WALK=[
+ "..........BBBBBB...",
+ "........BBBBBBBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWW",
+ "...B.BBBBBBBBBWWWWB",
+ ".BBB.BBBBBBBWWWWBBB",
+ "BBBBWBBBBBBBWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR",
+ "BBBBWBBBBBWWWWBBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "WWWWWBBBBBWWWWBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".........RRRRRRR...",
+ ".......WWWWWWWWW...",
+ ".....WWWWWWWWWWWW..",
+ ".....WWWWWWWWWWWW..",
+];
+const HERO_FLY=[
+ "..........BBBBBB....",
+ "........BBBBBBBBBBB.",
+ "......BBBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWWW",
+ "..BB.BBBBBBBBBWWWWBW",
+ ".BBB.BBBBBBBWWWWBBBW",
+ "BBBBWBBBBBBBWWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR.",
+ "BBBBWBBBBBWWWWBBBBBB",
+ "BBBBWBBBBWWBWWWBBBBB",
+ "BBBBWBBBBWWBWWWBBBBB",
+ "WWWWWBBBBBWWWWBBBBBB",
+ "......BBBBBBBBBBBBB.",
+ ".RR......RRRRRRR....",
+ "........WWWWWWWW....",
+ "......WWWWWWWWWWW...",
+ ".........WWWWWWWW...",
+ "...........WWWWWWWW.",
+ "...............WWWW.",
+];
+// Each pose hangs off the body that collides by its own offset.
+const HERO_OFF={stand:-1,walk:-1,fly:-2};
+const HERO_PAL={B:"#4a3ce8",W:"#eeeeee",R:"#e04040"};
+// Draws one of those pictures at any size, facing either way. Runs of the same
+// colour go out as one rectangle, which is what keeps this cheap at title size.
+function drawPix(map,pal,x,y,scale,flip){
+ const c=ctx, w=map[0].length;
+ for(let r=0;r<map.length;r++){
+  const row=map[r];
+  let i=0;
+  while(i<w){
+   const ch=row[i];
+   if(ch==="."||!pal[ch]){i++;continue;}
+   let j=i;while(j<w&&row[j]===ch)j++;
+   c.fillStyle=pal[ch];
+   c.fillRect(x+(flip?w-j:i)*scale,y+r*scale,(j-i)*scale,scale);
+   i=j;
+  }
+ }
 }
 
 /* ============ audio ============ */
@@ -295,6 +412,7 @@ function tone(hz,endHz,seconds,type="square",level=.3){
 }
 const shotSound  =()=>tone(880,220,.11,"square",.34);
 const thrustSound=()=>tone(120,170,.06,"sawtooth",.12);
+const stepSound  =()=>tone(90,60,.04,"square",.10);
 const killSound  =()=>tone(240,60,.16,"sawtooth",.4);
 const blockSound =()=>tone(300,300,.05,"square",.25);
 const curseSound =()=>tone(180,420,.2,"sawtooth",.3);
@@ -328,7 +446,8 @@ const PATTERNS={
       bass:[52,0,52,0,57,0,57,0,59,0,59,0,52,0,0,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1]}
 };
 const MUSIC={on:true,cur:null,next:0,step:0,pat:null};
-function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}}
+function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}
+ if(typeof savePrefs==="function")savePrefs();}
 function musicNote(hz,dur,type,level,when){
  if(!SOUND.enabled||!SOUND.ctx||!SOUND.music||!MUSIC.on)return;
  const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain(),t=Math.max(when,c.currentTime);
@@ -366,25 +485,261 @@ function musicTick(){
  }
 }
 
+/* ============ what the browser remembers ============ */
+// Sound, music, the scope and the best score survive a reload. Every call is
+// wrapped: private windows and blocked site data throw here rather than return
+// nothing, and a game that will not start because of a storage setting is worse
+// than a game that forgets.
+// Ten robots to start with. The original was meaner than that, but this is a
+// game played in bursts on a phone, and running out on the third scene of the
+// first round is not the part anyone remembers fondly.
+const START_LIVES=10;
+const PREF_KEY="drol.prefs";
+function loadPrefs(){
+ try{
+  const raw=localStorage.getItem(PREF_KEY);
+  return raw?JSON.parse(raw)||{}:{};
+ }catch(e){return {};}
+}
+function savePrefs(){
+ try{
+  localStorage.setItem(PREF_KEY,JSON.stringify(
+   {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best,endless:G.endless}));
+ }catch(e){}
+}
+
+// The pet, with the jetpack the review remembers strapped to its back, read off
+// the same screen. The boy's lizard is the same animal in a lighter green.
+const PET_PIX=[
+ "..............BBBBB.GG...............",
+ ".............BBBBBB.GG...............",
+ "..............BBBBB.GG...GG..........",
+ "................CCC.....GGGGG........",
+ "................CCC.GG..GG..G........",
+ "...........GGGGGGGGGGG..GGGGG........",
+ "..........GGGGGGWWWGGGGG.GG..G.......",
+ ".........GGGGGGGWWWGGGGGG...GGGGGGG.G",
+ ".........GGGGGGGWWWGGGGGGGGGGGGGGGGGG",
+ "........GGGGGGGGWWWGGGGGGGGGG........",
+ "......GGGGGGGGGGWWWGGGGGGGGGGGGGGGGG.",
+ "....GGGGGGGG..GG....GG...............",
+ ".GGGGGGGG.....CCCCC.CCCCC............",
+ "GG..............CCC...GCC............"
+];
+// The pack fires backwards in puffs, so the trail is its own row, blinked on
+// and off rather than drawn every frame.
+const PET_JET=[".WB....BWWB."];
+const PET_PAL={gator :{G:"#20c140",W:"#f0f0f0",B:"#5a52e0",C:"#50e1e1"},
+               lizard:{G:"#5ae06a",W:"#f0f0f0",B:"#5a52e0",C:"#50e1e1"}};
+
+/* ---- two of the menagerie, read off the screen the same way ---- */
+// The scorpion: tail curled over its back with a white sting on the end, white
+// eyes, and all those legs. It is most of the height of a storey, as it is on
+// the screen this came from.
+const SCORPION_PIX=[
+ "......RRR.RRRR......",
+ "....RRR..RRRRRR.....",
+ "...RRRR..RRRRR..R...",
+ "..RRRRRRR.RR..RRRRR.",
+ ".RRRRR....R..RRRRRR.",
+ ".RRR.........RRRRRR.",
+ "RR.........RRRR.....",
+ "R...............RRRR",
+ ".............RRRRRRR",
+ "....RR.........RRRRR",
+ "R..R.RR..RRRRR..RRR.",
+ "R..R.RR..RRRRRRR....",
+ ".RR.RR..RRRRRRRRR...",
+ "......RRRRRRRRRRRRR.",
+ "RRRRRRRRRRRRRRRRRRR.",
+ "RRRRRR.....R....RRR.",
+ "R..RRRRR.R.RR.R.RRR.",
+ ".R...RRR.R.R..R.RR..",
+ ".RRRRRRR.R.R..R.RR..",
+ "R...RR..RRR..RRR....",
+ "R.......R.R..R.R...."
+];
+const SCORPION_PAL={R:"#f05050"};
+// The serpent stands coiled on its tail, tongue out. Stored facing right and
+// mirrored when it turns, like everything else here.
+const SERPENT_PIX=[
+ "........BB.BB.......",
+ "....B.BBB.BB.B......",
+ "...BB.BBB.BB.B......",
+ ".BBBBBB.BB.BB..BB...",
+ ".BBBBBBB......BBBB..",
+ "BBBBBBBBBBBBBBBBBB..",
+ "BBBBBBBBBBBBBBBBBB..",
+ "BBBBBBBBBBBBBBBBB...",
+ "BBBBB...BBBBBB....BB",
+ "BBBBB.BB......BBBB..",
+ ".BBBBBB.BBBB......BB",
+ ".BBBBBB.BBBBB.......",
+ "...BBBBB.BBBB.......",
+ "...BBBBBB.BBBB......",
+ "....BBBBB.BBBBB.....",
+ "....BBBBBB.BBBB.....",
+ ".....BBBBBBB.BBBB...",
+ "......BBBBBB.BBBB...",
+ "......BBBBBBB.BBBB..",
+ "........BBBBB.BBBB..",
+ "BBB.....BBBBB.BBBB..",
+ ".BBB..BBBBBBB.BBBB..",
+ "...BBBBBBBBB.BBBB...",
+ "...BBBBBBB.BBBBBB...",
+ "....BBBB..BBBBB.....",
+ "........BBBBB......."
+];
+const SERPENT_PAL={B:"#6a62e8"};
+// The sword the witch doctors throw: white blade, red guard, grip and pommel.
+const SWORD_PIX=[
+ "........RR...................",
+ "........RR...................",
+ ".RRRRRRRRRWWWWWWWWWWWWWWWWWR.",
+ "RRR..R.RRRWWWWWWWWWWWWWWWWWWW",
+ ".RRRRRRRRRWWWWWWWWWWWWWWWWWR.",
+ "........RR...................",
+ "........RR..................."
+];
+const SWORD_PAL={W:"#f0f0f0",R:"#e04040"};
+// An urn of the third scene, lip, belly and foot.
+const URN_PIX=[
+ "WWWWWWWWWWWWWWWWWWW",
+ "...WWWWWWWWWWWWWW..",
+ "...WW.WWW.WWW.WWW..",
+ "...................",
+ "...WWWWWWWWWWWWWW..",
+ "...WWWWWWWWWWWWWW..",
+ "...WWWWWWWWWWWWWW..",
+ "...WWWWWWWWWWWWWW..",
+ "...WWWWWWWWWWWWWW..",
+ ".WWWWWWWWWWWWWWWWW.",
+ ".WWWWWWWWWWWWWWWWW.",
+ ".WWWWWW.WWWWWWWWWW.",
+ ".WWWW...WWWWWWWWWW.",
+ ".WWWW...WWWWWWWWWW.",
+ ".WWWW...WWWWWWWWWW.",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWW..WWWWWWWWWWWWW",
+ "WWWWW...WWWWWWWWWWW",
+ ".WWWWWW...WWWWWWWW.",
+ ".WWWWWWWWWWWWWWWWW.",
+ "...WWWWWWWWWWWWWW..",
+ "...................",
+ "...WW.WWW.WWW.WWW..",
+ "...WWWWWWWWWWWWWW..",
+ "WWWWWWWWWWWWWWWWWWW",
+ "WWWWWWWWWWWWWWWWWWW"
+];
+const URN_PAL={W:"#eeeeee"};
+// And the bird, wings out, crossing a storey.
+const BIRD_PIX=[
+ "...............................WWGGg.",
+ ".............................PPWWWWg.",
+ "...........................WWPPGGWWg.",
+ ".....gGGGg...PPWWWWGGg...PPWWPPGGWWPP",
+ "...gGGGGGGGPPWWWWWWWWGGg.WWWWGGWWGGPP",
+ ".GGGGg...gGPPWWGGGGGGWWWPWWWWWWg.PPPP",
+ ".....gGGGg.GGPPWWWWGGWWPPWWWWWWWWWWg.",
+ "...gGGGg...WWGG..PWWWg.PWWWGGPPWWGGg.",
+ ".GGGGg.....pPWWWWg...WWWWGGg.........",
+ "...........PPWWWWWWWWWWGGg...........",
+ ".............WWWWWWWWGGg.............",
+ "...............PWWWGGg...............",
+ ".............PPPPPP..................",
+ ".............PPPPPPPP................",
+ ".................PPPPGGg.............",
+ "...................WWg...............",
+];
+const BIRD_PAL={W:"#f4f4f4",G:"#6aa84f",g:"#3c6e32",P:"#c87878",p:"#96464a"};
+
+/* ============ the title screen's own furniture ============ */
+// The wordmark, read off the original's title screen the same way the hero was:
+// sixty-seven by fourteen, orange with a white glint on each letter.
+const DROL_PIX=[
+ "..OOOOOOOOOOO.................................................OOO..",
+ "OOOOWWWOOOOOOOO.............................................OOOOOOO",
+ "OOWWWOOOOOOOOOOOO...........................................OOWWWOO",
+ "OOOOOOOOOOOOOOOOO...........................................OOOOOOO",
+ "OOOOOOO...OOOOOOOOO.....OOOOO...OOO...........OOOOO.........OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOWWWOO.......OOWWWOOOO.......OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOOOO.......OOOOOOOOO.......OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOOOO.....OOOOOOOOOOOOO.....OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOO.......OOOOO...OOOOO.....OOOOOOO",
+ "OOOOOOO...OOOOOOOOO.....OOOOOOO...........OOOOO...OOOOO.....OOOOOOO",
+ "OOOOOOOOOOOOOOOOO.......OOOOOOO...........OOOOOOOOOOOOO.....OOOOOOO",
+ "OOOOOOOOOOOOOOOOO.......OOOOOOO.............OOOOOOOOO.......OOOOOOO",
+ "OOOOOOOOOOOOOOO.........OOOOOOO.............OOOOOOOOO.......OOOOOOO",
+ "..OOOOOOOOOOO.............OOO.................OOOOO...........OOO.."
+];
+const DROL_PAL={O:"#f4783c",W:"#ffffff"};
+// And a pillar of the ruin it is all set in: a cyan capital, a dentil frieze,
+// a fluted shaft and a cyan base.
+const PILLAR_PIX=[
+ ".WWWWWWWWWWWWWWWWWWWW..",
+ ".....WWg..WWg..WWg.....",
+ "..gWW..gWW..gWW..gWW...",
+ ".....WWg..WWg..WWg.....",
+ "..gWW..gWW..gWW..gWW...",
+ ".....WWg..WWg..WWg.....",
+ "....W..gWW..gWW..gW....",
+ ".....WWg..WWg..WWg.....",
+ "..gWWWWWWWWWWWWWWWWW...",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.gWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "....WW.gWW.WWWW.WWW....",
+ "..gWWWWWWWWWWWWWWWWW...",
+ ".......................",
+ "....WW.gWW.WWWW.WWg....",
+ "..gWWWWWWWWWWWWWWWWW...",
+ ".WWWWWWWWWWWWWWWWWWWW..",
+ ".WWWWWWWWWWWWWWWWWWWW..",
+ "WWWWWWWWWWWWWWWWWWWWWWW"
+];
+const PILLAR_PAL={W:"#ffffff",g:"#787878"};
+// In the maze they stand further back than on the title card, so they are drawn
+// in the greys a background gets.
+const PILLAR_BG={W:"#c8ccd8",g:"#5a6080"};
+
 /* ============ the game ============ */
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
       ov=document.getElementById("overlay"), statusEl=document.getElementById("status");
 const keys={};
-const G={phase:"menu",scene:0,loop:0,diff:2,score:0,lives:3,nextLife:10000,L:null,hero:null,
+const G={phase:"menu",scene:0,loop:0,diff:2,score:0,lives:START_LIVES,nextLife:10000,L:null,hero:null,
+ endless:false,
  cam:{x:0,y:0},time:0,msg:"",msgT:0,uiT:0,flash:0,shake:0,radar:true,seed:1,rand:rngFrom(1),
  deathT:0,cheerT:0,best:0,menu:null,menuTitle:""};
 const say=(t)=>{G.msg=t;G.msgT=2.4;};
 
 function newGame(diff=2,seed){
  G.diff=diff;G.seed=seed===undefined?(Date.now()&0xffff):seed;G.rand=rngFrom(G.seed);
- G.scene=0;G.loop=0;G.score=0;G.lives=3;G.nextLife=10000;G.time=0;G.deathT=0;G.cheerT=0;
+ G.scene=0;G.loop=0;G.score=0;G.lives=START_LIVES;G.nextLife=10000;G.time=0;G.deathT=0;G.cheerT=0;
  startScene();
  G.phase="play";hideOverlay();
  say("Round 1 · "+SCENES[0].name+".");
 }
 function startScene(){
  G.L=genScene(G.scene,G.loop,G.diff,G.rand);
- G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.4,alive:true,thrust:0};
+ G.hero={x:2*TS,y:slabRow(0)*TS-18,w:16,h:18,vx:0,vy:0,face:1,cool:0,inv:1.4,alive:true,
+   thrust:0,onGround:true,walking:true,step:0};
  G.cam.x=0;G.cam.y=0;G.flash=0;G.shake=0;
 }
 function nextScene(){
@@ -394,8 +749,13 @@ function nextScene(){
 }
 function addScore(n){
  G.score+=n;
- while(G.score>=G.nextLife){G.nextLife+=10000;G.lives++;lifeSound();say("Extra robot!");}
- if(G.score>G.best)G.best=G.score;
+ while(G.score>=G.nextLife){
+  G.nextLife+=10000;
+  if(G.endless)continue;                  // nothing to award when nothing runs out
+  G.lives++;lifeSound();say("Extra robot!");
+ }
+ // A score made on endless robots is not a score, so it never becomes the best.
+ if(!G.endless&&G.score>G.best){G.best=G.score;savePrefs();}
 }
 
 /* ---- bodies and the maze they are in ---- */
@@ -418,9 +778,17 @@ function moveBody(b,dx,dy){
  return{bx,by};
 }
 const storeyOf=b=>clamp(Math.floor((b.y+b.h/2)/(FLOORH*TS)),0,FLOORS-1);
+// Is there floor directly under him? Either boot will do.
+function onFloor(b){
+ const y=Math.floor((b.y+b.h+1.5)/TS);
+ return tile(Math.floor((b.x+1)/TS),y)===SLAB||tile(Math.floor((b.x+b.w-2)/TS),y)===SLAB;
+}
 
 /* ---- the robot ---- */
-const SPEED=96, RISE=-86, DROP=104, SINK=54;
+// Up is the jetpack and down is his feet: held up he climbs, held down he comes
+// back to the floor and walks it. Walking is a little slower than flying, which
+// is what makes the jetpack worth the fuel it does not have to carry.
+const SPEED=96, WALK_SPEED=82, RISE=-86, DROP=104, SINK=54;
 // Both pulls are strongest at nothing and weakest at arm's length. Outside about
 // a third of its reach the backpack wins and you fly out; inside it, you are
 // already being eaten. What there is no room for is the middle: a field you can
@@ -434,12 +802,13 @@ function heroStep(dt){
  if(!h.alive)return;
  const want=(keys.L?-1:0)+(keys.R?1:0);
  if(want)h.face=want;
- const tvx=want*SPEED;
- h.vx+=(tvx-h.vx)*Math.min(1,dt*7);           // the original's floaty, deliberate drift
+ const tvx=want*(h.walking?WALK_SPEED:SPEED);
+ h.vx+=(tvx-h.vx)*Math.min(1,dt*(h.walking?11:7));   // feet answer quicker than a jetpack
  let tvy=keys.U?RISE:keys.D?DROP:keys.HOLD?0:SINK;
  h.vy+=(tvy-h.vy)*Math.min(1,dt*8);
  h.thrust=keys.U?Math.min(1,h.thrust+dt*6):Math.max(0,h.thrust-dt*4);
  if(keys.U&&Math.random()<dt*14)thrustSound();
+ if(h.walking&&want&&Math.random()<dt*7)stepSound();
  // A magnet tugs at a robot that comes near it, which is what makes them worse
  // than the shots they eat. The pull falls off with distance: at the edge of its
  // reach you can fly straight out of it, and close in you cannot, which is the
@@ -462,8 +831,29 @@ function heroStep(dt){
   if(d<VACUUM_REACH)dragX+=Math.sign(dx)*VACUUM_PULL*(1-d/VACUUM_REACH);
  }
  const r=moveBody(h,(h.vx+dragX)*dt,(h.vy+dragY)*dt);
- if(r.bx)h.vx=0;
+ // Stepping over the lip of a floor. Blocked sideways with room just above is a
+ // robot pressing into the edge of a slab he is hovering beside - in a hole, or
+ // half a body-height too low. Lift him over it rather than stopping him dead,
+ // which is otherwise a wall with no way of knowing it is there.
+ if(r.bx&&Math.abs(h.vx)>1){
+  const x0=h.x, y0=h.y;
+  for(let lift=2;lift<=6;lift+=2){
+   h.y=y0-lift;
+   if(hits(h)){h.y=y0;break;}
+   if(!moveBody(h,(h.vx+dragX)*dt,0).bx)break;   // over it
+   h.x=x0;h.y=y0;
+  }
+ }
+
  if(r.by)h.vy=0;
+ // On his feet on a floor, with the jetpack off: that is walking, and the sprite
+ // and the sound follow it. Standing is asked of the floor rather than of this
+ // frame's collision - resting on a slab, the move is often too small to be
+ // blocked at all, and a robot who was walking one frame and flying the next
+ // would flicker between the two.
+ h.onGround=onFloor(h)&&h.vy>=-1&&!keys.U;
+ h.walking=h.onGround;
+ if(h.walking)h.step+=Math.abs(h.vx)*dt*.09;else h.step=0;
  h.x=clamp(h.x,TS,(MAPW-1)*TS-h.w);
  if(h.inv>0)h.inv-=dt;
  if(h.cool>0)h.cool-=dt;
@@ -484,7 +874,7 @@ function shoot(dx,dy){
 function killHero(reason){
  const h=G.hero;
  if(!h.alive||h.inv>0||G.phase!=="play")return false;
- h.alive=false;G.deathT=1.3;G.lives--;G.shake=6;dieSound();
+ h.alive=false;G.deathT=1.3;if(!G.endless)G.lives--;G.shake=6;dieSound();
  say("Caught by "+reason+".");
  return true;
 }
@@ -509,10 +899,10 @@ function foeStep(e,dt){
   if(r.bx)e.dir*=-1;
   if(r.by)e.vy=e.vy>0?-60:0;
   e.cool-=dt;
-  if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2;}
+  if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2/e.agg;}
   else if(e.vy>0&&e.y>e.home+26)e.vy=-70;
   else if(e.vy<0&&e.y<=e.home)  {e.vy=0;e.y=e.home;}
- }else if(e.k==="monster"){
+ }else if(e.k==="zombie"){
   const same=h.alive&&storeyOf(h)===storeyOf(e);
   if(same)e.dir=Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir;
   e.vy+=520*dt;
@@ -524,7 +914,6 @@ function foeStep(e,dt){
   const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
   if(r.by)e.vy=0;
   if(r.bx)e.dir*=-1;
-  e.y=slabRow(storeyOf(e))*TS-e.h-(Math.sin(e.anim*6)>0?1:0);
  }else if(e.k==="doctor"){
   // stays on his floor, throws a curse down the length of it
   e.vy+=520*dt;
@@ -542,17 +931,36 @@ function foeStep(e,dt){
   const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
   if(r.by)e.vy=0;
   if(r.bx)e.dir*=-1;
+ }else if(e.k==="roast"){
+  e.vy+=520*dt;                                            // dinner falls to the floor
+  if(moveBody(e,0,e.vy*dt).by)e.vy=0;
+  if(h.alive&&overlap(e,h)){e.dead=true;addScore(FOE.roast.pts);petSound();say("Dinner. +1000.");}
+  return;                                                  // and it does not hunt you
  }else if(e.k==="blade"){
   // swords, daggers, arrows and axes: they cross the storey and come back
   const r=moveBody(e,e.dir*e.sp*dt,0);
   if(r.bx)e.dir*=-1;
-  e.y=e.home+Math.sin(e.anim*3)*8;
+  // It rides up and down as it flies, but inside the storey: a storey has twenty
+  // pixels of air in it, and the old fixed eight either side of where it started
+  // buried the sword in the ceiling for half of every pass, where no ball could
+  // reach it. The sway now fits whatever room the storey has.
+  const top=storeyTop(e.f)*TS+TS, bot=slabRow(e.f)*TS-e.h;
+  const mid=(top+bot)/2, amp=Math.min(8,(bot-top)/2);
+  e.y=mid+Math.sin(e.anim*3)*amp;
  }
  if(h.alive&&overlap(e,h))killHero(FOE[e.k].n);
 }
 function damageFoe(e){
  if(!FOE[e.k].shootable){blockSound();return false;}
- if(--e.hp<=0){e.dead=true;addScore(e.pts);killSound();
+ if(--e.hp<=0){
+  // Five shots do not kill a turkey. They cook it. The original's best joke, and
+  // the roast is worth collecting afterwards.
+  if(e.k==="turkey"){
+   e.k="roast";e.w=16;e.h=12;e.vy=0;e.sp=0;e.roast=true;e.hp=1;
+   addScore(e.pts);petSound();say("Well done.");
+   return false;
+  }
+  e.dead=true;addScore(e.pts);killSound();
   G.L.fx.push({x:e.x+e.w/2,y:e.y+e.h/2,t:0,life:.3,r:9});
   return true;}
  killSound();
@@ -608,10 +1016,13 @@ function childStep(dt){
 function petStep(dt){
  const p=G.L.pet;
  if(!p||p.freed)return;
- p.x+=p.dir*22*dt;
+ // The pets wear jetpacks too, which is the detail that makes the scene funny:
+ // an alligator hovering a few inches off the floor, drifting.
+ p.bob=(p.bob||0)+dt*3;
+ p.x+=p.dir*26*dt;
  if(p.x<TS*2){p.x=TS*2;p.dir=1;}
  if(p.x>(MAPW-3)*TS){p.x=(MAPW-3)*TS;p.dir=-1;}
- p.y=slabRow(p.f)*TS-p.h;
+ p.y=slabRow(p.f)*TS-p.h-4-Math.round(Math.sin(p.bob)*2);
 }
 function rescue(){
  const c=G.L.child;
@@ -655,7 +1066,8 @@ function stepGame(dt){
   G.deathT-=dt;
   if(G.deathT<=0){
    if(G.lives<=0){G.phase="over";gameOverMenu();}
-   else{G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.6,alive:true,thrust:0};}
+   else{G.hero={x:2*TS,y:slabRow(0)*TS-18,w:16,h:18,vx:0,vy:0,face:1,cool:0,inv:1.6,alive:true,
+     thrust:0,onGround:true,walking:true,step:0};}
   }
   return;
  }
@@ -663,22 +1075,40 @@ function stepGame(dt){
  for(const s of L.shots){
   const st=moveBody(s,s.vx*dt,s.vy*dt);
   if(st.bx||st.by){s.gone=true;continue;}
+  // A ball is five pixels square and leaves the robot's chest at a fixed height,
+  // in a storey with twenty pixels of air in it. Whether it connected was coming
+  // down to a pixel or two either way - and the thrown sword, the one thing you
+  // most want to shoot, flies just above that band and could not be hit at all.
+  // A ball now reaches five pixels either side of its line of travel, which is
+  // still inside the storey it was fired along: fire down a floor and you hit
+  // what is on that floor.
+  const R=5, hit=s.vy
+   ? {x:s.x-R,y:s.y,w:s.w+R*2,h:s.h}
+   : {x:s.x,y:s.y-R,w:s.w,h:s.h+R*2};
   for(const e of L.foes){
-   if(e.dead||!overlap(s,e))continue;
+   if(e.dead||!overlap(hit,e))continue;
    if(e.k==="magnet"){s.gone=true;blockSound();break;}    // magnets eat shots
    damageFoe(e);s.gone=true;break;
+  }
+  if(s.gone)continue;
+  for(const u of L.urns)if(!u.gone&&overlap(hit,u)){
+   s.gone=true;
+   if(--u.hp<=0){u.gone=true;addScore(120);killSound();
+    L.fx.push({x:u.x+u.w/2,y:u.y+u.h/2,t:0,life:.25,r:8});}
+   else blockSound();
+   break;
   }
   if(s.gone)continue;
   // A curse outruns the backpack, so climbing out of its way was the only answer
   // to a witch doctor. A ball will also knock one out of the air, which is the
   // answer the rest of the game teaches.
-  for(const cu of L.curses)if(!cu.gone&&overlap(s,cu)){
+  for(const cu of L.curses)if(!cu.gone&&overlap(hit,cu)){
    cu.gone=true;s.gone=true;addScore(25);blockSound();
    L.fx.push({x:cu.x,y:cu.y,t:0,life:.2,r:6});
    break;
   }
   if(s.gone)continue;
-  if(L.toy&&L.toy.alive&&overlap(s,L.toy)){
+  if(L.toy&&L.toy.alive&&overlap(hit,L.toy)){
    // Shooting the toy is worth points and, better, roots the child to the spot.
    L.toy.alive=false;s.gone=true;addScore(500);killSound();
    if(L.child)L.child.chasing=false;
@@ -695,6 +1125,7 @@ function stepGame(dt){
   else if(h.alive&&overlap(c,h)){killHero("a witch doctor's curse");c.gone=true;}
  }
  L.curses=L.curses.filter(c=>!c.gone);
+ L.urns=L.urns.filter(u=>!u.gone);
  for(const e of L.foes)if(!e.dead)foeStep(e,dt);
  toyStep(dt);childStep(dt);petStep(dt);trapStep(dt);
  for(const f of L.fx){f.t+=dt;if(f.t>f.life)f.gone=true;}
@@ -715,7 +1146,8 @@ function press(k){
   else if(k==="FIRE"||k==="VERT")chooseMenu();
   return;
  }
- if(k==="RADAR"){G.radar=!G.radar;say(G.radar?"Scope on.":"Scope off — more maze on screen.");fit(true);return;}
+ if(k==="RADAR"){G.radar=!G.radar;savePrefs();
+  say(G.radar?"Scope on.":"Scope off — more maze on screen.");fit(true);return;}
  if(G.phase!=="play")return;
  if(k==="FIRE")shoot(G.hero.face,0);
  else if(k==="VERT")shoot(0,keys.D?1:-1);
@@ -761,7 +1193,7 @@ document.getElementById("sound").addEventListener("click",()=>{
  if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
  const b=document.getElementById("sound");
  b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
- audioLabel();});
+ audioLabel();savePrefs();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
 // A held button is an input, not a text selection - refuse both gestures outright.
 const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
@@ -792,6 +1224,32 @@ fsBtn.addEventListener("click",toggleFullscreen);
 // Leaving fullscreen by Esc or the system gesture drops the layout with it.
 for(const ev of ["fullscreenchange","webkitfullscreenchange"])
  document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
+
+/* ============ installing it ============ */
+// Installed, the game launches with no browser chrome at all, which is the only
+// way to stop iOS sliding its toolbars over a game in play. Chrome hands us the
+// prompt; iOS has no such event, so there the button explains Add to Home Screen.
+const installBtn=document.getElementById("install");
+let installPrompt=null;
+function showInstall(on){if(installBtn)installBtn.hidden=!on;}
+function isIOS(){
+ try{const ua=navigator.userAgent||"";
+  return /iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);}
+ catch(e){return false;}
+}
+addEventListener("beforeinstallprompt",e=>{
+ if(e&&e.preventDefault)e.preventDefault();
+ installPrompt=e;showInstall(true);
+});
+addEventListener("appinstalled",()=>{installPrompt=null;showInstall(false);savePrefs();});
+if(installBtn)installBtn.addEventListener("click",()=>{
+ if(installPrompt){installPrompt.prompt();installPrompt=null;showInstall(false);return;}
+ showMenu("Play without the browser",
+  "iOS has no full-screen switch for a web page, so the browser's bars stay over the maze. "+
+  "Installing the game removes them: Share \u25b8 Add to Home Screen, then open Drol from the icon.",
+  [{label:"Back",fn:()=>{if(G.phase==="menu")mainMenu();else{G.phase==="paused"?pauseMenu():hideOverlay();}}}]);
+});
+if(!isStandaloneApp()&&isIOS())showInstall(true);
 
 /* ============ what the buttons say ============ */
 // The pad is only as clear as its labels: FIRE points where the robot is facing,
@@ -828,7 +1286,7 @@ function showMenu(title,sub,items,tip,grid,splash){
  const gcls=grid===true?"diffgrid":grid?String(grid):"";
  ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
   (gcls?`<div class="${gcls}">`:"")+
-  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
+  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`).join("")+
   (gcls?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
  ov.classList.remove("hidden");
 }
@@ -845,8 +1303,12 @@ ov.addEventListener("click",e=>{
 function mainMenu(){
  G.phase="menu";G.L=null;G.hero=null;    // the canvas draws the title, so the card carries none
  showMenu("","",
-  [{label:"Start the rescue",fn:diffMenu},{label:"How to play",fn:()=>helpMenu(false)}],
-  "After Drol, Brøderbund, 1983. Rebuilt for touch screens.",false,true);
+  [{label:"Start the rescue",fn:diffMenu},
+   {label:"Endless robots: "+(G.endless?"ON":"off"),small:true,
+    fn:()=>{G.endless=!G.endless;savePrefs();mainMenu();}},
+   {label:"How to play",fn:()=>helpMenu(false)}],
+  G.endless?"Endless robots: a death costs you the scene, never the game — and never a high score.":
+   "After Drol, Brøderbund, 1983. Rebuilt for touch screens.",false,true);
 }
 function diffMenu(){
  const names=["Quiet","Busy","Crowded","Swarming"];
@@ -858,24 +1320,28 @@ function diffMenu(){
 }
 function helpMenu(back){
  showMenu("The controls",
-  "◀ ▶ fly sideways. ▲ rises on the backpack, ▼ drops, HOVER holds your "+
-  "height. Floors are only passable where a gap is cut in them.",
+  "▲ is the jetpack: hold it and he flies. ▼ puts him back on his feet, and on a floor "+
+  "he walks — slower, but steady, and it is how you drop through a hole. ◀ ▶ move either "+
+  "way, HOVER holds your height.",
   [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
   "FIRE sends a ball the way you are facing; the second button sends one straight up, or "+
   "straight down while ▼ is held. Three balls in the air at once, no more. Shoot the toy "+
   "and the child stops chasing it, which is the only way to catch them. Touch the child to "+
   "rescue them; touch the pet for a bonus. Magnets swallow shots and pull you in. RADAR is the "+
-  "scope along the top: it shows the whole maze at once. FULL SCREEN hides the page and leaves "+
+  "panel along the top: the scope in the middle of it holds the whole maze at once, with a "+
+  "line per storey and a dot for everything on it. FULL SCREEN hides the page and leaves "+
   "the maze and the pad.");
 }
 function pauseMenu(){
  showMenu("Paused","Round "+(G.loop+1)+" · "+SCENES[G.scene].name+" · score "+G.score+
-  " · "+G.lives+" left · music "+(MUSIC.on?"on":"off"),
+  " · "+(G.endless?"endless":G.lives+" left")+" robots · music "+(MUSIC.on?"on":"off"),
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
    {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
    {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
    {label:"Controls",fn:()=>helpMenu(true)},
-   {label:"Scope on/off",fn:()=>{G.radar=!G.radar;fit(true);pauseMenu();}},
+   {label:"Scope on/off",fn:()=>{G.radar=!G.radar;savePrefs();fit(true);pauseMenu();}},
+   {label:"Endless robots: "+(G.endless?"ON":"off"),
+    fn:()=>{G.endless=!G.endless;savePrefs();pauseMenu();}},
    {label:"Give up",fn:mainMenu}],"","menugrid");
 }
 function gameOverMenu(){
@@ -885,6 +1351,15 @@ function gameOverMenu(){
 }
 
 /* ============ drawing ============ */
+// A pillar of the ruin: cyan capital, dentil frieze, fluted shaft repeated to
+// whatever height is asked of it, cyan base.
+function drawPillar(x,top,bot,pal){
+ const P=pal||PILLAR_PAL;
+ const CAP=PILLAR_PIX.slice(0,9), SHAFT=[PILLAR_PIX[9]], BASE=PILLAR_PIX.slice(25);
+ drawPix(CAP,P,x,top,1,false);
+ for(let y=top+CAP.length;y<bot-BASE.length;y++)drawPix(SHAFT,P,x,y,1,false);
+ drawPix(BASE,P,x,bot-BASE.length,1,false);
+}
 const px=v=>Math.round(v);
 const viewTop=()=>G.radar?RADAR_H:0;
 const viewH=()=>VH-viewTop();
@@ -892,97 +1367,146 @@ const sx=x=>px(x-G.cam.x), sy=y=>px(y-G.cam.y+viewTop());
 function drawTiles(){
  const c=ctx, P=G.L.pal, cam=G.cam;
  const x0=Math.floor(cam.x/TS)-1, x1=Math.ceil((cam.x+VW)/TS)+1;
+ const lo=Math.max(0,x0), hi=Math.min(MAPW-1,x1);
+ // The floors are drawn as slabs with a top face, a front face and a shadow under
+ // them. ANALOG's review of the 1983 original praised its "pseudo-3D" look, and
+ // this is where that came from: one row of tiles pretending to have thickness.
  for(let f=0;f<FLOORS;f++){
   const y=slabRow(f)*TS;
-  for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++){
-   if(G.L.map[x][slabRow(f)]!==SLAB)continue;               // a gap is drawn by leaving it out
-   c.fillStyle=P.stone;c.fillRect(sx(x*TS),sy(y),TS,TS);
-   c.fillStyle=P.trim;c.fillRect(sx(x*TS),sy(y),TS,2);     // the lit top edge you land on
-   c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sx(x*TS),sy(y)+TS-3,TS,3);
-   if((x+f)%2)c.fillStyle="rgba(0,0,0,.18)",c.fillRect(sx(x*TS),sy(y)+2,1,TS-5);
+  for(let x=lo;x<=hi;x++){
+   if(G.L.map[x][slabRow(f)]!==SLAB)continue;
+   const sxx=sx(x*TS), syy=sy(y);
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band, five deep as it is there
+   // The white edge is dashed, as the screen has it: on for six pixels of every
+   // ten, which reads as a rail rather than a line.
+   if((x%3)!==2){c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);}
+   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,1);           // its underside
+   // the lip either side of a hole, so a gap reads as an edge you can fall past
+   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,7);}
+   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,7);}
   }
  }
- c.fillStyle=P.stone;                                        // the roof, and the two end walls
- for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++)c.fillRect(sx(x*TS),sy(0),TS,TS);
- for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
-  c.fillStyle=P.stone;c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
-  c.fillStyle=(y%2)?"rgba(255,255,255,.06)":"rgba(0,0,0,.22)";
-  c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
+ // The roof over the top storey, and the two end walls.
+ for(let x=lo;x<=hi;x++){
+  const sxx=sx(x*TS);
+  c.fillStyle=P.trim;c.fillRect(sxx,sy(0)+TS-5,TS,5);
+  c.fillStyle=P.lit;c.fillRect(sxx,sy(0)+TS-2,TS,2);
  }
- for(const t of G.L.traps){                                  // the three trapdoors of scene three
-  c.fillStyle=t.sprung?(t.safe?"#6fd08a":"#d05a4a"):"#caa24a";
-  c.fillRect(sx(t.x),sy(t.y)+TS-3,t.w,3);
-  c.fillStyle="rgba(0,0,0,.5)";c.fillRect(sx(t.x)+2,sy(t.y)+TS-3,2,3);
-  c.fillRect(sx(t.x)+t.w-4,sy(t.y)+TS-3,2,3);
+ for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
+  const sxx=sx(wx*TS), syy=sy(y*TS);
+  c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,TS);
+  c.fillStyle=P.lit;c.fillRect(sxx+(wx?0:TS-2),syy,2,TS);
+ }
+ // The three trapdoors of the third scene: shut, they are boards across the hole
+ // with a hinge at either end. Sprung, the flap hangs down through it and the
+ // colour says which kind of door you picked.
+ // the pillars first: they stand behind everything
+ for(const q of G.L.pillars){
+  const px0=sx(q.x);
+  if(px0<-PILLAR_PIX[0].length||px0>VW)continue;
+  const top=slabRow(q.f)*TS+5, bot=slabRow(q.f+1)*TS;
+  drawPillar(px0,sy(top),sy(bot),PILLAR_BG);
+ }
+ for(const t of G.L.traps){
+  const sxx=sx(t.x), syy=sy(t.y);
+  if(!t.sprung){
+   c.fillStyle="#e8e8f4";c.fillRect(sxx,syy+2,t.w,TS-2);     // white boards
+   c.fillStyle="#ffffff";c.fillRect(sxx,syy+2,t.w,2);
+   c.fillStyle="#d838c8";
+   for(let i=6;i<t.w;i+=8)c.fillRect(sxx+i,syy+2,1,TS-2);    // in a magenta frame
+   c.fillRect(sxx,syy+2,1,TS-2);c.fillRect(sxx+t.w-1,syy+2,1,TS-2);
+  }else{
+   c.fillStyle=t.safe?"#40c050":"#e03030";
+   c.fillRect(sxx+1,syy+TS-2,t.w-2,2);                       // what is left of the frame
+   c.fillStyle="#b4b4d4";c.fillRect(sxx+t.w-4,syy+TS,3,8);   // the flap, hanging open
+   c.fillStyle="#e8e8f4";c.fillRect(sxx+1,syy+TS,3,6);
+  }
  }
 }
+// There is nothing behind the floors. On the machine this ran on the background
+// was black, and the black is what makes four colours look like more.
+function drawBackWall(){}
+/* The menagerie, drawn the way the machines of 1983 drew things: a handful of
+   blocks each, two frames of animation, and one bright colour to tell it apart
+   from the floor at a glance. */
 function drawFoe(e){
- const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir;
+ const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir, beat=Math.floor(e.anim*9)%2;
  if(e.k==="scorpion"){
-  c.fillStyle="#d8a13a";c.fillRect(x+2,y+3,8,5);
-  c.fillRect(x+(d>0?9:1),y+1,3,3);                           // the sting, up and over
-  c.fillStyle="#8a5e18";for(let i=0;i<3;i++)c.fillRect(x+1+i*3,y+8,2,2);
-  c.fillStyle="#ffe6a8";c.fillRect(x+(d>0?0:8),y+4,3,2);
+  drawPix(SCORPION_PIX,SCORPION_PAL,x,y,1,d<0);
  }else if(e.k==="turkey"){
-  const flap=Math.sin(e.anim*11)>0?0:3;
-  c.fillStyle="#7a3c2a";c.fillRect(x+2,y+3,10,6);
-  c.fillStyle="#b45a38";c.fillRect(x+1,y+2-flap,12,3);       // wings
-  c.fillStyle="#e8d8c0";c.fillRect(x+(d>0?11:0),y+1,3,3);
-  c.fillStyle="#e04a2a";c.fillRect(x+(d>0?13:-1),y+3,2,2);   // wattle
- }else if(e.k==="monster"){
-  const bob=Math.sin(e.anim*8)>0?0:1;
-  c.fillStyle="#57b06a";c.fillRect(x+1,y+5+bob,11,9);
-  c.fillStyle="#3d8a4f";c.fillRect(x+2,y+12+bob,3,4);c.fillRect(x+8,y+12+bob,3,4);
-  c.fillStyle="#7ad08a";c.fillRect(x+2,y+bob,9,6);           // head
-  c.fillStyle="#1a2a1a";c.fillRect(x+(d>0?7:3),y+2+bob,2,2);
-  c.fillStyle="#e8e8a0";c.fillRect(x+3,y+7+bob,7,2);         // belly, beer or otherwise
+  drawPix(BIRD_PIX,BIRD_PAL,x-2,y-1,1,d<0);
+ }else if(e.k==="zombie"){
+  const hop=beat?0:1;
+  c.fillStyle="#a05ad8";c.fillRect(x+1,y+5+hop,11,7);        // the beer belly
+  c.fillStyle="#d8a0f0";c.fillRect(x+2,y+7+hop,9,3);
+  c.fillStyle="#6e3a9a";c.fillRect(x+1,y+12+hop,4,4);c.fillRect(x+8,y+12+hop,4,4);
+  c.fillStyle="#bd7ce8";c.fillRect(x+2,y+hop,9,6);           // head
+  c.fillStyle="#f0f0e0";c.fillRect(x+(d>0?6:2),y+2+hop,4,3); // one big eye
+  c.fillStyle="#241038";c.fillRect(x+(d>0?8:3),y+3+hop,2,2);
+  c.fillStyle="#6e3a9a";c.fillRect(x+(d>0?11:0),y+6+hop,2,4);// arm
  }else if(e.k==="serpent"){
-  c.fillStyle="#4fb87a";
-  for(let i=0;i<4;i++)c.fillRect(x+i*4,y+2+(Math.sin(e.anim*7+i)>0?0:2),4,4);
-  c.fillStyle="#2e7a4e";c.fillRect(x+(d>0?12:0),y+1,4,4);
-  c.fillStyle="#ffe14a";c.fillRect(x+(d>0?15:0),y+2,1,1);
+  // Coiled upright on its own tail, swaying where it stands - the shape the
+  // original put on these floors, not a snake laid out flat.
+  drawPix(SERPENT_PIX,SERPENT_PAL,x,y+(beat?0:1),1,d<0);
  }else if(e.k==="doctor"){
   c.fillStyle="#3a2c58";c.fillRect(x+2,y+7,8,10);            // robe
-  c.fillStyle="#c08a4a";c.fillRect(x+3,y+2,6,5);             // face
-  c.fillStyle="#e0e0e0";c.fillRect(x+4,y+4,2,1);c.fillRect(x+7,y+4,1,1);
-  c.fillStyle="#d84a6a";c.fillRect(x+1,y,10,3);              // mask and plume
-  c.fillStyle="#ffe14a";c.fillRect(x+4,y-3,3,3);
-  c.fillStyle="#8a6a2a";c.fillRect(x+(d>0?10:1),y+6,1,9);    // staff
+  c.fillStyle="#54407e";c.fillRect(x+2,y+7,8,2);
+  c.fillStyle="#2a1f40";c.fillRect(x+3,y+14,3,3);c.fillRect(x+7,y+14,3,3);
+  c.fillStyle="#c08a4a";c.fillRect(x+3,y+2,6,5);             // the mask
+  c.fillStyle="#f0f0e0";c.fillRect(x+4,y+3,2,2);c.fillRect(x+7,y+3,1,2);
+  c.fillStyle="#1a1008";c.fillRect(x+(d>0?5:4),y+4,1,1);
+  c.fillStyle="#d84a6a";c.fillRect(x+1,y,10,3);              // headdress
+  c.fillStyle="#ffe14a";c.fillRect(x+3,y-4,2,4);c.fillRect(x+7,y-3,2,3);
+  c.fillStyle="#8a6a2a";c.fillRect(x+(d>0?10:1),y+5,1,11);   // staff
+  c.fillStyle=beat?"#ffe14a":"#e0902a";c.fillRect(x+(d>0?9:0),y+3,3,3);
  }else if(e.k==="vacuum"){
-  c.fillStyle="#9aa6c0";c.fillRect(x+2,y+2,12,6);
+  c.fillStyle="#9aa6c0";c.fillRect(x+3,y+2,11,6);            // the canister
+  c.fillStyle="#c8d2e8";c.fillRect(x+3,y+2,11,2);
   c.fillStyle="#586480";c.fillRect(x+1,y+8,14,2);
-  c.fillStyle="#2c3550";c.fillRect(x+(d>0?0:12),y+4,4,4);    // the mouth of it
-  c.fillStyle="#ffe14a";c.fillRect(x+5,y+3,3,2);
+  c.fillStyle="#2c3550";c.fillRect(x+(d>0?0:12),y+3,4,5);    // the mouth of it
+  c.fillStyle=beat?"#4ad8ff":"#2a90b8";c.fillRect(x+(d>0?0:12),y+4,2,3);
+  c.fillStyle="#3a4456";c.fillRect(x+4,y+9,3,2);c.fillRect(x+9,y+9,3,2);  // wheels
  }else if(e.k==="blade"){
-  const spin=Math.floor(e.anim*14)%2;
-  c.fillStyle="#d8dce8";
-  if(spin){c.fillRect(x+1,y+3,10,2);c.fillRect(x+4,y,3,8);}
-  else{c.fillRect(x+2,y+1,7,2);c.fillRect(x+2,y+5,7,2);}
-  c.fillStyle="#8a5e2a";c.fillRect(x+4,y+3,2,2);
+  // A sword thrown down the length of the floor, blade first, hilt trailing.
+  drawPix(SWORD_PIX,SWORD_PAL,x,y,1,d<0);
+ }else if(e.k==="roast"){
+  c.fillStyle="#b4702c";c.fillRect(x+1,y+3,14,8);           // a cooked bird on a plate
+  c.fillStyle="#d89a52";c.fillRect(x+2,y+4,9,4);
+  c.fillStyle="#8a4a18";c.fillRect(x+3,y+9,10,2);
+  c.fillStyle="#f0f0f0";c.fillRect(x,y+11,16,2);            // the plate
+  c.fillStyle="#e8e8e8";c.fillRect(x+4,y,3,3);c.fillRect(x+9,y,3,3);   // the two legs, up
  }else if(e.k==="magnet"){
-  c.fillStyle="#3a4668";c.fillRect(x+5,y,4,4);               // the stem it hangs by
-  c.fillStyle="#d84a4a";c.fillRect(x,y+4,14,5);
-  c.fillStyle="#e8eaf2";c.fillRect(x,y+9,4,3);c.fillRect(x+10,y+9,4,3);
-  const pull=(Math.floor(G.time*6)%2)?.28:.12;
-  c.fillStyle="rgba(216,74,74,"+pull+")";c.fillRect(x-6,y+2,26,14);
+  c.fillStyle="#3a4668";c.fillRect(x+5,y-3,4,4);             // the stem it hangs from
+  c.fillStyle="#d84a4a";c.fillRect(x,y+1,14,6);              // the horseshoe
+  c.fillStyle="#f07a7a";c.fillRect(x,y+1,14,2);
+  c.fillStyle="#e8eaf2";c.fillRect(x,y+7,4,5);c.fillRect(x+10,y+7,4,5);
+  const pulse=(Math.floor(G.time*7)%2)?.30:.14;              // the field, breathing
+  c.strokeStyle="rgba(216,74,74,"+pulse+")";c.lineWidth=1;
+  for(let r=8;r<=20;r+=6){c.beginPath();c.arc(x+7,y+9,r,.2,Math.PI-.2);c.stroke();}
  }
 }
 function drawChild(){
  const c=ctx, k=G.L.child;
  if(!k||k.freed)return;
- const x=sx(k.x), y=sy(k.y);
+ const x=sx(k.x), y=sy(k.y), run=Math.floor(G.time*7)%2;
  if(k.kind==="mom"){
   c.fillStyle="#c86a9a";c.fillRect(x+1,y+7,10,13);           // bound at the bottom right
+  c.fillStyle="#e08ab4";c.fillRect(x+1,y+7,10,2);
   c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,8,6);
-  c.fillStyle="#3a2a18";c.fillRect(x+1,y,10,3);
-  c.fillStyle="#e8e8e8";c.fillRect(x+2,y+4,8,2);             // the gag
+  c.fillStyle="#6a3a20";c.fillRect(x+1,y-1,10,4);c.fillRect(x,y+1,2,5);c.fillRect(x+10,y+1,2,5);
+  c.fillStyle="#1a1008";c.fillRect(x+3,y+3,1,1);c.fillRect(x+7,y+3,1,1);
+  c.fillStyle="#e8e8e8";c.fillRect(x+2,y+5,8,2);             // the gag
   c.fillStyle="#c8a05a";for(let i=0;i<3;i++)c.fillRect(x,y+9+i*4,12,2);   // the ropes
+  c.fillStyle="#8a6a2a";c.fillRect(x+5,y+8,2,11);
  }else{
-  const run=Math.floor(G.time*7)%2;
-  c.fillStyle=k.kind==="boy"?"#4a9ae0":"#e06aa0";
-  c.fillRect(x+1,y+6,8,7);
-  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,6,5);
-  c.fillStyle="#6a4a28";c.fillRect(x+1,y,8,2);
+  const boy=k.kind==="boy";
+  c.fillStyle=boy?"#3a86e0":"#e05a9a";c.fillRect(x+1,y+6,8,7);           // shirt or dress
+  c.fillStyle=boy?"#6aa8f0":"#f08ac0";c.fillRect(x+1,y+6,8,2);
+  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,6,5);                         // face
+  c.fillStyle="#1a1008";c.fillRect(x+3,y+3,1,1);c.fillRect(x+6,y+3,1,1);
+  c.fillStyle=boy?"#6a4a28":"#d8a13a";c.fillRect(x+1,y,8,2);             // hair
+  if(!boy)c.fillRect(x,y+1,1,4),c.fillRect(x+8,y+1,1,4);
+  c.fillStyle="#f0c89a";c.fillRect(x+(run?9:0),y+7,2,3);                 // an arm, reaching up
   c.fillStyle="#2a3550";c.fillRect(x+(run?1:2),y+13,3,3);c.fillRect(x+(run?6:5),y+13,3,3);
  }
 }
@@ -991,146 +1515,196 @@ function drawToy(){
  if(!t||!t.alive)return;
  const x=sx(t.x), y=sy(t.y);
  if(t.kind==="plane"){
-  c.fillStyle="#e8e8f0";c.fillRect(x,y+4,12,3);
-  c.fillStyle="#d84a4a";c.fillRect(x+3,y+1,5,2);c.fillRect(x+3,y+7,5,2);
-  c.fillStyle="#4ad8ff";c.fillRect(x+9,y+2,2,2);
+  c.fillStyle="#e8ecf6";c.fillRect(x,y+4,12,3);              // fuselage
+  c.fillStyle="#d84a4a";c.fillRect(x+3,y+1,5,2);c.fillRect(x+3,y+7,5,2);  // wings
+  c.fillStyle="#d84a4a";c.fillRect(x,y+2,2,3);               // tail fin
+  c.fillStyle="#4ad8ff";c.fillRect(x+8,y+4,3,2);             // canopy
+  c.fillStyle=(Math.floor(G.time*20)%2)?"#f0f0c0":"#b0b8c8"; // the propeller, spinning
+  c.fillRect(x+11,y+2,1,7);
  }else{
   c.fillStyle="#ff6ad5";c.beginPath();c.arc(x+6,y+4,5,0,7);c.fill();
-  c.fillStyle="#f0e8d0";c.fillRect(x+6,y+8,1,4);
+  c.fillStyle="#ffb0e8";c.beginPath();c.arc(x+4,y+2,2,0,7);c.fill();     // the shine on it
+  c.fillStyle="#ff6ad5";c.fillRect(x+5,y+8,2,2);
+  c.fillStyle="#f0e8d0";c.fillRect(x+6,y+9,1,5);             // the string
  }
 }
 function drawPet(){
  const c=ctx, p=G.L.pet;
  if(!p||p.freed)return;
- const x=sx(p.x), y=sy(p.y), d=p.dir;
- c.fillStyle=p.kind==="lizard"?"#6ad06a":"#4a7a4a";
- c.fillRect(x+1,y+3,14,5);
- c.fillRect(x+(d>0?12:0),y+1,4,3);
- c.fillStyle="#2a4a2a";for(let i=0;i<4;i++)c.fillRect(x+2+i*3,y+1,2,2);
- c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);
+ const x=sx(p.x), y=sy(p.y);
+ const P=PET_PAL[p.kind]||PET_PAL.gator, back=p.dir<0?PET_PIX[0].length-12:0;
+ drawPix(PET_PIX,P,x,y,1,p.dir<0);
+ // the puff out of the back of the pack, which is how it is staying up
+ if(Math.floor(G.time*18)%2)drawPix(PET_JET,P,x+back,y+1,1,p.dir<0);
 }
-// The robot: a levitating box with a lit chest port and a backpack that shows
-// its flame the moment you ask it to climb.
+// The robot himself is HERO_PIX; what is left here is the flame, the shadow and
+// the coming-apart, which are state rather than picture.
 function drawHero(){
  const h=G.hero, c=ctx;
  if(!h)return;
  if(!h.alive){                                               // a short, loud coming-apart
   const k=clamp(1-G.deathT/1.3,0,1);
-  for(let i=0;i<7;i++){
-   const a=i*0.9, r=k*26;
-   c.fillStyle=i%2?"#ffc24a":"#9aa6c0";
-   c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r),4,4);
+  for(let i=0;i<9;i++){
+   const a=i*0.7, r=k*30;
+   c.fillStyle=i%3===0?"#eeeeee":i%3===1?"#4a3ce8":"#e04040";
+   c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r*.7),4,4);
   }
   return;
  }
  if(h.inv>0&&Math.floor(h.inv*16)%2)return;
- const x=sx(h.x), y=sy(h.y), d=h.face;
- if(h.thrust>0){                                             // backpack flame
-  c.fillStyle="rgba(255,194,74,"+(.5+.5*h.thrust).toFixed(2)+")";
-  c.fillRect(x+3,y+16,6,Math.round(3+5*h.thrust));
-  c.fillStyle="#fff0b0";c.fillRect(x+5,y+16,2,Math.round(2+3*h.thrust));
+ const x=sx(h.x), y=sy(h.y);
+ // A shadow on the floor he is flying over: the one cue that says how high up he is.
+ const fy=slabRow(storeyOf(h))*TS, drop=clamp((fy-h.y-h.h)/40,0,1);
+ c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
+ c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
+ if(h.thrust>0){                                  // the jetpack burning, out of its nozzle
+  // A short bar under the pack, red on the pack's side and white on the other,
+  // the length of it flickering: what the screen shows, not a rocket exhaust.
+  const len=3+Math.round(2*h.thrust)+(Math.floor(G.time*20)%2);
+  const nx=h.face<0?x+15:x-1;      // the nozzle of the pack, whichever way he faces
+  c.fillStyle="#e04040";c.fillRect(nx+(h.face<0?1:0),y+14,1,len);
+  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+14,1,len);
  }
- c.fillStyle="#8e9ab8";c.fillRect(x+1,y+5,10,11);            // torso
- c.fillStyle="#6a7695";c.fillRect(x+1,y+13,10,3);
- c.fillStyle="#b6c2dc";c.fillRect(x+2,y,8,6);                // head
- c.fillStyle="#2a3550";c.fillRect(x+(d>0?6:2),y+2,3,2);      // visor, looking where you fly
- c.fillStyle="#ffc24a";c.fillRect(x+5,y-3,2,3);c.fillRect(x+4,y-5,4,2);   // antenna
- const glow=.55+.45*Math.sin(G.time*8);
- c.fillStyle="rgba(74,216,255,"+glow.toFixed(2)+")";
- c.fillRect(x+(d>0?7:2),y+8,3,3);                            // the chest port the balls come from
- c.fillStyle="#586480";c.fillRect(x+(d>0?11:-1),y+7,2,4);    // arm
+ // The picture is twenty across and the body that collides is sixteen, so he is
+ // drawn around his box rather than inside it.
+ // Three pictures of him: standing, mid-stride, and flying with the white of him
+ // streaming out behind. The screen shows all three; which one is on is the
+ // difference between the jetpack and his feet.
+ const flying=h.thrust>0;
+ const frame=flying?HERO_FLY:
+   (h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
+ const off=flying?HERO_OFF.fly:HERO_OFF.stand;
+ drawPix(frame,HERO_PAL,x+off,y,1,h.face<0);
+ // The vent lights only while a ball is actually leaving it, and in his own
+ // white rather than a glow laid over the top.
+ if(h.cool>.16){
+  c.fillStyle="#eeeeee";
+  c.fillRect(x+(h.face<0?5:9),y+10,2,2);
+ }
 }
 function drawRadar(){
- const c=ctx, L=G.L, w=VW, h=RADAR_H;
- c.fillStyle="#05070f";c.fillRect(0,0,w,h);
- c.fillStyle="#1d2745";c.fillRect(0,h-1,w,1);
- const k=w/(MAPW*TS), row=f=>Math.round(2+f*((h-5)/(FLOORS-1)));
- c.fillStyle="#22304e";
- for(let f=0;f<FLOORS;f++)c.fillRect(2,row(f)+2,w-4,1);
- const dot=(x,f,col,wide)=>{c.fillStyle=col;c.fillRect(clamp(Math.round(x*k),1,w-3),row(f),wide||2,3);};
- for(const e of L.foes)if(!e.dead)dot(e.x,storeyOf(e),e.k==="magnet"?"#d84a4a":"#ff7a5a");
- if(L.pet&&!L.pet.freed)dot(L.pet.x,L.pet.f,"#6ad06a");
- if(L.toy&&L.toy.alive)dot(L.toy.x,L.toy.f,"#4ad8ff");
+ const c=ctx, L=G.L, W=VW, H=RADAR_H;
+ c.fillStyle="#000";c.fillRect(0,0,W,H);
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ // left: the score, and how many robots are left, with one of them drawn beside it
+ c.fillStyle="#e8e8f4";c.fillText("SCORE",3,2);
+ c.fillText(String(G.score).padStart(6," "),3,11);
+ drawPix(HERO_PIX,HERO_PAL,2,21,.62,false);
+ c.fillStyle="#e8e8f4";
+ c.fillText(G.endless?"\u221e":String(Math.max(0,G.lives)).padStart(2,"0"),17,24);
+ // right: the best so far, and the name of the game in the red it was written in
+ c.textAlign="right";
+ c.fillStyle="#e8e8f4";c.fillText("HISCORE",W-3,2);
+ // On endless robots the running score never becomes the high score, so the
+ // panel shows the real one rather than pretending this run counts.
+ c.fillText(String(G.endless?G.best:Math.max(G.best,G.score)).padStart(6," "),W-3,11);
+ c.fillStyle="#40c050";                                    // the green bars beside the name
+ for(let i=0;i<3;i++)c.fillRect(W-DROL_PIX[0].length/2-22,21+i*3,16,2);
+ c.textAlign="left";
+ // The panel's wordmark is the same picture at half size, as the original's is.
+ drawPix(DROL_PIX,DROL_PAL,W-DROL_PIX[0].length/2-3,21,.5,false);
+ // middle: the scope, a box with one line per storey and a dot for everything on it
+ const bx=Math.round(W*.31), bw=Math.round(W*.38), by=2, bh=H-6;
+ c.fillStyle="#d838c8";c.fillRect(bx,by,bw,bh);
+ c.fillStyle="#000";c.fillRect(bx+2,by+2,bw-4,bh-4);
+ const k=(bw-8)/(MAPW*TS), row=f=>by+4+Math.round(f*((bh-11)/(FLOORS-1)));
+ c.fillStyle="#6a62e8";
+ for(let f=0;f<FLOORS;f++)c.fillRect(bx+3,row(f)+2,bw-6,1);
+ c.fillStyle="#3a34c8";
+ for(let i=1;i<4;i++)c.fillRect(bx+3+Math.round((bw-6)*i/4),by+3,1,bh-6);
+ const dot=(x,f,col,wide)=>{c.fillStyle=col;
+  c.fillRect(bx+3+clamp(Math.round(x*k),0,bw-7),row(f),wide||2,3);};
+ for(const e of L.foes)if(!e.dead)dot(e.x,storeyOf(e),e.k==="magnet"?"#e03030":"#d838c8");
+ if(L.pet&&!L.pet.freed)dot(L.pet.x,L.pet.f,"#40c050");
+ if(L.toy&&L.toy.alive)dot(L.toy.x,L.toy.f,"#6ad0ff");
  if(L.child&&!L.child.freed)dot(L.child.x,L.child.f,"#ffe14a",3);
  if(G.hero)dot(G.hero.x,storeyOf(G.hero),"#ffffff",3);
 }
 function drawHUD(){
  const c=ctx, top=viewTop();
  c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
- c.fillStyle="rgba(5,7,15,.72)";c.fillRect(0,top,VW,11);
- c.fillStyle="#e8eeff";c.fillText("SCORE "+G.score,3,top+2);
- c.textAlign="center";
- c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
- c.textAlign="right";
- c.fillStyle="#ffc24a";c.fillText("▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
- c.textAlign="left";
+ if(!G.radar){                                   // with the panel off, the bare minimum
+  c.fillStyle="rgba(0,0,0,.72)";c.fillRect(0,top,VW,11);
+  c.fillStyle="#e8e8f4";c.fillText("SCORE "+G.score,3,top+2);
+  c.textAlign="center";
+  c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
+  c.textAlign="right";
+  c.fillStyle="#6a62e8";
+  c.fillText(G.endless?"▲\u221e":"▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
+  c.textAlign="left";
+ }
  if(G.msgT>0){
-  c.fillStyle="rgba(5,7,15,.75)";c.fillRect(0,VH-12,VW,12);
-  c.fillStyle="#ffc24a";c.fillText(G.msg,3,VH-10);
+  c.fillStyle="rgba(0,0,0,.8)";c.fillRect(0,VH-12,VW,12);
+  c.fillStyle="#ff8ae8";c.fillText(G.msg,3,VH-10);
  }
  if(G.phase==="cheer"){
   c.textAlign="center";c.font="bold 14px ui-rounded,Helvetica,Arial,sans-serif";
-  c.fillStyle="#ffe14a";c.fillText("RESCUED",VW/2,top+Math.round(viewH()*.36));
+  c.fillStyle="#ffffff";c.fillText("RESCUED",VW/2,top+Math.round(viewH()*.36));
   c.font="8px monospace";c.textAlign="left";
  }
 }
 // Title card: the four storeys in silhouette, the robot hanging in the middle of
 // them with his flame lit, a child two floors down and something watching.
+// Title card: the original's, as close as this screen gets. A magenta floor with
+// a white edge, fluted pillars standing between the storeys, the wordmark read
+// off the real title screen, and the robot hovering over the top floor.
 function drawTitle(){
  const c=ctx, W=VW, H=VH, t=G.uiT;
- const sky=c.createLinearGradient(0,0,0,H);
- sky.addColorStop(0,"#05070f");sky.addColorStop(.55,"#131a33");sky.addColorStop(1,"#2a1a2e");
- c.fillStyle=sky;c.fillRect(0,0,W,H);
- for(let i=0;i<40;i++){
-  const x=(i*83)%W, y=(i*29)%Math.round(H*.4);
-  c.fillStyle="rgba(200,220,255,"+(.18+.4*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
+ c.fillStyle="#000000";c.fillRect(0,0,W,H);
+ for(let i=0;i<40;i++){                                      // the dark above the ruin
+  const x=(i*83)%W, y=(i*29)%Math.round(H*.30);
+  c.fillStyle="rgba(200,220,255,"+(.14+.3*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
   c.fillRect(x,y,1,1);
  }
- // Four floors across the whole card, the robot hanging over the top one, and
- // what he came for further down where the menu's scrim takes over.
- const rows=[.46,.58,.70,.82].map(k=>Math.round(H*k));
- rows.forEach((y,f)=>{
-  c.fillStyle=f%2?"#46587e":"#3b4c6e";c.fillRect(0,y,W,6);
-  c.fillStyle="#6d82a6";c.fillRect(0,y,W,2);
-  c.fillStyle="rgba(0,0,0,.45)";c.fillRect(0,y+5,W,2);
-  const gx=Math.round(W*(.14+.22*f));                        // the holes you fly through
-  c.fillStyle="#080c18";c.fillRect(gx,y,30,7);
- });
- // The robot, at twice his size in the game, hovering with the flame lit.
- const hx=Math.round(W*.44), hy=rows[0]-40+Math.round(Math.sin(t*2)*3), u=2;
- c.fillStyle="rgba(255,194,74,.8)";c.fillRect(hx+3*u,hy+16*u,6*u,6+Math.round(Math.sin(t*16)*3));
- c.fillStyle="#fff0b0";c.fillRect(hx+5*u,hy+16*u,2*u,4);
- c.fillStyle="#8e9ab8";c.fillRect(hx+1*u,hy+5*u,10*u,11*u);
- c.fillStyle="#6a7695";c.fillRect(hx+1*u,hy+13*u,10*u,3*u);
- c.fillStyle="#b6c2dc";c.fillRect(hx+2*u,hy,8*u,6*u);
- c.fillStyle="#2a3550";c.fillRect(hx+6*u,hy+2*u,3*u,2*u);
- c.fillStyle="#ffc24a";c.fillRect(hx+5*u,hy-3*u,2*u,3*u);c.fillRect(hx+4*u,hy-5*u,4*u,2*u);
- c.fillStyle="#4ad8ff";c.fillRect(hx+7*u,hy+8*u,3*u,3*u);
- c.fillStyle="#ffe14a";c.fillRect(hx+13*u,hy+9*u,7*u,2*u);   // a ball already on its way
- const cx2=Math.round(W*.72), cy=rows[1]-20;                 // the boy, two floors down
- c.fillStyle="#4a9ae0";c.fillRect(cx2,cy+8,11,10);
- c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,6);
- c.fillStyle="#6a4a28";c.fillRect(cx2,cy,11,3);
- c.fillStyle="#2a3550";c.fillRect(cx2+1,cy+18,4,3);c.fillRect(cx2+7,cy+18,4,3);
- const dx=Math.round(W*.18), dy=rows[2]-22;                  // and the one who took him
- c.fillStyle="#3a2c58";c.fillRect(dx,dy+8,12,14);
- c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,6);
- c.fillStyle="#d84a6a";c.fillRect(dx-1,dy,14,4);
- c.fillStyle="#ffe14a";c.fillRect(dx+4,dy-5,4,5);
- c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+6,2,16);
- if(G.menuTitle){c.textAlign="left";return;}   // a menu with its own headline keeps the art bare
- c.fillStyle="rgba(5,7,15,.45)";c.fillRect(0,0,W,Math.round(H*.26));
- const big=Math.max(22,Math.round(W/9)), letters="DROL", gap2=big*.78;
- c.textBaseline="top";c.textAlign="center";
- c.font="bold "+big+"px ui-rounded,Helvetica,Arial,sans-serif";
- letters.split("").forEach((ch,i)=>{
-  const x=W/2+(i-(letters.length-1)/2)*gap2, y=Math.round(H*.04);
-  c.fillStyle="#1a1226";c.fillText(ch,x+2,y+2);
-  c.fillStyle="#ffc24a";c.fillText(ch,x,y);
- });
- c.font="8px monospace";c.fillStyle="#c7d2ec";
- c.fillText("THE FOUR-STOREY MAZE",W/2,Math.round(H*.04)+big+3);
+ // Four floors of the ruin, magenta with a white edge, as the title screen has;
+ // the wordmark stands inside the first storey rather than over the top of it,
+ // which is where the original puts it.
+ const rows=[.32,.52,.72,.92].map(k=>Math.round(H*k));
+ const floor=y=>{
+  c.fillStyle="#ffffff";c.fillRect(0,y,W,2);
+  c.fillStyle="#ff40ff";c.fillRect(0,y+2,W,5);
+ };
+ rows.forEach(floor);
+ const u2=W>300?2:1, lw=DROL_PIX[0].length*u2;
+ const storey=rows[1]-rows[0];
+ drawPix(DROL_PIX,DROL_PAL,Math.round((W-lw)/2),
+   rows[0]+7+Math.round((storey-10-DROL_PIX.length*u2)/2),u2,false);
+ c.font="7px monospace";c.textAlign="center";c.textBaseline="top";
+ c.fillStyle="#40c0ff";c.fillText("AFTER AIK BENG",W/2,rows[1]+9);
+ c.fillStyle="#ff40ff";c.fillText("BR\u00d8DERBUND 1983",W/2,rows[1]+18);
  c.textAlign="left";
+ // Pillars standing on each floor and holding up the one above. The capital and
+ // the base are fixed; the fluted shaft is repeated to fill whatever is between
+ // them, so a pillar is the height of its storey rather than a fixed picture.
+ for(let r=0;r<rows.length-1;r++)
+  // Two to a storey, at the ends, as the original has them - anything in the
+  // middle would stand in front of the wordmark.
+  for(const fx of [.07,.93])
+   drawPillar(Math.round(W*fx-PILLAR_PIX[0].length/2),rows[r]+7,rows[r+1]);
+ // the robot, hovering over the top floor with his pack lit
+ const u=Math.max(1,Math.round(W/190)), hw=HERO_PIX[0].length*u;
+ const hx=Math.round(W*.42-hw/2), hy=rows[0]-HERO_PIX.length*u-2+Math.round(Math.sin(t*2)*3);
+ const flame=(4+Math.round(Math.sin(t*16)))*u;
+ c.fillStyle="#e04040";c.fillRect(hx+1*u,hy+14*u,u,flame);
+ c.fillStyle="#eeeeee";c.fillRect(hx+2*u,hy+14*u,u,flame);
+ drawPix(HERO_PIX,HERO_PAL,hx,hy,u,false);
+ c.fillStyle="#eeeeee";c.fillRect(hx+hw+u,hy+10*u,3*u,2*u);  // a ball already on its way
+ // and, along the floor below, what he came for and what took them
+ const cy=rows[2]-18, cx2=Math.round(W*.74);
+ c.fillStyle="#3a86e0";c.fillRect(cx2,cy+9,11,9);
+ c.fillStyle="#6aa8f0";c.fillRect(cx2,cy+9,11,2);
+ c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,7);
+ c.fillStyle="#6a4a28";c.fillRect(cx2+1,cy,9,3);
+ c.fillStyle="#1a1008";c.fillRect(cx2+4,cy+4,1,2);c.fillRect(cx2+7,cy+4,1,2);
+ c.fillStyle="#2a3550";c.fillRect(cx2+1,cy+18,4,3);c.fillRect(cx2+7,cy+18,4,3);
+ const dx=Math.round(W*.20), dy=rows[2]-21;
+ c.fillStyle="#3a2c58";c.fillRect(dx,dy+9,12,12);
+ c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,7);
+ c.fillStyle="#f0f0e0";c.fillRect(dx+3,dy+5,3,3);c.fillRect(dx+7,dy+5,2,3);
+ c.fillStyle="#e03030";c.fillRect(dx-1,dy,14,4);
+ c.fillStyle="#ffe14a";c.fillRect(dx+3,dy-5,3,5);c.fillRect(dx+8,dy-4,3,4);
+ c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+4,2,17);
+ c.fillStyle=(Math.floor(t*4)%2)?"#ffe14a":"#e0902a";c.fillRect(dx+12,dy,4,4);
 }
 function render(){
  const c=ctx;
@@ -1140,12 +1714,16 @@ function render(){
  G.cam.y=clamp(h.y+h.h/2-vh/2,0,Math.max(0,MAPH*TS-vh));
  if(G.shake>0){G.cam.x+=(Math.random()-.5)*G.shake;G.cam.y+=(Math.random()-.5)*G.shake;}
  c.fillStyle=P.sky;c.fillRect(0,0,VW,VH);
+ drawBackWall();
  drawTiles();
  for(const p of G.L.plants){                                  // whatever was under the trapdoor
   const x=sx(p.x), y=sy(p.y);
   c.fillStyle="#2f7a3a";c.fillRect(x+p.w/2-3,y,6,p.h);
   c.fillStyle="#d84a6a";c.fillRect(x,y+p.h-7,p.w,7);
   c.fillStyle="#f0e8d0";for(let i=0;i<3;i++)c.fillRect(x+2+i*5,y+p.h-6,2,4);
+ }
+ for(const u of G.L.urns){                                    // the urns of the third scene
+  drawPix(URN_PIX,URN_PAL,sx(u.x),sy(u.y),1,false);
  }
  drawPet();drawToy();drawChild();
  for(const e of G.L.foes)if(!e.dead)drawFoe(e);
@@ -1164,7 +1742,8 @@ function render(){
 }
 function updateStatus(){
  if(G.phase==="menu"||!G.hero){
-  statusEl.innerHTML="<b>DROL</b> — the witch doctor has the children in the maze. Start the rescue.";
+  statusEl.innerHTML="<b>DROL</b> — the witch doctor has the children in the maze. Start the rescue."+
+   (G.best>0?" Best so far <b>"+G.best+"</b>.":"");
   return;
  }
  const L=G.L;
@@ -1178,7 +1757,7 @@ function updateStatus(){
 // The drawing surface takes the shape of the box it sits in: with the scope off
 // the maze simply gets those sixteen rows back.
 function fit(force){
- const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||216;
+ const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||194;
  if(!w||!hh)return;
  const s=clamp(w/346,1,6);
  const nw=clamp(Math.round(w/s),260,560), nh=clamp(Math.round(hh/s),150,MAPH*TS+RADAR_H);
@@ -1216,6 +1795,18 @@ if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
    typeof isSecureContext!=="undefined"&&isSecureContext)
   addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
 if(isStandaloneApp())setFocus(true);
+
+// Settings from last time, applied before the first frame is drawn.
+(function restorePrefs(){
+ const p=loadPrefs();
+ if(p.sound===false){SOUND.enabled=false;
+  const b=document.getElementById("sound");
+  if(b){b.textContent="SOUND OFF";b.setAttribute("aria-pressed","false");}}
+ if(p.music===false)MUSIC.on=false;
+ if(p.radar===false)G.radar=false;
+ if(typeof p.best==="number"&&isFinite(p.best)&&p.best>0)G.best=Math.floor(p.best);
+ if(p.endless===true)G.endless=true;
+})();
 
 fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
 </script>

@@ -17,20 +17,59 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 
 ## Controls
 
-- **◀ ▶** fly sideways. **▲** rises on the backpack, **▼** drops, **HOVER** (Shift/H) holds
-  your height. A floor is only passable where a gap is cut in it.
+- **▲ is the jetpack**: hold it and he flies. **▼ puts him back on his feet**, and on a floor
+  he walks — slower than flying, steadier, and it is also how you drop through a hole to the
+  storey below. **◀ ▶** move either way, **HOVER** (Shift/H) holds your height. A floor is
+  only passable where a gap is cut in it.
 - The big left button (Space/Z/Enter) is **FIRE**, and points the way you are facing.
   The big right button (X/E) sends a ball **straight up**, or **straight down** while ▼ is
   held. Three balls in the air at once, no more.
-- **RADAR** (R) is the scope along the top: it holds the whole maze at once — you, the child,
-  the toy, the pet and everything hunting you. Switching it off hands those rows back to the
-  maze, which is worth doing on a small phone.
+- **RADAR** (R) switches the panel along the top: the scope in the middle of it holds the
+  whole maze at once — you, the child, the toy, the pet and everything hunting you — with the
+  score, the robots you have left and the high score either side. Switching it off hands
+  those rows back to the maze, which is worth doing on a small phone.
 - **MENU** (Esc/P) pauses, and the pause screen carries the controls card, the music switch,
-  the scope switch and the full-screen switch.
+  the scope switch, the endless-robots switch and the full-screen switch.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
 - **FULL SCREEN** hides the page around the game: everything goes black, the maze and the
   controls are all that is left. Held sideways the pads move to either side of the screen
   like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
+
+## Robots
+
+- **A game starts with ten.** The original was meaner; this is a game played in bursts on a
+  phone, and running out on the third scene of the first round is not the part anyone
+  remembers fondly. Every 10,000 points is another one.
+- **Endless robots** is a switch on the title card and in the pause menu, and it is
+  remembered between visits. A death still costs you: the robot is gone, the scene keeps
+  running and everything in it is where it was. What it does not cost is the game — the
+  count never moves, the panel shows **∞** where the number goes, and there is no "all
+  robots lost".
+- A run on endless robots **never becomes a high score**, and no extra robots are handed out
+  for points, because neither means anything when nothing runs out. The panel shows the real
+  high score rather than pretending the current run counts towards it. Switch it off and the
+  next points you score count again.
+
+## A ball reaches what is on your floor
+
+A storey is forty pixels: ten of those are the slab, so there are **twenty pixels of air in
+it**, and the robot is eighteen of them. He has two heights to fire from, and a ball is five
+pixels square leaving his chest at a fixed one. Whether it connected was coming down to a
+pixel or two either way — and the **thrown sword could not be shot down at all**: it swayed
+eight pixels either side of where it was thrown, which put it inside the ceiling for half of
+every pass, where no ball could reach it and where it should never have been drawn.
+
+Both are fixed, and both have a test:
+
+- A ball reaches **five pixels either side of its line of travel**. That is still inside the
+  storey it was fired along, so firing down a floor hits what is on that floor, rather than
+  what happens to be level with your chest.
+- The sword's sway now **fits the room the storey has** instead of a fixed eight, so it stays
+  in the air it is flying through.
+
+`tests/rescue.test.cjs` fires at every kind the game marks shootable, from **every height
+the robot can hold in a storey**, and fails if any of them survives. Both tests fail on the
+code as it was.
 
 ## What the original is, and what this keeps
 
@@ -50,7 +89,7 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 - **Mother is bound and gagged at the bottom right** of the third scene, and does not move:
   that scene is the trip down to her.
 - The menagerie the manual and the reviews name: **hopping scorpions**, **flying turkeys**,
-  **monsters**, **serpents**, **witch doctors** who throw a curse down the length of their
+  **zombies**, **serpents**, **witch doctors** who throw a curse down the length of their
   floor, **vacuum cleaners** that drag you along the floor they are sweeping, the **swords,
   daggers, arrows and axes** that cross a storey, and **magnets**, which swallow your shots
   instead of dying to them and pull you in. A magnet's pull falls off with distance and stops
@@ -63,6 +102,136 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 - A witch doctor's curse travels faster than the backpack, so it cannot be outrun along a
   floor: climb out of its path, or shoot it out of the air.
 
+## The look of it
+
+The art is drawn from a photograph of the original running, supplied by the owner of this
+repository — I cannot reach a screenshot or a disk image from where this is built, so that
+photograph is the only sight of the game anyone here has had.
+
+**Everything the photographs actually show is transcribed from them.** The hero, the
+wordmark, the pillars, the serpent, the urn, the thrown sword, the scorpion and the
+alligator are all read off the screen pixel by pixel rather than drawn by hand. Three pictures of him,
+in fact, because the screen has three: standing on his feet with the white of him in a block
+under the collar, mid-stride with that block swung forward, and flying with it streaming out
+behind. They line up with each other — the red band across his middle is the ninth row of all
+three — so the game swaps between them without him jumping, and which one is on is the
+difference between the jetpack and his feet. The photograph is a 320×240 screen at double size, so
+each native pixel is a 2×2 block; the blocks under the character were averaged, matched to the
+nearest of the four colours on screen, mirrored (he faces left in the photograph and right in
+the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
+That is where the shape comes from: the blue dome, the white eye with its blue pupil, the red
+band across his middle, the white vent the balls come out of, the red collar, the white of him
+below it, and the pack on his back with its own red band and a nozzle under it. Read back and
+compared against the photograph pixel by pixel, **393 of the 400 pixels are identical**; the
+seven that are not are the jetpack's flame, which the game draws live so that it can go out
+when you let go of ▲. Everything else on screen is drawn to match what the photograph shows
+rather than copied out of it.
+
+What the photograph settled:
+
+- **The screen is black**, and the floors are bright bands with a white edge along the top —
+  not shaded stone. Four colours and a black background is what the machine had.
+- **The hero is a blue dome with a white eye and a red band**, a white vent below it and the
+  pack on his back — a bot shaped like a cartoon creature, and now transcribed rather than
+  imagined.
+- **The top of the screen is a panel, not a strip**: SCORE at the left with a little robot
+  and the count of them beside it, a magenta-framed scope in the middle with a line per
+  storey and a dot for everything on it, HISCORE at the right, and the game's name in red
+  beside three green bars.
+- **The serpents are coiled and upright**, swaying where they stand, tongue out — a twenty
+  by twenty-six character map, `SERPENT_PIX`, read off the third scene.
+- **Thrown weapons are swords**: a white blade with a red guard, grip and pommel, twenty-nine
+  pixels of floor long. `SWORD_PIX`.
+- **White urns stand on the floors** of the scene the photograph shows: `URN_PIX`, nineteen
+  by thirty-one, lip and belly and foot, three quarters of a storey tall. A ball apiece stops
+  in one, two shatters it for points, and they are cover while they last.
+- **The pillars are fluted columns** with a chequered frieze under the abacus, not the dentils
+  guessed at before. `PILLAR_PIX` is a capital, one repeating shaft row and a base, so a pillar
+  is drawn to whatever height a storey asks for.
+- **The scorpion is salmon-red** and curls its tail over its back, twenty by twenty-one.
+  `SCORPION_PIX` is the Apple II one, not the Commodore's.
+- **The alligator carries its pack on its back** and fires it backwards in puffs — the white
+  dots trailing behind it in the photograph are its exhaust, so they are `PET_JET`, blinked
+  on and off rather than drawn every frame. `PET_PIX` is thirty-seven by fourteen; the boy's
+  lizard is the same animal in a lighter green.
+
+What is *not* transcribed is what no photograph here shows: the zombie, the witch doctor, the
+vacuum cleaner, the magnet, the children, their mother and the toys. Those are drawn in the
+idiom of the machine — four colours, black background — and marked as guesses, not copies.
+
+**There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
+twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
+him reads it: the game draws it at 1×, the title card at 4×, and `tools/render-art.js` reads
+it back out of the page to write `icon-180/192/512.png` and the inline SVG tile on the
+collection page. Edit those sixteen rows, run the tool, and the game, the title, the app icon
+and the tile all change together — they cannot disagree, and CI fails the build if the
+committed artwork is not what the current sprite produces:
+
+```
+node drol/tools/render-art.js          # rewrite the icons and the collection tile
+node drol/tools/render-art.js --check  # what CI runs
+```
+
+The rest is an homage in the idiom of the machine, not a reproduction: what the photograph
+did not show, nobody here has seen.
+
+What that means on screen:
+
+- **The robot** is the photograph's: a blue dome with one white eye, a red band across his
+  middle, a white vent that lights as it fires, a red collar and the white of him below it,
+  with the pack on his back. The pack burns from its nozzle only while ▲ is held; on a floor
+  with the pack off he walks, and the white of him swings as he goes. He throws a shadow on
+  the floor below him, which shrinks as he rises — the one cue that says how high up he is.
+- **The floors** are blue bands with a **dashed** white edge along the top — on for two tiles
+  of every three, which reads as a rail rather than a line — and a bright lip either side of
+  every hole. There is nothing behind them: the background is black, which is what makes four
+  colours look like more.
+- **Pillars stand in the maze**, not only on the title card: a classical column every dozen
+  tiles or so, holding each storey apart, drawn in greys because they are behind everything
+  that moves. Nothing collides with them.
+- **Each scene has its own blue**, because both photographs of the game in play are blue: a
+  deeper one for the boy's scene, a violet one for the girl's and the witch doctor's, and a
+  darker one again for the descent to the mother. Magenta is left to the title screen, which
+  is where the original uses it.
+- **A storey is forty pixels**, as the original's are, with a five-pixel band: measured off
+  the screenshots rather than chosen. Mine had been fifty, which is why everything standing in
+  one had looked too small — the robot filled 42% of a storey where he fills 51% on the real
+  thing.
+- **The bird is a transcription of the Commodore 64 screen**, read the same way the hero was
+  read off the Apple II one: white, with green wings out, and two thirds of the height of a
+  storey, as it is there.
+- **The scorpion and the alligator are the Apple II's**, not the Commodore's. The scorpion
+  had been a chunky pink thing off the C64 screen; the machine this game was played on drew
+  it in salmon red with its tail curled over its back, and that is what is here now. The
+  alligator likewise: bright green, snout out, with the pack squared off on its back and its
+  exhaust puffing backwards in white dots.
+- **The pets fly.** Both of them wear jetpacks in the original — an alligator hovering a few
+  inches off the floor with a pack strapped to its back, which is the funniest thing on the
+  screen — and both pets drift along their floor with the pack firing.
+- **Five balls do not kill a turkey. They cook it.** The fifth turns it into a roast on a
+  plate, which falls to the floor, stops hunting you and is worth a thousand to whoever walks
+  into it. It is the original's best joke and it belongs here.
+- **The rest of the menagerie is still mine**: the zombie hops on its belly, the witch
+  doctor carries a lit staff under a red headdress, the vacuum
+  has a mouth and wheels, and the magnet is a red horseshoe with a field pulsing out of it.
+  The serpent and the thrown sword have left that list: both are transcriptions now.
+- **The trapdoors** of the third scene are white boards in a magenta frame while they are
+  shut, and a flap hanging through the hole once sprung — green if that was the safe one, red
+  if it was not.
+- **The title card** is the original's, as closely as a screen with a menu on it can be: the
+  robot hovering over the top floor with his pack lit, the **Drol** wordmark standing inside
+  the first storey — read off the real title screen, orange with a white glint on each letter
+  — and a **fluted pillar** at either end of every storey, with its cyan capital, its dentil
+  frieze and its cyan base, the shaft repeated to whatever height the storey is. The floors
+  there are magenta with a white edge, as the title screen's are. Underneath it says AFTER AIK
+  BENG · BRØDERBUND 1983, because he wrote it and they published it, and this is neither.
+- **The panel's wordmark** is that same picture at half size, where the original puts its own.
+- **The icon and the gallery tile** are that same sprite, scaled up and generated from it, so
+  the game looks like itself from the collection page, the home screen and the browser tab.
+- **The panel along the top** carries what the photograph carries: score, robots left, the
+  scope, the high score and the name of the game. Switch the scope off and it collapses to a
+  single line, which is worth doing on a small phone.
+
 ## Mobile tweaks
 
 This is the improved-for-touch version of the idea, not a key-for-key port of a 1983
@@ -72,11 +241,16 @@ joystick game:
   portrait phones with safe-area padding, no page zoom, and no scroll bounce.
 - The original fires where the joystick points; here the second button is the vertical shot,
   so the pad hand is not asked to aim and fly at once. Both buttons say which way the next
-  ball leaves the chest.
+  ball leaves the chest, and the pad says which of ▲ and ▼ is the jetpack and which is his
+  feet.
 - **HOVER** holds your height — the one thing an analogue-feeling backpack is hard to do with
   two digital buttons on glass.
 - The scope can be switched off, which is not a thing the original offered; on a phone those
   sixteen rows are worth more as maze.
+- **Stepping over the lip of a floor.** Blocked sideways with room just above — hovering in a
+  hole, or half a body too low beside a slab — used to stop you dead against an edge you had
+  no way of seeing. The robot now lifts himself over it. The bot found this one by spending
+  forty seconds pressing right against a ledge.
 - A difficulty choice on the way in (Quiet / Busy / Crowded / Swarming). The original had no
   such switch — it simply came round again harder — so this only sets where round one starts:
   how many things are in the maze, how fast they move, and how often the ones that wait for
@@ -95,8 +269,18 @@ joystick game:
 - Nothing on the page is selectable text: holding a control holds the control, rather than
   raising iOS Safari's selection handles and Copy / Look Up callout over the pad. A button
   also lets go when the finger slides off it or the browser swallows the release.
-- A title screen rather than a menu on a black rectangle: the four storeys in silhouette with
-  the robot hanging between them, a child two floors down and something watching from below.
+- A title screen rather than a menu on a black rectangle: the four storeys with the pillared
+  wall behind them, the robot hanging over the top one, the boy along the floor and the witch
+  doctor watching from the other end.
+- **SOUND ON/OFF, the music switch, the scope and your best score are remembered** between
+  visits, in `localStorage` under one key, and every read and write is wrapped: a private
+  window that refuses storage is still a game.
+- An **INSTALL** button beside SOUND and FULL SCREEN, as the other games in the collection
+  have: Chrome and Android hand over their own install prompt, and on iOS — which has no such
+  event and no full-screen switch for a web page — the button explains Share ▸ Add to Home
+  Screen instead.
+- A card in the [collection page](../index.html) and in its 404 page, with the same robot on
+  it, so Drol is one of the games rather than a directory you have to know about.
 
 ## Music
 
@@ -160,7 +344,8 @@ so `--seed 7` is the same game every time.
 - **The difficulty setting was decoration.** The bot died at the same rate on Quiet as on
   Swarming, because the only thing the setting moved was the number of enemies in a maze big
   enough to swallow them. It now scales the count, the speed and the aggression, and the
-  bot's rescues per minute fall from 3.6 to 2.1 across the four settings.
+  bot pays 0.28 robots per child rescued on Quiet and 1.73 on Swarming — six times the price —
+  with its rescues per minute falling by more than half.
 - **The holes were too tight.** Two tiles wide against a twelve-pixel robot; the bot kept
   thrusting into the edge of a slab. Three tiles now.
 - **The witch doctor was the only hazard with one answer.** His curse outruns you, so the
@@ -170,6 +355,17 @@ so `--seed 7` is the same game every time.
   the thrown blades and the monsters.
 - **A sprung trapdoor is a safe one.** The bot worked this out before I did: the plant
   retracts after a few seconds, so the door you survived is the door to use next time.
+- **It was running away from dinner.** The roast a shot turkey becomes went into the same
+  list as everything else on the floor, so the bot gave a plate of cooked bird a forty-six
+  pixel berth and, when the child was behind it, fled the length of the scene for the rest of
+  the round. Three mazes in fourteen ended with no rescue at all because of it. A roast is now
+  neither a threat nor a target — it is a thousand points you walk into — and the same fourteen
+  mazes went from 32 rescues to 42, with nothing left stuck.
+- **Getting unwedged took longer than one frame.** Standing in the five pixels of a slab's
+  thickness, the robot cannot move sideways at all, and the escape — climb or drop out of the
+  band — used to be abandoned the moment he moved, because moving cleared the jam counter that
+  had asked for it. He settled straight back in. Wedging now commits him to three quarters of
+  a second of going one way.
 
 Where the bot stalled and the game was not at fault, the fix belonged in the bot — flying up
 and down the same hole because the goal kept changing floors, dithering between two threats,
@@ -209,6 +405,19 @@ Two details the sources disagree on, and how they are resolved here:
   [review](https://www.lemon64.com/review/drol/1162) — the witch doctor's curse, the children
   lured into multi-levelled ruins, the per-level enemy lists, the pets, and the mother bound
   at the lower right of the third level.
+- [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
+  generic-looking robot across a four story map layout. The robot levitates and is able to
+  shoot multi-coloured balls out of his chest."
+- **Photographs of the original running, of its title screen, and of the Commodore 64
+  version**, supplied by the owner of this repository, which are where the palette, the panel across the top, the coiled serpents,
+  the swords, the urns, the shape of the hero, his three poses, the **Drol** wordmark, the
+  pillars, the scorpion and the bird come from.
+  They are the only sight of the game this work has had, and they name its author: **Aik Beng**,
+  for Brøderbund, 1983.
+- Contemporary reviews, for what else it looked like: ANALOG
+  Computing's February 1984 line that Drol had "some of the best pseudo-3D graphics I've ever
+  seen" — the two facts the art here is drawn towards, since no screenshot of the original was
+  reachable from where this was built.
 - [MobyGames: Drol](https://www.mobygames.com/game/9314/drol/) — the hero with the rocket
   backpack and the full-screen radar scope; hopping scorpions, monsters, snakes, flying
   turkeys, swords, daggers, arrows, magnets, witch doctors and vacuum cleaners; the boy
@@ -233,8 +442,15 @@ magnet that eats shots and drags you, shooting the toy to root the child, the re
 scene order through to the loop back to scene one, the pet bonus, the third scene's three
 trapdoors and the thing behind the wrong two, the curse, lives and the respawn's
 invulnerability, extra robots at every 10,000 points, the scope switch and the rows it hands
-back, the way the view is sized to its box, the full-screen toggle, the button labels, the
-rules that stop a held control turning into a text selection, and the music engine — that it
+back and remembers the switch, the jetpack against his feet — that ▲ climbs and lights the
+pack, that ▼ lands him and that walking is slower than flying — the way the view is sized to
+its box, the full-screen toggle,
+the button labels, the settings and best score that survive a reload, the browser that refuses
+storage altogether, the install button, the one sprite that the game, the title card, the icon
+and the collection tile all draw from, every kind of thing in the maze moving and being drawn
+without throwing — the test that catches a sprite pasted into the AI by mistake, which is a
+thing that happened — the rules that stop a held control turning into a text
+selection, and the music engine — that it
 plays, follows the game state, quickens round after round, and answers both the mute and the
 music switch. They verify audio events and mute, not subjective sound authenticity.
 
