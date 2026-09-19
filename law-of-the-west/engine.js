@@ -238,6 +238,9 @@ function terminal(G,id){
     if(f==="doctor_civil")G.doctor.disposition+=1;
     if(f==="doctor_insulted")G.doctor.disposition-=2;
     if(f==="doctor_sober")G.doctor.sober=true;
+    // and the refusal is worth something too: the man who decides whether the
+    // next ball is survivable goes on drinking, and the player will find out
+    if(f==="doctor_unsober")G.doctor.sober=false;
   }
   G.authority+=t.authority||0;
   // a man who walked out of it unstopped, or who left having taken offence

@@ -816,7 +816,7 @@ const SND=(function(){
  */
 const LIMITS={NPC:150,REPLY:92,ROUNDS:3,REPLIES:4};
 const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
-  "depart","offended","doctor_civil","doctor_insulted","doctor_sober"];
+  "depart","offended","doctor_civil","doctor_insulted","doctor_sober","doctor_unsober"];
 
 /* The three jobs the day's tips are about. A sheriff who was told is standing
  * in the right place when it happens; a sheriff who was not reads about it. */
@@ -1043,7 +1043,7 @@ const CAST=[
    sobered:{text:"He drinks it scalding, twice, and by the second cup his hands have stopped and he is looking at you like a man again.",
          flags:["doctor_sober","doctor_civil"], authority:1},
    still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
-         flags:[], authority:0}}},
+         flags:["doctor_unsober"], authority:0}}},
  /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
   armed:true, arrive:["spurs","crowd"], temper:"hostile",
@@ -1272,7 +1272,12 @@ const CAST=[
    repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
         flags:["depart"], authority:1}}},
  /* 9 ------------------------------------------------------------- */
- {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
+ /* He never draws on his own sheriff, and that is a decision rather than a
+  * gap in the writing: the drama of the deputy is that he wants the badge's
+  * respect, not that he wants a gunfight with it. The gun is still in the
+  * scene - it can be put in his face, and his hat can be taken off his head -
+  * but no reply of the sheriff's will ever make him answer with his own. */
+ {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy", neverDraws:true,
   deputy:true, armed:true, arrive:["hooves"], temper:"patient",
   hatline:"Your own deputy's hat is in the road and your own deputy has his hands up in the middle of the street, in front of everybody who can see the jail door.",
   balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
@@ -2029,6 +2034,9 @@ function terminal(G,id){
     if(f==="doctor_civil")G.doctor.disposition+=1;
     if(f==="doctor_insulted")G.doctor.disposition-=2;
     if(f==="doctor_sober")G.doctor.sober=true;
+    // and the refusal is worth something too: the man who decides whether the
+    // next ball is survivable goes on drinking, and the player will find out
+    if(f==="doctor_unsober")G.doctor.sober=false;
   }
   G.authority+=t.authority||0;
   // a man who walked out of it unstopped, or who left having taken offence
@@ -3639,10 +3647,95 @@ function grade(){
     ctx.fillRect(0,0,SCENE.w,4-i); ctx.fillRect(0,SCENE.h-(4-i),SCENE.w,4-i);
   }
 }
+/* ---- where the three robberies actually happen ---- *
+ * A hold-up at a ford was being played out in front of the Gold Gulch Hotel,
+ * because town() drew the same six frontages whatever the words underneath it
+ * said. A picture that contradicts its own caption is worse than no picture at
+ * all: the player is told two men step out of the rocks above a ford, and is
+ * shown a hotel, a water tower and two ornamental bushes. Each job gets the
+ * place it is written in, in the same hand as the street.
+ */
+function bluff(){                                   // the stage road, above the ford
+  const rock="#8a7a68", dark="#5e5145", lit="#a89784", core="#42382f";
+  /* Rock, not a dune. A smooth curve with lines combed down it reads as sand,
+   * or as a fence; what says stone at this size is a hard stepped skyline and
+   * strata running across the face, because that is the one thing a cliff does
+   * that nothing else in the picture does. */
+  const STEP=[[0,54],[26,72],[52,66],[74,88],[96,80],[118,60],[140,52],
+              [166,70],[188,96],[214,86],[238,64],[262,74],[288,58],[320,50]];
+  for(let i=0;i<STEP.length-1;i++){
+    const [x0,h0]=STEP[i], [x1,h1]=STEP[i+1];
+    for(let x=x0;x<x1;x++){
+      const t=(x-x0)/(x1-x0), h=Math.round(h0+(h1-h0)*t);
+      const top=HORIZON-h;
+      px(x,top,1,h,rock);
+      px(x,top,1,2,lit);                             // the lip takes the light
+    }
+  }
+  for(let y=HORIZON-92;y<HORIZON;y+=7){              // strata, across the face
+    px(0,y,SCENE.w,1,"rgba(66,56,47,.30)");
+    px(0,y+1,SCENE.w,1,"rgba(200,180,155,.14)");
+  }
+  for(let i=0;i<26;i++){                             // and shadow in the clefts
+    const x=(i*37)%SCENE.w, h=10+((i*29)%26);
+    px(x,HORIZON-h,2,h,"rgba(66,56,47,.35)");
+  }
+  px(0,HORIZON-16,SCENE.w,16,"rgba(66,56,47,.22)");  // the foot sits in its own shade
+  for(const x of [18,54,102,208,262,300])treeAt(x,HORIZON,x%17<8?6:8);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+  // the second man, up in the rocks where the words put him
+  px(96,HORIZON-52,5,11,core); px(96,HORIZON-55,5,3,"#2e271f");
+}
+function ford(){                                    // water across the road
+  const y=HORIZON+30;
+  px(0,y,SCENE.w,16,"#4d6b7a"); px(0,y,SCENE.w,2,"#7fa3b0");
+  for(let i=0;i<40;i++){
+    const x=(i*97)%SCENE.w, yy=y+3+((i*13)%12);
+    px(x,yy,6,1,"rgba(220,240,245,.35)");
+  }
+  px(0,y+16,SCENE.w,2,"rgba(0,0,0,.25)");
+}
+function cutting(){                                 // the westbound, in the cut
+  const bank="#7d6a4e", sh="#54462f", gr="#6f8f5c";
+  for(let x=0;x<SCENE.w;x++){
+    const d=Math.abs(x-160)/160;                    // the walls fall away to the middle
+    const h=Math.round(20+62*d*d);
+    px(x,HORIZON-h,1,h,bank);
+    px(x,HORIZON-h,1,4,gr);                         // grass along the lip
+    if((x*5)%17<2)px(x,HORIZON-h+5,1,h-5,sh);
+  }
+  const ry=HORIZON+6;                               // the road bed and the iron
+  px(0,ry,SCENE.w,10,T.ballast);
+  for(let x=-4;x<SCENE.w;x+=9)px(x,ry+2,6,2,T.tie);
+  px(0,ry+3,SCENE.w,1,T.rail); px(0,ry+7,SCENE.w,1,T.rail);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.30)");
+}
+function alley(){                                   // behind the bank
+  const bk="#8e4a3c", mo="#c8b49a", sh="#5e2f26";
+  const top=HORIZON-74;
+  px(0,top,SCENE.w,HORIZON-top,bk);
+  for(let y=top;y<HORIZON;y+=4){                     // courses, and the mortar in them
+    px(0,y,SCENE.w,1,mo);
+    for(let x=((y/4)%2)?0:5;x<SCENE.w;x+=11)px(x,y,1,4,mo);
+  }
+  px(0,top,SCENE.w,3,"#b07a5e");                     // the coping catches the light
+  // the door that was not there yesterday
+  px(138,HORIZON-40,28,40,T.dark); px(136,HORIZON-42,32,3,sh);
+  for(let i=0;i<9;i++)px(128+((i*13)%46),HORIZON-6-((i*7)%10),4,3,bk);  // fallen brick
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+}
+const JOBSET={"STAGE ROAD":bluff,"THE CUT":cutting,BANK:alley};
 function town(now,armed){
   sky();
   const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
   ground();
+  const set=JOBSET[enc&&enc.place];
+  if(set){
+    set();
+    if(enc.place==="STAGE ROAD")ford();
+    propAt(here.prop);
+    return;                                          // no town row, no boardwalk
+  }
   buildings();
   signboard(here.sign);
   if(!armed)for(const p of PEOPLE){
@@ -3728,10 +3821,14 @@ function sniperInWindow(){
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
-const RETICLE=[[-5,0],[-4,0],[-3,0],[3,0],[4,0],[5,0],
-               [0,-5],[0,-4],[0,-3],[0,3],[0,4],[0,5],[0,0]];
-const CORNERS=[[-5,-5],[-4,-5],[-5,-4], [5,-5],[4,-5],[5,-4],
-               [-5,5],[-4,5],[-5,4],    [5,5],[4,5],[5,4]];
+/* A gunsight, in bars rather than in dots. Each of these is one arm of it:
+ * an offset from the centre, a length and a direction. They used to be a list
+ * of single cells laid down at twice their spacing, which put a two-pixel gap
+ * between every two-pixel block - so at arm's length the sight was not a cross
+ * but a scatter of confetti over the man, and a player could not tell what he
+ * was pointing at. Bars read as a sight; dots read as dirt on the glass. */
+const ARMS=[[ 6,0, 10,2],[-16,0, 10,2],[0, 6, 2,10],[0,-16, 2,10]];
+const TICKS=[[-20,-20],[ 12,-20],[-20, 12],[ 12, 12]];   // corner brackets, 8x2/2x8
 /* On a phone, held at arm's length, white blocks on a pale dirt street are not
  * a gunsight - they are a smudge, and a player who cannot see where he is
  * pointing reports that drawing the gun does nothing. So it is drawn the way
@@ -3746,12 +3843,18 @@ function crosshair(){
    * below and right of the place the ball was judged against - on a picture
    * where a man is seventeen pixels across, that is a miss he cannot account
    * for. Both rings are centred on the point now. */
+  const bars=[];
+  for(const [ox,oy,w,h] of ARMS)bars.push([x+ox,y+oy,w,h]);
+  for(const [ox,oy] of TICKS){                      // an L in each corner
+    bars.push([x+ox,y+oy,8,2]); bars.push([x+ox,y+oy,2,8]);
+  }
+  bars.push([x-1,y-1,2,2]);                         // and the point itself
+  // every bar carries its own rim, so the sight holds against a pale coat,
+  // a dark coat and the dirt of the street alike
   ctx.fillStyle=C64.blk;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
+  for(const [bx,by,w,h] of bars)ctx.fillRect(bx-1,by-1,w+2,h+2);
   ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
+  for(const [bx,by,w,h] of bars)ctx.fillRect(bx,by,w,h);
 }
 
 /* ---- the five-line matrix ---- *
@@ -3808,6 +3911,44 @@ function paintSound(){
 
 /* A reply is written as two elements — the number and the words — so the words
  * can hang under themselves when they wrap. An empty slot collapses. */
+/* A line that is not a choice: no number in front of it, because a number in
+ * front of a thing on this panel means "press this". */
+function setNote(el,text,cls){
+  el.className="choice note"+(cls?" "+cls:"")+(text?"":" empty");
+  while(el.firstChild)el.removeChild(el.firstChild);
+  if(!text)return;
+  const txt=document.createElement("span"); txt.className="txt"; txt.textContent=text;
+  el.appendChild(txt);
+}
+/* What the scene cost, in a sentence.
+ *
+ * The day keeps an account - authority, arrests, a name in somebody's good
+ * books, a man loose who should not be - and until now it kept it in silence.
+ * The number in the corner moved and nothing said why, so a player could not
+ * tell a good ten minutes from a bad one, and the half of this that is a
+ * role-playing game was invisible while it was being played. This is the other
+ * half of a choice: the part where you are told what you chose. */
+function tookAway(){
+  const f=(G.ending&&G.ending.flags)||[];
+  const a=(G.ending&&G.ending.authority)||0;
+  const o=G.outcome, has=k=>f.indexOf(k)>=0;
+  const said=[];
+  if(has("arrest")||o==="surrendered"||o==="disarmed"||o==="hat_yield"||o==="hat_unmasked")
+    said.push("He is in a cell");
+  if(has("date"))said.push("Saturday, then");
+  if(has("tip_train")||has("tip_stage")||has("tip_bank"))
+    said.push("You know where to be");
+  if(o==="killed_him")said.push("He is dead, and it was his doing");
+  if(o==="innocent_killed")said.push("He is dead, and it was yours");
+  if(o==="wounded_innocent")said.push("You shot a man who had nothing");
+  if(o==="doctor_came"||o==="doctor_saved"||o==="doctor_drunk")
+    said.push("You are hurt, and the doctor came");
+  if(o==="outsmarted")said.push("You woke up where you fell");
+  if(has("depart")||o==="departed"||o==="turns_away")said.push("He is loose");
+  if(has("offended")||a<0)said.push("The town thinks less of you");
+  else if(a>0||o==="sniper_down")said.push("The town thinks better of you");
+  return said.slice(0,2).join(" \u00b7 ");
+}
 function setChoice(el,n,text,cls){
   el.className="choice"+(cls?" "+cls:"")+(text?"":" empty");
   while(el.firstChild)el.removeChild(el.firstChild);
@@ -3877,7 +4018,8 @@ function paint(){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
     setChoice(lineEls[1],1,(G.encounter>=CAST.length-1)
       ?"End the day":walkOn(),"sel");
-    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
+    setNote(lineEls[2],tookAway(),"dim");
+    for(let i=3;i<5;i++)setChoice(lineEls[i],i,"");
     hud(); fitText(); return;
   }
   const him=who(G);
@@ -3946,6 +4088,7 @@ function walkOn(){
   if(has("date"))return "Walk on, and count the days to Saturday";
   if(has("offended"))return "Leave it where it lies and walk on";
   if(has("doctor_insulted"))return "Walk on, and hope you stay whole";
+  if(has("doctor_unsober"))return "Walk on, and hope the bottle stays corked";
   if(has("doctor_civil")||has("doctor_sober"))return "Walk on, with the doctor behind you";
   if(has("tip_train")||has("tip_stage")||has("tip_bank"))
     return "Take what you were told up the street";

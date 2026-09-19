@@ -1158,7 +1158,7 @@ test('30. no two kinds of conclusion read the same', ()=>{
   const flags=JSON.parse(run(`JSON.stringify(CAST.flatMap(e=>
     Object.keys(e.ends||{}).map(k=>(e.ends[k].flags||[]).join("+"))))`));
   const known=['date','offended','doctor_insulted','doctor_civil','doctor_sober',
-               'tip_train','tip_stage','tip_bank','arrest','depart'];
+               'doctor_unsober','tip_train','tip_stage','tip_bank','arrest','depart'];
   const orphan=flags.filter(f=>f&&!f.split('+').some(x=>known.includes(x)));
   assert.deepEqual(orphan,[],
     'authored endings whose flags no conclusion reads: '+orphan.join(', '));
