@@ -11,7 +11,6 @@ const RULES={
   TELL_MIN:400, TELL_MAX:900,
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
-  REFLEX_MIN:1500, REFLEX_MAX:2600,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
    * them, which made every caller the same man wearing a different hat. A
@@ -27,11 +26,24 @@ const RULES={
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2,
-  // the man at the window: how often, how many in a day, how long before the
-  // sash goes up, and how long after that before he fires
+  /* The man at the window: how often, how many in a day, how long before the
+   * sash goes up, and how long the sheriff then has to do something about it.
+   *
+   * These were 1.6-3.4s to the sash and 5.2-8.2s to the shot, both measured
+   * from the moment the scene began - while the caller was still walking in,
+   * while the dialogue panel was still building itself a row at a time, and
+   * while the player was reading a hundred and fifty characters and four
+   * replies. Reading one beat takes fifteen to twenty-five seconds. He fired
+   * two or three times over before anybody could have finished the first line,
+   * every time, on a third of all encounters. That is not a hidden threat, it
+   * is a coin flip with a wound on one face.
+   *
+   * The sash now goes up after the reading rather than during it, and what
+   * follows it is a window wide enough to look up, find him and fire. The
+   * warning is still the only warning. */
   SNIPER_ODDS:0.3, SNIPERS:2,
-  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
-  SNIPER_MIN:5200, SNIPER_MAX:8200
+  SNIPER_SHOW_MIN:8000, SNIPER_SHOW_MAX:14000,
+  SNIPER_REACT_MIN:4000, SNIPER_REACT_MAX:6000
 };
 /* The phases in which the street is still happening and a second gun in it can
  * do something. On the resolve screen and between encounters it cannot. */
@@ -112,9 +124,9 @@ function beginEncounter(G){
   // own scene is indoors, so nobody is above it.
   if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
     G.snipers++;
-    G.sniper={alive:true,fired:false,shown:false,at:null,
-      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
-      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+    const show=Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX));
+    G.sniper={alive:true,fired:false,shown:false,at:null, show:show,
+      limit:show+Math.round(rnd(G,RULES.SNIPER_REACT_MIN,RULES.SNIPER_REACT_MAX))};
   }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
@@ -228,6 +240,17 @@ function moveAim(G,dx,dy){
   G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
+/* Time the page was not running is not time the sheriff stood there. rAF stops
+ * while a phone is locked or the player is in another app, but performance.now()
+ * does not, so the first frame back used to deliver a nowMs that had jumped by
+ * the whole absence and every clock expired on that single frame: you came back
+ * to the street already shot. Every origin moves forward with the gap instead. */
+function catchUp(G,gap){
+  if(!(gap>0))return;
+  if(G.sniper&&G.sniper.at!=null)G.sniper.at+=gap;
+  if(G.reflex)G.reflex.at+=gap;
+  if(G.tell&&G.tell.at!=null)G.tell.at+=gap;
+}
 function tick(G,nowMs){
   // The man at the window keeps his own clock, and it runs whatever the two in
   // the street are doing. The sash goes up first, which is the only warning
@@ -242,7 +265,7 @@ function tick(G,nowMs){
       return takeHit(G,"a rifle out of the window over the street");
     }
   }
-  if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
+  if(G.reflex&&LIVE.indexOf(G.phase)>=0&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
     // Nobody unarmed is a threat, but frightening one off the street with a gun
@@ -252,6 +275,7 @@ function tick(G,nowMs){
     if(cost<0)G.flags.push("offended");
     return resolve(G,cost<=-2?"fled":"walked_away");
   }
+  if(G.tell&&G.tell.at==null&&(G.phase==="tell"||G.phase==="duel"))G.tell.at=nowMs;
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
     if(nowMs-(G.tell.at+G.tell.delay)>=G.duel.fireDelay){
@@ -285,7 +309,14 @@ function theyDraw(G,why){
   const e=who(G);
   const span=RULES.TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
-  G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
+  /* Stamped on the first frame this is live, the way the sniper's is. It used
+   * to be 0, and the UI re-stamped it on two of the four paths that reach here.
+   * On the other two - the last gunfighter, who never talks, and the ambush a
+   * shot-off hat provokes - it stayed 0, and since nowMs is performance.now()
+   * and the day is minutes old, the very first tick found the whole tell and
+   * the whole fire delay already elapsed and answered with "outdrawn". The
+   * eleventh caller killed you the instant he appeared, every game. */
+  G.tell={at:null,why,delay:Math.round(rnd(G,span[0],span[1]))};
   G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",why,
     fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)),
     latency:null,error:null,result:null};

@@ -22,12 +22,18 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `tools/assemble.js` | Writes `index.html` from the shell and the four scripts |
 | `tools/render-sounds.js` | Renders the cue table to wavs for auditioning |
 | `tools/check-audio.js` | Drives every cue through the runtime with a stubbed AudioContext |
+| `tools/playthrough.js` | Plays all eleven journeys in a real browser at phone size |
 | `test/` | The sandbox harness and the tests |
 
 ```
 node tools/assemble.js       # index.html, and its size against the 256 KB budget
 node --test test/*.test.js   # 68 tests; numbers land in test/last-report.json
 node tools/render-sounds.js  # 55 wavs plus 00-all-sounds.wav (gitignored)
+
+# and a real browser, at iPhone size, playing every journey end to end.
+# Not part of npm test: it needs a browser, and it skips cleanly without one.
+npm i playwright-core
+PW=$PWD/node_modules/playwright-core node tools/playthrough.js
 ```
 
 `index.html` is committed and is what runs; the four scripts exist so the source
@@ -159,12 +165,27 @@ the arm's own rotation, so it stays on the muzzle wherever the kick has put it �
 rather than washing the whole picture white. Three colours and no gradient, like
 everything else here.
 
+**The hour.** The day runs from a cold early morning to a low red sun, and every
+colour that carries the light is mixed toward the hour before it is used: the
+sky bands, the hills and their haze, the dirt, the clouds. The lamps come on
+along the row towards evening. Five of the eleven callers stand in the same
+place — most of the cast say where they are in their own lines, so they cannot
+be moved — but the same corner of Gold Gulch at nine and at six is not the same
+picture, and the reckoning at sundown arrives in a sky that has been getting
+there all day.
+
 **The second gun.** Not every caller comes alone. On some encounters — about
 one in six, never more than twice in a day, and never at the doctor's, whose
 scene is indoors — the sash goes up at the lit upstairs window on the green
 front across the street and a rifle comes out of it. The sash makes a noise and
-the pane goes dark behind a hat: that is the whole warning, and it comes a
-second or two before he fires. He is a target like any other, and the crosshair
+the pane goes dark behind a hat: that is the whole warning, and it comes eight
+to fourteen seconds in, with four to six seconds after it to look up, find him
+and fire. It used to be 1.6 seconds to the sash and 5.2 to the shot, both from
+the moment the scene began — while the caller was still walking in and the panel
+was still building itself. Reading one beat takes fifteen to twenty-five
+seconds, so he fired two or three times over before anybody could finish the
+first line, on a third of all encounters. That was not a hidden threat, it was a
+coin flip with a wound on one face. He is a target like any other, and the crosshair
 finds him where the drawing put him; a ball through that window ends the
 encounter, whatever was being said. Left alone, he shoots the sheriff, and it
 makes no difference at all what the man in the street was saying at the time.
@@ -393,6 +414,14 @@ through it.
 
 The effects — the gunshot, the tell, the bells, the doctor's bottle, the alarm —
 are the supplied table. `node tools/render-sounds.js` renders any of it to wav.
+
+**Nothing counts the time the page was not running.** A locked phone or another
+app stops the frame loop but not the clock behind it, so the first frame back
+used to deliver a timestamp that had jumped by the whole absence and every
+waiting clock expired at once: you came back to a street that had already
+resolved itself. A frame more than 250 ms after the last one moves every origin
+forward with it — the man at the window, the caller's patience, a tell, a
+reload, a walk, the cue queue.
 
 ## Numbers
 

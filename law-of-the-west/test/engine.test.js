@@ -736,7 +736,11 @@ test('23. every caller answers a drawn gun in his own way and on his own clock',
       const e=CAST[i];
       r.tempers[e.id]=e.temper||null;
       const G=newDay({seed:40+i}); G.encounter=i;
-      beginEncounter(G); if(written(e))openDialogue(G);
+      // openDialogue for everyone, including the last gunfighter, who has no
+      // words and goes straight to a tell. Calling it only for the written ones
+      // left him in "approach", which is not a phase a gun can be drawn in and
+      // not a phase he is ever in when a player meets him.
+      beginEncounter(G); openDialogue(G);
       drawGun(G,0);
       r.windows[e.id]=G.reflex.limit;
       tick(G,G.reflex.limit+1);
@@ -972,6 +976,74 @@ test('27. a robbery starts clean, like any other scene', ()=>{
   assert.equal(out.sniperDuringJob,false,
     'a rifle from the last encounter is still at the window during the robbery');
   assert.equal(out.shared,true,'the two ways a scene starts have drifted apart again');
+});
+
+/* The clocks. A player on a phone reads for fifteen to twenty-five seconds a
+ * beat, locks the screen, takes a call, and comes back. None of that is the
+ * sheriff standing still to be shot at. */
+test('28. no clock resolves a scene while the street is being read', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // the man at the window warns before he fires, and the warning lands after
+    // a person could have read the line rather than during it
+    const shows=[], reacts=[];
+    for(let seed=0;seed<40;seed++){
+      const G=newDay({seed});
+      for(let i=0;i<CAST.length;i++){
+        G.encounter=i; beginEncounter(G);
+        if(G.sniper){shows.push(G.sniper.show); reacts.push(G.sniper.limit-G.sniper.show);}
+      }
+    }
+    r.earliestSash=Math.min.apply(null,shows);
+    r.shortestWindow=Math.min.apply(null,reacts);
+    r.longestFuse=Math.max.apply(null,shows.map((s,i)=>s+reacts[i]));
+    // a scene left alone stays where it is
+    const G=newDay({seed:90}); G.encounter=0; beginEncounter(G); openDialogue(G);
+    G.sniper={alive:true,fired:false,shown:false,at:null,show:8000,limit:13000};
+    for(let t=0;t<=7000;t+=16)tick(G,t);
+    r.stillTalking=G.phase; r.woundsAt7s=G.wounds; r.sashAt7s=G.sniper.shown;
+    // and the time the page was not running is not time he stood there
+    const B=newDay({seed:91}); B.encounter=0; beginEncounter(B); openDialogue(B);
+    B.sniper={alive:true,fired:false,shown:false,at:null,show:8000,limit:13000};
+    for(let t=0;t<=2000;t+=16)tick(B,t);
+    catchUp(B,60000);                         // a minute in another app
+    for(let t=62000;t<=64000;t+=16)tick(B,t);
+    r.afterBackgrounding=B.phase; r.woundsAfter=B.wounds;
+    // the reflex clock cannot fire on a screen that is not the street
+    const R=newDay({seed:92}); R.encounter=0; beginEncounter(R); openDialogue(R);
+    drawGun(R,0); R.phase="resolve";
+    tick(R,99999);
+    r.reflexOnResolve=R.wounds;
+    // and a tell stamps itself on its first live frame instead of 1970
+    const T=newDay({seed:93}); T.encounter=10;   // the last gunfighter
+    beginEncounter(T); openDialogue(T);
+    r.tellPhase=T.phase; r.tellAt=T.tell.at;
+    const late=500000;                        // the day is minutes old
+    tick(T,late);
+    r.firedOnFirstFrame=(T.phase==="summary"||T.wounds>0);
+    let shot=-1;
+    for(let t=late;t<late+4000&&shot<0;t+=16){tick(T,t); if(T.wounds>0)shot=t-late;}
+    r.reactionWindow=shot;
+    return JSON.stringify(r);
+  })()`));
+  assert.ok(out.earliestSash>=6000,
+    'the sash can go up after '+out.earliestSash+'ms, while the line is still being read');
+  assert.ok(out.shortestWindow>=3000,
+    'only '+out.shortestWindow+'ms between the warning and the shot');
+  assert.ok(out.longestFuse<=25000,'his fuse runs to '+out.longestFuse+'ms, which is no threat');
+  assert.equal(out.stillTalking,'dialogue','seven seconds of reading cost the scene');
+  assert.equal(out.woundsAt7s,0,'shot at seven seconds without touching anything');
+  assert.equal(out.sashAt7s,false,'the sash went up before the line could be read');
+  assert.equal(out.afterBackgrounding,'dialogue','a minute in another app resolved the scene');
+  assert.equal(out.woundsAfter,0,'he was shot while the page was not even running');
+  assert.equal(out.reflexOnResolve,0,'the reflex clock fired on a resolve screen');
+  assert.equal(out.tellPhase,'tell','the last gunfighter did not draw');
+  assert.equal(out.tellAt,null,'the tell was stamped before it was ever live');
+  assert.equal(out.firedOnFirstFrame,false,
+    'the last gunfighter still kills on the first frame he exists');
+  assert.ok(out.reactionWindow>=300,
+    'only '+out.reactionWindow+'ms to answer the last gunfighter');
 });
 
 test('report', ()=>{

@@ -746,10 +746,17 @@ const SND=(function(){
       else{parked=false; keepSession(); ctx(); play("select");}
       return on;},
     stopAll,
-    /* Backgrounding. The context is suspended rather than torn down, and only
-     * another gesture resumes it. */
+    /* Backgrounding. The context is suspended rather than torn down. `parked`
+     * means one thing and one thing only: the page is not being looked at. */
     suspend(){ parked=true; dropSession(); stopAll();
                if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    /* Coming back. This is the half that was missing: suspend() parked it and
+     * wake() refuses to touch anything parked, so every recovery path after a
+     * backgrounding - including the once-a-second watchdog - was a no-op and
+     * the street stayed silent for the rest of the day. The page being visible
+     * again is what unparks it, and the keep-alive element has to be started
+     * again too, because dropSession() paused it on the way out. */
+    regain(){ if(!on)return false; parked=false; keepSession(); return this.wake(); },
     get suspended(){ return !!ac&&ac.state!=="running"; },
     get state(){ return ac?ac.state:"none"; },
     get stuck(){ return stuck; },
@@ -1736,7 +1743,6 @@ const RULES={
   TELL_MIN:400, TELL_MAX:900,
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
-  REFLEX_MIN:1500, REFLEX_MAX:2600,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
    * them, which made every caller the same man wearing a different hat. A
@@ -1752,11 +1758,24 @@ const RULES={
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2,
-  // the man at the window: how often, how many in a day, how long before the
-  // sash goes up, and how long after that before he fires
+  /* The man at the window: how often, how many in a day, how long before the
+   * sash goes up, and how long the sheriff then has to do something about it.
+   *
+   * These were 1.6-3.4s to the sash and 5.2-8.2s to the shot, both measured
+   * from the moment the scene began - while the caller was still walking in,
+   * while the dialogue panel was still building itself a row at a time, and
+   * while the player was reading a hundred and fifty characters and four
+   * replies. Reading one beat takes fifteen to twenty-five seconds. He fired
+   * two or three times over before anybody could have finished the first line,
+   * every time, on a third of all encounters. That is not a hidden threat, it
+   * is a coin flip with a wound on one face.
+   *
+   * The sash now goes up after the reading rather than during it, and what
+   * follows it is a window wide enough to look up, find him and fire. The
+   * warning is still the only warning. */
   SNIPER_ODDS:0.3, SNIPERS:2,
-  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
-  SNIPER_MIN:5200, SNIPER_MAX:8200
+  SNIPER_SHOW_MIN:8000, SNIPER_SHOW_MAX:14000,
+  SNIPER_REACT_MIN:4000, SNIPER_REACT_MAX:6000
 };
 /* The phases in which the street is still happening and a second gun in it can
  * do something. On the resolve screen and between encounters it cannot. */
@@ -1837,9 +1856,9 @@ function beginEncounter(G){
   // own scene is indoors, so nobody is above it.
   if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
     G.snipers++;
-    G.sniper={alive:true,fired:false,shown:false,at:null,
-      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
-      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+    const show=Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX));
+    G.sniper={alive:true,fired:false,shown:false,at:null, show:show,
+      limit:show+Math.round(rnd(G,RULES.SNIPER_REACT_MIN,RULES.SNIPER_REACT_MAX))};
   }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
@@ -1953,6 +1972,17 @@ function moveAim(G,dx,dy){
   G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
+/* Time the page was not running is not time the sheriff stood there. rAF stops
+ * while a phone is locked or the player is in another app, but performance.now()
+ * does not, so the first frame back used to deliver a nowMs that had jumped by
+ * the whole absence and every clock expired on that single frame: you came back
+ * to the street already shot. Every origin moves forward with the gap instead. */
+function catchUp(G,gap){
+  if(!(gap>0))return;
+  if(G.sniper&&G.sniper.at!=null)G.sniper.at+=gap;
+  if(G.reflex)G.reflex.at+=gap;
+  if(G.tell&&G.tell.at!=null)G.tell.at+=gap;
+}
 function tick(G,nowMs){
   // The man at the window keeps his own clock, and it runs whatever the two in
   // the street are doing. The sash goes up first, which is the only warning
@@ -1967,7 +1997,7 @@ function tick(G,nowMs){
       return takeHit(G,"a rifle out of the window over the street");
     }
   }
-  if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
+  if(G.reflex&&LIVE.indexOf(G.phase)>=0&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
     // Nobody unarmed is a threat, but frightening one off the street with a gun
@@ -1977,6 +2007,7 @@ function tick(G,nowMs){
     if(cost<0)G.flags.push("offended");
     return resolve(G,cost<=-2?"fled":"walked_away");
   }
+  if(G.tell&&G.tell.at==null&&(G.phase==="tell"||G.phase==="duel"))G.tell.at=nowMs;
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
     if(nowMs-(G.tell.at+G.tell.delay)>=G.duel.fireDelay){
@@ -2010,7 +2041,14 @@ function theyDraw(G,why){
   const e=who(G);
   const span=RULES.TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
-  G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
+  /* Stamped on the first frame this is live, the way the sniper's is. It used
+   * to be 0, and the UI re-stamped it on two of the four paths that reach here.
+   * On the other two - the last gunfighter, who never talks, and the ambush a
+   * shot-off hat provokes - it stayed 0, and since nowMs is performance.now()
+   * and the day is minutes old, the very first tick found the whole tell and
+   * the whole fire delay already elapsed and answered with "outdrawn". The
+   * eleventh caller killed you the instant he appeared, every game. */
+  G.tell={at:null,why,delay:Math.round(rnd(G,span[0],span[1]))};
   G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",why,
     fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)),
     latency:null,error:null,result:null};
@@ -2272,6 +2310,10 @@ let seq=0;
 const queue=[];
 function cueAtMs(ms,fn){queue.push({at:performance.now()+ms,seq:seq,fn:fn});}
 function newSeq(){seq++; queue.length=0;}
+/* Cues waiting on the clock wait on the same terms as everything else: a door
+ * and six footsteps queued before the phone was locked should still be a door
+ * and six footsteps afterwards, not all of them at once. */
+function shiftQueue(gap){for(const c of queue)c.at+=gap;}
 function runQueue(now){
   if(!queue.length)return;
   queue.sort((a,b)=>a.at-b.at);
@@ -2976,40 +3018,91 @@ const PLACES={
   "THE CUT":   {sign:"GOLD GULCH & WESTERN", prop:"loco"},
   BANK:        {sign:"J P MORGAN BANK",      prop:"crates"}};
 
+/* ---- the hour ---- *
+ * Eleven callers came to the same photograph. The sign over the middle building
+ * changed and one prop in the corner changed, and nothing else did: the same
+ * sky, the same hills, the same six frontages, the same three people on the
+ * boardwalk, for the whole day. That is what "it is always the same street"
+ * means, and moving callers to other places does not fix it - most of them say
+ * where they are in their own lines, and those lines are not mine to rewrite.
+ *
+ * So the street stops being a photograph. The day runs from a cold early
+ * morning to a low red sun, and every colour that carries the light is mixed
+ * toward the hour before it is used. The same corner of Gold Gulch at nine and
+ * at six is not the same picture, and the reckoning at sundown arrives in a sky
+ * that has been getting there all day.
+ */
+function hourOf(){
+  if(G.phase==="intro")return 0.30;
+  const n=Math.max(1,CAST.length-1);
+  const t=Math.min(1,Math.max(0,(G.encounter+(G.phase==="summary"?1:0))/n));
+  return t;
+}
+const MORNING={sky1:"#2a2a86",sky2:"#4a5ab6",sky3:"#86a2d8",haze:"#c6d2e6",
+  hill:"#48506e",hill2:"#333a58",dirt:"#a8a8a4",dirt2:"#918f8c",dirt3:"#c2c2bd",
+  cloud:"#ffffff",cloud2:"#cdd4e8"};
+const EVENING={sky1:"#3a1a5e",sky2:"#8a3a62",sky3:"#d87a54",haze:"#f0c090",
+  hill:"#5a3a52",hill2:"#3a2440",dirt:"#c0a48c",dirt2:"#a08670",dirt3:"#d8c0a4",
+  cloud:"#ffd8b0",cloud2:"#e0a888"};
+/* Mixed once per frame rather than per pixel: a dozen strings, not a repaint. */
+let hourMix=null, hourAt=-1;
+function hue(){
+  const t=hourOf();
+  if(hourMix&&Math.abs(t-hourAt)<0.001)return hourMix;
+  hourAt=t; hourMix={};
+  for(const k of Object.keys(MORNING))hourMix[k]=mix(MORNING[k],EVENING[k],t);
+  return hourMix;
+}
+function mix(a,b,t){
+  const A=parseInt(a.slice(1),16), B=parseInt(b.slice(1),16);
+  const r=Math.round(((A>>16)&255)+(((B>>16)&255)-((A>>16)&255))*t);
+  const g=Math.round(((A>>8)&255)+(((B>>8)&255)-((A>>8)&255))*t);
+  const c=Math.round((A&255)+((B&255)-(A&255))*t);
+  return "#"+((1<<24)|(CLAMP(r)<<16)|(CLAMP(g)<<8)|CLAMP(c)).toString(16).slice(1);
+}
 function sky(){
-  skyband(0,14,T.sky1,T.sky2);
-  skyband(14,34,T.sky2,T.sky3);
-  skyband(34,52,T.sky3,T.haze);
+  const H=hue();
+  skyband(0,14,H.sky1,H.sky2);
+  skyband(14,34,H.sky2,H.sky3);
+  skyband(34,52,H.sky3,H.haze);
   for(const [cx,cy,w] of [[26,12,40],[96,8,54],[168,16,46],[236,6,50],[292,20,36]]){
     for(let k=0;k<4;k++){                                  // stepped, lit on top
       const inset=[0,5,11,19][k], hh=[3,3,3,2][k];
-      px(cx+inset,cy+7-k*3,w-inset*2,hh,k?T.cloud:T.cloud2);
+      px(cx+inset,cy+7-k*3,w-inset*2,hh,k?H.cloud:H.cloud2);
     }
-    dither(cx+3,cy+8,w-6,3,T.cloud2,T.cloudsh,0.55);
+    dither(cx+3,cy+8,w-6,3,H.cloud2,T.cloudsh,0.55);
   }
   for(let x=0;x<SCENE.w;x++){                              // the rim of hills
     const h=Math.round(50+7*Math.sin(x/33)+4*Math.sin(x/11));
-    px(x,h,1,4,T.hill); px(x,h+4,1,HORIZON-h-4,T.hill2);
+    px(x,h,1,4,H.hill); px(x,h+4,1,HORIZON-h-4,H.hill2);
   }
-  dither(0,46,SCENE.w,10,T.hill2,T.haze,0.4);
+  dither(0,46,SCENE.w,10,H.hill2,H.haze,0.4);
 }
 /* ---- ground: one broad dirt plaza, tonal rather than striped ---- */
 function ground(){
-  px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,T.dirt);
-  dither(0,HORIZON,SCENE.w,10,T.dirt,T.dirt2,0.55);        // it packs hard at the walls
+  const H=hue();
+  px(0,HORIZON,SCENE.w,SCENE.h-HORIZON,H.dirt);
+  dither(0,HORIZON,SCENE.w,10,H.dirt,H.dirt2,0.55);        // it packs hard at the walls
   for(let i=0;i<14;i++){                                   // broad patches of wear
     const x=(hash(i,5)%300)-20, y=HORIZON+4+(hash(i,9)%70);
     const w=30+(hash(i,13)%70), h=6+(hash(i,17)%14);
-    dither(x,y,w,h,T.dirt,(i%3)?T.dirt3:T.dirt2,0.22);
+    dither(x,y,w,h,H.dirt,(i%3)?H.dirt3:H.dirt2,0.22);
   }
-  dither(0,SCENE.h-22,SCENE.w,22,T.dirt,T.dirtsh,0.30);    // shadow at the near edge
+  dither(0,SCENE.h-22,SCENE.w,22,H.dirt,T.dirtsh,0.30);    // shadow at the near edge
   for(let i=0;i<90;i++){                                   // stones, lit and shadowed
     const x=(hash(i,3)%SCENE.w), y=HORIZON+2+(hash(i,7)%(SCENE.h-HORIZON-4));
     const w=1+(hash(i,11)%3);
-    px(x,y,w,1,T.dirt3); px(x,y+1,w,1,T.dirtsh);
+    px(x,y,w,1,H.dirt3); px(x,y+1,w,1,T.dirtsh);
   }
 }
 /* ---- buildings: each one its own design, not five of the same ---- */
+/* A window is lit or it is not, and which is which was fixed for the whole day.
+ * Towards evening the lamps go on, so a frontage that was dark all morning is
+ * lit by the last caller. */
+function litNow(seed,lit){
+  const t=hourOf();
+  return lit||t>0.55+((seed*37)%100)/250;
+}
 function windowPane(x,y,w,h,lit,frame){
   px(x-1,y-1,w+2,h+2,frame);
   px(x,y,w,h,lit?T.lit:T.glass);
@@ -3024,7 +3117,7 @@ function boarded(x0,x1,top){                               // tan boards, false 
   for(let y=top+5;y<HORIZON;y+=3)px(x0,y,w,1,T.boardsh);
   px(x0,top,w,5,T.boardtr); px(x0,top,w,1,T.stone); px(x0,top+5,w,1,T.dark);
   px(x0,top+5,2,HORIZON-top-5,T.boardtr); px(x1-2,top+5,2,HORIZON-top-5,T.boardtr);
-  windowPane(x0+7,top+12,10,11,hash(x0,1)%3!==0,T.boardtr);
+  windowPane(x0+7,top+12,10,11,litNow(x0,hash(x0,1)%3!==0),T.boardtr);
   px(x0+4,HORIZON-24,w-8,3,T.boardtr); px(x0+4,HORIZON-21,w-8,1,T.dark);
   dither(x0+4,HORIZON-20,w-8,5,T.board,T.dark,0.5);
   for(const p of [x0+5,x1-8])px(p,HORIZON-21,2,21,T.boardtr);
@@ -3038,9 +3131,9 @@ function plastered(x0,x1,top,wall,sh){                     // green or white pla
   px(x0,top,w,4,sh); px(x0,top,w,1,T.stone);               // parapet
   px(x0,top+4,w,1,"rgba(0,0,0,.35)");
   px(x1-3,top+4,3,HORIZON-top-4,sh);                       // the shaded side
-  windowPane(x0+6,top+11,9,10,false,sh);
-  windowPane(x1-16,top+11,9,10,hash(x0,2)%2===0,sh);
-  windowPane(x0+6,top+30,9,10,false,sh);
+  windowPane(x0+6,top+11,9,10,litNow(x0+1,false),sh);
+  windowPane(x1-16,top+11,9,10,litNow(x0,hash(x0,2)%2===0),sh);
+  windowPane(x0+6,top+30,9,10,litNow(x0+2,false),sh);
   px(x1-17,top+30,13,HORIZON-top-30,T.dark);
   px(x1-16,top+31,11,HORIZON-top-31,"#14100a");
 }
@@ -3430,13 +3523,23 @@ function sniperInWindow(){
  * black doorway alike. */
 const RETICLE=[[-5,0],[-4,0],[-3,0],[3,0],[4,0],[5,0],
                [0,-5],[0,-4],[0,-3],[0,3],[0,4],[0,5],[0,0]];
+const CORNERS=[[-5,-5],[-4,-5],[-5,-4], [5,-5],[4,-5],[5,-4],
+               [-5,5],[-4,5],[-5,4],    [5,5],[4,5],[5,4]];
+/* On a phone, held at arm's length, white blocks on a pale dirt street are not
+ * a gunsight - they are a smudge, and a player who cannot see where he is
+ * pointing reports that drawing the gun does nothing. So it is drawn the way
+ * every other small thing in this picture is: a black rim on every side rather
+ * than a shadow to one side, and four corner ticks that give it an outline
+ * against anything. Yellow once somebody has drawn on you. */
 function crosshair(){
   const a=G.aim;
   const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
   ctx.fillStyle=C64.blk;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2+1,y+dy*2+1,2,2);
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
   ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
   for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2,y+dy*2,2,2);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2,y+dy*2,2,2);
 }
 
 /* ---- the five-line matrix ---- *
@@ -3561,7 +3664,7 @@ function paint(){
   if(G.phase==="resolve"){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
     setChoice(lineEls[1],1,(G.encounter>=CAST.length-1)
-      ?"End the day":"Walk on down the street","sel");
+      ?"End the day":walkOn(),"sel");
     for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
     hud(); fitText(); return;
   }
@@ -3580,6 +3683,13 @@ function paint(){
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
     :"Nobody is saying anything. The street has gone quiet.";
   const replies=(b&&!balked)?b.replies:[];
+  // The replies vanishing with no explanation reads as the game breaking. It is
+  // not: he has stopped talking because there is a gun on him.
+  if(balked&&b){
+    setChoice(lineEls[1],1,"\u2014 he will not talk to a gun. HOL puts it away.","dim");
+    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
+    hud(); fitText(); return;
+  }
   for(let i=0;i<4;i++){
     // the cursor stays visible with the gun out, so holstering does not lose your place
     setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
@@ -3587,6 +3697,32 @@ function paint(){
   }
   hud(); fitText();
 }
+/* Walking on from an arrest should not read the same as walking on from a
+ * killing. One string covered all twenty-four outcomes; now the street you step
+ * back into knows what just happened on it. */
+const WALK_ON={
+  disarmed:"Put him in the jail and walk on",
+  surrendered:"Walk him to the jail",
+  hat_yield:"Walk him to the jail",
+  killed_him:"Leave him for the undertaker",
+  innocent_killed:"Walk away from it",
+  wounded_innocent:"Walk away from it",
+  fled:"Let them go",
+  hat_scared:"Let them go",
+  departed:"Watch him go, then walk on",
+  walked_away:"Watch him go, then walk on",
+  turns_away:"Keep him in sight",
+  missed_him:"Let it lie and walk on",
+  outsmarted:"Pick your hat up",
+  hat_deputy:"Say nothing and walk on",
+  sniper_down:"Look up at the window, then walk on",
+  hat_unmasked:"Let the street get a good look at him",
+  doctor_saved:"Get back on your feet",
+  doctor_came:"Get back on your feet",
+  doctor_drunk:"Get back on your feet",
+  job_missed:"Walk back up the street"
+};
+function walkOn(){return WALK_ON[G.outcome]||"Walk on down the street";}
 const OUTCOME_LINES={
   disarmed:"His gun is in the dust and his wrists are in irons.",
   killed_him:"He is dead in the street, and the street saw who fired.",
@@ -3686,11 +3822,11 @@ document.addEventListener?.("visibilitychange",()=>{
   // Coming back is not a fresh start: the gesture that unlocked the audio still
   // counts, so the sound comes back with the picture rather than waiting for
   // another tap that, on a television across the room, may never come.
-  SND.wake();
+  SND.regain();
   if(gameMode)keepAwake();
 });
-addEventListener("pageshow",()=>SND.wake());
-addEventListener("focus",()=>SND.wake());
+addEventListener("pageshow",()=>SND.regain());
+addEventListener("focus",()=>SND.regain());
 addEventListener("pagehide",()=>{releaseAll(); newSeq(); SND.suspend();});
 
 /* ---- input, one control set for the pad and the keyboard ---- */
@@ -3798,6 +3934,9 @@ function putUp(){
 function up(){
   if(screen==="sound"){soundCmd("prev");return;}
   if(G.phase==="intro")return;
+  // A gun cannot come out on a resolve screen or between encounters. It used to
+  // do nothing at all and say nothing about it, which reads as a dead button.
+  if(G.mode==="talk"&&G.phase!=="dialogue"&&G.phase!=="tell"){SND.deny();return;}
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
     SND.cut();                                  // the theme stops where the gun starts
@@ -3919,8 +4058,17 @@ function showSound(on){
    *
    * And SOUND: ON while a phone sits on its silent switch is a lie the player
    * has no way to see through, so a context that will not run says so instead. */
-  const stuck=on&&SND.state!=="none"&&SND.state!=="running";
-  muteBtn.textContent=on?(stuck?"NO AUDIO":"SOUND: ON"):"SOUND: OFF";
+  /* "SOUND: ON" used to cover two very different things: audio that is running,
+   * and audio that is merely permitted with no context behind it - which is the
+   * state every page load starts in, before any gesture. The button said ON and
+   * the street was silent, so the player tapped it, and that tap turned it off
+   * for good. The three states are now three labels. */
+  const st=SND.state;
+  const stuck=on&&st!=="none"&&st!=="running";
+  muteBtn.textContent=!on?"SOUND: OFF"
+    :stuck?"NO AUDIO"
+    :st==="none"?"SOUND: TAP"
+    :"SOUND: ON";
   muteBtn.setAttribute("aria-label",
     on?(stuck?"Sound is on but this device is not playing it":"Sound is on")
       :"Sound is off");
@@ -3981,8 +4129,12 @@ function releaseAll(){pressed.clear();aimRun=0;aimTick=0;releaseHeld();}
 document.querySelectorAll("[data-cmd]").forEach(el=>{
   el.addEventListener("pointerdown",e=>{
     e.preventDefault();
-    if(firstGesture()){paint();return;}          // that press raised the music
     const cmd=el.dataset.cmd;
+    // The first gesture is spent raising the music and nothing else - except on
+    // the sound button itself, where swallowing the press meant the first tap
+    // did nothing visible and the second one turned the sound off. A player who
+    // reaches for that button is asking for the sound to change; it changes.
+    if(firstGesture()&&cmd!=="mute"){paint();return;}
     // capture can throw if the pointer has already gone; the press still counts
     try{el.setPointerCapture?.(e.pointerId);}catch(err){}
     runCmd(cmd,el);
@@ -4092,8 +4244,25 @@ if(cv.addEventListener){
  * One rAF loop, wrapped. Where there is no rAF - a headless harness - the
  * frame function is exposed instead so a test can step time itself. */
 const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
+/* A frame that arrives a long time after the last one means the page was not
+ * running - a locked phone, another app, a backgrounded tab. rAF stops but
+ * performance.now() keeps counting, so without this every clock in the game
+ * would find its whole span elapsed on the single frame that comes back, and
+ * the player would return to a scene that had already resolved itself. Nothing
+ * that was waiting gets to count the time nobody was watching. */
+let lastNow=-1; const STALL=250;
 function frame(now){
   try{
+    if(lastNow>=0&&now-lastNow>STALL){
+      const gap=now-lastNow-16;
+      catchUp(G,gap);
+      build.at+=gap;
+      if(reloadAt>0)reloadAt+=gap;
+      kickAt+=gap; blackAt+=gap; walkAt+=gap; reactAt+=gap; drawnAt+=gap;
+      if(held)held.next+=gap;
+      shiftQueue(gap);
+    }
+    lastNow=now;
     if(build.rows<10&&now-build.at>60*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}

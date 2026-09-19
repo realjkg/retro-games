@@ -182,7 +182,7 @@ test('8e. the mute control and the m key both toggle and show it', {skip:jsdomMi
   const before=p.snd().on;
   p.tap('#mute');
   assert.notEqual(p.snd().on,before,'the mute control did nothing');
-  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
+  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF|TAP)$|^NO AUDIO$/);
   assert.equal(p.el('mute').getAttribute('aria-pressed'),String(p.snd().on));
   p.press('m');
   assert.equal(p.snd().on,before,'the m key did not toggle it back');
@@ -425,9 +425,12 @@ test('8o. being outdrawn by the clock still paints the reckoning', {skip:jsdomMi
   p.ready();
   // one wound already carried, a hostile doctor, and a man who has drawn
   p.ev('G.doctor.disposition=-2;');
-  p.ev('theyDraw(G,"draw");G.tell.at=0;');
-  p.frame(60);                                     // he clears leather
-  p.frame(4000);                                   // and fires before anybody moved
+  // theyDraw leaves tell.at null and the first live frame stamps it. Setting it
+  // to 0 by hand was reproducing the bug this test is no longer about, and
+  // stepping straight from 60ms to 4000ms now reads as a backgrounded page, so
+  // the clocks are held. Step it the way a browser would.
+  p.ev('theyDraw(G,"draw");');
+  for(let t=60;t<=2000;t+=100)p.frame(t);          // he clears leather, and fires
   assert.equal(p.G().phase,'summary','the clock never killed him');
   assert.equal(p.G().alive,false);
   assert.match(p.el('line0').textContent,/THE STREET KEPT YOU — -?\d+ points/,
@@ -467,7 +470,7 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(quiet.el('mute').textContent,'SOUND: OFF','the control does not say so');
   // the label is a state, never an instruction: a button saying SOUND ON is
   // pressed by someone wanting sound on, which turns it off and keeps it off
-  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
+  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF|TAP)$|^NO AUDIO$/);
   assert.equal(quiet.el('mute').getAttribute('aria-pressed'),'false');
   quiet.tap('[data-cmd="fire"]');
   assert.equal(quiet.ev('typeof (window.AudioContext||window.webkitAudioContext)'),
@@ -483,7 +486,13 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'0','the choice was not kept');
   p.tap('[data-cmd="mute"]');
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'1');
-  assert.equal(p.el('mute').textContent,'SOUND: ON');
+  // "SOUND: TAP" is sound permitted with no audio context behind it yet, which
+  // is what a jsdom page always is and what every real page is before its first
+  // gesture. It is deliberately not "SOUND: ON": that lie is what got the sound
+  // switched off for good on a phone.
+  assert.equal(p.ev('SND.on'),true,'the control did not turn it back on');
+  assert.match(p.el('mute').textContent,/^SOUND: (ON|TAP)$/,
+    'turning it on left the button reading '+p.el('mute').textContent);
 
   // every cue the game can fire is one the engine knows, and the ones a player
   // hears over and over are the ones allowed to move
@@ -1025,7 +1034,14 @@ test('9w. the gun in his face takes his four replies away until it is put up',
   assert.equal(p.G().balked,true,'he carried on talking down a barrel');
   const balked=lines();
   assert.equal(balked[0],p.ev('CAST[G.encounter].balk'),'he is not saying his piece about it');
-  assert.deepEqual(balked.slice(1).filter(Boolean),[],'his replies are still on offer');
+  // not one of his four replies is on offer, and the slot that is left says why
+  // rather than leaving the panel blank, which reads as the game having broken
+  const his=p.ev('CAST[G.encounter].rounds.opening.replies.map(r=>r.text)');
+  for(const line of balked.slice(1))
+    assert.ok(!his.includes(line),'a reply is still on offer: '+line);
+  assert.match(balked[1],/will not talk to a gun/,
+    'nothing tells the player why the replies went: "'+balked[1]+'"');
+  assert.deepEqual(balked.slice(2).filter(Boolean),[],'more than the one line is showing');
   // and putting it up hands the conversation back where it was
   p.press('Escape');
   assert.equal(p.G().mode,'talk');
