@@ -72,7 +72,7 @@ The art is drawn from a photograph of the original running, supplied by the owne
 repository — I cannot reach a screenshot or a disk image from where this is built, so that
 photograph is the only sight of the game anyone here has had.
 
-**The hero is a transcription of it.** The photograph is a 320×240 screen at double size, so
+**The hero, the wordmark and the pillars are transcriptions of it.** The photograph is a 320×240 screen at double size, so
 each native pixel is a 2×2 block; the blocks under the character were averaged, matched to the
 nearest of the four colours on screen, mirrored (he faces left in the photograph and right in
 the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
@@ -138,9 +138,14 @@ What that means on screen:
 - **The trapdoors** of the third scene are white boards in a magenta frame while they are
   shut, and a flap hanging through the hole once sprung — green if that was the safe one, red
   if it was not.
-- **The title card** is the same cast at twice the size: the robot hovering with a ball
-  already on its way, the boy along the floor to the right, and the witch doctor to the left
-  with his staff lit.
+- **The title card** is the original's, as closely as a screen with a menu on it can be: the
+  robot hovering over the top floor with his pack lit, the **Drol** wordmark standing inside
+  the first storey — read off the real title screen, orange with a white glint on each letter
+  — and a **fluted pillar** at either end of every storey, with its cyan capital, its dentil
+  frieze and its cyan base, the shaft repeated to whatever height the storey is. The floors
+  there are magenta with a white edge, as the title screen's are. Underneath it says AFTER AIK
+  BENG · BRØDERBUND 1983, because he wrote it and they published it, and this is neither.
+- **The panel's wordmark** is that same picture at half size, where the original puts its own.
 - **The icon and the gallery tile** are that same sprite, scaled up and generated from it, so
   the game looks like itself from the collection page, the home screen and the browser tab.
 - **The panel along the top** carries what the photograph carries: score, robots left, the
@@ -307,9 +312,11 @@ Two details the sources disagree on, and how they are resolved here:
 - [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
   generic-looking robot across a four story map layout. The robot levitates and is able to
   shoot multi-coloured balls out of his chest."
-- **A photograph of the original running**, supplied by the owner of this repository, which is
-  where the palette, the panel across the top, the coiled serpents, the swords, the urns and
-  the shape of the hero come from. It is the only sight of the game this work has had.
+- **Photographs of the original running and of its title screen**, supplied by the owner of
+  this repository, which are where the palette, the panel across the top, the coiled serpents,
+  the swords, the urns, the shape of the hero, the **Drol** wordmark and the pillars come from.
+  They are the only sight of the game this work has had, and they name its author: **Aik Beng**,
+  for Brøderbund, 1983.
 - Contemporary reviews, for what else it looked like: ANALOG
   Computing's February 1984 line that Drol had "some of the best pseudo-3D graphics I've ever
   seen" — the two facts the art here is drawn towards, since no screenshot of the original was

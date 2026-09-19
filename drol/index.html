@@ -56,7 +56,7 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
 /* Over the title art the overlay is only a scrim, so the maze shows through. */
-#overlay.splash{background:linear-gradient(rgba(5,8,18,0) 0%,rgba(5,8,18,0) 46%,rgba(5,8,18,.9) 68%);
+#overlay.splash{background:linear-gradient(rgba(0,0,0,0) 0%,rgba(0,0,0,0) 52%,rgba(0,0,0,.55) 66%,rgba(0,0,0,.82) 100%);
   justify-content:flex-end;gap:6px;padding:10px 12px 12px}
 #overlay.splash h1{font-size:15px;margin-bottom:2px;text-shadow:0 1px 3px #000}
 #overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(18,24,44,.92);
@@ -456,6 +456,58 @@ function savePrefs(){
    {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best}));
  }catch(e){}
 }
+
+/* ============ the title screen's own furniture ============ */
+// The wordmark, read off the original's title screen the same way the hero was:
+// sixty-seven by fourteen, orange with a white glint on each letter.
+const DROL_PIX=[
+ "..OOOOOOOOOOO.................................................OOO..",
+ "OOOOWWWOOOOOOOO.............................................OOOOOOO",
+ "OOWWWOOOOOOOOOOOO...........................................OOWWWOO",
+ "OOOOOOOOOOOOOOOOO...........................................OOOOOOO",
+ "OOOOOOO...OOOOOOOOO.....OOOOO...OOO...........OOOOO.........OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOWWWOO.......OOWWWOOOO.......OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOOOO.......OOOOOOOOO.......OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOOOO.....OOOOOOOOOOOOO.....OOOOOOO",
+ "OOOOOOO.....OOOOOOO.....OOOOOOOOOOO.......OOOOO...OOOOO.....OOOOOOO",
+ "OOOOOOO...OOOOOOOOO.....OOOOOOO...........OOOOO...OOOOO.....OOOOOOO",
+ "OOOOOOOOOOOOOOOOO.......OOOOOOO...........OOOOOOOOOOOOO.....OOOOOOO",
+ "OOOOOOOOOOOOOOOOO.......OOOOOOO.............OOOOOOOOO.......OOOOOOO",
+ "OOOOOOOOOOOOOOO.........OOOOOOO.............OOOOOOOOO.......OOOOOOO",
+ "..OOOOOOOOOOO.............OOO.................OOOOO...........OOO.."
+];
+const DROL_PAL={O:"#f4783c",W:"#ffffff"};
+// And a pillar of the ruin it is all set in: a cyan capital, a dentil frieze,
+// a fluted shaft and a cyan base.
+const PILLAR_PIX=[
+ "WWCCCCCCCCCCCCCCCC..",
+ "WWCCCCCCCCCCCCCCCC..",
+ ".CCCCCCCCCCCCCCCCC..",
+ "..WWW..WWW..WW..WWW.",
+ ".....WW...WW..WW....",
+ "..WWW..WWW..WW..WWW.",
+ ".....WW...WW..WW....",
+ "...WW..WWW..WW..WW..",
+ ".....WW...WW..WW....",
+ "...WW..WWW..WW..WW..",
+ "...MMMMMMMMMMMMMM...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "....WWMWWWMWWWMWW...",
+ "..WWCCCCCCCCCCCCC...",
+ "..WWCCCCCCCCCCCCC...",
+ "....WWMWWWMWWWMWW...",
+ "...CCCCCCCCCCCCCC...",
+ "WWCCCCCCCCCCCCCCCC..",
+ "WWCCCCCCCCCCCCCCCC.."
+];
+const PILLAR_PAL={C:"#40c0ff",W:"#ffffff",M:"#ff40ff"};
 
 /* ============ the game ============ */
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
@@ -1284,11 +1336,10 @@ function drawRadar(){
  c.fillStyle="#e8e8f4";c.fillText("HISCORE",W-3,2);
  c.fillText(String(Math.max(G.best,G.score)).padStart(6," "),W-3,11);
  c.fillStyle="#40c050";                                    // the green bars beside the name
- for(let i=0;i<3;i++)c.fillRect(W-64,21+i*4,18,3);
+ for(let i=0;i<3;i++)c.fillRect(W-DROL_PIX[0].length/2-22,21+i*3,16,2);
  c.textAlign="left";
- c.font="bold 13px ui-rounded,Helvetica,Arial,sans-serif";
- c.fillStyle="#e03030";c.fillText("Drol",W-42,20);
- c.font="8px monospace";
+ // The panel's wordmark is the same picture at half size, as the original's is.
+ drawPix(DROL_PIX,DROL_PAL,W-DROL_PIX[0].length/2-3,21,.5,false);
  // middle: the scope, a box with one line per storey and a dot for everything on it
  const bx=Math.round(W*.31), bw=Math.round(W*.38), by=2, bh=H-6;
  c.fillStyle="#d838c8";c.fillRect(bx,by,bw,bh);
@@ -1330,70 +1381,73 @@ function drawHUD(){
 }
 // Title card: the four storeys in silhouette, the robot hanging in the middle of
 // them with his flame lit, a child two floors down and something watching.
+// Title card: the original's, as close as this screen gets. A magenta floor with
+// a white edge, fluted pillars standing between the storeys, the wordmark read
+// off the real title screen, and the robot hovering over the top floor.
 function drawTitle(){
  const c=ctx, W=VW, H=VH, t=G.uiT;
- const sky=c.createLinearGradient(0,0,0,H);
- sky.addColorStop(0,"#05070f");sky.addColorStop(.55,"#131a33");sky.addColorStop(1,"#2a1a2e");
- c.fillStyle=sky;c.fillRect(0,0,W,H);
- for(let i=0;i<40;i++){
-  const x=(i*83)%W, y=(i*29)%Math.round(H*.4);
-  c.fillStyle="rgba(200,220,255,"+(.18+.4*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
+ c.fillStyle="#000000";c.fillRect(0,0,W,H);
+ for(let i=0;i<40;i++){                                      // the dark above the ruin
+  const x=(i*83)%W, y=(i*29)%Math.round(H*.30);
+  c.fillStyle="rgba(200,220,255,"+(.14+.3*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
   c.fillRect(x,y,1,1);
  }
- // Four floors across the whole card, with the pillared wall behind them, the
- // robot hanging over the top one and what he came for further down, where the
- // menu's scrim takes over.
- const rows=[.50,.61,.72,.83].map(k=>Math.round(H*k));
- rows.forEach((y,f)=>{
-  c.fillStyle="#3a34c8";c.fillRect(0,y,W,7);                 // the band
-  c.fillStyle="#6a62e8";c.fillRect(0,y,W,5);
-  c.fillStyle="#ffffff";c.fillRect(0,y,W,2);                 // the white edge
-  const gx=Math.round(W*[.62,.20,.38,.54][f]);               // the holes you fly through,
-                                                             // kept clear of the cast
-  c.fillStyle="#000000";c.fillRect(gx,y,30,7);
- });
- // The robot, the same twelve-by-sixteen picture the game draws, at four times
- // the size and lit by his own rocket: the card and the sprite are one drawing.
- const u=Math.max(2,Math.round(W/110));                       // one sprite pixel, on this card
- const hx=Math.round(W*.46)-Math.round(HERO_PIX[0].length/2)*u;
- // Stand him on the top floor, but never so high that he climbs into the title.
- const hy=Math.max(Math.round(H*.26),rows[0]-HERO_PIX.length*u)+Math.round(Math.sin(t*2)*3);
+ // Four floors of the ruin, magenta with a white edge, as the title screen has;
+ // the wordmark stands inside the first storey rather than over the top of it,
+ // which is where the original puts it.
+ const rows=[.32,.52,.72,.92].map(k=>Math.round(H*k));
+ const floor=y=>{
+  c.fillStyle="#ffffff";c.fillRect(0,y,W,2);
+  c.fillStyle="#ff40ff";c.fillRect(0,y+2,W,5);
+ };
+ rows.forEach(floor);
+ const u2=W>300?2:1, lw=DROL_PIX[0].length*u2;
+ const storey=rows[1]-rows[0];
+ drawPix(DROL_PIX,DROL_PAL,Math.round((W-lw)/2),
+   rows[0]+7+Math.round((storey-10-DROL_PIX.length*u2)/2),u2,false);
+ c.font="7px monospace";c.textAlign="center";c.textBaseline="top";
+ c.fillStyle="#40c0ff";c.fillText("AFTER AIK BENG",W/2,rows[1]+9);
+ c.fillStyle="#ff40ff";c.fillText("BR\u00d8DERBUND 1983",W/2,rows[1]+18);
+ c.textAlign="left";
+ // Pillars standing on each floor and holding up the one above. The capital and
+ // the base are fixed; the fluted shaft is repeated to fill whatever is between
+ // them, so a pillar is the height of its storey rather than a fixed picture.
+ const CAP=PILLAR_PIX.slice(0,11), SHAFT=[PILLAR_PIX[11]], BASE=PILLAR_PIX.slice(20);
+ for(let r=0;r<rows.length-1;r++){
+  const top=rows[r]+7, bot=rows[r+1];
+  // Two to a storey, at the ends, as the original has them - anything in the
+  // middle would stand in front of the wordmark.
+  for(const fx of [.07,.93]){
+   const px0=Math.round(W*fx-PILLAR_PIX[0].length/2);
+   drawPix(CAP,PILLAR_PAL,px0,top,1,false);
+   for(let y=top+CAP.length;y<bot-BASE.length;y++)drawPix(SHAFT,PILLAR_PAL,px0,y,1,false);
+   drawPix(BASE,PILLAR_PAL,px0,bot-BASE.length,1,false);
+  }
+ }
+ // the robot, hovering over the top floor with his pack lit
+ const u=Math.max(1,Math.round(W/190)), hw=HERO_PIX[0].length*u;
+ const hx=Math.round(W*.42-hw/2), hy=rows[0]-HERO_PIX.length*u-2+Math.round(Math.sin(t*2)*3);
  const flame=(4+Math.round(Math.sin(t*16)))*u;
  c.fillStyle="#e04040";c.fillRect(hx+1*u,hy+14*u,u,flame);
  c.fillStyle="#eeeeee";c.fillRect(hx+2*u,hy+14*u,u,flame);
  drawPix(HERO_PIX,HERO_PAL,hx,hy,u,false);
- c.fillStyle="#eeeeee";c.fillRect(hx+21*u,hy+10*u,3*u,2*u);   // a ball already on its way
- const cx2=Math.round(W*.76), cy=rows[0]-21;                 // the boy, along the same floor
+ c.fillStyle="#eeeeee";c.fillRect(hx+hw+u,hy+10*u,3*u,2*u);  // a ball already on its way
+ // and, along the floor below, what he came for and what took them
+ const cy=rows[2]-18, cx2=Math.round(W*.74);
  c.fillStyle="#3a86e0";c.fillRect(cx2,cy+9,11,9);
  c.fillStyle="#6aa8f0";c.fillRect(cx2,cy+9,11,2);
  c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,7);
  c.fillStyle="#6a4a28";c.fillRect(cx2+1,cy,9,3);
  c.fillStyle="#1a1008";c.fillRect(cx2+4,cy+4,1,2);c.fillRect(cx2+7,cy+4,1,2);
  c.fillStyle="#2a3550";c.fillRect(cx2+1,cy+18,4,3);c.fillRect(cx2+7,cy+18,4,3);
- c.fillStyle="#f0c89a";c.fillRect(cx2+11,cy+6,2,4);          // an arm up, for the toy
- const dx=Math.round(W*.16), dy=rows[0]-24;                  // and the one who took him
- c.fillStyle="#3a2c58";c.fillRect(dx,dy+9,12,15);
- c.fillStyle="#54407e";c.fillRect(dx,dy+9,12,2);
+ const dx=Math.round(W*.20), dy=rows[2]-21;
+ c.fillStyle="#3a2c58";c.fillRect(dx,dy+9,12,12);
  c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,7);
  c.fillStyle="#f0f0e0";c.fillRect(dx+3,dy+5,3,3);c.fillRect(dx+7,dy+5,2,3);
- c.fillStyle="#1a1008";c.fillRect(dx+4,dy+6,1,1);c.fillRect(dx+7,dy+6,1,1);
- c.fillStyle="#d84a6a";c.fillRect(dx-1,dy,14,4);
+ c.fillStyle="#e03030";c.fillRect(dx-1,dy,14,4);
  c.fillStyle="#ffe14a";c.fillRect(dx+3,dy-5,3,5);c.fillRect(dx+8,dy-4,3,4);
- c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+4,2,20);          // the staff
+ c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+4,2,17);
  c.fillStyle=(Math.floor(t*4)%2)?"#ffe14a":"#e0902a";c.fillRect(dx+12,dy,4,4);
- if(G.menuTitle){c.textAlign="left";return;}   // a menu with its own headline keeps the art bare
- c.fillStyle="rgba(5,7,15,.45)";c.fillRect(0,0,W,Math.round(H*.26));
- const big=Math.max(22,Math.round(W/9)), letters="DROL", gap2=big*.78;
- c.textBaseline="top";c.textAlign="center";
- c.font="bold "+big+"px ui-rounded,Helvetica,Arial,sans-serif";
- letters.split("").forEach((ch,i)=>{
-  const x=W/2+(i-(letters.length-1)/2)*gap2, y=Math.round(H*.04);
-  c.fillStyle="#1a1226";c.fillText(ch,x+2,y+2);
-  c.fillStyle="#ffc24a";c.fillText(ch,x,y);
- });
- c.font="8px monospace";c.fillStyle="#c7d2ec";
- c.fillText("THE FOUR-STOREY MAZE",W/2,Math.round(H*.04)+big+3);
- c.textAlign="left";
 }
 function render(){
  const c=ctx;
