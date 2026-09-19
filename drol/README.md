@@ -53,10 +53,15 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
   **monsters**, **serpents**, **witch doctors** who throw a curse down the length of their
   floor, **vacuum cleaners** that drag you along the floor they are sweeping, the **swords,
   daggers, arrows and axes** that cross a storey, and **magnets**, which swallow your shots
-  instead of dying to them and pull you in.
+  instead of dying to them and pull you in. A magnet's pull falls off with distance and stops
+  short of the floor beneath it, so the way past one — and the way to a child standing under
+  one — is low and holding ▼. A vacuum works the same way along its floor: at the edge of its
+  reach you can fly straight out of it, near the mouth you cannot.
 - The third scene's **three trapdoors**: one is a way down, the other two have something with
   a mouth behind them, and there is no way to tell which from above.
 - Extra robots at every 10,000 points.
+- A witch doctor's curse travels faster than the backpack, so it cannot be outrun along a
+  floor: climb out of its path, or shoot it out of the air.
 
 ## Mobile tweaks
 
@@ -73,7 +78,12 @@ joystick game:
 - The scope can be switched off, which is not a thing the original offered; on a phone those
   sixteen rows are worth more as maze.
 - A difficulty choice on the way in (Quiet / Busy / Crowded / Swarming). The original had no
-  such switch — it simply came round again harder — so this only sets how full round one is.
+  such switch — it simply came round again harder — so this only sets where round one starts:
+  how many things are in the maze, how fast they move, and how often the ones that wait for
+  you stop waiting.
+- The holes in the floors are three tiles wide rather than two. Two tiles left a twelve-pixel
+  robot four pixels of slack on either side, which is fine for something with exact aim and
+  miserable for a thumb.
 - The whole four-storey maze is on screen at once, at every size, and only the sideways
   scroll moves; the drawing surface takes the shape of the box it sits in rather than a fixed
   rectangle, so full screen shows more maze instead of black bars.
@@ -112,6 +122,59 @@ Every scene's pulse quickens as the rounds go by, which is the pressure the orig
 applies without saying so. The music stops when you pause, when the tab goes to the
 background, and when the game ends. SOUND OFF silences it with everything else, and the pause
 menu can turn the music off on its own and leave the effects playing.
+
+## Watching a bot play it
+
+`drol/tools/play-agent.js` is a second player: it loads this directory's `index.html`, runs
+the page's own script in a `vm` against the same stubs the tests use, and puts its hands on
+the same `keys` object the D-pad writes to, once per frame. Nothing about the game is
+simulated or re-implemented for it, so what it reports is true of the game you can play.
+
+```
+node drol/tools/play-agent.js                   one game on the default setting
+node drol/tools/play-agent.js --games 12 --seconds 150
+node drol/tools/play-agent.js --diff 4 --seed 7 --trace     what it decides, second by second
+node drol/tools/play-agent.js --games 20 --json  > runs.json
+```
+
+It sees only what a player can see — positions, kinds, and the holes in the floors, never
+which of the three trapdoors is the safe one — and it plays the actual game: find the toy,
+shoot it so the child stops chasing it, collect the pet if it is on the way, catch the child,
+go down through the holes, and in the third scene pick a trapdoor and live with it. The
+report counts rescues and how long each took, deaths and what did the killing, rescues and
+deaths per minute, how far round the loop it got, and **stalls** — twenty seconds in which it
+made no progress towards anything, which is how a maze that cannot be flown would announce
+itself. Runs are reproducible: the seed drives the scene *and* the game's own `Math.random`,
+so `--seed 7` is the same game every time.
+
+### What it found, and what changed because of it
+
+- **Magnets and vacuums were traps rather than hazards.** Their pull was a flat 160 and
+  120 px/s against a robot that flies at 96, so once inside the field you could not leave it —
+  and because the pull was being added to a velocity that the controls immediately smoothed
+  back towards what the pad was asking for, most of it was quietly swallowed anyway. The pull
+  now falls off with distance and is applied to the move rather than the velocity: outside
+  about a third of the reach you fly out of it, inside it you are already being eaten, and
+  there is no band in the middle to hover in forever. The magnet's reach also stops short of
+  the floor below it, which is what makes a child standing under one reachable at all.
+- **The difficulty setting was decoration.** The bot died at the same rate on Quiet as on
+  Swarming, because the only thing the setting moved was the number of enemies in a maze big
+  enough to swallow them. It now scales the count, the speed and the aggression, and the
+  bot's rescues per minute fall from 3.6 to 2.1 across the four settings.
+- **The holes were too tight.** Two tiles wide against a twelve-pixel robot; the bot kept
+  thrusting into the edge of a slab. Three tiles now.
+- **The witch doctor was the only hazard with one answer.** His curse outruns you, so the
+  counter-play is vertical — but the game's verb is shooting, and a ball passed straight
+  through a curse. A ball now knocks one out of the air, and deaths stopped being dominated
+  by one thing: in twelve games they now split roughly evenly between the curse, the magnets,
+  the thrown blades and the monsters.
+- **A sprung trapdoor is a safe one.** The bot worked this out before I did: the plant
+  retracts after a few seconds, so the door you survived is the door to use next time.
+
+Where the bot stalled and the game was not at fault, the fix belonged in the bot — flying up
+and down the same hole because the goal kept changing floors, dithering between two threats,
+or parking in the one-pixel band between "close enough not to steer" and "close enough to
+drop". Those are recorded in the agent, not in the game.
 
 ## What remains approximate
 
@@ -160,8 +223,8 @@ Two details the sources disagree on, and how they are resolved here:
 
 ## Verification
 
-Run `node --test drol/tests/rescue.test.cjs` from the repository root (or
-`node --test tests/rescue.test.cjs` from `drol/`) with Node.js. The tests execute the game's
+Run `node --test drol/tests/*.test.cjs` from the repository root (or
+`node --test tests/*.test.cjs` from `drol/`) with Node.js. The tests execute the game's
 own script with minimal DOM/audio stubs and cover scene generation (seed determinism, four
 storeys with gaps cut in them, walls at both ends, a busier maze on a harder setting and on a
 later round), the backpack against ceilings and gaps, the three-balls-at-once limit and the
@@ -173,8 +236,14 @@ invulnerability, extra robots at every 10,000 points, the scope switch and the r
 back, the way the view is sized to its box, the full-screen toggle, the button labels, the
 rules that stop a held control turning into a text selection, and the music engine — that it
 plays, follows the game state, quickens round after round, and answers both the mute and the
-music switch. They verify audio events and mute, not subjective sound authenticity. Browser
-smoke testing separately verifies menus, touch controls, rendering and audio activation.
+music switch. They verify audio events and mute, not subjective sound authenticity.
+
+`tests/agent.test.cjs` is the other half: it puts the bot from `tools/play-agent.js` through
+whole games and checks the things only playing can check — that a seed is the same game
+twice, that every maze can be finished, that a round can be played through all three scenes
+to the mother and round again, that the agent is almost never stuck for twenty seconds, and
+that a harder setting really is a slower rescue. Browser smoke testing separately verifies
+menus, touch controls, rendering and audio activation.
 
 ## Full screen without the browser in the way
 

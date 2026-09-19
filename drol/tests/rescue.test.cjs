@@ -226,16 +226,33 @@ test('A witch doctor throws a curse down his own floor, and it kills',()=>{
   assert.equal(r.run('G.lives'),lives-1,'the curse costs a robot');
 });
 
-test('A magnet drags the robot towards it even when you fly the other way',()=>{
-  const r=runtime(2,23);clearMaze(r,1);
-  r.run(`G.L.foes=[mkFoe("magnet",G.hero.x+40,G.hero.y-20,1,1,0,0)];G.hero.inv=99;keys.L=true;`);
-  const x0=r.run('G.hero.x');
-  step(r,30);
-  const drift=r.run('G.hero.x')-x0;
-  clearMaze(r,1);r.run('G.hero.inv=99;keys.L=true;');
-  const y0=r.run('G.hero.x');
-  step(r,30);
-  assert.ok(drift>r.run('G.hero.x')-y0,'the pull costs you ground');
+test('A ball knocks a curse out of the air',()=>{
+  const r=runtime(2,19);clearMaze(r,1);
+  r.run(`G.L.curses=[{x:G.hero.x+40,y:G.hero.y+5,w:7,h:7,vx:-130,vy:0,t:0,gone:false}];
+   G.score=0;G.hero.face=1;G.hero.cool=0;shoot(1,0);`);
+  step(r,20);
+  assert.equal(r.run('G.L.curses.length'),0,'the curse is gone');
+  assert.equal(r.run('G.hero.alive'),true,'and it never reached the robot');
+  assert.equal(r.run('G.score'),25);
+});
+
+test('A magnet pulls hardest up close, and can be flown out of at its edge',()=>{
+  const r=runtime(2,23);
+  // How far the robot gets in half a second with nothing pulling at it.
+  const fly=setup=>{
+    clearMaze(r,1);
+    r.run(`G.hero.inv=99;${setup||""}keys.L=true;`);
+    const x0=r.run('G.hero.x');
+    step(r,30);
+    return r.run('G.hero.x')-x0;
+  };
+  const free=fly();
+  const rim=fly('G.L.foes=[mkFoe("magnet",G.hero.x+MAGNET_REACH-8,G.hero.y,1,1,0,0)];');
+  const close=fly('G.L.foes=[mkFoe("magnet",G.hero.x+14,G.hero.y,1,1,0,0)];');
+  assert.ok(close>rim,`close in it costs more ground (${close} > ${rim})`);
+  assert.ok(rim>free,`the pull costs you ground at the rim too (${rim} > ${free})`);
+  assert.ok(rim<free*0.6,`but at the rim you still fly out of it (${rim} vs ${free})`);
+  assert.ok(close>-8,`from close in the backpack does not win (${close})`);
 });
 
 test('Every 10000 points is another robot',()=>{

@@ -157,6 +157,7 @@ const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
 const RADAR_H=16;                       // the scope along the top, as in the original
 let VW=346, VH=216;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
+const HOLEW=3;                          // tiles cut out of a slab to make one hole
 const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
 const storeyTop=f=>f*FLOORH;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -206,8 +207,11 @@ function genScene(scene,loop,diff,rand){
   if(scene===2&&f===FLOORS-2)continue;
   const holes=3+ri(2)+Math.floor(diff/3);
   for(let i=0;i<holes;i++){
-   const x=3+ri(MAPW-8), w=2;
-   for(let k=0;k<w;k++)if(x+k<MAPW-1){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
+   const x=3+ri(MAPW-8);
+   // Three tiles, not two: a hole two tiles wide leaves a twelve-pixel robot
+   // about four pixels of slack either side, which is fine for a bot with exact
+   // aim and miserable for a thumb.
+   for(let k=0;k<HOLEW;k++)if(x+k<MAPW-1){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
   }
  }
  if(scene===2){
@@ -216,8 +220,8 @@ function genScene(scene,loop,diff,rand){
   const f=FLOORS-2, safe=ri(3);
   for(let i=0;i<3;i++){
    const x=Math.round(MAPW*(0.28+0.22*i))+ri(3);
-   for(let k=0;k<2;k++){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
-   L.traps.push({x:x*TS,y:slabRow(f)*TS,w:2*TS,h:TS,safe:i===safe,sprung:false});
+   for(let k=0;k<HOLEW;k++){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
+   L.traps.push({x:x*TS,y:slabRow(f)*TS,w:HOLEW*TS,h:TS,safe:i===safe,sprung:false});
   }
  }
  // The rescue, and the toy it is chasing. The mother does not wander: she is
@@ -238,7 +242,10 @@ function genScene(scene,loop,diff,rand){
  }
  // The menagerie. A harder round is a busier maze, exactly as the original's
  // loop back to scene one is.
- const n=6+Math.floor(diff*1.6)+loop*3;
+ // Counted, quickened and made bolder by the setting: a bot playing the quiet
+ // maze and the swarming one used to die at the same rate, which meant the
+ // setting was decoration.
+ const n=5+diff*3+loop*3;
  for(let i=0;i<n;i++)spawnFoe(L,S.foes[i%S.foes.length],rand,loop,diff);
  return L;
 }
@@ -258,7 +265,8 @@ function spawnFoe(L,k,rand,loop,diff){
 function mkFoe(k,x,y,f,dir,loop,diff){
  const F=FOE[k];
  return{k,x,y,f,w:F.w,h:F.h,vx:0,vy:0,dir:dir||1,cool:.6+Math.random()*1.2,anim:Math.random()*6,
-  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.05),pts:F.pts,dead:false,home:y};
+  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.09),pts:F.pts,dead:false,home:y,
+  agg:1+loop*.15+diff*.08};    // how often the ones that wait for you stop waiting
 }
 
 /* ============ audio ============ */
@@ -413,6 +421,14 @@ const storeyOf=b=>clamp(Math.floor((b.y+b.h/2)/(FLOORH*TS)),0,FLOORS-1);
 
 /* ---- the robot ---- */
 const SPEED=96, RISE=-86, DROP=104, SINK=54;
+// Both pulls are strongest at nothing and weakest at arm's length. Outside about
+// a third of its reach the backpack wins and you fly out; inside it, you are
+// already being eaten. What there is no room for is the middle: a field you can
+// hover in forever, neither caught nor free, is a soft lock rather than a hazard.
+// The magnet's reach stops short of the floor below it on purpose - hug the floor
+// and you pass underneath one, which is the only way past a magnet standing over
+// a child who has stopped chasing their toy.
+const MAGNET_REACH=46, MAGNET_PULL=150, VACUUM_REACH=90, VACUUM_PULL=150;
 function heroStep(dt){
  const h=G.hero;
  if(!h.alive)return;
@@ -425,17 +441,27 @@ function heroStep(dt){
  h.thrust=keys.U?Math.min(1,h.thrust+dt*6):Math.max(0,h.thrust-dt*4);
  if(keys.U&&Math.random()<dt*14)thrustSound();
  // A magnet tugs at a robot that comes near it, which is what makes them worse
- // than the shots they eat.
+ // than the shots they eat. The pull falls off with distance: at the edge of its
+ // reach you can fly straight out of it, and close in you cannot, which is the
+ // difference between a hazard and a trap.
+ // The drag is added to the move rather than to the velocity: velocity here is
+ // smoothed towards what the pad is asking for, which would quietly swallow most
+ // of a pull and leave magnets feeling like a rumour.
+ let dragX=0, dragY=0;
  for(const m of G.L.foes)if(!m.dead&&m.k==="magnet"){
   const dx=(m.x+m.w/2)-(h.x+h.w/2), dy=(m.y+m.h/2)-(h.y+h.h/2), d=Math.hypot(dx,dy);
-  if(d<74&&d>1){h.vx+=dx/d*160*dt;h.vy+=dy/d*160*dt;}
+  if(d<MAGNET_REACH&&d>1){
+   const pull=MAGNET_PULL*(1-d/MAGNET_REACH);
+   dragX+=dx/d*pull;dragY+=dy/d*pull;
+  }
  }
- // So does a vacuum cleaner, along the floor it is sweeping.
+ // So does a vacuum cleaner, along the floor it is sweeping, and the same way:
+ // it only beats your engine once you are nearly in the mouth of it.
  for(const v of G.L.foes)if(!v.dead&&v.k==="vacuum"&&storeyOf(v)===storeyOf(h)){
-  const dx=(v.x+v.w/2)-(h.x+h.w/2);
-  if(Math.abs(dx)<96)h.vx+=Math.sign(dx)*120*dt;
+  const dx=(v.x+v.w/2)-(h.x+h.w/2), d=Math.abs(dx);
+  if(d<VACUUM_REACH)dragX+=Math.sign(dx)*VACUUM_PULL*(1-d/VACUUM_REACH);
  }
- const r=moveBody(h,h.vx*dt,h.vy*dt);
+ const r=moveBody(h,(h.vx+dragX)*dt,(h.vy+dragY)*dt);
  if(r.bx)h.vx=0;
  if(r.by)h.vy=0;
  h.x=clamp(h.x,TS,(MAPW-1)*TS-h.w);
@@ -509,7 +535,7 @@ function foeStep(e,dt){
   if(e.cool<=0&&h.alive&&storeyOf(h)===storeyOf(e)){
    e.dir=Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir;
    L.curses.push({x:e.x+e.w/2,y:e.y+5,w:7,h:7,vx:e.dir*130,vy:0,t:0,gone:false});
-   e.cool=1.8;curseSound();
+   e.cool=1.8/e.agg;curseSound();
   }
  }else if(e.k==="vacuum"){
   e.vy+=520*dt;
@@ -641,6 +667,15 @@ function stepGame(dt){
    if(e.dead||!overlap(s,e))continue;
    if(e.k==="magnet"){s.gone=true;blockSound();break;}    // magnets eat shots
    damageFoe(e);s.gone=true;break;
+  }
+  if(s.gone)continue;
+  // A curse outruns the backpack, so climbing out of its way was the only answer
+  // to a witch doctor. A ball will also knock one out of the air, which is the
+  // answer the rest of the game teaches.
+  for(const cu of L.curses)if(!cu.gone&&overlap(s,cu)){
+   cu.gone=true;s.gone=true;addScore(25);blockSound();
+   L.fx.push({x:cu.x,y:cu.y,t:0,life:.2,r:6});
+   break;
   }
   if(s.gone)continue;
   if(L.toy&&L.toy.alive&&overlap(s,L.toy)){
