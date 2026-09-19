@@ -62,6 +62,9 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(18,24,44,.92);
   border-color:#3b4a6e;color:#e8eeff}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#101426}
+/* A switch rather than a choice: narrow enough that the wordmark behind the card
+   is still readable. */
+#overlay.splash .menuitem.small{width:auto;padding:5px 14px;font-size:13px;letter-spacing:.04em}
 #overlay.splash .diffgrid .menuitem,#overlay.splash .menugrid .menuitem{width:auto}
 #overlay.splash .sub,#overlay.splash small.tip{color:#c7d2ec;text-shadow:0 1px 2px #000}
 #overlay.splash small.tip{font-size:10px}
@@ -487,6 +490,10 @@ function musicTick(){
 // wrapped: private windows and blocked site data throw here rather than return
 // nothing, and a game that will not start because of a storage setting is worse
 // than a game that forgets.
+// Ten robots to start with. The original was meaner than that, but this is a
+// game played in bursts on a phone, and running out on the third scene of the
+// first round is not the part anyone remembers fondly.
+const START_LIVES=10;
 const PREF_KEY="drol.prefs";
 function loadPrefs(){
  try{
@@ -497,7 +504,7 @@ function loadPrefs(){
 function savePrefs(){
  try{
   localStorage.setItem(PREF_KEY,JSON.stringify(
-   {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best}));
+   {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best,endless:G.endless}));
  }catch(e){}
 }
 
@@ -716,14 +723,15 @@ const PILLAR_BG={W:"#c8ccd8",g:"#5a6080"};
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
       ov=document.getElementById("overlay"), statusEl=document.getElementById("status");
 const keys={};
-const G={phase:"menu",scene:0,loop:0,diff:2,score:0,lives:3,nextLife:10000,L:null,hero:null,
+const G={phase:"menu",scene:0,loop:0,diff:2,score:0,lives:START_LIVES,nextLife:10000,L:null,hero:null,
+ endless:false,
  cam:{x:0,y:0},time:0,msg:"",msgT:0,uiT:0,flash:0,shake:0,radar:true,seed:1,rand:rngFrom(1),
  deathT:0,cheerT:0,best:0,menu:null,menuTitle:""};
 const say=(t)=>{G.msg=t;G.msgT=2.4;};
 
 function newGame(diff=2,seed){
  G.diff=diff;G.seed=seed===undefined?(Date.now()&0xffff):seed;G.rand=rngFrom(G.seed);
- G.scene=0;G.loop=0;G.score=0;G.lives=3;G.nextLife=10000;G.time=0;G.deathT=0;G.cheerT=0;
+ G.scene=0;G.loop=0;G.score=0;G.lives=START_LIVES;G.nextLife=10000;G.time=0;G.deathT=0;G.cheerT=0;
  startScene();
  G.phase="play";hideOverlay();
  say("Round 1 · "+SCENES[0].name+".");
@@ -741,8 +749,13 @@ function nextScene(){
 }
 function addScore(n){
  G.score+=n;
- while(G.score>=G.nextLife){G.nextLife+=10000;G.lives++;lifeSound();say("Extra robot!");}
- if(G.score>G.best){G.best=G.score;savePrefs();}
+ while(G.score>=G.nextLife){
+  G.nextLife+=10000;
+  if(G.endless)continue;                  // nothing to award when nothing runs out
+  G.lives++;lifeSound();say("Extra robot!");
+ }
+ // A score made on endless robots is not a score, so it never becomes the best.
+ if(!G.endless&&G.score>G.best){G.best=G.score;savePrefs();}
 }
 
 /* ---- bodies and the maze they are in ---- */
@@ -861,7 +874,7 @@ function shoot(dx,dy){
 function killHero(reason){
  const h=G.hero;
  if(!h.alive||h.inv>0||G.phase!=="play")return false;
- h.alive=false;G.deathT=1.3;G.lives--;G.shake=6;dieSound();
+ h.alive=false;G.deathT=1.3;if(!G.endless)G.lives--;G.shake=6;dieSound();
  say("Caught by "+reason+".");
  return true;
 }
@@ -927,7 +940,13 @@ function foeStep(e,dt){
   // swords, daggers, arrows and axes: they cross the storey and come back
   const r=moveBody(e,e.dir*e.sp*dt,0);
   if(r.bx)e.dir*=-1;
-  e.y=e.home+Math.sin(e.anim*3)*8;
+  // It rides up and down as it flies, but inside the storey: a storey has twenty
+  // pixels of air in it, and the old fixed eight either side of where it started
+  // buried the sword in the ceiling for half of every pass, where no ball could
+  // reach it. The sway now fits whatever room the storey has.
+  const top=storeyTop(e.f)*TS+TS, bot=slabRow(e.f)*TS-e.h;
+  const mid=(top+bot)/2, amp=Math.min(8,(bot-top)/2);
+  e.y=mid+Math.sin(e.anim*3)*amp;
  }
  if(h.alive&&overlap(e,h))killHero(FOE[e.k].n);
 }
@@ -1056,13 +1075,23 @@ function stepGame(dt){
  for(const s of L.shots){
   const st=moveBody(s,s.vx*dt,s.vy*dt);
   if(st.bx||st.by){s.gone=true;continue;}
+  // A ball is five pixels square and leaves the robot's chest at a fixed height,
+  // in a storey with twenty pixels of air in it. Whether it connected was coming
+  // down to a pixel or two either way - and the thrown sword, the one thing you
+  // most want to shoot, flies just above that band and could not be hit at all.
+  // A ball now reaches five pixels either side of its line of travel, which is
+  // still inside the storey it was fired along: fire down a floor and you hit
+  // what is on that floor.
+  const R=5, hit=s.vy
+   ? {x:s.x-R,y:s.y,w:s.w+R*2,h:s.h}
+   : {x:s.x,y:s.y-R,w:s.w,h:s.h+R*2};
   for(const e of L.foes){
-   if(e.dead||!overlap(s,e))continue;
+   if(e.dead||!overlap(hit,e))continue;
    if(e.k==="magnet"){s.gone=true;blockSound();break;}    // magnets eat shots
    damageFoe(e);s.gone=true;break;
   }
   if(s.gone)continue;
-  for(const u of L.urns)if(!u.gone&&overlap(s,u)){
+  for(const u of L.urns)if(!u.gone&&overlap(hit,u)){
    s.gone=true;
    if(--u.hp<=0){u.gone=true;addScore(120);killSound();
     L.fx.push({x:u.x+u.w/2,y:u.y+u.h/2,t:0,life:.25,r:8});}
@@ -1073,13 +1102,13 @@ function stepGame(dt){
   // A curse outruns the backpack, so climbing out of its way was the only answer
   // to a witch doctor. A ball will also knock one out of the air, which is the
   // answer the rest of the game teaches.
-  for(const cu of L.curses)if(!cu.gone&&overlap(s,cu)){
+  for(const cu of L.curses)if(!cu.gone&&overlap(hit,cu)){
    cu.gone=true;s.gone=true;addScore(25);blockSound();
    L.fx.push({x:cu.x,y:cu.y,t:0,life:.2,r:6});
    break;
   }
   if(s.gone)continue;
-  if(L.toy&&L.toy.alive&&overlap(s,L.toy)){
+  if(L.toy&&L.toy.alive&&overlap(hit,L.toy)){
    // Shooting the toy is worth points and, better, roots the child to the spot.
    L.toy.alive=false;s.gone=true;addScore(500);killSound();
    if(L.child)L.child.chasing=false;
@@ -1257,7 +1286,7 @@ function showMenu(title,sub,items,tip,grid,splash){
  const gcls=grid===true?"diffgrid":grid?String(grid):"";
  ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
   (gcls?`<div class="${gcls}">`:"")+
-  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
+  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`).join("")+
   (gcls?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
  ov.classList.remove("hidden");
 }
@@ -1274,8 +1303,12 @@ ov.addEventListener("click",e=>{
 function mainMenu(){
  G.phase="menu";G.L=null;G.hero=null;    // the canvas draws the title, so the card carries none
  showMenu("","",
-  [{label:"Start the rescue",fn:diffMenu},{label:"How to play",fn:()=>helpMenu(false)}],
-  "After Drol, Brøderbund, 1983. Rebuilt for touch screens.",false,true);
+  [{label:"Start the rescue",fn:diffMenu},
+   {label:"Endless robots: "+(G.endless?"ON":"off"),small:true,
+    fn:()=>{G.endless=!G.endless;savePrefs();mainMenu();}},
+   {label:"How to play",fn:()=>helpMenu(false)}],
+  G.endless?"Endless robots: a death costs you the scene, never the game — and never a high score.":
+   "After Drol, Brøderbund, 1983. Rebuilt for touch screens.",false,true);
 }
 function diffMenu(){
  const names=["Quiet","Busy","Crowded","Swarming"];
@@ -1301,12 +1334,14 @@ function helpMenu(back){
 }
 function pauseMenu(){
  showMenu("Paused","Round "+(G.loop+1)+" · "+SCENES[G.scene].name+" · score "+G.score+
-  " · "+G.lives+" left · music "+(MUSIC.on?"on":"off"),
+  " · "+(G.endless?"endless":G.lives+" left")+" robots · music "+(MUSIC.on?"on":"off"),
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
    {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
    {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
    {label:"Controls",fn:()=>helpMenu(true)},
    {label:"Scope on/off",fn:()=>{G.radar=!G.radar;savePrefs();fit(true);pauseMenu();}},
+   {label:"Endless robots: "+(G.endless?"ON":"off"),
+    fn:()=>{G.endless=!G.endless;savePrefs();pauseMenu();}},
    {label:"Give up",fn:mainMenu}],"","menugrid");
 }
 function gameOverMenu(){
@@ -1555,11 +1590,14 @@ function drawRadar(){
  c.fillStyle="#e8e8f4";c.fillText("SCORE",3,2);
  c.fillText(String(G.score).padStart(6," "),3,11);
  drawPix(HERO_PIX,HERO_PAL,2,21,.62,false);
- c.fillStyle="#e8e8f4";c.fillText(String(Math.max(0,G.lives)).padStart(2,"0"),17,24);
+ c.fillStyle="#e8e8f4";
+ c.fillText(G.endless?"\u221e":String(Math.max(0,G.lives)).padStart(2,"0"),17,24);
  // right: the best so far, and the name of the game in the red it was written in
  c.textAlign="right";
  c.fillStyle="#e8e8f4";c.fillText("HISCORE",W-3,2);
- c.fillText(String(Math.max(G.best,G.score)).padStart(6," "),W-3,11);
+ // On endless robots the running score never becomes the high score, so the
+ // panel shows the real one rather than pretending this run counts.
+ c.fillText(String(G.endless?G.best:Math.max(G.best,G.score)).padStart(6," "),W-3,11);
  c.fillStyle="#40c050";                                    // the green bars beside the name
  for(let i=0;i<3;i++)c.fillRect(W-DROL_PIX[0].length/2-22,21+i*3,16,2);
  c.textAlign="left";
@@ -1591,7 +1629,8 @@ function drawHUD(){
   c.textAlign="center";
   c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
   c.textAlign="right";
-  c.fillStyle="#6a62e8";c.fillText("▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
+  c.fillStyle="#6a62e8";
+  c.fillText(G.endless?"▲\u221e":"▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
   c.textAlign="left";
  }
  if(G.msgT>0){
@@ -1766,6 +1805,7 @@ if(isStandaloneApp())setFocus(true);
  if(p.music===false)MUSIC.on=false;
  if(p.radar===false)G.radar=false;
  if(typeof p.best==="number"&&isFinite(p.best)&&p.best>0)G.best=Math.floor(p.best);
+ if(p.endless===true)G.endless=true;
 })();
 
 fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);

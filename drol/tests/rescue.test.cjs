@@ -529,3 +529,78 @@ test('Five balls do not kill a turkey. They cook it.',()=>{
   assert.equal(r.run('G.hero.alive'),true,'walking into dinner is not fatal');
   assert.equal(r.run('G.score'),r.run('FOE.turkey.pts+FOE.roast.pts'),'it is worth collecting');
 });
+
+test('A game starts with ten robots',()=>{
+  const r=runtime(2,41);
+  assert.equal(r.run('START_LIVES'),10);
+  assert.equal(r.run('G.lives'),10,'and newGame hands you all of them');
+});
+
+test('Endless robots: a death costs the scene, never the game',()=>{
+  const r=runtime(2,43);clearMaze(r,1);
+  r.run('G.endless=true;G.lives=1;');
+  for(let i=0;i<3;i++){
+    r.run('G.hero.inv=0;G.L.foes=[mkFoe("zombie",G.hero.x,G.hero.y,1,1,0,0)];');
+    step(r,2);
+    assert.equal(r.run('G.hero.alive'),false,'it still kills you');
+    step(r,90);
+    assert.equal(r.run('G.hero.alive'),true,'and you come straight back');
+  }
+  assert.equal(r.run('G.lives'),1,'the count never moves');
+  assert.equal(r.run('G.phase'),'play','and it is never over');
+});
+
+test('A score made on endless robots is not a high score',()=>{
+  const r=runtime(2,45);
+  r.run('G.endless=true;G.best=0;');
+  r.run('addScore(50000);');
+  assert.equal(r.run('G.best'),0,'the best stays where it was');
+  assert.equal(r.run('G.lives'),r.run('START_LIVES'),'and no extra robots are handed out');
+  r.run('G.endless=false;addScore(1000);');
+  assert.equal(r.run('G.best'),51000,'switched off, it counts again');
+});
+
+// The thing that made this test exist: a storey holds twenty pixels of air and
+// the robot is eighteen of it, so he has two heights to fire from. Whether a
+// ball connected was coming down to a pixel or two, and the thrown sword - the
+// one thing you most want to shoot - could not be hit at all.
+test('Everything the game says you can shoot, you can shoot',()=>{
+  const r0=runtime(2,47);
+  const kinds=r0.run('JSON.stringify(Object.keys(FOE).filter(k=>FOE[k].shootable))');
+  const air=r0.run('storeyTop(1)*TS+TS'), slab=r0.run('slabRow(1)*TS');
+  const unreachable=[];
+  for(const k of JSON.parse(kinds)){
+    let reached=0, tries=0;
+    for(let hy=air;hy<=slab-18;hy+=2){
+      tries++;
+      const r=runtime(2,47);clearMaze(r,1,20);
+      r.run(`G.hero.inv=999;G.hero.face=1;G.hero.y=${hy};
+        G.L.foes=[mkFoe("${k}",G.hero.x+44,
+          (${k==='turkey'||k==='blade'})?storeyTop(1)*TS+TS:slabRow(1)*TS-FOE["${k}"].h,
+          1,-1,0,0)];
+        const e=G.L.foes[0];e.sp=0;e.cool=99;e.vx=0;e.vy=0;e.hp=1;`);
+      r.run('shoot(1,0);');
+      for(let i=0;i<20;i++)r.run(`G.hero.y=${hy};G.hero.vy=0;stepGame(0.01);`);
+      // a turkey turns into dinner rather than dying, which still counts as hit
+      if(r.run('!G.L.foes[0]||G.L.foes[0].dead||G.L.foes[0].k==="roast"'))reached++;
+    }
+    if(reached<tries)unreachable.push(`${k} (${reached}/${tries} heights)`);
+  }
+  assert.deepEqual(unreachable,[],'a ball fired along a floor reaches everything on it');
+});
+
+test('A thrown sword stays in the storey it was thrown down',()=>{
+  const r=runtime(2,49);clearMaze(r,1,20);
+  r.run('G.hero.inv=999;G.L.foes=[mkFoe("blade",30*TS,storeyTop(1)*TS+TS,1,-1,0,0)];');
+  const air=r.run('storeyTop(1)*TS+TS'), slab=r.run('slabRow(1)*TS');
+  let lo=1e9, hi=-1e9;
+  for(let i=0;i<300;i++){
+    step(r,1);
+    const e=r.run('JSON.stringify({y:G.L.foes[0].y,h:G.L.foes[0].h})');
+    const {y,h}=JSON.parse(e);
+    lo=Math.min(lo,y);hi=Math.max(hi,y+h);
+  }
+  assert.ok(lo>=air,`never in the ceiling (${lo} vs ${air})`);
+  assert.ok(hi<=slab,`never through the floor (${hi} vs ${slab})`);
+  assert.ok(hi-lo>4,'and it does sway as it flies');
+});

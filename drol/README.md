@@ -29,11 +29,47 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
   score, the robots you have left and the high score either side. Switching it off hands
   those rows back to the maze, which is worth doing on a small phone.
 - **MENU** (Esc/P) pauses, and the pause screen carries the controls card, the music switch,
-  the scope switch and the full-screen switch.
+  the scope switch, the endless-robots switch and the full-screen switch.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
 - **FULL SCREEN** hides the page around the game: everything goes black, the maze and the
   controls are all that is left. Held sideways the pads move to either side of the screen
   like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
+
+## Robots
+
+- **A game starts with ten.** The original was meaner; this is a game played in bursts on a
+  phone, and running out on the third scene of the first round is not the part anyone
+  remembers fondly. Every 10,000 points is another one.
+- **Endless robots** is a switch on the title card and in the pause menu, and it is
+  remembered between visits. A death still costs you: the robot is gone, the scene keeps
+  running and everything in it is where it was. What it does not cost is the game — the
+  count never moves, the panel shows **∞** where the number goes, and there is no "all
+  robots lost".
+- A run on endless robots **never becomes a high score**, and no extra robots are handed out
+  for points, because neither means anything when nothing runs out. The panel shows the real
+  high score rather than pretending the current run counts towards it. Switch it off and the
+  next points you score count again.
+
+## A ball reaches what is on your floor
+
+A storey is forty pixels: ten of those are the slab, so there are **twenty pixels of air in
+it**, and the robot is eighteen of them. He has two heights to fire from, and a ball is five
+pixels square leaving his chest at a fixed one. Whether it connected was coming down to a
+pixel or two either way — and the **thrown sword could not be shot down at all**: it swayed
+eight pixels either side of where it was thrown, which put it inside the ceiling for half of
+every pass, where no ball could reach it and where it should never have been drawn.
+
+Both are fixed, and both have a test:
+
+- A ball reaches **five pixels either side of its line of travel**. That is still inside the
+  storey it was fired along, so firing down a floor hits what is on that floor, rather than
+  what happens to be level with your chest.
+- The sword's sway now **fits the room the storey has** instead of a fixed eight, so it stays
+  in the air it is flying through.
+
+`tests/rescue.test.cjs` fires at every kind the game marks shootable, from **every height
+the robot can hold in a storey**, and fails if any of them survives. Both tests fail on the
+code as it was.
 
 ## What the original is, and what this keeps
 
