@@ -1203,8 +1203,14 @@ test('9A. FIRE answers a drawn gun in one press, and the sights are where they a
   q.ev('G.aim={x:0.5,y:0.5};');
   q.painted.length=0;
   q.ev('crosshair();');
-  const marks=q.painted.filter(r=>r.w<=4&&r.h<=4);
-  assert.ok(marks.length>=20,'the reticle drew '+marks.length+' blocks');
+  // the sight is drawn in bars now, not in single cells, so this takes
+  // everything the call put down and measures the shape it makes
+  const marks=q.painted.filter(r=>r.w&&r.h);
+  assert.ok(marks.length>=18,'the reticle drew '+marks.length+' pieces');
+  // and each arm must be a bar, not a dot: a scatter of cells reads as dirt
+  assert.ok(marks.some(r=>Math.max(r.w,r.h)>=8),
+    'no piece of the sight is longer than '+
+    Math.max(...marks.map(r=>Math.max(r.w,r.h)))+'px — it is a scatter');
   const cx=(Math.min(...marks.map(m=>m.x))+Math.max(...marks.map(m=>m.x+m.w)))/2;
   const cy=(Math.min(...marks.map(m=>m.y))+Math.max(...marks.map(m=>m.y+m.h)))/2;
   assert.equal(cx,0.5*q.ev('SCENE.w'),'the sights sit '+

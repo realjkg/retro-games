@@ -1234,10 +1234,95 @@ function grade(){
     ctx.fillRect(0,0,SCENE.w,4-i); ctx.fillRect(0,SCENE.h-(4-i),SCENE.w,4-i);
   }
 }
+/* ---- where the three robberies actually happen ---- *
+ * A hold-up at a ford was being played out in front of the Gold Gulch Hotel,
+ * because town() drew the same six frontages whatever the words underneath it
+ * said. A picture that contradicts its own caption is worse than no picture at
+ * all: the player is told two men step out of the rocks above a ford, and is
+ * shown a hotel, a water tower and two ornamental bushes. Each job gets the
+ * place it is written in, in the same hand as the street.
+ */
+function bluff(){                                   // the stage road, above the ford
+  const rock="#8a7a68", dark="#5e5145", lit="#a89784", core="#42382f";
+  /* Rock, not a dune. A smooth curve with lines combed down it reads as sand,
+   * or as a fence; what says stone at this size is a hard stepped skyline and
+   * strata running across the face, because that is the one thing a cliff does
+   * that nothing else in the picture does. */
+  const STEP=[[0,54],[26,72],[52,66],[74,88],[96,80],[118,60],[140,52],
+              [166,70],[188,96],[214,86],[238,64],[262,74],[288,58],[320,50]];
+  for(let i=0;i<STEP.length-1;i++){
+    const [x0,h0]=STEP[i], [x1,h1]=STEP[i+1];
+    for(let x=x0;x<x1;x++){
+      const t=(x-x0)/(x1-x0), h=Math.round(h0+(h1-h0)*t);
+      const top=HORIZON-h;
+      px(x,top,1,h,rock);
+      px(x,top,1,2,lit);                             // the lip takes the light
+    }
+  }
+  for(let y=HORIZON-92;y<HORIZON;y+=7){              // strata, across the face
+    px(0,y,SCENE.w,1,"rgba(66,56,47,.30)");
+    px(0,y+1,SCENE.w,1,"rgba(200,180,155,.14)");
+  }
+  for(let i=0;i<26;i++){                             // and shadow in the clefts
+    const x=(i*37)%SCENE.w, h=10+((i*29)%26);
+    px(x,HORIZON-h,2,h,"rgba(66,56,47,.35)");
+  }
+  px(0,HORIZON-16,SCENE.w,16,"rgba(66,56,47,.22)");  // the foot sits in its own shade
+  for(const x of [18,54,102,208,262,300])treeAt(x,HORIZON,x%17<8?6:8);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+  // the second man, up in the rocks where the words put him
+  px(96,HORIZON-52,5,11,core); px(96,HORIZON-55,5,3,"#2e271f");
+}
+function ford(){                                    // water across the road
+  const y=HORIZON+30;
+  px(0,y,SCENE.w,16,"#4d6b7a"); px(0,y,SCENE.w,2,"#7fa3b0");
+  for(let i=0;i<40;i++){
+    const x=(i*97)%SCENE.w, yy=y+3+((i*13)%12);
+    px(x,yy,6,1,"rgba(220,240,245,.35)");
+  }
+  px(0,y+16,SCENE.w,2,"rgba(0,0,0,.25)");
+}
+function cutting(){                                 // the westbound, in the cut
+  const bank="#7d6a4e", sh="#54462f", gr="#6f8f5c";
+  for(let x=0;x<SCENE.w;x++){
+    const d=Math.abs(x-160)/160;                    // the walls fall away to the middle
+    const h=Math.round(20+62*d*d);
+    px(x,HORIZON-h,1,h,bank);
+    px(x,HORIZON-h,1,4,gr);                         // grass along the lip
+    if((x*5)%17<2)px(x,HORIZON-h+5,1,h-5,sh);
+  }
+  const ry=HORIZON+6;                               // the road bed and the iron
+  px(0,ry,SCENE.w,10,T.ballast);
+  for(let x=-4;x<SCENE.w;x+=9)px(x,ry+2,6,2,T.tie);
+  px(0,ry+3,SCENE.w,1,T.rail); px(0,ry+7,SCENE.w,1,T.rail);
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.30)");
+}
+function alley(){                                   // behind the bank
+  const bk="#8e4a3c", mo="#c8b49a", sh="#5e2f26";
+  const top=HORIZON-74;
+  px(0,top,SCENE.w,HORIZON-top,bk);
+  for(let y=top;y<HORIZON;y+=4){                     // courses, and the mortar in them
+    px(0,y,SCENE.w,1,mo);
+    for(let x=((y/4)%2)?0:5;x<SCENE.w;x+=11)px(x,y,1,4,mo);
+  }
+  px(0,top,SCENE.w,3,"#b07a5e");                     // the coping catches the light
+  // the door that was not there yesterday
+  px(138,HORIZON-40,28,40,T.dark); px(136,HORIZON-42,32,3,sh);
+  for(let i=0;i<9;i++)px(128+((i*13)%46),HORIZON-6-((i*7)%10),4,3,bk);  // fallen brick
+  px(0,HORIZON-2,SCENE.w,2,"rgba(0,0,0,.35)");
+}
+const JOBSET={"STAGE ROAD":bluff,"THE CUT":cutting,BANK:alley};
 function town(now,armed){
   sky();
   const enc=who(G), here=PLACES[(enc&&enc.place)]||PLACES.STREET;
   ground();
+  const set=JOBSET[enc&&enc.place];
+  if(set){
+    set();
+    if(enc.place==="STAGE ROAD")ford();
+    propAt(here.prop);
+    return;                                          // no town row, no boardwalk
+  }
   buildings();
   signboard(here.sign);
   if(!armed)for(const p of PEOPLE){
@@ -1323,10 +1408,14 @@ function sniperInWindow(){
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
-const RETICLE=[[-5,0],[-4,0],[-3,0],[3,0],[4,0],[5,0],
-               [0,-5],[0,-4],[0,-3],[0,3],[0,4],[0,5],[0,0]];
-const CORNERS=[[-5,-5],[-4,-5],[-5,-4], [5,-5],[4,-5],[5,-4],
-               [-5,5],[-4,5],[-5,4],    [5,5],[4,5],[5,4]];
+/* A gunsight, in bars rather than in dots. Each of these is one arm of it:
+ * an offset from the centre, a length and a direction. They used to be a list
+ * of single cells laid down at twice their spacing, which put a two-pixel gap
+ * between every two-pixel block - so at arm's length the sight was not a cross
+ * but a scatter of confetti over the man, and a player could not tell what he
+ * was pointing at. Bars read as a sight; dots read as dirt on the glass. */
+const ARMS=[[ 6,0, 10,2],[-16,0, 10,2],[0, 6, 2,10],[0,-16, 2,10]];
+const TICKS=[[-20,-20],[ 12,-20],[-20, 12],[ 12, 12]];   // corner brackets, 8x2/2x8
 /* On a phone, held at arm's length, white blocks on a pale dirt street are not
  * a gunsight - they are a smudge, and a player who cannot see where he is
  * pointing reports that drawing the gun does nothing. So it is drawn the way
@@ -1341,12 +1430,18 @@ function crosshair(){
    * below and right of the place the ball was judged against - on a picture
    * where a man is seventeen pixels across, that is a miss he cannot account
    * for. Both rings are centred on the point now. */
+  const bars=[];
+  for(const [ox,oy,w,h] of ARMS)bars.push([x+ox,y+oy,w,h]);
+  for(const [ox,oy] of TICKS){                      // an L in each corner
+    bars.push([x+ox,y+oy,8,2]); bars.push([x+ox,y+oy,2,8]);
+  }
+  bars.push([x-1,y-1,2,2]);                         // and the point itself
+  // every bar carries its own rim, so the sight holds against a pale coat,
+  // a dark coat and the dirt of the street alike
   ctx.fillStyle=C64.blk;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
+  for(const [bx,by,w,h] of bars)ctx.fillRect(bx-1,by-1,w+2,h+2);
   ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
+  for(const [bx,by,w,h] of bars)ctx.fillRect(bx,by,w,h);
 }
 
 /* ---- the five-line matrix ---- *
