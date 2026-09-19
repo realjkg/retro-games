@@ -1815,6 +1815,9 @@ const RULES={
    * decided by the clock alone - the crosshair chose nothing. */
   SPREAD_SNAP:9, SPREAD_AIMED:2.2,
   WOUNDS:2,
+  /* How many extra balls a doctor on good terms will pull out of you. He is
+   * meant to be worth being decent to; he was worth being immortal. */
+  DOCTOR_GRACE:2,
   /* The man at the window: how often, how many in a day, how long before the
    * sash goes up, and how long the sheriff then has to do something about it.
    *
@@ -2284,7 +2287,17 @@ function takeHit(G,why){
     G.alive=false;
     return finish(G,"killed",why||"the doctor would not come");
   }
-  if(state==="civil")return resolve(G,"doctor_saved");
+  /* A doctor who likes you comes when you send for him, and used to come
+   * every single time: eight balls, eight patch-ups, no limit anywhere. A
+   * sheriff who had been civil to him could not be killed, which quietly put
+   * the whole of the day's other ending out of reach. He is still worth being
+   * decent to - he is worth two more than anybody else gets - but there is a
+   * number of holes a country doctor cannot close. */
+  if(state==="civil"){
+    if(G.wounds<RULES.WOUNDS+RULES.DOCTOR_GRACE)return resolve(G,"doctor_saved");
+    G.alive=false;
+    return finish(G,"killed",why||"the doctor came, and did what he could, and it was not enough");
+  }
   if(G.wounds>=RULES.WOUNDS){
     G.alive=false;
     return finish(G,"killed",why||(state==="drunk"

@@ -1297,3 +1297,37 @@ test('34. every hit box is a thing a thumb can be asked to hit', ()=>{
     'snatching at the shot costs nothing');
   report.gun={body:shots.body,hand:shots.hand,snap:shots.snap};
 });
+
+test('35. nobody is immortal, however well the doctor thinks of him', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const run1=(disp,sober)=>{
+      const G=newDay({seed:5}); G.doctor.disposition=disp; G.doctor.sober=sober;
+      G.encounter=2; beginEncounter(G);
+      const state=doctorState(G); const outs=[];
+      for(let i=0;i<12;i++){
+        takeHit(G,"ball"); outs.push(G.outcome);
+        if(!G.alive)break;
+        G.phase="dialogue";
+      }
+      return {state:state,balls:G.wounds,alive:G.alive,outs:outs};
+    };
+    return JSON.stringify({civil:run1(1,true),neutral:run1(0,true),
+                           drunk:run1(0,false),hostile:run1(-2,true)});
+  })()`));
+  /* A doctor on good terms used to come every single time - eight balls, eight
+   * patch-ups, no limit anywhere - so a sheriff who had been civil to him
+   * could not be killed and the day's other ending was quietly out of reach.
+   * The browser harness caught it: four passes, one of them hesitating past
+   * every window in the rules, and not one of them died. */
+  for(const k of Object.keys(out))
+    assert.equal(out[k].alive,false,
+      'a '+out[k].state+' doctor made him immortal: '+out[k].balls+' balls and still standing');
+  // he is still worth being decent to, and being liked is worth more than not
+  assert.ok(out.civil.balls>out.neutral.balls,
+    'a doctor who likes you is worth nothing: '+out.civil.balls+' against '+out.neutral.balls);
+  assert.ok(out.hostile.balls<out.neutral.balls,
+    'a doctor who will not come is no worse than one who will');
+  assert.ok(out.civil.balls<=6,'a civil doctor is worth '+out.civil.balls+' balls');
+  report.wounds={civil:out.civil.balls,neutral:out.neutral.balls,hostile:out.hostile.balls};
+});
