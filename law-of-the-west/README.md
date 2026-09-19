@@ -296,6 +296,7 @@ current viewport resizes with them — the game jumping mid-move. Two things kee
   so it does not move when they do. The strip the bars vacate simply stays dark. (`dvh` and
   `vh` are declared first for browsers without `svh`.)
 - **Install it** and there are no toolbars at all: on iPhone or iPad, Share ▸ **Add to Home
-  Screen**; on Android or desktop Chrome, the browser's own install offer. A launch from the
-  icon opens straight into the full-screen layout, and `sw.js` — a small network-first service
-  worker — keeps the game playable with no signal while still picking up new deploys.
+  Screen**. A launch from the icon opens straight into the full-screen layout. There is no web
+  app manifest and no service worker here on purpose — this page fetches nothing, which is the
+  rule its own tests hold it to, and it is already as offline as a page can be. The
+  `apple-mobile-web-app` tags are what make the home-screen launch run chrome-free.

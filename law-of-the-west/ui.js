@@ -1617,3 +1617,17 @@ function frame(now){
 }
 globalThis.__frame=frame;
 fit(); paint(); if(RAF)RAF(frame);
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout. There is no worker to register: the whole game is this one
+   file, so it is already as offline as anything can be. */
+function isStandaloneApp(){
+  try{
+    if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+    if(typeof matchMedia!=="function")return false;
+    return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+  }catch(e){return false;}
+}
+if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('gamemode');}
