@@ -73,6 +73,19 @@ ANALOG Computing's February 1984 note that it had "some of the best pseudo-3D gr
 ever seen". Everything is therefore an homage in the idiom of the machines it ran on, not a
 reproduction of anyone's pixels.
 
+**There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
+twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
+him reads it: the game draws it at 1×, the title card at 4×, and `tools/render-art.js` reads
+it back out of the page to write `icon-180/192/512.png` and the inline SVG tile on the
+collection page. Edit those sixteen rows, run the tool, and the game, the title, the app icon
+and the tile all change together — they cannot disagree, and CI fails the build if the
+committed artwork is not what the current sprite produces:
+
+```
+node drol/tools/render-art.js          # rewrite the icons and the collection tile
+node drol/tools/render-art.js --check  # what CI runs
+```
+
 What that means on screen:
 
 - **The robot** is blue and boxy: a pale blue head with a visor that faces the way you fly, a
@@ -96,8 +109,8 @@ What that means on screen:
 - **The title card** is the same cast at twice the size: the robot hovering with a ball
   already on its way, the boy along the floor to the right, and the witch doctor to the left
   with his staff lit.
-- **The icon and the gallery tile** are the same robot again, so the game looks like itself
-  from the collection page, the home screen and the browser tab.
+- **The icon and the gallery tile** are that same sprite, scaled up and generated from it, so
+  the game looks like itself from the collection page, the home screen and the browser tab.
 
 ## Mobile tweaks
 
@@ -285,7 +298,8 @@ trapdoors and the thing behind the wrong two, the curse, lives and the respawn's
 invulnerability, extra robots at every 10,000 points, the scope switch and the rows it hands
 back and remembers the switch, the way the view is sized to its box, the full-screen toggle,
 the button labels, the settings and best score that survive a reload, the browser that refuses
-storage altogether, the install button, the rules that stop a held control turning into a text
+storage altogether, the install button, the one sprite that the game, the title card, the icon
+and the collection tile all draw from, the rules that stop a held control turning into a text
 selection, and the music engine — that it
 plays, follows the game state, quickens round after round, and answers both the mute and the
 music switch. They verify audio events and mute, not subjective sound authenticity.

@@ -37,6 +37,9 @@ jobs:
       - name: Install the Law of the West dev dependency
         run: npm --prefix law-of-the-west ci
       - run: node --test law-of-the-west/test/*.test.js
+      - name: The Drol artwork must match the Drol sprite
+        run: |
+          node drol/tools/render-art.js --check
       - name: The committed page must match its sources
         run: |
           node law-of-the-west/tools/assemble.js

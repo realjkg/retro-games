@@ -276,6 +276,48 @@ function mkFoe(k,x,y,f,dir,loop,diff){
   agg:1+loop*.15+diff*.08};    // how often the ones that wait for you stop waiting
 }
 
+/* ============ the hero, once ============ */
+// One picture of the robot, twelve by sixteen, and everything that draws him -
+// the game, the title card, the app icon, the tile on the collection page -
+// reads it from here. They cannot drift apart because there is only one of him.
+const HERO_PIX=[
+ "....RRRR....",   // the beacon on top
+ ".....AA.....",
+ "..HHHHHHHH..",   // head
+ "..HhVVVVCh..",   // visor, with the light at the end you are facing
+ "..HhVVVVCh..",
+ "..HHHHHHHH..",
+ ".PLLLLLLLLM.",   // shoulders, rocket pack behind, arm in front
+ ".PBBBGGGBBM.",   // the chest port the balls come out of
+ ".PBBBGgGBBM.",
+ ".PBBBGGGBBM.",
+ ".PBBBBBBBBM.",
+ ".DDDDDDDDDD.",
+ "..DD....DD..",   // legs
+ "..DD....DD..",
+ ".MMMM..MMMM.",   // feet
+ ".MMMM..MMMM."
+];
+const HERO_PAL={R:"#ff5a5a",A:"#b6c8ec",H:"#8ec8ff",h:"#5f9fe0",V:"#10204a",C:"#4ad8ff",
+ P:"#12306a",L:"#6aa8f0",B:"#2f6ad0",D:"#1a3f8a",M:"#b6c8ec",G:"#ffe14a",g:"#fff4c0"};
+// Draws one of those pictures at any size, facing either way. Runs of the same
+// colour go out as one rectangle, which is what keeps this cheap at title size.
+function drawPix(map,pal,x,y,scale,flip){
+ const c=ctx, w=map[0].length;
+ for(let r=0;r<map.length;r++){
+  const row=map[r];
+  let i=0;
+  while(i<w){
+   const ch=row[i];
+   if(ch==="."||!pal[ch]){i++;continue;}
+   let j=i;while(j<w&&row[j]===ch)j++;
+   c.fillStyle=pal[ch];
+   c.fillRect(x+(flip?w-j:i)*scale,y+r*scale,(j-i)*scale,scale);
+   i=j;
+  }
+ }
+}
+
 /* ============ audio ============ */
 const SOUND={ctx:null,master:null,music:null,enabled:true};
 function audioLabel(){
@@ -1148,8 +1190,8 @@ function drawPet(){
  c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);     // eye
  if(p.kind==="gator"){c.fillStyle="#f0f0e0";c.fillRect(x+(d>0?12:0),y+4,4,1);}  // teeth
 }
-// The robot: small, blue and boxy, with a lit chest port for the balls it fires
-// and a flame under the backpack whenever you ask it to climb.
+// The robot himself is HERO_PIX; what is left here is the flame, the shadow and
+// the coming-apart, which are state rather than picture.
 function drawHero(){
  const h=G.hero, c=ctx;
  if(!h)return;
@@ -1163,33 +1205,25 @@ function drawHero(){
   return;
  }
  if(h.inv>0&&Math.floor(h.inv*16)%2)return;
- const x=sx(h.x), y=sy(h.y), d=h.face;
+ const x=sx(h.x), y=sy(h.y);
  // A shadow on the floor he is flying over: the one cue that says how high up he is.
  const fy=slabRow(storeyOf(h))*TS, drop=clamp((fy-h.y-h.h)/40,0,1);
  c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
  c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
- if(h.thrust>0){                                             // backpack flame
+ if(h.thrust>0){                                             // the rocket pack, lit
   const len=Math.round(3+6*h.thrust+(Math.floor(G.time*24)%2));
   c.fillStyle="rgba(255,140,40,"+(.45+.55*h.thrust).toFixed(2)+")";
   c.fillRect(x+2,y+16,8,len);
   c.fillStyle="#ffc24a";c.fillRect(x+3,y+16,6,Math.max(2,len-2));
   c.fillStyle="#fff4c0";c.fillRect(x+5,y+16,2,Math.max(1,len-4));
  }
- c.fillStyle="#1a3f8a";c.fillRect(x+1,y+13,4,3);c.fillRect(x+7,y+13,4,3);   // feet
- c.fillStyle="#2f6ad0";c.fillRect(x+1,y+5,10,9);             // torso
- c.fillStyle="#6aa8f0";c.fillRect(x+1,y+5,10,2);             // shoulder highlight
- c.fillStyle="#1a3f8a";c.fillRect(x+1,y+11,10,2);
- c.fillStyle="#12306a";c.fillRect(x+(d>0?-1:10),y+6,2,6);    // the backpack, behind him
- c.fillStyle="#8ec8ff";c.fillRect(x+2,y,8,5);                // head
- c.fillStyle="#b6ddff";c.fillRect(x+2,y,8,1);
- c.fillStyle="#10204a";c.fillRect(x+(d>0?5:2),y+2,4,2);      // visor, facing your way
- c.fillStyle="#4ad8ff";c.fillRect(x+(d>0?7:2),y+2,1,2);      // and the light in it
- c.fillStyle="#b6c8ec";c.fillRect(x+5,y-3,2,3);              // antenna
- c.fillStyle=(Math.floor(G.time*6)%2)?"#ff5a5a":"#c03030";c.fillRect(x+4,y-5,4,2);
+ drawPix(HERO_PIX,HERO_PAL,x,y,1,h.face<0);
+ // The chest port pulses; the beacon blinks. Both are the sprite's own pixels,
+ // repainted rather than redrawn somewhere else.
  const glow=.55+.45*Math.sin(G.time*8);
- c.fillStyle="rgba(255,225,90,"+glow.toFixed(2)+")";
- c.fillRect(x+(d>0?6:3),y+7,4,4);                            // the chest port
- c.fillStyle="#fff4c0";c.fillRect(x+(d>0?7:4),y+8,2,2);
+ c.fillStyle="rgba(255,240,150,"+glow.toFixed(2)+")";
+ c.fillRect(x+(h.face<0?4:5),y+7,3,3);
+ if(Math.floor(G.time*3)%2){c.fillStyle="#7a1818";c.fillRect(x+4,y,4,1);}
 }
 function drawRadar(){
  const c=ctx, L=G.L, w=VW, h=RADAR_H;
@@ -1256,24 +1290,18 @@ function drawTitle(){
                                                              // kept clear of the cast
   c.fillStyle="#070b16";c.fillRect(gx,y,30,7);
  });
- // The robot, at twice the size he is in the game, hovering with the flame lit.
- const hx=Math.round(W*.44), hy=rows[0]-40+Math.round(Math.sin(t*2)*3), u=2;
- const flame=8+Math.round(Math.sin(t*16)*4);
+ // The robot, the same twelve-by-sixteen picture the game draws, at four times
+ // the size and lit by his own rocket: the card and the sprite are one drawing.
+ const u=Math.max(3,Math.round(W/86));                        // one sprite pixel, on this card
+ const hx=Math.round(W*.46)-6*u;
+ // Stand him on the top floor, but never so high that he climbs into the title.
+ const hy=Math.max(Math.round(H*.28),rows[0]-16*u)+Math.round(Math.sin(t*2)*3);
+ const flame=Math.round(u*2.5)+Math.round(Math.sin(t*16)*u);
  c.fillStyle="rgba(255,140,40,.85)";c.fillRect(hx+2*u,hy+16*u,8*u,flame);
- c.fillStyle="#ffc24a";c.fillRect(hx+3*u,hy+16*u,6*u,flame-3);
- c.fillStyle="#fff4c0";c.fillRect(hx+5*u,hy+16*u,2*u,flame-6);
- c.fillStyle="#1a3f8a";c.fillRect(hx+1*u,hy+13*u,4*u,3*u);c.fillRect(hx+7*u,hy+13*u,4*u,3*u);
- c.fillStyle="#2f6ad0";c.fillRect(hx+1*u,hy+5*u,10*u,9*u);
- c.fillStyle="#6aa8f0";c.fillRect(hx+1*u,hy+5*u,10*u,2*u);
- c.fillStyle="#1a3f8a";c.fillRect(hx+1*u,hy+11*u,10*u,2*u);
- c.fillStyle="#12306a";c.fillRect(hx-1*u,hy+6*u,2*u,6*u);
- c.fillStyle="#8ec8ff";c.fillRect(hx+2*u,hy,8*u,5*u);
- c.fillStyle="#10204a";c.fillRect(hx+5*u,hy+2*u,4*u,2*u);
- c.fillStyle="#4ad8ff";c.fillRect(hx+7*u,hy+2*u,1*u,2*u);
- c.fillStyle="#b6c8ec";c.fillRect(hx+5*u,hy-3*u,2*u,3*u);
- c.fillStyle="#ff5a5a";c.fillRect(hx+4*u,hy-5*u,4*u,2*u);
- c.fillStyle="#ffe14a";c.fillRect(hx+6*u,hy+7*u,4*u,4*u);    // the chest port, lit
- c.fillStyle="#fff4c0";c.fillRect(hx+13*u,hy+8*u,5*u,2*u);   // a ball already on its way
+ c.fillStyle="#ffc24a";c.fillRect(hx+3*u,hy+16*u,6*u,Math.max(2,flame-u));
+ c.fillStyle="#fff4c0";c.fillRect(hx+5*u,hy+16*u,2*u,Math.max(1,flame-2*u));
+ drawPix(HERO_PIX,HERO_PAL,hx,hy,u,false);
+ c.fillStyle="#fff4c0";c.fillRect(hx+13*u,hy+8*u,4*u,2*u);    // a ball already on its way
  const cx2=Math.round(W*.76), cy=rows[0]-21;                 // the boy, along the same floor
  c.fillStyle="#3a86e0";c.fillRect(cx2,cy+9,11,9);
  c.fillStyle="#6aa8f0";c.fillRect(cx2,cy+9,11,2);

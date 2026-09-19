@@ -405,3 +405,28 @@ test('The install button is there for a browser that can install it',()=>{
   r.el('install').handlers.click();
   assert.match(r.el('overlay').innerHTML,/Add to Home Screen/);
 });
+
+test('There is one picture of the hero, and everything draws that one',()=>{
+  const r=runtime(2,67);
+  const rows=r.run('HERO_PIX.join("|")'), palKeys=r.run('Object.keys(HERO_PAL).sort().join("")');
+  assert.equal(r.run('HERO_PIX.length'),16,'sixteen rows');
+  assert.equal(r.run('HERO_PIX.every(x=>x.length===HERO_PIX[0].length)'),true,'a rectangle');
+  assert.equal(r.run('HERO_PIX[0].length'),r.run('G.hero.w'),'as wide as the robot is');
+  assert.equal(r.run('HERO_PIX.length'),r.run('G.hero.h'),'and as tall');
+  // Every pixel that is not blank has a colour.
+  const missing=r.run(`(()=>{const bad=new Set();
+    for(const row of HERO_PIX)for(const ch of row)if(ch!=="."&&!HERO_PAL[ch])bad.add(ch);
+    return [...bad].join("");})()`);
+  assert.equal(missing,'','every character in the sprite has a colour');
+  // The game and the title card both draw it, rather than each drawing their own.
+  const src=source;
+  const hero=src.slice(src.indexOf('function drawHero('),src.indexOf('function drawRadar('));
+  const title=src.slice(src.indexOf('function drawTitle('),src.indexOf('function render('));
+  assert.match(hero,/drawPix\(HERO_PIX,HERO_PAL/,'the game draws the sprite');
+  assert.match(title,/drawPix\(HERO_PIX,HERO_PAL/,'so does the title card');
+  // And so does the tool that writes the icon and the tile on the collection page.
+  const art=require('../tools/render-art.js');
+  const sprite=art.readSprite();
+  assert.equal(sprite.rows.join('|'),rows,'the icon and the tile are generated from the same rows');
+  assert.equal(Object.keys(sprite.colours).sort().join(''),palKeys,'and the same colours');
+});
