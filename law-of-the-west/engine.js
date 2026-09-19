@@ -87,19 +87,29 @@ function atLarge(G,why){
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
-function beginEncounter(G){
-  const e=who(G);
-  if(!e)return finish(G,"dusk");
-  G.phase="approach"; G.round=1;
-  G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
+/* Everything that belongs to one scene and must not follow the sheriff into the
+ * next one. A caller's encounter is not the only way a scene starts - a robbery
+ * is the other - so this is shared rather than written out twice, which is how
+ * it came to be wrong: the hat shot off the man before the robbery left the man
+ * in the alley bare-headed and untargetable, a wound in the last encounter left
+ * the street dark through the whole hold-up, and a rifle nobody dealt with was
+ * still at the window with its clock running. */
+function resetScene(G){
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
+  G.sniper=null;
+}
+function beginEncounter(G){
+  const e=who(G);
+  if(!e)return finish(G,"dusk");
+  resetScene(G);
+  G.phase="approach"; G.round=1;
+  G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
   // own scene is indoors, so nobody is above it.
-  G.sniper=null;
   if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
     G.snipers++;
     G.sniper={alive:true,fired:false,shown:false,at:null,
@@ -455,9 +465,8 @@ function runInterlude(G,job){
       name:j.name+" \u2014 "+(him?him.name:"someone you know"),
       brief:j.brief+" You have seen that coat before today."});
   }else{ G.jobEnc=null; }
+  resetScene(G);
   G.interlude=job; G.phase="interlude";
-  G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
-  G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.results.push({encounter:G.encounter,who:job,outcome:"job_"+job});
   return {interlude:job,warned:!!G.tips[job]};
 }

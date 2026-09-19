@@ -322,7 +322,6 @@ test('11. twelve figures, no two alike, each with hitboxes over his own art', ()
         for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)if(((rows[r]||"")[c])==="G")g=true;
         if(!g)bad.push(key+": the raised box is not over the raised gun");
       }
-      if(e.armed&&!fig.raise&&!e.forcedDuel&&false)bad.push(key+": no raised pose");
     }
     // the boxes must not overlap, or a shot would be two things at once
     const over=(p,q)=>p.x<q.x+q.w&&q.x<p.x+p.w&&p.y<q.y+q.h&&q.y<p.y+p.h;
@@ -920,6 +919,59 @@ test('26. three men whose hats are not like anybody else\'s', ()=>{
     const n=+l.split(':')[1];
     assert.ok(n>40,l.split(':')[0]+' has no words for losing his hat');
   }
+});
+
+/* A robbery is a scene like any other, and the last one must not follow the
+ * sheriff into it. This is the bug that only shows in play: beginEncounter
+ * cleared the per-scene state and runInterlude did not, so a hat shot off the
+ * caller before a hold-up left the man in the alley bare-headed and impossible
+ * to target, a wound left the street dark all the way through it, and a rifle
+ * nobody dealt with was still at the window with its clock running. */
+test('27. a robbery starts clean, like any other scene', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // a hat shot off the caller before the job
+    const G=newDay({seed:80}); G.encounter=3; G.tips.stage=true;
+    beginEncounter(G); openDialogue(G);
+    const b=boxesFor(who(G)).hat;
+    G.mode="gun"; G.phase="aiming";
+    G.aim={x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h};
+    shoot(G,300);
+    r.hatOffAfterCaller=G.hatOff;
+    nextEncounter(G);
+    r.job=G.interlude; r.hatOffDuringJob=G.hatOff;
+    const hb=boxesFor(who(G)).hat;
+    r.robberTargetable=boxAt(G,(hb.x+2)/SCENE.w,(hb.y+2)/SCENE.h);
+    // a wound taken in the encounter before it
+    const W=newDay({seed:81}); W.encounter=3; W.tips.train=true;
+    W.doctor.sober=true; W.doctor.disposition=1;
+    beginEncounter(W); takeHit(W,"shot");
+    r.blackoutSet=W.blackout;
+    nextEncounter(W);
+    r.blackoutDuringJob=W.blackout;
+    // and a man at the window nobody dealt with
+    const S=newDay({seed:82}); S.encounter=3;
+    beginEncounter(S);
+    S.sniper={alive:true,fired:false,shown:true,at:0,show:0,limit:50};
+    resolve(S,"departed"); nextEncounter(S);
+    r.sniperDuringJob=!!(S.sniper&&S.sniper.alive);
+    // and the two ways a scene begins share one reset rather than two copies
+    r.shared=typeof resetScene==="function";
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.hatOffAfterCaller,true,'the hat never came off to begin with');
+  assert.equal(out.job,'stage','no robbery fell due');
+  assert.equal(out.hatOffDuringJob,false,
+    'the man in the alley is bare-headed because somebody else lost a hat');
+  assert.equal(out.robberTargetable,'hat',
+    'the hold-up man\'s hat cannot be shot off, so the bandana never comes down');
+  assert.equal(out.blackoutSet,true);
+  assert.equal(out.blackoutDuringJob,false,
+    'the street is still dark from the last encounter');
+  assert.equal(out.sniperDuringJob,false,
+    'a rifle from the last encounter is still at the window during the robbery');
+  assert.equal(out.shared,true,'the two ways a scene starts have drifted apart again');
 });
 
 test('report', ()=>{

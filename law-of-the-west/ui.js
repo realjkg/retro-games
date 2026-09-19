@@ -1357,7 +1357,6 @@ const OUTCOME_LINES={
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
   fled:"They run, and the whole street watches them run, and watches what they were running from.",
-  hat_yield:"", hat_scared:"", hat_deputy:"", hat_unmasked:"",
   outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
