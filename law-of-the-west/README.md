@@ -36,12 +36,16 @@ Pages behave identically — no external requests of any kind, asserted by a tes
 
 ## The day
 
-The **Sheriff** is the one you play: he is the near figure at the left of every
-street, seen from behind over his own shoulder, and the only gun you control.
-Eleven callers come to him, one at a time, in this order, each with their own
-tree, their own figure and their own entrance theme. Seven of them carry the
-day's plot — Rose, the Kid, the Doctor, Willy, April, the Deputy and Belle — and
-the other four are the ones the street sends: a dude off the train, a man who
+The **Sheriff** is not a character in the cast. He is you. There is no twelfth
+caller and nothing in the game decides anything on his behalf: he is the near
+figure at the left of every street, seen from behind over his own shoulder, and
+every word he says and every shot he fires is one you chose. The eleven below
+are the people who come to him.
+
+They come one at a time, in this order, each with their own tree, their own
+figure and their own entrance theme. Seven of them carry the day's plot — Rose,
+the Kid, the Doctor, Willy, April, the Deputy and Belle — and the other four are
+the ones the street sends: a dude off the train, a man who
 has just bought a gun, a gambler, and whoever it is that waits until evening.
 
 | # | Caller | Who they are | What the encounter is for | Where it can end |
@@ -353,9 +357,9 @@ dialogue, audiovisual assets, or musical compositions.
 
 Not an emulator, a port, or a copy of the original's content. The structure is
 the 1985 design's, taken from its published description: eleven encounters with
-eleven different people in a set sequence, the sheriff you play being the twelfth
-figure on the street and the only gun you hold; callers met one at a time; one caller line and four replies with up to three exchanges, the
-interaction style the original introduced; a gun drawn on up that puts a
+eleven different people in a set sequence, met one at a time; one caller line and
+four replies with up to three exchanges, the interaction style the original
+introduced; a gun drawn on up that puts a
 crosshair on the screen and interrupts anything; a caller who will not talk to a
 gun drawn before he has been answered; surrender and departure and delayed draws
 and ambushes; robberies you were warned about or were not; a blackout when the
