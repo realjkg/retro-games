@@ -110,21 +110,27 @@ test('Three balls in the air at a time, and they leave the chest the way you ask
 
 test('A shot kills what it hits and scores it; a magnet eats the shot instead',()=>{
   const r=runtime(2,9);clearMaze(r,1);
-  r.run(`G.L.foes=[mkFoe("scorpion",G.hero.x+30,G.hero.y,1,1,0,0)];G.hero.face=1;G.hero.cool=0;shoot(1,0);`);
+  /* mkFoe gives every foe an unseeded cool of .6 to 1.8 seconds, and a foe
+   * whose cool runs out jumps. Over twenty steps the scorpion sometimes went
+   * up before the ball got to him and the shot passed under his feet, so this
+   * test failed about one run in five - on main as well as here, and long
+   * before this branch. What is under test is that a ball kills what it hits,
+   * not what a scorpion does with his own clock, so the clock is pinned. */
+  r.run(`G.L.foes=[mkFoe("scorpion",G.hero.x+30,G.hero.y,1,1,0,0)];G.L.foes[0].cool=99;G.hero.face=1;G.hero.cool=0;shoot(1,0);`);
   step(r,20);
   assert.equal(r.run('G.L.foes[0].dead'),true);
   assert.equal(r.run('G.score'),r.run('FOE.scorpion.pts'));
   assert.equal(r.run('G.L.shots.length'),0,'the shot is spent');
   // The witch doctor takes three.
   clearMaze(r,1);
-  r.run('G.score=0;G.hero.inv=99;G.L.foes=[mkFoe("doctor",G.hero.x+60,G.hero.y,1,1,0,0)];');
+  r.run('G.score=0;G.hero.inv=99;G.L.foes=[mkFoe("doctor",G.hero.x+60,G.hero.y,1,1,0,0)];G.L.foes[0].cool=99;');
   for(let i=0;i<2;i++){r.run('G.hero.cool=0;shoot(1,0);');step(r,20);}
   assert.equal(r.run('G.L.foes[0].dead'),false);
   r.run('G.hero.cool=0;shoot(1,0);');step(r,20);
   assert.equal(r.run('G.L.foes[0].dead'),true);
   // A magnet is not shootable: it swallows the ball and stays where it is.
   clearMaze(r,1);
-  r.run(`G.L.foes=[mkFoe("magnet",G.hero.x+30,G.hero.y,1,1,0,0)];G.score=0;G.hero.cool=0;shoot(1,0);`);
+  r.run(`G.L.foes=[mkFoe("magnet",G.hero.x+30,G.hero.y,1,1,0,0)];G.L.foes[0].cool=99;G.score=0;G.hero.cool=0;shoot(1,0);`);
   step(r,20);
   assert.equal(r.run('G.L.foes[0].dead'),false,'the magnet survives');
   assert.equal(r.run('G.L.shots.length'),0,'the shot does not');

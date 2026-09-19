@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      # every game carries its own copy of the zoom guard; they must not drift
+      - run: node tools/sync-nozoom.js --check
       - run: node --test archon/tests/combat.test.cjs
       - run: node --test aztec/tests/tomb.test.cjs
       - run: node --test drol/tests/*.test.cjs
