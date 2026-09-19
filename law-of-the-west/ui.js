@@ -1325,7 +1325,11 @@ function paint(){
   // talking, and his four replies are not on offer while it is out. Putting it
   // up hands him back the conversation where he left it.
   const balked=G.balked&&G.mode==="gun";
+  // a man who has just had his hat shot off and is coming for you anyway is
+  // still in the middle of the encounter, so his words for it go up here
+  const hatted=G.hatOff&&(G.phase==="tell"||G.phase==="duel");
   lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :hatted?hatLine()
     :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
@@ -1353,15 +1357,23 @@ const OUTCOME_LINES={
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
   fled:"They run, and the whole street watches them run, and watches what they were running from.",
-  hat_yield:"The hat goes off his head and into the dirt behind him, and his hands go up before it lands. Nobody is hurt and the whole street saw it.",
-  hat_scared:"The hat comes off and they go down into the dirt after it, with both arms over their head, and they had no gun on them at all.",
+  hat_yield:"", hat_scared:"", hat_deputy:"", hat_unmasked:"",
   outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
+/* A hat coming off is the one shot everybody in the game has their own words
+ * for, because it is the one shot that says something about them rather than
+ * about where it landed. */
+function hatLine(){
+  const him=who(G);
+  if(him&&him.masked)return HAT_UNMASKED;
+  return (him&&him.hatline)||HAT_LINE;
+}
 function outcomeLine(){
   if(G.outcome==="job_missed"&&JOBS[G.interlude])return JOBS[G.interlude].missed;
+  if(G.outcome&&G.outcome.indexOf("hat_")===0)return hatLine();
   return OUTCOME_LINES[G.outcome]||"The matter settles.";
 }
 function paintSummary(){

@@ -314,8 +314,23 @@ function shoot(G,latencyMs){
   if(box==="hat"&&!G.hatOff&&e){
     if(d&&d.drawn){d.fired=true;d.result="miss";d.zone="off";return theirReply(G);}
     G.hatOff=true; G.reflex=null;
+    // A hold-up man's Stetson takes his bandana down with it, and a man whose
+    // face the whole street has just seen does not stay to finish the job. No
+    // arrest, no body, and the job stopped: that is the shot of the day.
+    if(e.masked){
+      G.authority+=2; G.flags.push("hat_off","unmasked");
+      return resolve(G,"hat_unmasked");
+    }
+    // He is your deputy. The street can see the jail door from here.
+    if(e.deputy){
+      G.authority-=2; G.flags.push("offended");
+      return resolve(G,"hat_deputy");
+    }
     if(!e.armed){
       G.authority-=2; G.flags.push("offended");
+      // and the man who decides whether your next wound is survivable does not
+      // forget being shot at, whatever else he does about it
+      if(e.doctor)G.doctor.disposition-=2;
       return resolve(G,"hat_scared");
     }
     if(e.temper==="hostile"){
@@ -433,7 +448,10 @@ function runInterlude(G,job){
   if(by){
     G.atLarge=G.atLarge.filter(function(id){return id!==by;});
     const him=castOf(by);
-    G.jobEnc=Object.assign({},j,{figure:by,
+    // a man you met this morning is not wearing anything over his face, and his
+    // temper is his own rather than the outlaw's
+    G.jobEnc=Object.assign({},j,{figure:by, masked:false,
+      temper:(him&&him.temper)||j.temper, hatline:him&&him.hatline,
       name:j.name+" \u2014 "+(him?him.name:"someone you know"),
       brief:j.brief+" You have seen that coat before today."});
   }else{ G.jobEnc=null; }

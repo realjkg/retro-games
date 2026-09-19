@@ -866,6 +866,62 @@ test('25. shooting a hat off is a sentence of its own, and who he is decides it'
   assert.equal(out.noHat,null,'a bare head is a hat box');
 });
 
+test('26. three men whose hats are not like anybody else\'s', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const aimAtHat=(G)=>{const b=boxesFor(who(G)).hat;
+      G.mode="gun"; G.phase="aiming";
+      G.aim={x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h};
+      return boxAt(G,G.aim.x,G.aim.y);};
+    // the deputy is on your side, and the street can see the jail door
+    const D=newDay({seed:70}); D.encounter=8;
+    beginEncounter(D); openDialogue(D); aimAtHat(D); shoot(D,300);
+    r.deputy={out:D.outcome,auth:D.authority,arrests:D.arrests,
+              flags:D.flags.indexOf("offended")>=0};
+    // the doctor decides whether your next wound is survivable
+    const M=newDay({seed:71}); M.encounter=3; M.doctor.disposition=1; M.doctor.sober=true;
+    beginEncounter(M); r.doctorWas=doctorState(M);
+    openDialogue(M); aimAtHat(M); shoot(M,300);
+    r.doctor={out:M.outcome,auth:M.authority,state:doctorState(M)};
+    // and a hold-up man's Stetson takes his bandana with it
+    const R=newDay({seed:72}); R.encounter=3; R.tips.stage=true;
+    runInterlude(R,"stage"); enterJob(R);
+    r.masked=!!who(R).masked;
+    const was=R.authority;
+    const box=aimAtHat(R); shoot(R,300);
+    r.robber={box:box,out:R.outcome,gain:R.authority-was,alive:R.alive,
+              shot:R.badGuysShot,missed:R.crimesMissed};
+    // a caller the sheriff let go does the job unmasked, and is himself again
+    const N=newDay({seed:73}); N.encounter=3; N.atLarge=["gambler"];
+    runInterlude(N,"stage");
+    r.namedMasked=!!who(N).masked;
+    // everybody who wears one has their own words for losing it
+    r.lines=CAST.filter(e=>boxesFor(e).hat).map(e=>e.id+":"+(e.hatline?e.hatline.length:0));
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.deputy.out,'hat_deputy');
+  assert.equal(out.deputy.auth,-2,'shooting your own deputy\'s hat off was free');
+  assert.equal(out.deputy.arrests,0,'you arrested your own deputy');
+  assert.equal(out.deputy.flags,true);
+  assert.equal(out.doctorWas,'civil');
+  assert.equal(out.doctor.out,'hat_scared');
+  assert.equal(out.doctor.auth,-2);
+  assert.notEqual(out.doctor.state,'civil','the doctor forgot being shot at');
+  assert.equal(out.masked,true,'the men in the hold-ups wear nothing over their faces');
+  assert.equal(out.robber.box,'hat');
+  assert.equal(out.robber.out,'hat_unmasked');
+  assert.equal(out.robber.gain,2,'stopping a robbery without firing into anybody was free');
+  assert.equal(out.robber.shot,0,'nobody should have been shot');
+  assert.equal(out.robber.missed,0,'the job counted as missed anyway');
+  assert.equal(out.namedMasked,false,
+    'a caller you let walk turns up at the robbery in a bandana');
+  for(const l of out.lines){
+    const n=+l.split(':')[1];
+    assert.ok(n>40,l.split(':')[0]+' has no words for losing his hat');
+  }
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));

@@ -122,12 +122,26 @@ his own drawing and kept clear of his face, because a ball through a Stetson and
 a ball an inch lower are different sentences. Who he is decides which sentence
 it is. An **armed, patient** man — the dude, the Gambler — gives it up: hands go
 up before the hat lands, an arrest, nobody hurt, and two points of authority
-with the whole street watching, which is the best piece of policing in the game.
-An **armed, hostile** man comes for you bareheaded and at once, on the shortest
-tell there is. Anybody **with no gun on them** has simply been shot at, and the
-street watched that too: two points the other way. Mid-duel it is showing off,
-and showing off is a miss. One hat: once it is off, the target is gone and he is
-drawn without it.
+with the whole street watching. An **armed, hostile** man comes for you
+bareheaded and at once, on the shortest tell there is. Anybody **with no gun on
+them** has simply been shot at, and the street watched that too: two points the
+other way, and the Doctor, who decides whether your next wound is survivable,
+does not forget it. Your own **Deputy** costs you two and buys you nothing, in
+front of everybody who can see the jail door. And a **hold-up man's** Stetson
+takes his bandana down with it — a man whose face the whole street has just seen
+does not stay to finish the job, so that is a robbery stopped with nobody shot
+and nobody arrested, which is the best shot in the game. Mid-duel it is showing
+off, and showing off is a miss. One hat: once it is off the target is gone and
+he is drawn without it.
+
+Everybody who wears one has their own words for losing it, because it is the one
+shot that says something about the man rather than about where it landed. The
+Dude mourns London felt with his hands up. The Gambler watches his topper land
+crown-down and takes his time. The Kid does not turn to watch his go. Willy is
+nine years old and goes into the road after his cap with both arms over his
+head. Miss April loses her bonnet in front of a window full of children. And a
+caller you let walk this morning, turning up at the robbery, is not wearing a
+bandana and has his own words too.
 
 **Where the sights may not go.** A gunsight that can be walked back over the
 sheriff's own sleeve, glove and revolver is a gunsight aimed at the man holding

@@ -29,15 +29,15 @@ const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
  * in the right place when it happens; a sheriff who was not reads about it. */
 const JOBS={
  stage:{id:"stage", name:"The Stage Road", place:"STAGE ROAD", theme:"th_job",
-   armed:true, arrive:["wagon"], temper:"hostile",
+   armed:true, arrive:["wagon"], temper:"hostile", masked:true,
    brief:"The Thursday coach comes down the grade with the mine's money aboard, and two men step out of the rocks above the ford.",
    missed:"They took it at the ford while you were up the street. The driver is alive. Nobody else saw a thing worth telling."},
  train:{id:"train", name:"The Westbound", place:"THE CUT", theme:"th_job",
-   armed:true, arrive:["wagon","crowd"], temper:"hostile",
+   armed:true, arrive:["wagon","crowd"], temper:"hostile", masked:true,
    brief:"The westbound comes into the cut at a walking pace, and a man drops off the payroll car's step with his coat open.",
    missed:"The payroll car was opened at the cut and the westbound came in two hours late with nothing in it."},
  bank:{id:"bank", name:"The Bank", place:"BANK", theme:"th_job",
-   armed:true, arrive:["crowd"], temper:"hostile",
+   armed:true, arrive:["crowd"], temper:"hostile", masked:true,
    brief:"The back wall of the bank has a door in it that was not there yesterday, and a man in the alley turns round with his hand already moving.",
    missed:"They went through the back wall while you were at the other end of town, and the flour sack went with them."}
 };
@@ -46,6 +46,7 @@ const CAST=[
  /* 1 ------------------------------------------------------------- */
  {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
   armed:true, arrive:["wagon","crowd"], temper:"patient",
+  hatline:"The derby goes into the dirt behind him and both hands are up before it lands. “London felt,” he says, to nobody in particular, and does not move again.",
   balk:"He takes his hands out of his coat and holds them where you can see them. “I'll say the rest of it when that is back in the leather.”",
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
@@ -146,6 +147,7 @@ const CAST=[
  /* 3 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"], temper:"hostile",
+  hatline:"The brim spins off him and he does not turn to watch it go. Whatever he rode up this street to be offered, he has stopped wanting it.",
   balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
@@ -188,6 +190,7 @@ const CAST=[
  /* 4 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
   armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"], temper:"patient",
+  hatline:"The derby comes off and he does not flinch, or duck, or put his hands anywhere. He picks it up, looks at the hole in it, and then looks at you.",
   balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
@@ -241,6 +244,7 @@ const CAST=[
  /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
   armed:true, arrive:["spurs","crowd"], temper:"hostile",
+  hatline:"The hat goes into the road and the new gun comes level, and the showing of it is over.",
   balk:"He lets the new gun hang and says nothing more about it. Whatever he came up the street to show you, the showing is over.",
   rounds:{
    opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
@@ -295,6 +299,7 @@ const CAST=[
  /* 6 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
   armed:false, arrive:["crowd"], temper:"coward",
+  hatline:"The cap goes into the road and the boy goes down after it with both arms over his head. He is nine years old and he never had a gun on him.",
   balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
@@ -351,6 +356,7 @@ const CAST=[
  /* 7 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
   armed:false, arrive:["crowd"], temper:"coward",
+  hatline:"The bonnet comes off her and she is down in the dirt with her arms over her head, in front of the schoolhouse, in front of the window full of children.",
   balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
@@ -401,6 +407,7 @@ const CAST=[
  /* 8 ------------------------------------------------------------- */
  {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
   armed:true, arrive:["piano","crowd"], temper:"patient",
+  hatline:"The topper turns over twice and lands crown-down in the road. He looks at it, then at you, and puts his hands up without any hurry at all.",
   balk:"He sets the deck down square on the rail and folds his hands on it. “I'll wait. I am a patient man about most things, Sheriff.”",
   rounds:{
    opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
@@ -450,7 +457,8 @@ const CAST=[
         flags:["depart"], authority:1}}},
  /* 9 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
-  armed:true, arrive:["hooves"], temper:"patient",
+  deputy:true, armed:true, arrive:["hooves"], temper:"patient",
+  hatline:"Your own deputy's hat is in the road and your own deputy has his hands up in the middle of the street, in front of everybody who can see the jail door.",
   balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
@@ -507,6 +515,7 @@ const CAST=[
  /* 10 ------------------------------------------------------------ */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
   armed:true, arrive:["hooves"], temper:"hostile",
+  hatline:"The hat goes off her and she does not go after it, and she does not take her eyes off you while it falls.",
   balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
@@ -559,12 +568,16 @@ const CAST=[
  /* 11 ------------------------------------------------------------ */
  {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
   armed:true, arrive:["spurs"], forcedDuel:true, temper:"hostile",
+  hatline:"The hat goes. He has not said one word since noon and he does not start now.",
   standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
   rounds:{}, ends:{}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
 /* What a caller does when the gun comes out before he has been answered: he
  * stops talking, and does not start again while it is out. */
+/* What the street sees when a hat comes off. A masked man's goes with it. */
+const HAT_UNMASKED="The Stetson goes, and it takes the bandana down with it. He is standing in the daylight with his face out in front of the whole street, and then he is running.";
+const HAT_LINE="The hat turns over twice and lands in the road, and whoever was wearing it has stopped doing anything else at all.";
 const BALK_LINE="He is looking at the gun in your hand and not at you, and he has stopped talking.";
 
 /* ============ the pixel grid ============
