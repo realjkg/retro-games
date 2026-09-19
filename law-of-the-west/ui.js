@@ -1498,6 +1498,44 @@ function paintSound(){
 
 /* A reply is written as two elements — the number and the words — so the words
  * can hang under themselves when they wrap. An empty slot collapses. */
+/* A line that is not a choice: no number in front of it, because a number in
+ * front of a thing on this panel means "press this". */
+function setNote(el,text,cls){
+  el.className="choice note"+(cls?" "+cls:"")+(text?"":" empty");
+  while(el.firstChild)el.removeChild(el.firstChild);
+  if(!text)return;
+  const txt=document.createElement("span"); txt.className="txt"; txt.textContent=text;
+  el.appendChild(txt);
+}
+/* What the scene cost, in a sentence.
+ *
+ * The day keeps an account - authority, arrests, a name in somebody's good
+ * books, a man loose who should not be - and until now it kept it in silence.
+ * The number in the corner moved and nothing said why, so a player could not
+ * tell a good ten minutes from a bad one, and the half of this that is a
+ * role-playing game was invisible while it was being played. This is the other
+ * half of a choice: the part where you are told what you chose. */
+function tookAway(){
+  const f=(G.ending&&G.ending.flags)||[];
+  const a=(G.ending&&G.ending.authority)||0;
+  const o=G.outcome, has=k=>f.indexOf(k)>=0;
+  const said=[];
+  if(has("arrest")||o==="surrendered"||o==="disarmed"||o==="hat_yield"||o==="hat_unmasked")
+    said.push("He is in a cell");
+  if(has("date"))said.push("Saturday, then");
+  if(has("tip_train")||has("tip_stage")||has("tip_bank"))
+    said.push("You know where to be");
+  if(o==="killed_him")said.push("He is dead, and it was his doing");
+  if(o==="innocent_killed")said.push("He is dead, and it was yours");
+  if(o==="wounded_innocent")said.push("You shot a man who had nothing");
+  if(o==="doctor_came"||o==="doctor_saved"||o==="doctor_drunk")
+    said.push("You are hurt, and the doctor came");
+  if(o==="outsmarted")said.push("You woke up where you fell");
+  if(has("depart")||o==="departed"||o==="turns_away")said.push("He is loose");
+  if(has("offended")||a<0)said.push("The town thinks less of you");
+  else if(a>0||o==="sniper_down")said.push("The town thinks better of you");
+  return said.slice(0,2).join(" \u00b7 ");
+}
 function setChoice(el,n,text,cls){
   el.className="choice"+(cls?" "+cls:"")+(text?"":" empty");
   while(el.firstChild)el.removeChild(el.firstChild);
@@ -1567,7 +1605,8 @@ function paint(){
     lineEls[0].textContent=G.ending?G.ending.text:outcomeLine();
     setChoice(lineEls[1],1,(G.encounter>=CAST.length-1)
       ?"End the day":walkOn(),"sel");
-    for(let i=2;i<5;i++)setChoice(lineEls[i],i,"");
+    setNote(lineEls[2],tookAway(),"dim");
+    for(let i=3;i<5;i++)setChoice(lineEls[i],i,"");
     hud(); fitText(); return;
   }
   const him=who(G);
@@ -1636,6 +1675,7 @@ function walkOn(){
   if(has("date"))return "Walk on, and count the days to Saturday";
   if(has("offended"))return "Leave it where it lies and walk on";
   if(has("doctor_insulted"))return "Walk on, and hope you stay whole";
+  if(has("doctor_unsober"))return "Walk on, and hope the bottle stays corked";
   if(has("doctor_civil")||has("doctor_sober"))return "Walk on, with the doctor behind you";
   if(has("tip_train")||has("tip_stage")||has("tip_bank"))
     return "Take what you were told up the street";

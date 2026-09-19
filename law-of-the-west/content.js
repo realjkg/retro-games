@@ -23,7 +23,7 @@
  */
 const LIMITS={NPC:150,REPLY:92,ROUNDS:3,REPLIES:4};
 const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
-  "depart","offended","doctor_civil","doctor_insulted","doctor_sober"];
+  "depart","offended","doctor_civil","doctor_insulted","doctor_sober","doctor_unsober"];
 
 /* The three jobs the day's tips are about. A sheriff who was told is standing
  * in the right place when it happens; a sheriff who was not reads about it. */
@@ -250,7 +250,7 @@ const CAST=[
    sobered:{text:"He drinks it scalding, twice, and by the second cup his hands have stopped and he is looking at you like a man again.",
          flags:["doctor_sober","doctor_civil"], authority:1},
    still_drinking:{text:"He puts the cork back in the bottle and sets it where he can reach it, which is the whole of his answer.",
-         flags:[], authority:0}}},
+         flags:["doctor_unsober"], authority:0}}},
  /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
   armed:true, arrive:["spurs","crowd"], temper:"hostile",
@@ -479,7 +479,12 @@ const CAST=[
    repaid:{text:"He counts it out without hurrying, touches his hat to the room, and is on the boardwalk before the deck has been shuffled.",
         flags:["depart"], authority:1}}},
  /* 9 ------------------------------------------------------------- */
- {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
+ /* He never draws on his own sheriff, and that is a decision rather than a
+  * gap in the writing: the drama of the deputy is that he wants the badge's
+  * respect, not that he wants a gunfight with it. The gun is still in the
+  * scene - it can be put in his face, and his hat can be taken off his head -
+  * but no reply of the sheriff's will ever make him answer with his own. */
+ {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy", neverDraws:true,
   deputy:true, armed:true, arrive:["hooves"], temper:"patient",
   hatline:"Your own deputy's hat is in the road and your own deputy has his hands up in the middle of the street, in front of everybody who can see the jail door.",
   balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",

@@ -50,6 +50,10 @@ catch(e){ console.log('playwright-core not installed; skipping.'); process.exit(
     await grab(String(i+1).padStart(2,'0')+'-'+ids[i],true);
   }
   /* the three states a scene can turn into */
+  /* a scene that has just ended, so what it cost can be read */
+  await p.evaluate(()=>{G.encounter=0;beginEncounter(G);openDialogue(G);
+    build.rows=10;G.node='train';say(G,0);paint();});
+  await p.waitForTimeout(600); await grab('19-what-it-cost',true);
   await p.evaluate(()=>{G.encounter=0;beginEncounter(G);openDialogue(G);
     build.rows=10;drawGun(G,performance.now());aimAt(G,'torso');paint();});
   await p.waitForTimeout(700); await grab('20-sights',true);
