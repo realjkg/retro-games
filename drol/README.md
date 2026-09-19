@@ -72,7 +72,9 @@ The art is drawn from a photograph of the original running, supplied by the owne
 repository — I cannot reach a screenshot or a disk image from where this is built, so that
 photograph is the only sight of the game anyone here has had.
 
-**The hero, the wordmark and the pillars are transcriptions of it.** Three pictures of him,
+**Everything the photographs actually show is transcribed from them.** The hero, the
+wordmark, the pillars, the serpent, the urn, the thrown sword, the scorpion and the
+alligator are all read off the screen pixel by pixel rather than drawn by hand. Three pictures of him,
 in fact, because the screen has three: standing on his feet with the white of him in a block
 under the collar, mid-stride with that block swung forward, and flying with it streaming out
 behind. They line up with each other — the red band across his middle is the ninth row of all
@@ -100,11 +102,26 @@ What the photograph settled:
   and the count of them beside it, a magenta-framed scope in the middle with a line per
   storey and a dot for everything on it, HISCORE at the right, and the game's name in red
   beside three green bars.
-- **The serpents are coiled and upright**, swaying where they stand, with a red tongue.
-- **Thrown weapons are swords**: a white blade with a red hilt, crossing a floor.
-- **White urns stand on the floors** of the scene the photograph shows — lipped, waisted and
-  footed, and taller than a child. They are here too: a ball apiece stops in them, two
-  shatters one for points, and they are cover while they last.
+- **The serpents are coiled and upright**, swaying where they stand, tongue out — a twenty
+  by twenty-six character map, `SERPENT_PIX`, read off the third scene.
+- **Thrown weapons are swords**: a white blade with a red guard, grip and pommel, twenty-nine
+  pixels of floor long. `SWORD_PIX`.
+- **White urns stand on the floors** of the scene the photograph shows: `URN_PIX`, nineteen
+  by thirty-one, lip and belly and foot, three quarters of a storey tall. A ball apiece stops
+  in one, two shatters it for points, and they are cover while they last.
+- **The pillars are fluted columns** with a chequered frieze under the abacus, not the dentils
+  guessed at before. `PILLAR_PIX` is a capital, one repeating shaft row and a base, so a pillar
+  is drawn to whatever height a storey asks for.
+- **The scorpion is salmon-red** and curls its tail over its back, twenty by twenty-one.
+  `SCORPION_PIX` is the Apple II one, not the Commodore's.
+- **The alligator carries its pack on its back** and fires it backwards in puffs — the white
+  dots trailing behind it in the photograph are its exhaust, so they are `PET_JET`, blinked
+  on and off rather than drawn every frame. `PET_PIX` is thirty-seven by fourteen; the boy's
+  lizard is the same animal in a lighter green.
+
+What is *not* transcribed is what no photograph here shows: the zombie, the witch doctor, the
+vacuum cleaner, the magnet, the children, their mother and the toys. Those are drawn in the
+idiom of the machine — four colours, black background — and marked as guesses, not copies.
 
 **There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
 twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
@@ -144,23 +161,24 @@ What that means on screen:
   the screenshots rather than chosen. Mine had been fifty, which is why everything standing in
   one had looked too small — the robot filled 42% of a storey where he fills 51% on the real
   thing.
-- **The scorpion and the bird are transcriptions too**, read off a photograph of the
-  Commodore 64 version the same way the hero was read off the Apple II one: the scorpion is a
-  chunky pink thing with white eyes, a row of white legs and a segmented tail curled over its
-  back with a white sting on the end, and the bird is white with green wings out. They are
-  **big** — two thirds of the height of a storey, as they are on that screen — where my own
-  drawings of them had been a quarter of it, which is most of why the maze had felt empty.
+- **The bird is a transcription of the Commodore 64 screen**, read the same way the hero was
+  read off the Apple II one: white, with green wings out, and two thirds of the height of a
+  storey, as it is there.
+- **The scorpion and the alligator are the Apple II's**, not the Commodore's. The scorpion
+  had been a chunky pink thing off the C64 screen; the machine this game was played on drew
+  it in salmon red with its tail curled over its back, and that is what is here now. The
+  alligator likewise: bright green, snout out, with the pack squared off on its back and its
+  exhaust puffing backwards in white dots.
 - **The pets fly.** Both of them wear jetpacks in the original — an alligator hovering a few
   inches off the floor with a pack strapped to its back, which is the funniest thing on the
-  screen — so the alligator is a transcription too, pack and all, and both pets drift along
-  their floor with a flame under them.
+  screen — and both pets drift along their floor with the pack firing.
 - **Five balls do not kill a turkey. They cook it.** The fifth turns it into a roast on a
   plate, which falls to the floor, stops hunting you and is worth a thousand to whoever walks
   into it. It is the original's best joke and it belongs here.
-- **The rest of the menagerie is still mine**: the zombie hops on its belly, the serpent
-  coils and sways, the witch doctor carries a lit staff under a red headdress, the vacuum has
-  a mouth and wheels, the axe is a white sword with a red hilt, and the magnet is a red
-  horseshoe with a field pulsing out of it.
+- **The rest of the menagerie is still mine**: the zombie hops on its belly, the witch
+  doctor carries a lit staff under a red headdress, the vacuum
+  has a mouth and wheels, and the magnet is a red horseshoe with a field pulsing out of it.
+  The serpent and the thrown sword have left that list: both are transcriptions now.
 - **The trapdoors** of the third scene are white boards in a magenta frame while they are
   shut, and a flap hanging through the hole once sprung — green if that was the safe one, red
   if it was not.
@@ -301,6 +319,17 @@ so `--seed 7` is the same game every time.
   the thrown blades and the monsters.
 - **A sprung trapdoor is a safe one.** The bot worked this out before I did: the plant
   retracts after a few seconds, so the door you survived is the door to use next time.
+- **It was running away from dinner.** The roast a shot turkey becomes went into the same
+  list as everything else on the floor, so the bot gave a plate of cooked bird a forty-six
+  pixel berth and, when the child was behind it, fled the length of the scene for the rest of
+  the round. Three mazes in fourteen ended with no rescue at all because of it. A roast is now
+  neither a threat nor a target — it is a thousand points you walk into — and the same fourteen
+  mazes went from 32 rescues to 42, with nothing left stuck.
+- **Getting unwedged took longer than one frame.** Standing in the five pixels of a slab's
+  thickness, the robot cannot move sideways at all, and the escape — climb or drop out of the
+  band — used to be abandoned the moment he moved, because moving cleared the jam counter that
+  had asked for it. He settled straight back in. Wedging now commits him to three quarters of
+  a second of going one way.
 
 Where the bot stalled and the game was not at fault, the fix belonged in the bot — flying up
 and down the same hole because the goal kept changing floors, dithering between two threats,

@@ -148,7 +148,10 @@ function makeAgent(K){                       // K: the geometry constants of the
   }
 
   /* 3. what is about to hit me */
-  const threats=s.foes.concat(s.curses.map(c=>({k:"curse",x:c.x,y:c.y,w:c.w,h:c.h})))
+  // A cooked turkey is not a threat, it is lunch: it sits where it fell and pays
+ // a thousand to whoever walks into it. Counting it as something to keep clear
+ // of left the agent fleeing a dinner plate for the rest of the scene.
+ const threats=s.foes.filter(e=>e.k!=="roast").concat(s.curses.map(c=>({k:"curse",x:c.x,y:c.y,w:c.w,h:c.h})))
    .concat(s.plants.map(p=>({k:"plant",x:p.x,y:p.y,w:p.w,h:p.h})));
   let flee=0, panic=false;
   for(const e of threats){
@@ -214,17 +217,25 @@ function makeAgent(K){                       // K: the geometry constants of the
     if(me.y>p.y-20)keys.U=true;
    }
   }
-  // Wedged: a robot inside a hole cannot move sideways, because the slab is on
-  // both sides of him. Climb out before trying again.
-  if(memory.jam>10){
+  // Wedged: a robot standing in the thickness of a slab cannot move sideways,
+  // because the floor is on both sides of him. He has to leave the band
+  // altogether, and one frame of climbing does not do it - the moment he moves
+  // at all the jam counter clears and he settles straight back into it. So
+  // wedging commits him to three quarters of a second of going one way.
+  if(memory.jam>10&&!memory.jamEsc){
+   memory.jamEsc=45;
+   memory.jamUp=(goalF<myF||myF===K.FLOORS-1);
+  }
+  if(memory.jamEsc>0){
+   memory.jamEsc--;
    delete keys.HOLD;
-   if(goalF<myF||myF===K.FLOORS-1){keys.U=true;delete keys.D;}
+   if(memory.jamUp){keys.U=true;delete keys.D;}
    else{keys.D=true;delete keys.U;}
   }
 
   /* 5. the trigger */
   const face=keys.R?1:keys.L?-1:h.face;
-  const shootable=t=>t.k!=="magnet"&&t.k!=="curse"&&t.k!=="plant";
+  const shootable=t=>t.k!=="magnet"&&t.k!=="curse"&&t.k!=="plant"&&t.k!=="roast";
   let fire=false, vert=0;
   for(const e of s.foes){
    const c=mid(e), ddx=c.x-me.x, ddy=c.y-me.y;
