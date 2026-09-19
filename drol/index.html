@@ -173,8 +173,8 @@ function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math
 // turkeys, monsters, serpents, witch doctors, shot-blocking magnets, vacuum
 // cleaners, and the swords, daggers, arrows and axes thrown down a storey.
 const FOE={
- scorpion:{n:"a scorpion",    hp:1,sp:38, w:12,h:9, pts:150,shootable:true},
- turkey  :{n:"a turkey",      hp:1,sp:56, w:14,h:11,pts:250,shootable:true},
+ scorpion:{n:"a scorpion",    hp:1,sp:38, w:20,h:24,pts:150,shootable:true},
+ turkey  :{n:"a turkey",      hp:1,sp:56, w:33,h:14,pts:250,shootable:true},
  monster :{n:"a monster",     hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
  serpent :{n:"a serpent",     hp:1,sp:34, w:10,h:16,pts:200,shootable:true},
  doctor  :{n:"a witch doctor",hp:3,sp:30, w:12,h:17,pts:400,shootable:true},
@@ -498,6 +498,60 @@ function savePrefs(){
  }catch(e){}
 }
 
+/* ---- two of the menagerie, read off the screen the same way ---- */
+// The scorpion: tail curled over its back with a white sting on the end, white
+// eyes, and all those legs. It is most of the height of a storey, as it is on
+// the screen this came from.
+const SCORPION_PIX=[
+ "............pPPPWWWWP.",
+ "..........pPPPPPPPWWWW",
+ "..........pPPPPPPPWWWW",
+ "........pPp.pPPPWWWWWW",
+ "......pPPPPPp.....PWWW",
+ "......pPPPPPPPp.......",
+ "......pPPPPPPPp.......",
+ "........pPPPp.........",
+ "......pPp.............",
+ "....pPPPPPPPp.........",
+ "....pPPPPPPPp.........",
+ "....pPPPPPp.....PWWPWW",
+ "......pPp.pPPPWWWWWWWW",
+ "........pPPPPPWWP.PWP.",
+ "......pPPPPPPPWWWWWWWW",
+ "......pPWWWPPPPPWWWPWW",
+ "....pPWWWPPPPPPPPPPPPP",
+ "....pPPPPPPPPPPPPPPPPP",
+ "....pPPPPPPPPPPPPPPPp.",
+ "....pPPPWWWPPPWWWPp.pP",
+ "....pPWWWWWPWWWWWPPPPP",
+ "......PWWPPPWWWPPPPPPP",
+ "......PWWPPPWWWPPPPPWW",
+ "....PWWWWWWWWWWWP.PWWW",
+ "....PWP.PWWWP.PWP.PWP.",
+ "........PWP...PWP.....",
+];
+const SCORPION_PAL={P:"#c87878",p:"#96464a",W:"#f4f4f4"};
+// And the bird, wings out, crossing a storey.
+const BIRD_PIX=[
+ "...............................WWGGg.",
+ ".............................PPWWWWg.",
+ "...........................WWPPGGWWg.",
+ ".....gGGGg...PPWWWWGGg...PPWWPPGGWWPP",
+ "...gGGGGGGGPPWWWWWWWWGGg.WWWWGGWWGGPP",
+ ".GGGGg...gGPPWWGGGGGGWWWPWWWWWWg.PPPP",
+ ".....gGGGg.GGPPWWWWGGWWPPWWWWWWWWWWg.",
+ "...gGGGg...WWGG..PWWWg.PWWWGGPPWWGGg.",
+ ".GGGGg.....pPWWWWg...WWWWGGg.........",
+ "...........PPWWWWWWWWWWGGg...........",
+ ".............WWWWWWWWGGg.............",
+ "...............PWWWGGg...............",
+ ".............PPPPPP..................",
+ ".............PPPPPPPP................",
+ ".................PPPPGGg.............",
+ "...................WWg...............",
+];
+const BIRD_PAL={W:"#f4f4f4",G:"#6aa84f",g:"#3c6e32",P:"#c87878",p:"#96464a"};
+
 /* ============ the title screen's own furniture ============ */
 // The wordmark, read off the original's title screen the same way the hero was:
 // sixty-seven by fourteen, orange with a white glint on each letter.
@@ -727,7 +781,7 @@ function foeStep(e,dt){
   if(r.bx)e.dir*=-1;
   if(r.by)e.vy=e.vy>0?-60:0;
   e.cool-=dt;
-  if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2;}
+  if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2/e.agg;}
   else if(e.vy>0&&e.y>e.home+26)e.vy=-70;
   else if(e.vy<0&&e.y<=e.home)  {e.vy=0;e.y=e.home;}
  }else if(e.k==="monster"){
@@ -1222,24 +1276,9 @@ function drawBackWall(){}
 function drawFoe(e){
  const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir, beat=Math.floor(e.anim*9)%2;
  if(e.k==="scorpion"){
-  const back=d>0?x+1:x+7, front=d>0?x+7:x+1;                 // which end is which
-  c.fillStyle="#e0a83c";c.fillRect(x+2,y+4,8,3);             // the body, low and flat
-  c.fillStyle="#f4d27a";c.fillRect(x+2,y+4,8,1);
-  c.fillStyle="#c8801c";c.fillRect(back,y+2,3,2);            // tail, curling up
-  c.fillStyle="#e0a83c";c.fillRect(back+(d>0?-1:2),y,2,3);   // and over
-  c.fillStyle="#fff0c0";c.fillRect(back+(d>0?-1:2),y,2,1);   // the sting on the end
-  c.fillStyle="#c8801c";
-  c.fillRect(front+(d>0?4:-2),y+3,2,2);c.fillRect(front+(d>0?4:-2),y+6,2,2);  // pincers
-  c.fillStyle="#8a5e18";
-  for(let i=0;i<3;i++)c.fillRect(x+2+i*3,y+7,2,beat?2:1);    // legs, mid-scuttle
-  c.fillStyle="#2a1c04";c.fillRect(front+(d>0?2:1),y+4,1,1); // eye
+  drawPix(SCORPION_PIX,SCORPION_PAL,x-1,y-2,1,d<0);
  }else if(e.k==="turkey"){
-  c.fillStyle="#8a4430";c.fillRect(x+3,y+4,8,5);             // body
-  c.fillStyle="#5e2a1c";c.fillRect(x+(d>0?2:9),y+7,3,3);     // tail fan
-  c.fillStyle="#c86a44";c.fillRect(x+2,beat?y+1:y+3,10,3);   // wings, flapping
-  c.fillStyle="#e8d8c0";c.fillRect(x+(d>0?10:1),y+2,4,3);    // head
-  c.fillStyle="#1a1008";c.fillRect(x+(d>0?12:2),y+3,1,1);
-  c.fillStyle="#e04a2a";c.fillRect(x+(d>0?13:0),y+4,2,3);    // wattle
+  drawPix(BIRD_PIX,BIRD_PAL,x-2,y-1,1,d<0);
  }else if(e.k==="monster"){
   const hop=beat?0:1;
   c.fillStyle="#a05ad8";c.fillRect(x+1,y+5+hop,11,7);        // the beer belly

@@ -140,11 +140,16 @@ What that means on screen:
   deeper one for the boy's scene, a violet one for the girl's and the witch doctor's, and a
   darker one again for the descent to the mother. Magenta is left to the title screen, which
   is where the original uses it.
-- **The menagerie is a handful of blocks each, two frames apiece**, with one bright colour so
-  you can tell what it is at a glance: the scorpion's tail curls over its back, the turkey
-  flaps, the monster hops on its belly, the serpent's body ripples along, the witch doctor
-  carries a lit staff under a red headdress, the vacuum has a mouth and wheels, the axe spins,
-  and the magnet is a red horseshoe with a field pulsing out of it.
+- **The scorpion and the bird are transcriptions too**, read off a photograph of the
+  Commodore 64 version the same way the hero was read off the Apple II one: the scorpion is a
+  chunky pink thing with white eyes, a row of white legs and a segmented tail curled over its
+  back with a white sting on the end, and the bird is white with green wings out. They are
+  **big** — two thirds of the height of a storey, as they are on that screen — where my own
+  drawings of them had been a quarter of it, which is most of why the maze had felt empty.
+- **The rest of the menagerie is still mine**: the monster hops on its belly, the serpent
+  coils and sways, the witch doctor carries a lit staff under a red headdress, the vacuum has
+  a mouth and wheels, the axe is a white sword with a red hilt, and the magnet is a red
+  horseshoe with a field pulsing out of it.
 - **The trapdoors** of the third scene are white boards in a magenta frame while they are
   shut, and a flap hanging through the hole once sprung — green if that was the safe one, red
   if it was not.
@@ -327,9 +332,10 @@ Two details the sources disagree on, and how they are resolved here:
 - [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
   generic-looking robot across a four story map layout. The robot levitates and is able to
   shoot multi-coloured balls out of his chest."
-- **Photographs of the original running and of its title screen**, supplied by the owner of
-  this repository, which are where the palette, the panel across the top, the coiled serpents,
-  the swords, the urns, the shape of the hero, the **Drol** wordmark and the pillars come from.
+- **Photographs of the original running, of its title screen, and of the Commodore 64
+  version**, supplied by the owner of this repository, which are where the palette, the panel across the top, the coiled serpents,
+  the swords, the urns, the shape of the hero, his three poses, the **Drol** wordmark, the
+  pillars, the scorpion and the bird come from.
   They are the only sight of the game this work has had, and they name its author: **Aik Beng**,
   for Brøderbund, 1983.
 - Contemporary reviews, for what else it looked like: ANALOG
