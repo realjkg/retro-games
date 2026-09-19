@@ -714,6 +714,50 @@ test('22. a day with a man down in it still runs all three robberies', ()=>{
   assert.ok(tricked>0,'nobody in a hundred and twenty days was ever outsmarted');
 });
 
+/* A caller with a gun in his face is not the same caller as the next one: how
+ * long he stands there and what he does about it is his own. */
+test('23. every caller answers a drawn gun in his own way and on his own clock', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={tempers:{},windows:{},results:{}};
+    for(let i=0;i<CAST.length;i++){
+      const e=CAST[i];
+      r.tempers[e.id]=e.temper||null;
+      const G=newDay({seed:40+i}); G.encounter=i;
+      beginEncounter(G); if(written(e))openDialogue(G);
+      drawGun(G,0);
+      r.windows[e.id]=G.reflex.limit;
+      tick(G,G.reflex.limit+1);
+      r.results[e.id]={out:G.outcome,alive:G.alive,auth:G.authority,wound:G.wounds};
+    }
+    r.spread=RULES.TEMPERS;
+    return JSON.stringify(r);
+  })()`));
+  // everybody has one, and the three are really different windows
+  for(const id of Object.keys(out.tempers))
+    assert.ok(out.tempers[id],id+' has no temper');
+  const byTemper={};
+  for(const id of Object.keys(out.tempers))
+    (byTemper[out.tempers[id]]=byTemper[out.tempers[id]]||[]).push(out.windows[id]);
+  assert.ok(Math.max.apply(null,byTemper.coward)<Math.min.apply(null,byTemper.patient),
+    'a frightened caller waits as long as a patient one');
+  assert.ok(Math.max.apply(null,byTemper.hostile)<Math.min.apply(null,byTemper.patient),
+    'a hostile caller waits as long as a patient one');
+  // an armed man answers it; an unarmed one leaves, and the badge pays for it
+  for(const id of Object.keys(out.results)){
+    const e=out.results[id];
+    if(out.tempers[id]==='coward'){
+      assert.equal(e.out,'fled',id+' did not run: '+e.out);
+      assert.equal(e.auth,-2,id+' ran and it cost the badge '+e.auth);
+      assert.equal(e.wound,0,id+' was unarmed and the sheriff was hit anyway');
+    }
+  }
+  assert.equal(out.results.doctor.out,'walked_away','the doctor bolted like a child');
+  assert.equal(out.results.doctor.auth,-1,'frightening the doctor off was free');
+  assert.equal(out.results.kid.wound,1,'the Kid stood and took it');
+  assert.equal(out.results.lastgun.wound,1,'the last man stood and took it');
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));

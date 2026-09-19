@@ -104,9 +104,25 @@ off the bottom of the street puts it away.
 been answered** stops talking, says so in his own words, and takes his four
 replies off the table until it is put up. Holstering hands the conversation back
 where he left it; drawing after he has been answered does not balk him, because
-by then he has said his piece. Keeping it on him is a separate matter, and the
-one the reflex clock settles: an armed man answers the gun, an unarmed one walks
-away from it.
+by then he has said his piece.
+
+Keeping it on him is a separate matter, and every caller settles it differently,
+because every caller has a temper. It used to be one window and one answer for
+all of them, which made each of them the same man in a different hat. A
+**hostile** one — the Kid, the man with the new gun, Belle, the last gunfighter,
+the outlaws — waits about a second and answers it. A **patient** one — the dude,
+the Doctor, the Gambler, the Deputy — gives you two or three seconds to think
+better of it. A **frightened** one — Rose, Willy, Miss April — is quicker than
+either and runs, and the whole street watches what they were running from: that
+costs two points of authority, where facing down a patient unarmed caller costs
+one. An armed man of any temper answers the gun, which is a wound.
+
+**Firing.** The shot is the one thing the arm does that is not a position it
+settles into. Recoil throws the barrel above level and it comes back down inside
+a fifth of a second, and the flare sits on the end of the barrel — drawn inside
+the arm's own rotation, so it stays on the muzzle wherever the kick has put it —
+rather than washing the whole picture white. Three colours and no gradient, like
+everything else here.
 
 **The second gun.** Not every caller comes alone. On some encounters — about
 one in six, never more than twice in a day, and never at the doctor's, whose

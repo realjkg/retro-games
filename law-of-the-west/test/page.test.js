@@ -1020,3 +1020,34 @@ test('9w. the gun in his face takes his four replies away until it is put up',
   assert.deepEqual(lines(),before,'holstering did not give the conversation back');
   assert.deepEqual(p.errors,[]);
 });
+
+test('9x. firing kicks the barrel up and puts a flare on the muzzle, briefly',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  p.press('ArrowUp');                                   // draw
+  for(let t=0;t<600;t+=16)p.frame(t);
+  assert.equal(p.ev('swing'),1,'the arm never came up');
+  const level=p.ev('kickNow(600)');
+  assert.equal(level,0,'the barrel was kicking before anything was fired');
+  // fire, and read the kick curve off the page's own clock
+  p.ev('kickAt=600;');
+  const at=[601,650,690,780,800].map(t=>p.ev('kickNow('+t+')'));
+  assert.ok(at[0]>0&&at[0]<0.3,'the kick starts at full throw: '+at[0]);
+  assert.ok(at[2]>at[0]&&at[2]>at[4],'the barrel never came back down: '+at.join(','));
+  assert.equal(at[4],0,'the kick outlasts a fifth of a second');
+  // and the flare only exists while the barrel is up. jsdom fetches no images,
+  // so his drawing stands in as one that is loaded; what is under test is when
+  // the flare is put down, not what it is put down over.
+  p.ev('sheriffImg={complete:true,naturalWidth:129,naturalHeight:200};');
+  const flare=()=>p.painted.filter(r=>
+    r.c==='#fff6c8'||r.c==='#ffd24a'||r.c==='#ff8a1e').length;
+  p.painted.length=0; p.ev('nowFrame=690;ownGun(true);');
+  assert.ok(flare()>=6,'no muzzle flare while firing: '+flare());
+  p.painted.length=0; p.ev('nowFrame=900;ownGun(true);');
+  assert.equal(flare(),0,'the flare is still burning a fifth of a second later');
+  // nor does it appear when nothing has been fired
+  p.painted.length=0; p.ev('kickAt=-1e9;nowFrame=1000;ownGun(true);');
+  assert.equal(flare(),0,'the muzzle flares with the gun at rest');
+  assert.deepEqual(p.errors,[]);
+});

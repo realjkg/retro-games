@@ -413,6 +413,19 @@ if(typeof Image==="function"){
 const ARM={sx:60,sy:88,w:69,h:50}, ELBOW={x:60,y:98}, DOWN=1.34;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
+/* A shot is the one thing the arm does that is not a position it settles into.
+ * The barrel throws up and comes back down, and it is over in a fifth of a
+ * second: past the hinge, because recoil takes the gun above level, and the
+ * muzzle flare sits on the end of the barrel rather than over the whole
+ * picture. Without it a revolver going off looks like the street blinking. */
+let kickAt=-1e9; const KICK_MS=190, KICK=0.26;
+const MUZZLE={x:126,y:96};            // the end of the barrel at full level
+function kickNow(now){
+  const t=(now-kickAt)/KICK_MS;
+  if(t<0||t>=1)return 0;
+  return Math.sin(t*Math.PI)*(1-t*0.35);
+}
+let nowFrame=0;                       // the frame's own clock, for the kick
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
@@ -420,14 +433,30 @@ function ownGun(out){
   ctx.drawImage(img,0,0,ARM.sx,OWN.h,               dx,0,ARM.sx,OWN.h);
   ctx.drawImage(img,ARM.sx,0,ARM.w,ARM.sy,          dx+ARM.sx,0,ARM.w,ARM.sy);
   ctx.drawImage(img,ARM.sx,below,ARM.w,OWN.h-below, dx+ARM.sx,below,ARM.w,OWN.h-below);
-  const a=(1-swing)*DOWN;
-  if(a>0.001){
+  const k=kickNow(nowFrame);
+  const a=(1-swing)*DOWN-k*KICK;      // recoil carries it past level, briefly
+  if(Math.abs(a)>0.001){
     ctx.save();
     ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
     ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
   }
   ctx.drawImage(img,ARM.sx,ARM.sy,ARM.w,ARM.h, dx+ARM.sx,ARM.sy,ARM.w,ARM.h);
-  if(a>0.001)ctx.restore();
+  if(k>0.25)muzzle(dx,a,k);
+  if(Math.abs(a)>0.001)ctx.restore();
+}
+/* The flare, drawn inside the arm's own rotation so it stays on the muzzle
+ * wherever recoil has thrown it: a hot core, a ragged corona, and a lick along
+ * the barrel. Three colours and no gradient, like everything else here. */
+function muzzle(dx,a,k){
+  const x=dx+MUZZLE.x, y=MUZZLE.y, r=Math.round(3+k*5);
+  ctx.fillStyle="#fff6c8";
+  ctx.fillRect(x-1,y-r,3,r*2); ctx.fillRect(x-r,y-1,r*2,3);
+  ctx.fillStyle="#ffd24a";
+  ctx.fillRect(x+1,y-r+2,r,2); ctx.fillRect(x+1,y+r-4,r,2);
+  ctx.fillRect(x-r+2,y-2,2,5); ctx.fillRect(x+r-3,y-2,3,5);
+  ctx.fillStyle="#ff8a1e";
+  ctx.fillRect(x+r-2,y-1,Math.round(k*7),3);
+  ctx.fillRect(x-3,y-r+1,3,2); ctx.fillRect(x-3,y+r-3,3,2);
 }
 
 /* ---- the title card ---- *
@@ -1067,6 +1096,7 @@ function blackLevel(now){
   return 1-u*0.58;                       // never all the way back while he is down
 }
 function drawScene(now){
+  nowFrame=now;
   if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
   if(!G.blackout)blackOn=false;
   const g=sceneGeom();
@@ -1300,6 +1330,7 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  fled:"They run, and the whole street watches them run, and watches what they were running from.",
   outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
@@ -1527,7 +1558,7 @@ function fire(){
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
     const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
-    SND.gunshot(); flash=0.16;
+    SND.gunshot(); flash=0.10; kickAt=performance.now();
     reloadAt=performance.now()+760;             // and then he reloads it
     const before=G.outcome;
     shoot(G,Math.max(60,lat));

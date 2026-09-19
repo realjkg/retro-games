@@ -12,6 +12,17 @@ const RULES={
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
   REFLEX_MIN:1500, REFLEX_MAX:2600,
+  /* How long a man stands there with a gun in his face before he does something
+   * about it, and what he does. It was one window and one answer for all of
+   * them, which made every caller the same man wearing a different hat. A
+   * hostile one is quick and answers it; a patient one gives you a long moment
+   * to think better of it; a frightened one is quicker than either and runs,
+   * and the street remembers that the badge did that to him. */
+  TEMPERS:{
+    hostile:{reflex:[900,1600],  flee:0},
+    patient:{reflex:[2200,3400], flee:-1},
+    coward: {reflex:[700,1400],  flee:-2}
+  },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
@@ -169,6 +180,7 @@ function terminal(G,id){
 }
 
 /* ---- the gun, which is always available ---- */
+const temperOf=e=>(e&&RULES.TEMPERS[e.temper])||RULES.TEMPERS.patient;
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
@@ -178,7 +190,8 @@ function drawGun(G,nowMs){
   // it, which is answer it if he is armed and leave if he is not.
   if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
-  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
+  const t=temperOf(who(G)).reflex;
+  G.reflex={at:nowMs||0,limit:Math.round(rnd(G,t[0],t[1]))};
   return G.mode;
 }
 function holster(G){
@@ -219,7 +232,12 @@ function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
+    // Nobody unarmed is a threat, but frightening one off the street with a gun
+    // is a thing the town watched the badge do, and it costs what it costs.
+    const cost=temperOf(e).flee;
+    G.authority+=cost;
+    if(cost<0)G.flags.push("offended");
+    return resolve(G,cost<=-2?"fled":"walked_away");
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){

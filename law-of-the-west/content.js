@@ -29,15 +29,15 @@ const FLAGS=["tip_train","tip_stage","tip_bank","date","arrest","surrender",
  * in the right place when it happens; a sheriff who was not reads about it. */
 const JOBS={
  stage:{id:"stage", name:"The Stage Road", place:"STAGE ROAD", theme:"th_job",
-   armed:true, arrive:["wagon"],
+   armed:true, arrive:["wagon"], temper:"hostile",
    brief:"The Thursday coach comes down the grade with the mine's money aboard, and two men step out of the rocks above the ford.",
    missed:"They took it at the ford while you were up the street. The driver is alive. Nobody else saw a thing worth telling."},
  train:{id:"train", name:"The Westbound", place:"THE CUT", theme:"th_job",
-   armed:true, arrive:["wagon","crowd"],
+   armed:true, arrive:["wagon","crowd"], temper:"hostile",
    brief:"The westbound comes into the cut at a walking pace, and a man drops off the payroll car's step with his coat open.",
    missed:"The payroll car was opened at the cut and the westbound came in two hours late with nothing in it."},
  bank:{id:"bank", name:"The Bank", place:"BANK", theme:"th_job",
-   armed:true, arrive:["crowd"],
+   armed:true, arrive:["crowd"], temper:"hostile",
    brief:"The back wall of the bank has a door in it that was not there yesterday, and a man in the alley turns round with his hand already moving.",
    missed:"They went through the back wall while you were at the other end of town, and the flour sack went with them."}
 };
@@ -45,7 +45,7 @@ const JOBS={
 const CAST=[
  /* 1 ------------------------------------------------------------- */
  {id:"stranger", name:"A Dude", place:"STREET", theme:"th_stranger",
-  armed:true, arrive:["wagon","crowd"],
+  armed:true, arrive:["wagon","crowd"], temper:"patient",
   balk:"He takes his hands out of his coat and holds them where you can see them. “I'll say the rest of it when that is back in the leather.”",
   rounds:{
    opening:{npc:"You'd be the new sheriff. Folks said you were younger than the last one. They didn't say much else.",
@@ -95,7 +95,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 2 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
-  armed:false, arrive:["piano","bottle"],
+  armed:false, arrive:["piano","bottle"], temper:"coward",
   balk:"She stops with her hand on the bottle and does not pour. \u201cPut that away or take it outside, Sheriff. I can wait all afternoon.\u201d",
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
@@ -145,7 +145,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 3 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
-  armed:true, arrive:["hooves","spurs"],
+  armed:true, arrive:["hooves","spurs"], temper:"hostile",
   balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
@@ -187,7 +187,7 @@ const CAST=[
   ends:{}},
  /* 4 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
-  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
+  armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"], temper:"patient",
   balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
@@ -240,7 +240,7 @@ const CAST=[
          flags:[], authority:0}}},
  /* 5 ------------------------------------------------------------- */
  {id:"shotgun", name:"Dude with a New Gun", place:"STREET", theme:"th_shotgun",
-  armed:true, arrive:["spurs","crowd"],
+  armed:true, arrive:["spurs","crowd"], temper:"hostile",
   balk:"He lets the new gun hang and says nothing more about it. Whatever he came up the street to show you, the showing is over.",
   rounds:{
    opening:{npc:"Look at it, Sheriff. Forty dollars in Kansas City and it come out of the crate oiled. You'll not see another like it this side of the river.",
@@ -294,7 +294,7 @@ const CAST=[
         flags:["depart"], authority:0}}},
  /* 6 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
-  armed:false, arrive:["crowd"],
+  armed:false, arrive:["crowd"], temper:"coward",
   balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
@@ -350,7 +350,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 7 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
-  armed:false, arrive:["crowd"],
+  armed:false, arrive:["crowd"], temper:"coward",
   balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
@@ -400,7 +400,7 @@ const CAST=[
         flags:["depart","offended"], authority:-1}}},
  /* 8 ------------------------------------------------------------- */
  {id:"gambler", name:"The Gambler", place:"SALOON", theme:"th_gambler",
-  armed:true, arrive:["piano","crowd"],
+  armed:true, arrive:["piano","crowd"], temper:"patient",
   balk:"He sets the deck down square on the rail and folds his hands on it. “I'll wait. I am a patient man about most things, Sheriff.”",
   rounds:{
    opening:{npc:"Sheriff. Sit in. Four hands teaches a man more about a town than a year of asking questions, and I have learned that nobody here can bluff.",
@@ -450,7 +450,7 @@ const CAST=[
         flags:["depart"], authority:1}}},
  /* 9 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
-  armed:true, arrive:["hooves"],
+  armed:true, arrive:["hooves"], temper:"patient",
   balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
@@ -506,7 +506,7 @@ const CAST=[
         flags:["depart"], authority:-1}}},
  /* 10 ------------------------------------------------------------ */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
-  armed:true, arrive:["hooves"],
+  armed:true, arrive:["hooves"], temper:"hostile",
   balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
@@ -558,7 +558,7 @@ const CAST=[
         flags:["depart"], authority:1}}},
  /* 11 ------------------------------------------------------------ */
  {id:"lastgun", name:"The Last Gunfighter", place:"STREET", theme:"th_lastgun",
-  armed:true, arrive:["spurs"], forcedDuel:true,
+  armed:true, arrive:["spurs"], forcedDuel:true, temper:"hostile",
   standoff:"He has been across the street since noon and has not said one word. The boardwalk has emptied from both ends.",
   rounds:{}, ends:{}}
 ];
