@@ -50,6 +50,7 @@ function rawDay(opts){
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
     spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -59,7 +60,19 @@ function newDay(opts){const G=rawDay(opts); G.doctor.sober=G.rng()>=0.3; return 
 const newGame=newDay;                      // the page calls it this
 /* During a robbery the man in front of the sheriff is the robber, not the next
  * caller, and every rule below reads him through the same accessor. */
-const who=G=>(G.interlude?JOBS[G.interlude]:CAST[G.encounter])||null;
+const who=G=>(G.interlude?(G.jobEnc||JOBS[G.interlude]):CAST[G.encounter])||null;
+const castOf=id=>CAST.filter(e=>e.id===id)[0]||null;
+/* Who is loose. An armed man who walks out of his encounter unstopped - sent
+ * off, told to leave the territory, given offence and gone, or simply cleverer
+ * than the sheriff - is a man the town may hear from again. Arrested, shot or
+ * dead, he is not; unarmed, he is not either, because a schoolteacher does not
+ * go through the back wall of a bank. */
+function atLarge(G,why){
+  const e=who(G);
+  if(!e||!e.armed||G.interlude)return;
+  if(G.atLarge.indexOf(e.id)<0)G.atLarge.push(e.id);
+  if(why)G.log.push("at large: "+e.id+" ("+why+")");
+}
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
@@ -118,7 +131,19 @@ function act(G,kind){
     G.arrests++; G.authority+=1; G.flags.push("surrender","arrest");
     return resolve(G,"surrendered");
   }
-  if(kind==="depart"){G.flags.push("depart");return resolve(G,"departed");}
+  if(kind==="depart"){
+    G.flags.push("depart"); atLarge(G,"sent off unstopped");
+    return resolve(G,"departed");
+  }
+  // Outsmarted. Not a bullet and not the end of the day: the sheriff wakes up
+  // where he was standing, poorer in the town's estimation, with one caller
+  // already come and gone while he was down and the man who did it loose.
+  if(kind==="trick"){
+    G.authority-=2; G.flags.push("outsmarted");
+    G.incapacitated=true; G.blackout=true;
+    atLarge(G,"outsmarted");
+    return resolve(G,"outsmarted");
+  }
   return resolve(G,"nothing");
 }
 function terminal(G,id){
@@ -137,6 +162,9 @@ function terminal(G,id){
     if(f==="doctor_sober")G.doctor.sober=true;
   }
   G.authority+=t.authority||0;
+  // a man who walked out of it unstopped, or who left having taken offence
+  const f=t.flags||[];
+  if(f.indexOf("offended")>=0||f.indexOf("depart")>=0)atLarge(G,"left unstopped");
   return resolve(G,id);
 }
 
@@ -191,7 +219,7 @@ function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");
+    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
@@ -343,13 +371,27 @@ function resolve(G,outcome){
   return {outcome,ending:G.ending};
 }
 /* A job the sheriff was warned about is one he can be standing in front of. */
+/* A job that has come due happens, and a job the sheriff was carried past by
+ * being knocked down still happens: the test is "after", not "exactly at". */
 function interludeDue(G){
   const done=G.encounter+1;
-  return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
+  return INTERLUDES.find(i=>i.after<=done&&!G.results.some(r=>r.outcome==="job_"+i.job));
 }
 /* The job is a scene, not a line of bookkeeping: being told about it puts the
  * sheriff in front of it with his own gun still in the leather. */
 function runInterlude(G,job){
+  // Whoever the sheriff let go most recently is the man in the alley. If he let
+  // nobody go, it is an outlaw nobody in Gold Gulch can name.
+  const by=G.atLarge.length?G.atLarge[G.atLarge.length-1]:null;
+  const j=JOBS[job];
+  G.by=by;
+  if(by){
+    G.atLarge=G.atLarge.filter(function(id){return id!==by;});
+    const him=castOf(by);
+    G.jobEnc=Object.assign({},j,{figure:by,
+      name:j.name+" \u2014 "+(him?him.name:"someone you know"),
+      brief:j.brief+" You have seen that coat before today."});
+  }else{ G.jobEnc=null; }
   G.interlude=job; G.phase="interlude";
   G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
@@ -376,8 +418,10 @@ function nextEncounter(G){
   }
   const due=interludeDue(G);
   if(due&&G.interlude!==due.job)return runInterlude(G,due.job);
-  G.interlude=null;
+  G.interlude=null; G.by=null; G.jobEnc=null;
   G.encounter++;
+  // knocked down: the street went on without him, and one caller came and went
+  if(G.incapacitated){G.incapacitated=false; G.skipped++; G.encounter++;}
   if(G.encounter>=CAST.length)return finish(G,"dusk");
   return beginEncounter(G);
 }

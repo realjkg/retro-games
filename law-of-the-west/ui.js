@@ -1252,7 +1252,9 @@ function paint(){
   }
   lineEls[0].className="npc";
   if(G.phase==="interlude"){
-    const job=JOBS[G.interlude]||{};
+    // who(G) rather than JOBS: when the sheriff let somebody go this morning,
+    // the job carries that man's name and his own line about the coat
+    const job=who(G)||JOBS[G.interlude]||{};
     lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
     setChoice(lineEls[1],1,G.tips[G.interlude]
       ?(JOB_PROMPT[G.interlude]||"Go"):"Hear it out","sel");
@@ -1298,6 +1300,7 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"

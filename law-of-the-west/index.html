@@ -796,6 +796,8 @@ const SND=(function(){
  *           "delayed"   he walks, then turns and fires
  *           "surrender" hands up, arrest available
  *           "depart"    he leaves, and that is that
+ *           "trick"     he is cleverer than the sheriff: no bullet and no game
+ *                       over, but the day goes on a caller without him
  * Drawing your own gun is always available and is not a menu line.
  *
  * A terminal emits flags the day counts: tip_train, tip_stage, tip_bank, date,
@@ -855,7 +857,7 @@ const CAST=[
    prickly:{npc:"You've a hard way with a stranger who's done nothing. That's how the last one started, I'd guess.",
     replies:[
      {text:"\"You're right. Start again — what did you hear?\"", next:"train"},
-     {text:"\"The last one is why I'm careful.\"", end:"peaceful"},
+     {text:"\"A derby and a soft hand. Go and see the town.\"", action:"trick"},
      {text:"\"Done nothing yet. I'm early, that's all.\"", action:"delayed"},
      {text:"\"Then we'll see how you finish.\"", action:"draw"}]},
    train:{npc:"…There's men meaning to take the westbound where it slows at the cut. Payroll car. That's all I know and it's more than I should say.",
@@ -1221,7 +1223,7 @@ const CAST=[
      {text:"\"Nothing. I want the whole room to see it.\"", action:"delayed"}]},
    leave:{npc:"Then I shall finish this hand and be on the noon coach. You will not see me again and you will not miss me by Thursday.",
     replies:[
-     {text:"\"Finish it standing up and go.\"", action:"depart"},
+     {text:"\"Finish the hand, then. I'll wait on the boardwalk.\"", action:"trick"},
      {text:"\"Leave the hand. Take the coach.\"", action:"depart"},
      {text:"\"The coach — and the freighters' wages on the bar.\"", end:"repaid"},
      {text:"\"You'll go when I say and not before.\"", action:"delayed"}]}},
@@ -1738,6 +1740,7 @@ function rawDay(opts){
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
     spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -1747,7 +1750,19 @@ function newDay(opts){const G=rawDay(opts); G.doctor.sober=G.rng()>=0.3; return 
 const newGame=newDay;                      // the page calls it this
 /* During a robbery the man in front of the sheriff is the robber, not the next
  * caller, and every rule below reads him through the same accessor. */
-const who=G=>(G.interlude?JOBS[G.interlude]:CAST[G.encounter])||null;
+const who=G=>(G.interlude?(G.jobEnc||JOBS[G.interlude]):CAST[G.encounter])||null;
+const castOf=id=>CAST.filter(e=>e.id===id)[0]||null;
+/* Who is loose. An armed man who walks out of his encounter unstopped - sent
+ * off, told to leave the territory, given offence and gone, or simply cleverer
+ * than the sheriff - is a man the town may hear from again. Arrested, shot or
+ * dead, he is not; unarmed, he is not either, because a schoolteacher does not
+ * go through the back wall of a bank. */
+function atLarge(G,why){
+  const e=who(G);
+  if(!e||!e.armed||G.interlude)return;
+  if(G.atLarge.indexOf(e.id)<0)G.atLarge.push(e.id);
+  if(why)G.log.push("at large: "+e.id+" ("+why+")");
+}
 const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 
 /* ---- arrival and conversation ---- */
@@ -1806,7 +1821,19 @@ function act(G,kind){
     G.arrests++; G.authority+=1; G.flags.push("surrender","arrest");
     return resolve(G,"surrendered");
   }
-  if(kind==="depart"){G.flags.push("depart");return resolve(G,"departed");}
+  if(kind==="depart"){
+    G.flags.push("depart"); atLarge(G,"sent off unstopped");
+    return resolve(G,"departed");
+  }
+  // Outsmarted. Not a bullet and not the end of the day: the sheriff wakes up
+  // where he was standing, poorer in the town's estimation, with one caller
+  // already come and gone while he was down and the man who did it loose.
+  if(kind==="trick"){
+    G.authority-=2; G.flags.push("outsmarted");
+    G.incapacitated=true; G.blackout=true;
+    atLarge(G,"outsmarted");
+    return resolve(G,"outsmarted");
+  }
   return resolve(G,"nothing");
 }
 function terminal(G,id){
@@ -1825,6 +1852,9 @@ function terminal(G,id){
     if(f==="doctor_sober")G.doctor.sober=true;
   }
   G.authority+=t.authority||0;
+  // a man who walked out of it unstopped, or who left having taken offence
+  const f=t.flags||[];
+  if(f.indexOf("offended")>=0||f.indexOf("depart")>=0)atLarge(G,"left unstopped");
   return resolve(G,id);
 }
 
@@ -1879,7 +1909,7 @@ function tick(G,nowMs){
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
-    return resolve(G,"walked_away");
+    return resolve(G,"walked_away");          // unarmed, and no threat to anybody
   }
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
@@ -2031,13 +2061,27 @@ function resolve(G,outcome){
   return {outcome,ending:G.ending};
 }
 /* A job the sheriff was warned about is one he can be standing in front of. */
+/* A job that has come due happens, and a job the sheriff was carried past by
+ * being knocked down still happens: the test is "after", not "exactly at". */
 function interludeDue(G){
   const done=G.encounter+1;
-  return INTERLUDES.find(i=>i.after===done&&!G.results.some(r=>r.outcome==="job_"+i.job));
+  return INTERLUDES.find(i=>i.after<=done&&!G.results.some(r=>r.outcome==="job_"+i.job));
 }
 /* The job is a scene, not a line of bookkeeping: being told about it puts the
  * sheriff in front of it with his own gun still in the leather. */
 function runInterlude(G,job){
+  // Whoever the sheriff let go most recently is the man in the alley. If he let
+  // nobody go, it is an outlaw nobody in Gold Gulch can name.
+  const by=G.atLarge.length?G.atLarge[G.atLarge.length-1]:null;
+  const j=JOBS[job];
+  G.by=by;
+  if(by){
+    G.atLarge=G.atLarge.filter(function(id){return id!==by;});
+    const him=castOf(by);
+    G.jobEnc=Object.assign({},j,{figure:by,
+      name:j.name+" \u2014 "+(him?him.name:"someone you know"),
+      brief:j.brief+" You have seen that coat before today."});
+  }else{ G.jobEnc=null; }
   G.interlude=job; G.phase="interlude";
   G.ending=null; G.outcome=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
@@ -2064,8 +2108,10 @@ function nextEncounter(G){
   }
   const due=interludeDue(G);
   if(due&&G.interlude!==due.job)return runInterlude(G,due.job);
-  G.interlude=null;
+  G.interlude=null; G.by=null; G.jobEnc=null;
   G.encounter++;
+  // knocked down: the street went on without him, and one caller came and went
+  if(G.incapacitated){G.incapacitated=false; G.skipped++; G.encounter++;}
   if(G.encounter>=CAST.length)return finish(G,"dusk");
   return beginEncounter(G);
 }
@@ -3344,7 +3390,9 @@ function paint(){
   }
   lineEls[0].className="npc";
   if(G.phase==="interlude"){
-    const job=JOBS[G.interlude]||{};
+    // who(G) rather than JOBS: when the sheriff let somebody go this morning,
+    // the job carries that man's name and his own line about the coat
+    const job=who(G)||JOBS[G.interlude]||{};
     lineEls[0].textContent=G.tips[G.interlude]?job.brief:"Word comes up the street, and it comes late.";
     setChoice(lineEls[1],1,G.tips[G.interlude]
       ?(JOB_PROMPT[G.interlude]||"Go"):"Hear it out","sel");
@@ -3390,6 +3438,7 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  outsmarted:"You come round on the boardwalk with your hat beside you and your gun still in the leather. The street has moved on without you, and so has he.",
   sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"

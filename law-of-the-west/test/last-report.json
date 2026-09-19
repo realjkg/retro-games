@@ -78,9 +78,10 @@
     "lastgun"
   ],
   "actions": {
+    "trick": 2,
     "delayed": 7,
     "draw": 13,
-    "depart": 6,
+    "depart": 5,
     "surrender": 9,
     "ambush": 1
   },

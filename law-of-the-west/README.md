@@ -77,6 +77,24 @@ everybody who could have warned about it. Warned, the sheriff is standing in
 front of it with his gun still in the leather, and it opens as an ambush;
 unwarned, he reads about it afterwards and it counts against him.
 
+**And the man in the alley is somebody.** An armed caller who walks out of his
+encounter unstopped — sent off, told to leave the territory, or gone having
+taken offence — is loose, and the next job that comes due is his. The scene then
+carries his name, his figure, his colours and his own hitboxes, and the brief
+tells you what you already suspect: you have seen that coat before today. Only
+armed men go on the list, because a schoolteacher does not go through the back
+wall of a bank, and a man arrested, shot or dead is off it. Let nobody go and
+the job is what it always was: an outlaw nobody in Gold Gulch can name.
+
+**Outsmarted.** Two callers can take the sheriff for a fool rather than for a
+target: the Gambler, if you let him finish the hand while you wait outside, and
+the dude in the derby, if you decide a soft hand means a soft man. Neither is a
+bullet and neither ends the day. You come round on the boardwalk with your hat
+beside you and your gun still in the leather, two points of authority poorer,
+with one caller already come and gone while you were down and the man who did it
+loose to do one of the robberies. A robbery the sheriff is carried past still
+happens — the day waits for nobody, but it does not lose a job either.
+
 **Drawing.** The gun comes out on **up** — the arrow, `W`, keypad `8`, the pad's
 up, a swipe — which is how the joystick did it, and the crosshair then goes
 where up, down, left and right take it. `HOL`, `Escape` or walking the sights
@@ -318,9 +336,13 @@ From `node --test test/*.test.js` and 500 simulated days:
   Every node reachable, every authored ending reached, every action class —
   draw, ambush, delayed, surrender, depart — used by somebody. No visitor line
   over 150 characters, no reply over 92.
-- **500 days**, replies chosen at random. 300 sheriffs saw sundown; scores ran
-  −300 to 1510 with a median of 390. Tips: the bank warning reached 413 days,
-  the train 253, the stage 208. 481 robberies of 1759 went unstopped.
+- **500 days**, replies chosen at random. 295 sheriffs saw sundown; scores ran
+  −340 to 1510 with a median of 360. Tips: the bank warning reached 405 days,
+  the train 252, the stage 192. 502 robberies of 1776 went unstopped, and 75
+  days had a sheriff on the boardwalk with his hat off at least once.
+- **Every day runs all three robberies**, including the days a caller was
+  skipped because the sheriff was down, and no day is outsmarted more than
+  twice.
 - **The doctor**, all five states: civil survives two wounds, neutral and drunk
   survive one and not two, hostile and dead make the first one fatal, and
   shooting him takes the town's only rescue with him.
@@ -362,7 +384,8 @@ four replies with up to three exchanges, the interaction style the original
 introduced; a gun drawn on up that puts a
 crosshair on the screen and interrupts anything; a caller who will not talk to a
 gun drawn before he has been answered; surrender and departure and delayed draws
-and ambushes; robberies you were warned about or were not; a blackout when the
+and ambushes; a caller you let walk turning up as the man in the alley, and one
+who outwits you costing you the next encounter rather than the game; robberies you were warned about or were not; a blackout when the
 sheriff is hit and a doctor who decides whether that was survivable; surviving
 to sundown as the only requirement; the 320×200 holster-level composition; and
 the seven dimensions at sundown.

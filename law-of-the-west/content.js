@@ -14,6 +14,8 @@
  *           "delayed"   he walks, then turns and fires
  *           "surrender" hands up, arrest available
  *           "depart"    he leaves, and that is that
+ *           "trick"     he is cleverer than the sheriff: no bullet and no game
+ *                       over, but the day goes on a caller without him
  * Drawing your own gun is always available and is not a menu line.
  *
  * A terminal emits flags the day counts: tip_train, tip_stage, tip_bank, date,
@@ -73,7 +75,7 @@ const CAST=[
    prickly:{npc:"You've a hard way with a stranger who's done nothing. That's how the last one started, I'd guess.",
     replies:[
      {text:"\"You're right. Start again — what did you hear?\"", next:"train"},
-     {text:"\"The last one is why I'm careful.\"", end:"peaceful"},
+     {text:"\"A derby and a soft hand. Go and see the town.\"", action:"trick"},
      {text:"\"Done nothing yet. I'm early, that's all.\"", action:"delayed"},
      {text:"\"Then we'll see how you finish.\"", action:"draw"}]},
    train:{npc:"…There's men meaning to take the westbound where it slows at the cut. Payroll car. That's all I know and it's more than I should say.",
@@ -439,7 +441,7 @@ const CAST=[
      {text:"\"Nothing. I want the whole room to see it.\"", action:"delayed"}]},
    leave:{npc:"Then I shall finish this hand and be on the noon coach. You will not see me again and you will not miss me by Thursday.",
     replies:[
-     {text:"\"Finish it standing up and go.\"", action:"depart"},
+     {text:"\"Finish the hand, then. I'll wait on the boardwalk.\"", action:"trick"},
      {text:"\"Leave the hand. Take the coach.\"", action:"depart"},
      {text:"\"The coach — and the freighters' wages on the bar.\"", end:"repaid"},
      {text:"\"You'll go when I say and not before.\"", action:"delayed"}]}},
