@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Drol — The Four-Storey Maze</title>
+<meta name="description" content="Drol: a browser remake of the 1983 Brøderbund original. Fly the four-storey maze, shoot what the witch doctor sent, and carry the children home — playable on phones.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#0b1020">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Drol">
+<style>
+:root{--bg:#0b1020;--panel:#141c33;--panel2:#1d2745;--ink:#e8eeff;--dim:#94a3c8;--gold:#ffc24a;--line:#2a3550}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#e9edf8;--panel:#fff;--panel2:#f1f4fc;--ink:#151c2e;--dim:#54607d;--line:#cbd3e6}
+}
+:root[data-theme="dark"]{--bg:#0b1020;--panel:#141c33;--panel2:#1d2745;--ink:#e8eeff;--dim:#94a3c8;--line:#2a3550}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise the selection handles or the callout menu. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,#fs,.soundrow,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:8/5;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#101426;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.btn.lit{border-color:var(--gold);color:var(--gold)}
+.acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
+.abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
+.sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
+#overlay{position:absolute;inset:0;background:rgba(6,9,20,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Over the title art the overlay is only a scrim, so the maze shows through. */
+#overlay.splash{background:linear-gradient(rgba(5,8,18,0) 0%,rgba(5,8,18,0) 46%,rgba(5,8,18,.9) 68%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:15px;margin-bottom:2px;text-shadow:0 1px 3px #000}
+#overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(18,24,44,.92);
+  border-color:#3b4a6e;color:#e8eeff}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#101426}
+#overlay.splash .diffgrid .menuitem,#overlay.splash .menugrid .menuitem{width:auto}
+#overlay.splash .sub,#overlay.splash small.tip{color:#c7d2ec;text-shadow:0 1px 2px #000}
+#overlay.splash small.tip{font-size:10px}
+#overlay.splash.card{background:linear-gradient(rgba(5,8,18,.62),rgba(5,8,18,.9) 58%);
+  justify-content:center}
+h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:360px;line-height:1.45}
+.menuitem{width:min(300px,86%);padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#101426;font-weight:700}
+.diffgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(340px,94%)}
+.diffgrid .menuitem{width:auto;padding:10px 4px;font-size:14px}
+/* The pause card has to fit a stage that is wider than it is tall, so its
+   choices go two abreast rather than five deep. */
+.menugrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,96%)}
+.menugrid .menuitem{width:auto;padding:10px 6px;font-size:13px}
+small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
+button{font:inherit;cursor:pointer}
+.soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
+#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;min-height:40px}
+/* Full screen: the maze and the controls, nothing else. The page goes black in
+   both colour schemes so there is no doubt which mode you are in. */
+/* svh is the viewport with the browser's toolbars showing. Sizing to it means a
+   toolbar sliding in or out no longer resizes the game mid-play; the strip the
+   bars vacate just stays dark. dvh and vh are there for older browsers. */
+body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow:hidden;
+  background:#05070f;color:#e8eeff}
+body.fs .btn{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs .btn:active,body.fs .btn.on{background:#ffc24a;color:#101426;border-color:#ffc24a}
+body.fs .btn.lit{border-color:#ffc24a;color:#ffc24a}
+body.fs #sound,body.fs #fs{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs #fs{border-color:#ffc24a;color:#ffc24a}
+body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
+  padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
+body.fs #status{display:none}
+/* The screen takes as much room as its own shape allows and no more, so the
+   space the page chrome gave back goes to the pads instead of to black bars. */
+body.fs #stage{width:min(100%,calc(58svh * 8 / 5));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:8/5;border-left:0;border-right:0}
+body.fs canvas{object-fit:contain;background:#000}
+/* Controls grow with the screen but never past the edge of a narrow phone. */
+body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
+  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
+body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
+body.fs .soundrow{margin:2px 0 0;gap:8px}
+body.fs #audio-status{display:none}
+@media (orientation:landscape) and (max-height:560px){
+  /* Held sideways there is no room below the screen, so the pads flank it
+     the way a handheld does: pad under the left thumb, buttons under the right. */
+  body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
+    gap:6px;padding:4px 8px}
+  body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 8 / 5));max-width:60vw;margin:0}
+  body.fs .acts{order:3}
+  body.fs .abtn{width:66px;height:66px}
+  body.fs .sbtn{width:66px;height:38px}
+  body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
+    margin:0;z-index:5;font-size:10px}
+  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status" role="status">Loading…</div>
+  <div id="stage"><canvas id="cv" width="346" height="216"></canvas><div id="overlay"></div></div>
+  <div id="pads">
+    <div class="padrow">
+      <div class="dpad">
+        <div></div><div class="btn" data-k="U">▲<small>rise</small></div><div></div>
+        <div class="btn" data-k="L">◀</div><div class="btn" id="hovbtn" data-k="HOLD">HOVER</div><div class="btn" data-k="R">▶</div>
+        <div></div><div class="btn" data-k="D">▼<small>drop</small></div><div></div>
+      </div>
+      <div class="acts">
+        <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
+        <div class="btn abtn" id="vertbtn" data-k="VERT">SHOOT ▲</div>
+        <div class="btn sbtn" id="radarbtn" data-k="RADAR">RADAR</div>
+        <div class="btn sbtn" data-k="MENU">MENU</div>
+      </div>
+    </div>
+  </div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+</div>
+<script>
+"use strict";
+/* ============ the four-storey maze ============ */
+// Four storeys, one above the other, all of them on screen at once the way the
+// 1983 original had them: the only scrolling is sideways.
+const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
+const RADAR_H=16;                       // the scope along the top, as in the original
+let VW=346, VH=216;                     // game pixels; fit() reshapes them to the canvas box
+const AIR=0, SLAB=1;
+const HOLEW=3;                          // tiles cut out of a slab to make one hole
+const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
+const storeyTop=f=>f*FLOORH;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+// Deterministic generator: one seed reproduces a whole scene, which the tests rely on.
+function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math.imul(s^s>>>15,1|s);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ============ what lives in the maze ============ */
+// The menagerie the manual and the reviews name: hopping scorpions, flying
+// turkeys, monsters, serpents, witch doctors, shot-blocking magnets, vacuum
+// cleaners, and the swords, daggers, arrows and axes thrown down a storey.
+const FOE={
+ scorpion:{n:"a scorpion",    hp:1,sp:38, w:12,h:9, pts:150,shootable:true},
+ turkey  :{n:"a turkey",      hp:1,sp:56, w:14,h:11,pts:250,shootable:true},
+ monster :{n:"a monster",     hp:2,sp:44, w:13,h:16,pts:300,shootable:true},
+ serpent :{n:"a serpent",     hp:1,sp:34, w:16,h:7, pts:200,shootable:true},
+ doctor  :{n:"a witch doctor",hp:3,sp:30, w:12,h:17,pts:400,shootable:true},
+ vacuum  :{n:"a vacuum cleaner",hp:2,sp:26, w:16,h:10,pts:250,shootable:true},
+ blade   :{n:"a thrown blade",hp:1,sp:96, w:10,h:8, pts:75, shootable:true},
+ magnet  :{n:"a magnet",      hp:0,sp:0,  w:14,h:12,pts:0,  shootable:false}
+};
+// Three scenes, then the whole thing again and harder - the original's only
+// structure. Each scene names its own rescue, its own pet and its own menagerie.
+const SCENES=[
+ {name:"The boy and his plane", child:"boy",  toy:"plane",   pet:"lizard",
+  foes:["scorpion","scorpion","turkey"],           sky:"#101a2e", stone:"#4a5b76", trim:"#6d82a6"},
+ {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
+  foes:["monster","doctor","magnet","scorpion"],   sky:"#1a1130", stone:"#5b4a7a", trim:"#8b76b4"},
+ {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
+  foes:["serpent","blade","vacuum","monster"],     sky:"#2a1210", stone:"#7a4a36", trim:"#b4715a"}
+];
+const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
+const PET_NAME={lizard:"the boy's lizard",gator:"the girl's alligator"};
+
+function genScene(scene,loop,diff,rand){
+ const ri=n=>Math.floor(rand()*n);
+ const S=SCENES[scene];
+ const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(AIR));
+ for(let x=0;x<MAPW;x++){map[x][0]=SLAB;for(let f=0;f<FLOORS;f++)map[x][slabRow(f)]=SLAB;}
+ for(let y=0;y<MAPH;y++){map[0][y]=SLAB;map[MAPW-1][y]=SLAB;}
+ const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],
+   child:null,toy:null,pet:null,pal:S};
+ // Gaps in every slab: the holes you fly up and down through. The lowest slab of
+ // the third scene is not holed at random - it carries the three trapdoors.
+ for(let f=0;f<FLOORS-1;f++){
+  if(scene===2&&f===FLOORS-2)continue;
+  const holes=3+ri(2)+Math.floor(diff/3);
+  for(let i=0;i<holes;i++){
+   const x=3+ri(MAPW-8);
+   // Three tiles, not two: a hole two tiles wide leaves a twelve-pixel robot
+   // about four pixels of slack either side, which is fine for a bot with exact
+   // aim and miserable for a thumb.
+   for(let k=0;k<HOLEW;k++)if(x+k<MAPW-1){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
+  }
+ }
+ if(scene===2){
+  // "Choose between three different trapdoors": one drops you through, the other
+  // two sprout something with a mouth.
+  const f=FLOORS-2, safe=ri(3);
+  for(let i=0;i<3;i++){
+   const x=Math.round(MAPW*(0.28+0.22*i))+ri(3);
+   for(let k=0;k<HOLEW;k++){map[x+k][slabRow(f)]=AIR;L.gaps.push({f,x:x+k});}
+   L.traps.push({x:x*TS,y:slabRow(f)*TS,w:HOLEW*TS,h:TS,safe:i===safe,sprung:false});
+  }
+ }
+ // The rescue, and the toy it is chasing. The mother does not wander: she is
+ // tied up at the bottom right and the whole scene is the trip down to her.
+ if(S.child==="mom"){
+  L.child={kind:"mom",x:(MAPW-8)*TS,y:slabRow(FLOORS-1)*TS-20,w:12,h:20,vx:0,f:FLOORS-1,
+    chasing:false,bound:true,freed:false};
+ }else{
+  L.child={kind:S.child,x:(20+ri(30))*TS,y:0,w:10,h:16,vx:0,f:ri(FLOORS),
+    chasing:true,bound:false,freed:false};
+  L.child.y=slabRow(L.child.f)*TS-L.child.h;
+  L.toy={kind:S.toy,x:L.child.x+40,y:storeyTop(L.child.f)*TS+8,w:12,h:10,
+    vx:(rand()<.5?-1:1)*34,vy:12,alive:true,f:L.child.f};
+ }
+ if(S.pet){
+  const f=ri(FLOORS);
+  L.pet={kind:S.pet,x:(6+ri(MAPW-20))*TS,y:slabRow(f)*TS-10,w:16,h:10,f,dir:rand()<.5?-1:1,freed:false};
+ }
+ // The menagerie. A harder round is a busier maze, exactly as the original's
+ // loop back to scene one is.
+ // Counted, quickened and made bolder by the setting: a bot playing the quiet
+ // maze and the swarming one used to die at the same rate, which meant the
+ // setting was decoration.
+ const n=5+diff*3+loop*3;
+ for(let i=0;i<n;i++)spawnFoe(L,S.foes[i%S.foes.length],rand,loop,diff);
+ return L;
+}
+function spawnFoe(L,k,rand,loop,diff){
+ const F=FOE[k], ri=n=>Math.floor(rand()*n);
+ const x=4+ri(MAPW-10), dir=rand()<.5?-1:1;
+ let f=ri(FLOORS);
+ if(k==="magnet"){                      // magnets hang from a ceiling, in the way of your shots
+  if(f===0)f=1;
+  L.foes.push(mkFoe(k,x*TS,slabRow(f-1)*TS+TS,f,dir,loop,diff));
+ }else if(k==="turkey"||k==="blade"){   // these two are in the air, not on the floor
+  L.foes.push(mkFoe(k,x*TS,storeyTop(f)*TS+TS+ri(2)*6,f,dir,loop,diff));
+ }else{
+  L.foes.push(mkFoe(k,x*TS,slabRow(f)*TS-F.h,f,dir,loop,diff));
+ }
+}
+function mkFoe(k,x,y,f,dir,loop,diff){
+ const F=FOE[k];
+ return{k,x,y,f,w:F.w,h:F.h,vx:0,vy:0,dir:dir||1,cool:.6+Math.random()*1.2,anim:Math.random()*6,
+  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.09),pts:F.pts,dead:false,home:y,
+  agg:1+loop*.15+diff*.08};    // how often the ones that wait for you stop waiting
+}
+
+/* ============ audio ============ */
+const SOUND={ctx:null,master:null,music:null,enabled:true};
+function audioLabel(){
+ const s=document.getElementById("audio-status");
+ s.textContent=!SOUND.enabled?"Muted":SOUND.ctx?"Audio on":"Tap a control to enable audio";
+}
+function unlockAudio(){
+ if(!SOUND.ctx){const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+  SOUND.ctx=new AC(); SOUND.master=SOUND.ctx.createGain();
+  SOUND.master.gain.value=SOUND.enabled?.18:0; SOUND.master.connect(SOUND.ctx.destination);
+  SOUND.music=SOUND.ctx.createGain();            // the score sits under the effects
+  SOUND.music.gain.value=.5; SOUND.music.connect(SOUND.master);}
+ if(SOUND.ctx.state==="suspended")SOUND.ctx.resume();
+ audioLabel();
+}
+function tone(hz,endHz,seconds,type="square",level=.3){
+ if(!SOUND.enabled||!SOUND.ctx)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain();
+ o.type=type;o.frequency.setValueAtTime(hz,c.currentTime);
+ if(endHz&&endHz!==hz)o.frequency.exponentialRampToValueAtTime(Math.max(20,endHz),c.currentTime+seconds);
+ g.gain.setValueAtTime(level,c.currentTime);
+ g.gain.exponentialRampToValueAtTime(.0008,c.currentTime+seconds);
+ o.connect(g);g.connect(SOUND.master);o.start();o.stop(c.currentTime+seconds);
+}
+const shotSound  =()=>tone(880,220,.11,"square",.34);
+const thrustSound=()=>tone(120,170,.06,"sawtooth",.12);
+const killSound  =()=>tone(240,60,.16,"sawtooth",.4);
+const blockSound =()=>tone(300,300,.05,"square",.25);
+const curseSound =()=>tone(180,420,.2,"sawtooth",.3);
+const petSound   =()=>tone(700,1100,.16,"triangle",.4);
+const rescueSound=()=>{[659,784,988,1319].forEach((f,i)=>setTimeout(()=>tone(f,f,.2,"triangle",.45),i*130));};
+const dieSound   =()=>tone(420,50,.8,"sawtooth",.5);
+const lifeSound  =()=>{[523,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,f,.16,"square",.4),i*90));};
+
+/* ============ music ============ */
+// No composer is credited for Drol in any source reachable from here, and no
+// score of the original was available to study, so nothing here is transcribed.
+// This is new writing in the idiom of the machines it ran on: a pulse lead, a
+// triangle bass and a noise drum, sequenced sixteenth by sixteenth and scheduled
+// ahead of the audio clock so a busy frame cannot make it stumble.
+const nf=m=>440*Math.pow(2,(m-69)/12);
+const PATTERNS={
+ // A marching E minor figure over a walking bass: the attract screen.
+ title:{tempo:.15,lead:[64,0,67,0,71,0,67,0,69,0,67,0,64,0,0,0],
+        bass:[40,0,47,0,40,0,47,0,45,0,52,0,45,0,44,0],drum:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0]},
+ // Scene one: bright, quick, nothing much wrong yet.
+ s0:{tempo:.125,lead:[72,74,76,0,79,0,76,74,72,0,69,0,71,0,0,0],
+     bass:[45,0,45,0,52,0,52,0,43,0,43,0,50,0,50,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1]},
+ // Scene two: the witch doctor's scene, a semitone leaning on the tonic.
+ s1:{tempo:.115,lead:[69,70,69,0,65,0,69,0,72,71,69,0,65,0,64,0],
+     bass:[41,0,41,48,41,0,41,0,40,0,40,47,40,0,40,0],drum:[1,0,0,1,1,0,0,1,1,0,0,1,1,0,1,0]},
+ // Scene three: the descent to the bottom right, faster and lower.
+ s2:{tempo:.105,lead:[64,0,63,0,64,67,64,0,62,0,60,0,59,0,0,0],
+     bass:[36,36,0,36,43,0,36,0,35,35,0,35,42,0,35,0],drum:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,1]},
+ // The rescue fanfare, played once the child is in your arms.
+ win:{tempo:.12,lead:[76,79,83,88,0,86,83,0,79,83,86,91,0,0,0,0],
+      bass:[52,0,52,0,57,0,57,0,59,0,59,0,52,0,0,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1]}
+};
+const MUSIC={on:true,cur:null,next:0,step:0,pat:null};
+function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}}
+function musicNote(hz,dur,type,level,when){
+ if(!SOUND.enabled||!SOUND.ctx||!SOUND.music||!MUSIC.on)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain(),t=Math.max(when,c.currentTime);
+ o.type=type;o.frequency.setValueAtTime(hz,t);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(level,t+.01);
+ g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+ o.connect(g);g.connect(SOUND.music);o.start(t);o.stop(t+dur+.02);
+}
+function musicWanted(){
+ if(!MUSIC.on)return null;
+ if(G.phase==="menu")return "title";
+ if(G.phase==="cheer")return "win";
+ if(G.phase==="play")return "s"+G.scene;
+ return null;
+}
+function musicForState(){
+ const want=musicWanted();
+ if(want===MUSIC.cur)return;
+ MUSIC.cur=want;MUSIC.pat=want?PATTERNS[want]:null;MUSIC.step=0;MUSIC.next=0;
+}
+function musicTick(){
+ if(!MUSIC.on||!SOUND.ctx||!SOUND.enabled||!MUSIC.pat)return;
+ const c=SOUND.ctx, p=MUSIC.pat;
+ // The maze beats faster the longer you are round the loop, like the original's
+ // rising pressure when scene one comes back around.
+ const step=Math.max(.06,p.tempo*(MUSIC.cur==="title"||MUSIC.cur==="win"?1:1-Math.min(.3,G.loop*.07)));
+ if(!MUSIC.next)MUSIC.next=c.currentTime+.06;
+ let guard=0;
+ while(MUSIC.next<c.currentTime+.3&&guard++<64){
+  const i=MUSIC.step%16, t=MUSIC.next;
+  if(p.lead[i])musicNote(nf(p.lead[i]),step*1.7,"square",.16,t);
+  if(p.bass[i])musicNote(nf(p.bass[i]),step*1.9,"triangle",.24,t);
+  if(p.drum[i])musicNote(120,step*.5,"sawtooth",.09,t);
+  MUSIC.next+=step;MUSIC.step++;
+ }
+}
+
+/* ============ the game ============ */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
+      ov=document.getElementById("overlay"), statusEl=document.getElementById("status");
+const keys={};
+const G={phase:"menu",scene:0,loop:0,diff:2,score:0,lives:3,nextLife:10000,L:null,hero:null,
+ cam:{x:0,y:0},time:0,msg:"",msgT:0,uiT:0,flash:0,shake:0,radar:true,seed:1,rand:rngFrom(1),
+ deathT:0,cheerT:0,best:0,menu:null,menuTitle:""};
+const say=(t)=>{G.msg=t;G.msgT=2.4;};
+
+function newGame(diff=2,seed){
+ G.diff=diff;G.seed=seed===undefined?(Date.now()&0xffff):seed;G.rand=rngFrom(G.seed);
+ G.scene=0;G.loop=0;G.score=0;G.lives=3;G.nextLife=10000;G.time=0;G.deathT=0;G.cheerT=0;
+ startScene();
+ G.phase="play";hideOverlay();
+ say("Round 1 · "+SCENES[0].name+".");
+}
+function startScene(){
+ G.L=genScene(G.scene,G.loop,G.diff,G.rand);
+ G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.4,alive:true,thrust:0};
+ G.cam.x=0;G.cam.y=0;G.flash=0;G.shake=0;
+}
+function nextScene(){
+ G.scene++;
+ if(G.scene>=SCENES.length){G.scene=0;G.loop++;say("Round "+(G.loop+1)+". They are quicker now.");}
+ startScene();G.phase="play";
+}
+function addScore(n){
+ G.score+=n;
+ while(G.score>=G.nextLife){G.nextLife+=10000;G.lives++;lifeSound();say("Extra robot!");}
+ if(G.score>G.best)G.best=G.score;
+}
+
+/* ---- bodies and the maze they are in ---- */
+function tile(x,y){if(x<0||x>=MAPW||y<0||y>=MAPH)return SLAB;return G.L.map[x][y];}
+function tileAt(px,py){return tile(Math.floor(px/TS),Math.floor(py/TS));}
+function hits(b){
+ const x0=Math.floor(b.x/TS),x1=Math.floor((b.x+b.w-1)/TS),
+       y0=Math.floor(b.y/TS),y1=Math.floor((b.y+b.h-1)/TS);
+ for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)if(tile(x,y)===SLAB)return true;
+ return false;
+}
+function moveBody(b,dx,dy){
+ let bx=false,by=false;
+ if(dx){b.x+=dx;
+  if(hits(b)){bx=true;
+   b.x=dx>0?Math.floor((b.x+b.w-1)/TS)*TS-b.w-.01:(Math.floor(b.x/TS)+1)*TS+.01;}}
+ if(dy){b.y+=dy;
+  if(hits(b)){by=true;
+   b.y=dy>0?Math.floor((b.y+b.h-1)/TS)*TS-b.h-.01:(Math.floor(b.y/TS)+1)*TS+.01;}}
+ return{bx,by};
+}
+const storeyOf=b=>clamp(Math.floor((b.y+b.h/2)/(FLOORH*TS)),0,FLOORS-1);
+
+/* ---- the robot ---- */
+const SPEED=96, RISE=-86, DROP=104, SINK=54;
+// Both pulls are strongest at nothing and weakest at arm's length. Outside about
+// a third of its reach the backpack wins and you fly out; inside it, you are
+// already being eaten. What there is no room for is the middle: a field you can
+// hover in forever, neither caught nor free, is a soft lock rather than a hazard.
+// The magnet's reach stops short of the floor below it on purpose - hug the floor
+// and you pass underneath one, which is the only way past a magnet standing over
+// a child who has stopped chasing their toy.
+const MAGNET_REACH=46, MAGNET_PULL=150, VACUUM_REACH=90, VACUUM_PULL=150;
+function heroStep(dt){
+ const h=G.hero;
+ if(!h.alive)return;
+ const want=(keys.L?-1:0)+(keys.R?1:0);
+ if(want)h.face=want;
+ const tvx=want*SPEED;
+ h.vx+=(tvx-h.vx)*Math.min(1,dt*7);           // the original's floaty, deliberate drift
+ let tvy=keys.U?RISE:keys.D?DROP:keys.HOLD?0:SINK;
+ h.vy+=(tvy-h.vy)*Math.min(1,dt*8);
+ h.thrust=keys.U?Math.min(1,h.thrust+dt*6):Math.max(0,h.thrust-dt*4);
+ if(keys.U&&Math.random()<dt*14)thrustSound();
+ // A magnet tugs at a robot that comes near it, which is what makes them worse
+ // than the shots they eat. The pull falls off with distance: at the edge of its
+ // reach you can fly straight out of it, and close in you cannot, which is the
+ // difference between a hazard and a trap.
+ // The drag is added to the move rather than to the velocity: velocity here is
+ // smoothed towards what the pad is asking for, which would quietly swallow most
+ // of a pull and leave magnets feeling like a rumour.
+ let dragX=0, dragY=0;
+ for(const m of G.L.foes)if(!m.dead&&m.k==="magnet"){
+  const dx=(m.x+m.w/2)-(h.x+h.w/2), dy=(m.y+m.h/2)-(h.y+h.h/2), d=Math.hypot(dx,dy);
+  if(d<MAGNET_REACH&&d>1){
+   const pull=MAGNET_PULL*(1-d/MAGNET_REACH);
+   dragX+=dx/d*pull;dragY+=dy/d*pull;
+  }
+ }
+ // So does a vacuum cleaner, along the floor it is sweeping, and the same way:
+ // it only beats your engine once you are nearly in the mouth of it.
+ for(const v of G.L.foes)if(!v.dead&&v.k==="vacuum"&&storeyOf(v)===storeyOf(h)){
+  const dx=(v.x+v.w/2)-(h.x+h.w/2), d=Math.abs(dx);
+  if(d<VACUUM_REACH)dragX+=Math.sign(dx)*VACUUM_PULL*(1-d/VACUUM_REACH);
+ }
+ const r=moveBody(h,(h.vx+dragX)*dt,(h.vy+dragY)*dt);
+ if(r.bx)h.vx=0;
+ if(r.by)h.vy=0;
+ h.x=clamp(h.x,TS,(MAPW-1)*TS-h.w);
+ if(h.inv>0)h.inv-=dt;
+ if(h.cool>0)h.cool-=dt;
+ if(keys.FIRE)shoot(h.face,0);
+ if(keys.VERT)shoot(0,keys.D?1:-1);
+}
+// "Multi-coloured balls out of his chest" - three in the air at a time, no more.
+const BALL_HUES=["#ffe14a","#4ad8ff","#ff6ad5","#7cff8a"];
+function shoot(dx,dy){
+ const h=G.hero;
+ if(!h.alive||h.cool>0||G.L.shots.length>=3)return null;
+ h.cool=.26;
+ const s={x:h.x+(dx>0?h.w:dx<0?-5:h.w/2-2),y:h.y+(dy?(dy>0?h.h:-5):6),w:5,h:5,
+   vx:dx*280,vy:dy*280,hue:BALL_HUES[Math.floor(G.time*7)%BALL_HUES.length],gone:false};
+ G.L.shots.push(s);shotSound();
+ return s;
+}
+function killHero(reason){
+ const h=G.hero;
+ if(!h.alive||h.inv>0||G.phase!=="play")return false;
+ h.alive=false;G.deathT=1.3;G.lives--;G.shake=6;dieSound();
+ say("Caught by "+reason+".");
+ return true;
+}
+
+/* ---- the menagerie ---- */
+function foeStep(e,dt){
+ const h=G.hero, L=G.L;
+ e.anim+=dt;
+ if(e.k==="scorpion"){
+  // hops along its floor, and hops harder when you are the thing in front of it
+  if(e.vy===0&&e.cool<=0){
+   const toward=h.alive&&storeyOf(h)===storeyOf(e)?Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir:e.dir;
+   e.dir=toward;e.vy=-150;e.cool=.25+Math.random()*.4;
+  }
+  e.cool-=dt;e.vy+=520*dt;
+  const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
+  if(r.by){e.vy=0;}
+  if(r.bx)e.dir*=-1;
+ }else if(e.k==="turkey"){
+  // flies its storey and drops on you when you pass underneath
+  const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
+  if(r.bx)e.dir*=-1;
+  if(r.by)e.vy=e.vy>0?-60:0;
+  e.cool-=dt;
+  if(e.cool<=0&&h.alive&&Math.abs((h.x+h.w/2)-(e.x+e.w/2))<40&&h.y>e.y){e.vy=130;e.cool=2.2;}
+  else if(e.vy>0&&e.y>e.home+26)e.vy=-70;
+  else if(e.vy<0&&e.y<=e.home)  {e.vy=0;e.y=e.home;}
+ }else if(e.k==="monster"){
+  const same=h.alive&&storeyOf(h)===storeyOf(e);
+  if(same)e.dir=Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir;
+  e.vy+=520*dt;
+  const r=moveBody(e,e.dir*e.sp*(same?1.25:.8)*dt,e.vy*dt);
+  if(r.by)e.vy=0;
+  if(r.bx)e.dir*=-1;
+ }else if(e.k==="serpent"){
+  e.vy+=520*dt;
+  const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
+  if(r.by)e.vy=0;
+  if(r.bx)e.dir*=-1;
+  e.y=slabRow(storeyOf(e))*TS-e.h-(Math.sin(e.anim*6)>0?1:0);
+ }else if(e.k==="doctor"){
+  // stays on his floor, throws a curse down the length of it
+  e.vy+=520*dt;
+  const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
+  if(r.by)e.vy=0;
+  if(r.bx)e.dir*=-1;
+  e.cool-=dt;
+  if(e.cool<=0&&h.alive&&storeyOf(h)===storeyOf(e)){
+   e.dir=Math.sign((h.x+h.w/2)-(e.x+e.w/2))||e.dir;
+   L.curses.push({x:e.x+e.w/2,y:e.y+5,w:7,h:7,vx:e.dir*130,vy:0,t:0,gone:false});
+   e.cool=1.8/e.agg;curseSound();
+  }
+ }else if(e.k==="vacuum"){
+  e.vy+=520*dt;
+  const r=moveBody(e,e.dir*e.sp*dt,e.vy*dt);
+  if(r.by)e.vy=0;
+  if(r.bx)e.dir*=-1;
+ }else if(e.k==="blade"){
+  // swords, daggers, arrows and axes: they cross the storey and come back
+  const r=moveBody(e,e.dir*e.sp*dt,0);
+  if(r.bx)e.dir*=-1;
+  e.y=e.home+Math.sin(e.anim*3)*8;
+ }
+ if(h.alive&&overlap(e,h))killHero(FOE[e.k].n);
+}
+function damageFoe(e){
+ if(!FOE[e.k].shootable){blockSound();return false;}
+ if(--e.hp<=0){e.dead=true;addScore(e.pts);killSound();
+  G.L.fx.push({x:e.x+e.w/2,y:e.y+e.h/2,t:0,life:.3,r:9});
+  return true;}
+ killSound();
+ return false;
+}
+
+/* ---- the rescue ---- */
+function toyStep(dt){
+ const L=G.L, t=L.toy;
+ if(!t||!t.alive)return;
+ t.x+=t.vx*dt;t.y+=t.vy*dt;
+ const top=storeyTop(t.f)*TS+TS*.4, bot=slabRow(t.f)*TS-t.h-2;
+ if(t.y<top){t.y=top;t.vy=Math.abs(t.vy);}
+ if(t.y>bot){t.y=bot;t.vy=-Math.abs(t.vy);}
+ if(t.x<2*TS){t.x=2*TS;t.vx=Math.abs(t.vx);}
+ if(t.x>(MAPW-3)*TS){t.x=(MAPW-3)*TS;t.vx=-Math.abs(t.vx);}
+ // Now and then the toy drifts through a gap and the child follows it down.
+ if(Math.random()<dt*.35){
+  const f=clamp(t.f+(Math.random()<.5?-1:1),0,FLOORS-1);
+  const gap=L.gaps.filter(g=>g.f===Math.min(f,t.f));
+  if(f!==t.f&&gap.length){
+   const g=gap[Math.floor(Math.random()*gap.length)];
+   t.f=f;t.x=g.x*TS;t.y=storeyTop(f)*TS+TS;
+  }
+ }
+}
+function childStep(dt){
+ const L=G.L, c=L.child, t=L.toy;
+ if(!c||c.bound)return;
+ if(c.chasing&&t&&t.alive){
+  if(t.f!==c.f){                       // follow the toy through the nearest gap
+   const between=Math.min(t.f,c.f);
+   const gaps=L.gaps.filter(g=>g.f===between);
+   if(gaps.length){
+    let best=gaps[0];
+    for(const g of gaps)if(Math.abs(g.x*TS-c.x)<Math.abs(best.x*TS-c.x))best=g;
+    const dx=best.x*TS-c.x;
+    if(Math.abs(dx)<3){c.f=t.f;c.y=slabRow(c.f)*TS-c.h;c.x=best.x*TS;}
+    else c.x+=Math.sign(dx)*52*dt;
+   }
+  }else{
+   const dx=(t.x+t.w/2)-(c.x+c.w/2);
+   if(Math.abs(dx)>6)c.x+=Math.sign(dx)*52*dt;
+  }
+ }else{
+  // The toy is shot: he stays put and mostly waits, which is the whole point of
+  // shooting it.
+  c.x+=Math.sin(G.time*1.4)*8*dt;
+ }
+ c.x=clamp(c.x,TS,(MAPW-2)*TS-c.w);
+ c.y=slabRow(c.f)*TS-c.h;
+}
+function petStep(dt){
+ const p=G.L.pet;
+ if(!p||p.freed)return;
+ p.x+=p.dir*22*dt;
+ if(p.x<TS*2){p.x=TS*2;p.dir=1;}
+ if(p.x>(MAPW-3)*TS){p.x=(MAPW-3)*TS;p.dir=-1;}
+ p.y=slabRow(p.f)*TS-p.h;
+}
+function rescue(){
+ const c=G.L.child;
+ c.freed=true;
+ const bonus=c.kind==="mom"?5000:2000+Math.max(0,900-Math.round(G.time*10));
+ addScore(bonus);
+ G.phase="cheer";G.cheerT=2.6;G.flash=.5;
+ rescueSound();
+ say(c.kind==="mom"?"Mother is free. Round "+(G.loop+1)+" is over.":
+   CHILD_NAME[c.kind].replace(/^t/,"T")+" is safe. +"+bonus+".");
+}
+// The third scene's trapdoors: one takes you down, the other two are mouths.
+function trapStep(dt){
+ const L=G.L, h=G.hero;
+ for(const t of L.traps){
+  if(t.sprung||!h.alive)continue;
+  if(overlap(t,h)){
+   t.sprung=true;
+   if(t.safe){addScore(250);say("The trapdoor was the right one.");}
+   else{L.plants.push({x:t.x+2,y:t.y+TS,w:t.w-4,h:0,t:0,grown:false});
+    say("Something down there has a mouth.");}
+  }
+ }
+ for(const p of L.plants){
+  p.t+=dt;
+  p.h=Math.min(34,p.t*120);
+  p.grown=p.t>.34;
+  if(p.grown&&h.alive&&overlap({x:p.x,y:p.y,w:p.w,h:p.h},h))killHero("the plant under the trapdoor");
+  if(p.t>3.2)p.gone=true;
+ }
+ L.plants=L.plants.filter(p=>!p.gone);
+}
+
+function stepGame(dt){
+ const L=G.L, h=G.hero;
+ G.time+=dt;
+ if(G.msgT>0)G.msgT-=dt;
+ if(G.flash>0)G.flash=Math.max(0,G.flash-dt*1.6);
+ if(G.shake>0)G.shake=Math.max(0,G.shake-dt*14);
+ if(!h.alive){
+  G.deathT-=dt;
+  if(G.deathT<=0){
+   if(G.lives<=0){G.phase="over";gameOverMenu();}
+   else{G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.6,alive:true,thrust:0};}
+  }
+  return;
+ }
+ heroStep(dt);
+ for(const s of L.shots){
+  const st=moveBody(s,s.vx*dt,s.vy*dt);
+  if(st.bx||st.by){s.gone=true;continue;}
+  for(const e of L.foes){
+   if(e.dead||!overlap(s,e))continue;
+   if(e.k==="magnet"){s.gone=true;blockSound();break;}    // magnets eat shots
+   damageFoe(e);s.gone=true;break;
+  }
+  if(s.gone)continue;
+  // A curse outruns the backpack, so climbing out of its way was the only answer
+  // to a witch doctor. A ball will also knock one out of the air, which is the
+  // answer the rest of the game teaches.
+  for(const cu of L.curses)if(!cu.gone&&overlap(s,cu)){
+   cu.gone=true;s.gone=true;addScore(25);blockSound();
+   L.fx.push({x:cu.x,y:cu.y,t:0,life:.2,r:6});
+   break;
+  }
+  if(s.gone)continue;
+  if(L.toy&&L.toy.alive&&overlap(s,L.toy)){
+   // Shooting the toy is worth points and, better, roots the child to the spot.
+   L.toy.alive=false;s.gone=true;addScore(500);killSound();
+   if(L.child)L.child.chasing=false;
+   say("The "+L.toy.kind+" is down. "+CHILD_NAME[L.child.kind]+" stops to look.");
+   continue;
+  }
+  if(s.x<0||s.x>MAPW*TS||s.y<0||s.y>MAPH*TS)s.gone=true;
+ }
+ L.shots=L.shots.filter(s=>!s.gone);
+ for(const c of L.curses){
+  c.t+=dt;
+  const r=moveBody(c,c.vx*dt,0);
+  if(r.bx||c.t>4)c.gone=true;
+  else if(h.alive&&overlap(c,h)){killHero("a witch doctor's curse");c.gone=true;}
+ }
+ L.curses=L.curses.filter(c=>!c.gone);
+ for(const e of L.foes)if(!e.dead)foeStep(e,dt);
+ toyStep(dt);childStep(dt);petStep(dt);trapStep(dt);
+ for(const f of L.fx){f.t+=dt;if(f.t>f.life)f.gone=true;}
+ L.fx=L.fx.filter(f=>!f.gone);
+ if(L.pet&&!L.pet.freed&&h.alive&&overlap(L.pet,h)){
+  L.pet.freed=true;addScore(1000);petSound();say(PET_NAME[L.pet.kind]+" is safe. +1000.");
+ }
+ if(L.child&&!L.child.freed&&h.alive&&overlap(L.child,h))rescue();
+}
+
+/* ============ input ============ */
+function press(k){
+ unlockAudio();
+ if(k==="MENU"){toggleMenu();return;}
+ if(G.menu){
+  if(k==="U"||k==="L")moveMenu(-1);
+  else if(k==="D"||k==="R")moveMenu(1);
+  else if(k==="FIRE"||k==="VERT")chooseMenu();
+  return;
+ }
+ if(k==="RADAR"){G.radar=!G.radar;say(G.radar?"Scope on.":"Scope off — more maze on screen.");fit(true);return;}
+ if(G.phase!=="play")return;
+ if(k==="FIRE")shoot(G.hero.face,0);
+ else if(k==="VERT")shoot(0,keys.D?1:-1);
+}
+function toggleMenu(){
+ if(G.menu&&G.phase==="paused"){G.phase="play";G.menu=null;hideOverlay();return;}
+ if(G.phase==="play"){G.phase="paused";pauseMenu();}
+}
+const KMAP={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R",w:"U",s:"D",a:"L",d:"R",
+ " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"VERT",e:"VERT",Shift:"HOLD",h:"HOLD",r:"RADAR",
+ Escape:"MENU",p:"MENU"};
+function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}
+addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
+ if(!keys[k])press(k);
+ keys[k]=true;});
+addEventListener("keyup",e=>{const k=keyOf(e);if(k)keys[k]=false;});
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+ document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+addEventListener("blur",clearKeys);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){clearKeys();if(G.phase==="play"){G.phase="paused";pauseMenu();}
+  if(SOUND.master)SOUND.master.gain.value=0;}
+ else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+const held=new Map();                       // pointer id -> the release for that button
+function bindKey(el,k){
+ const dn=e=>{e.preventDefault();
+  // capture can throw if the pointer is already gone; the press still counts
+  try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}
+  el.classList.add("on");keys[k]=true;held.set(e.pointerId,up);press(k);};
+ const up=e=>{if(e&&e.preventDefault)e.preventDefault();
+  if(e&&e.pointerId!==undefined)held.delete(e.pointerId);
+  el.classList.remove("on");keys[k]=false;};
+ el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
+ el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+}
+// A finger that slides off a button, or a gesture the browser swallows, must still
+// let go of it - otherwise the robot keeps flying after you have stopped.
+for(const ev of ["pointerup","pointercancel"])
+ document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
+document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
+document.getElementById("sound").addEventListener("click",()=>{
+ SOUND.enabled=!SOUND.enabled;unlockAudio();
+ if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
+ const b=document.getElementById("sound");
+ b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
+ audioLabel();});
+document.addEventListener("pointerdown",unlockAudio,{capture:true});
+// A held button is an input, not a text selection - refuse both gestures outright.
+const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
+document.addEventListener("contextmenu",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("selectstart",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("dragstart",e=>{if(inUI(e))e.preventDefault();});
+
+/* ============ full screen ============ */
+// iPhone Safari has no element fullscreen, so the layout class does the isolating
+// work on its own and the API call is a best-effort extra where it is supported.
+const fsBtn=document.getElementById("fs");
+const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function setFocus(on){
+ document.body.classList.toggle("fs",on);
+ fsBtn.textContent=on?"✕ EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.setAttribute("aria-pressed",String(on));
+}
+function toggleFullscreen(){
+ const on=!document.body.classList.contains("fs"), el=document.documentElement;
+ if(on){const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req)try{Promise.resolve(req.call(el)).catch(()=>{});}catch(e){}}
+ else{const ex=document.exitFullscreen||document.webkitExitFullscreen;
+  if(ex&&nativeFS())try{Promise.resolve(ex.call(document)).catch(()=>{});}catch(e){}}
+ setFocus(on);clearKeys();fit(true);
+ say(on?"Full screen. EXIT FULL SCREEN puts the page back.":"Back to the page.");
+}
+fsBtn.addEventListener("click",toggleFullscreen);
+// Leaving fullscreen by Esc or the system gesture drops the layout with it.
+for(const ev of ["fullscreenchange","webkitfullscreenchange"])
+ document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
+
+/* ============ what the buttons say ============ */
+// The pad is only as clear as its labels: FIRE points where the robot is facing,
+// and the second button says which way the next ball leaves his chest.
+const fireBtn=document.getElementById("firebtn"), vertBtn=document.getElementById("vertbtn"),
+      radarBtn=document.getElementById("radarbtn"), hovBtn=document.getElementById("hovbtn");
+function fireLabel(){
+ if(!G.hero||G.phase!=="play")return "FIRE";
+ return G.hero.face>0?"FIRE ▶":"◀ FIRE";
+}
+const vertLabel=()=>keys.D?"SHOOT ▼":"SHOOT ▲";
+function label(el,text,caption){
+ if(!el||el.dataset.lbl===text)return;
+ el.dataset.lbl=text;
+ el.innerHTML=text+(caption?"<small>"+caption+"</small>":"");
+}
+function updatePads(){
+ label(fireBtn,fireLabel(),"shoot");
+ label(vertBtn,vertLabel(),"up/down");
+ label(radarBtn,"RADAR","");
+ label(hovBtn,"HOVER","");
+ if(radarBtn&&radarBtn.classList)radarBtn.classList.toggle("lit",!!G.radar);
+ if(hovBtn&&hovBtn.classList)hovBtn.classList.toggle("lit",!!keys.HOLD);
+}
+
+/* ============ menus ============ */
+// grid: true lays the choices out four abreast (the difficulty card), "menugrid"
+// two abreast (the pause card), anything falsy stacks them.
+function showMenu(title,sub,items,tip,grid,splash){
+ G.menu={items,sel:0};
+ ov.classList.toggle("splash",!!splash);
+ ov.classList.toggle("card",!!(splash&&title));
+ G.menuTitle=title||"";
+ const gcls=grid===true?"diffgrid":grid?String(grid):"";
+ ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
+  (gcls?`<div class="${gcls}">`:"")+
+  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
+  (gcls?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
+ ov.classList.remove("hidden");
+}
+function hideOverlay(){ov.classList.add("hidden");G.menu=null;G.menuTitle="";}
+function moveMenu(d){
+ const m=G.menu;m.sel=(m.sel+d+m.items.length)%m.items.length;
+ ov.querySelectorAll(".menuitem").forEach((el,i)=>el.classList.toggle("sel",i===m.sel));
+}
+function chooseMenu(){const m=G.menu;if(m&&m.items[m.sel])m.items[m.sel].fn();}
+ov.addEventListener("click",e=>{
+ const b=e.target.closest?e.target.closest(".menuitem"):null;
+ if(!b||!G.menu)return;
+ G.menu.sel=+b.dataset.i;chooseMenu();});
+function mainMenu(){
+ G.phase="menu";G.L=null;G.hero=null;    // the canvas draws the title, so the card carries none
+ showMenu("","",
+  [{label:"Start the rescue",fn:diffMenu},{label:"How to play",fn:()=>helpMenu(false)}],
+  "After Drol, Brøderbund, 1983. Rebuilt for touch screens.",false,true);
+}
+function diffMenu(){
+ const names=["Quiet","Busy","Crowded","Swarming"];
+ showMenu("How crowded?","The original had no difficulty switch — it simply came round again "+
+  "harder. This picks how full the maze is on round one; it fills up either way.",
+  names.map((n,i)=>({label:n,fn:()=>newGame(i+1)})),
+  "Three scenes: the boy, the girl, and their mother. Finish the third and it all starts again, faster.",
+  true,true);
+}
+function helpMenu(back){
+ showMenu("The controls",
+  "◀ ▶ fly sideways. ▲ rises on the backpack, ▼ drops, HOVER holds your "+
+  "height. Floors are only passable where a gap is cut in them.",
+  [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
+  "FIRE sends a ball the way you are facing; the second button sends one straight up, or "+
+  "straight down while ▼ is held. Three balls in the air at once, no more. Shoot the toy "+
+  "and the child stops chasing it, which is the only way to catch them. Touch the child to "+
+  "rescue them; touch the pet for a bonus. Magnets swallow shots and pull you in. RADAR is the "+
+  "scope along the top: it shows the whole maze at once. FULL SCREEN hides the page and leaves "+
+  "the maze and the pad.");
+}
+function pauseMenu(){
+ showMenu("Paused","Round "+(G.loop+1)+" · "+SCENES[G.scene].name+" · score "+G.score+
+  " · "+G.lives+" left · music "+(MUSIC.on?"on":"off"),
+  [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
+   {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
+   {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
+   {label:"Controls",fn:()=>helpMenu(true)},
+   {label:"Scope on/off",fn:()=>{G.radar=!G.radar;fit(true);pauseMenu();}},
+   {label:"Give up",fn:mainMenu}],"","menugrid");
+}
+function gameOverMenu(){
+ showMenu("All robots lost","Round "+(G.loop+1)+" · "+SCENES[G.scene].name+
+  " · score "+G.score+(G.best>G.score?" · best "+G.best:""),
+  [{label:"Again",fn:()=>newGame(G.diff)},{label:"Menu",fn:mainMenu}],"","menugrid");
+}
+
+/* ============ drawing ============ */
+const px=v=>Math.round(v);
+const viewTop=()=>G.radar?RADAR_H:0;
+const viewH=()=>VH-viewTop();
+const sx=x=>px(x-G.cam.x), sy=y=>px(y-G.cam.y+viewTop());
+function drawTiles(){
+ const c=ctx, P=G.L.pal, cam=G.cam;
+ const x0=Math.floor(cam.x/TS)-1, x1=Math.ceil((cam.x+VW)/TS)+1;
+ for(let f=0;f<FLOORS;f++){
+  const y=slabRow(f)*TS;
+  for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++){
+   if(G.L.map[x][slabRow(f)]!==SLAB)continue;               // a gap is drawn by leaving it out
+   c.fillStyle=P.stone;c.fillRect(sx(x*TS),sy(y),TS,TS);
+   c.fillStyle=P.trim;c.fillRect(sx(x*TS),sy(y),TS,2);     // the lit top edge you land on
+   c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sx(x*TS),sy(y)+TS-3,TS,3);
+   if((x+f)%2)c.fillStyle="rgba(0,0,0,.18)",c.fillRect(sx(x*TS),sy(y)+2,1,TS-5);
+  }
+ }
+ c.fillStyle=P.stone;                                        // the roof, and the two end walls
+ for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++)c.fillRect(sx(x*TS),sy(0),TS,TS);
+ for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
+  c.fillStyle=P.stone;c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
+  c.fillStyle=(y%2)?"rgba(255,255,255,.06)":"rgba(0,0,0,.22)";
+  c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
+ }
+ for(const t of G.L.traps){                                  // the three trapdoors of scene three
+  c.fillStyle=t.sprung?(t.safe?"#6fd08a":"#d05a4a"):"#caa24a";
+  c.fillRect(sx(t.x),sy(t.y)+TS-3,t.w,3);
+  c.fillStyle="rgba(0,0,0,.5)";c.fillRect(sx(t.x)+2,sy(t.y)+TS-3,2,3);
+  c.fillRect(sx(t.x)+t.w-4,sy(t.y)+TS-3,2,3);
+ }
+}
+function drawFoe(e){
+ const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir;
+ if(e.k==="scorpion"){
+  c.fillStyle="#d8a13a";c.fillRect(x+2,y+3,8,5);
+  c.fillRect(x+(d>0?9:1),y+1,3,3);                           // the sting, up and over
+  c.fillStyle="#8a5e18";for(let i=0;i<3;i++)c.fillRect(x+1+i*3,y+8,2,2);
+  c.fillStyle="#ffe6a8";c.fillRect(x+(d>0?0:8),y+4,3,2);
+ }else if(e.k==="turkey"){
+  const flap=Math.sin(e.anim*11)>0?0:3;
+  c.fillStyle="#7a3c2a";c.fillRect(x+2,y+3,10,6);
+  c.fillStyle="#b45a38";c.fillRect(x+1,y+2-flap,12,3);       // wings
+  c.fillStyle="#e8d8c0";c.fillRect(x+(d>0?11:0),y+1,3,3);
+  c.fillStyle="#e04a2a";c.fillRect(x+(d>0?13:-1),y+3,2,2);   // wattle
+ }else if(e.k==="monster"){
+  const bob=Math.sin(e.anim*8)>0?0:1;
+  c.fillStyle="#57b06a";c.fillRect(x+1,y+5+bob,11,9);
+  c.fillStyle="#3d8a4f";c.fillRect(x+2,y+12+bob,3,4);c.fillRect(x+8,y+12+bob,3,4);
+  c.fillStyle="#7ad08a";c.fillRect(x+2,y+bob,9,6);           // head
+  c.fillStyle="#1a2a1a";c.fillRect(x+(d>0?7:3),y+2+bob,2,2);
+  c.fillStyle="#e8e8a0";c.fillRect(x+3,y+7+bob,7,2);         // belly, beer or otherwise
+ }else if(e.k==="serpent"){
+  c.fillStyle="#4fb87a";
+  for(let i=0;i<4;i++)c.fillRect(x+i*4,y+2+(Math.sin(e.anim*7+i)>0?0:2),4,4);
+  c.fillStyle="#2e7a4e";c.fillRect(x+(d>0?12:0),y+1,4,4);
+  c.fillStyle="#ffe14a";c.fillRect(x+(d>0?15:0),y+2,1,1);
+ }else if(e.k==="doctor"){
+  c.fillStyle="#3a2c58";c.fillRect(x+2,y+7,8,10);            // robe
+  c.fillStyle="#c08a4a";c.fillRect(x+3,y+2,6,5);             // face
+  c.fillStyle="#e0e0e0";c.fillRect(x+4,y+4,2,1);c.fillRect(x+7,y+4,1,1);
+  c.fillStyle="#d84a6a";c.fillRect(x+1,y,10,3);              // mask and plume
+  c.fillStyle="#ffe14a";c.fillRect(x+4,y-3,3,3);
+  c.fillStyle="#8a6a2a";c.fillRect(x+(d>0?10:1),y+6,1,9);    // staff
+ }else if(e.k==="vacuum"){
+  c.fillStyle="#9aa6c0";c.fillRect(x+2,y+2,12,6);
+  c.fillStyle="#586480";c.fillRect(x+1,y+8,14,2);
+  c.fillStyle="#2c3550";c.fillRect(x+(d>0?0:12),y+4,4,4);    // the mouth of it
+  c.fillStyle="#ffe14a";c.fillRect(x+5,y+3,3,2);
+ }else if(e.k==="blade"){
+  const spin=Math.floor(e.anim*14)%2;
+  c.fillStyle="#d8dce8";
+  if(spin){c.fillRect(x+1,y+3,10,2);c.fillRect(x+4,y,3,8);}
+  else{c.fillRect(x+2,y+1,7,2);c.fillRect(x+2,y+5,7,2);}
+  c.fillStyle="#8a5e2a";c.fillRect(x+4,y+3,2,2);
+ }else if(e.k==="magnet"){
+  c.fillStyle="#3a4668";c.fillRect(x+5,y,4,4);               // the stem it hangs by
+  c.fillStyle="#d84a4a";c.fillRect(x,y+4,14,5);
+  c.fillStyle="#e8eaf2";c.fillRect(x,y+9,4,3);c.fillRect(x+10,y+9,4,3);
+  const pull=(Math.floor(G.time*6)%2)?.28:.12;
+  c.fillStyle="rgba(216,74,74,"+pull+")";c.fillRect(x-6,y+2,26,14);
+ }
+}
+function drawChild(){
+ const c=ctx, k=G.L.child;
+ if(!k||k.freed)return;
+ const x=sx(k.x), y=sy(k.y);
+ if(k.kind==="mom"){
+  c.fillStyle="#c86a9a";c.fillRect(x+1,y+7,10,13);           // bound at the bottom right
+  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,8,6);
+  c.fillStyle="#3a2a18";c.fillRect(x+1,y,10,3);
+  c.fillStyle="#e8e8e8";c.fillRect(x+2,y+4,8,2);             // the gag
+  c.fillStyle="#c8a05a";for(let i=0;i<3;i++)c.fillRect(x,y+9+i*4,12,2);   // the ropes
+ }else{
+  const run=Math.floor(G.time*7)%2;
+  c.fillStyle=k.kind==="boy"?"#4a9ae0":"#e06aa0";
+  c.fillRect(x+1,y+6,8,7);
+  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,6,5);
+  c.fillStyle="#6a4a28";c.fillRect(x+1,y,8,2);
+  c.fillStyle="#2a3550";c.fillRect(x+(run?1:2),y+13,3,3);c.fillRect(x+(run?6:5),y+13,3,3);
+ }
+}
+function drawToy(){
+ const c=ctx, t=G.L.toy;
+ if(!t||!t.alive)return;
+ const x=sx(t.x), y=sy(t.y);
+ if(t.kind==="plane"){
+  c.fillStyle="#e8e8f0";c.fillRect(x,y+4,12,3);
+  c.fillStyle="#d84a4a";c.fillRect(x+3,y+1,5,2);c.fillRect(x+3,y+7,5,2);
+  c.fillStyle="#4ad8ff";c.fillRect(x+9,y+2,2,2);
+ }else{
+  c.fillStyle="#ff6ad5";c.beginPath();c.arc(x+6,y+4,5,0,7);c.fill();
+  c.fillStyle="#f0e8d0";c.fillRect(x+6,y+8,1,4);
+ }
+}
+function drawPet(){
+ const c=ctx, p=G.L.pet;
+ if(!p||p.freed)return;
+ const x=sx(p.x), y=sy(p.y), d=p.dir;
+ c.fillStyle=p.kind==="lizard"?"#6ad06a":"#4a7a4a";
+ c.fillRect(x+1,y+3,14,5);
+ c.fillRect(x+(d>0?12:0),y+1,4,3);
+ c.fillStyle="#2a4a2a";for(let i=0;i<4;i++)c.fillRect(x+2+i*3,y+1,2,2);
+ c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);
+}
+// The robot: a levitating box with a lit chest port and a backpack that shows
+// its flame the moment you ask it to climb.
+function drawHero(){
+ const h=G.hero, c=ctx;
+ if(!h)return;
+ if(!h.alive){                                               // a short, loud coming-apart
+  const k=clamp(1-G.deathT/1.3,0,1);
+  for(let i=0;i<7;i++){
+   const a=i*0.9, r=k*26;
+   c.fillStyle=i%2?"#ffc24a":"#9aa6c0";
+   c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r),4,4);
+  }
+  return;
+ }
+ if(h.inv>0&&Math.floor(h.inv*16)%2)return;
+ const x=sx(h.x), y=sy(h.y), d=h.face;
+ if(h.thrust>0){                                             // backpack flame
+  c.fillStyle="rgba(255,194,74,"+(.5+.5*h.thrust).toFixed(2)+")";
+  c.fillRect(x+3,y+16,6,Math.round(3+5*h.thrust));
+  c.fillStyle="#fff0b0";c.fillRect(x+5,y+16,2,Math.round(2+3*h.thrust));
+ }
+ c.fillStyle="#8e9ab8";c.fillRect(x+1,y+5,10,11);            // torso
+ c.fillStyle="#6a7695";c.fillRect(x+1,y+13,10,3);
+ c.fillStyle="#b6c2dc";c.fillRect(x+2,y,8,6);                // head
+ c.fillStyle="#2a3550";c.fillRect(x+(d>0?6:2),y+2,3,2);      // visor, looking where you fly
+ c.fillStyle="#ffc24a";c.fillRect(x+5,y-3,2,3);c.fillRect(x+4,y-5,4,2);   // antenna
+ const glow=.55+.45*Math.sin(G.time*8);
+ c.fillStyle="rgba(74,216,255,"+glow.toFixed(2)+")";
+ c.fillRect(x+(d>0?7:2),y+8,3,3);                            // the chest port the balls come from
+ c.fillStyle="#586480";c.fillRect(x+(d>0?11:-1),y+7,2,4);    // arm
+}
+function drawRadar(){
+ const c=ctx, L=G.L, w=VW, h=RADAR_H;
+ c.fillStyle="#05070f";c.fillRect(0,0,w,h);
+ c.fillStyle="#1d2745";c.fillRect(0,h-1,w,1);
+ const k=w/(MAPW*TS), row=f=>Math.round(2+f*((h-5)/(FLOORS-1)));
+ c.fillStyle="#22304e";
+ for(let f=0;f<FLOORS;f++)c.fillRect(2,row(f)+2,w-4,1);
+ const dot=(x,f,col,wide)=>{c.fillStyle=col;c.fillRect(clamp(Math.round(x*k),1,w-3),row(f),wide||2,3);};
+ for(const e of L.foes)if(!e.dead)dot(e.x,storeyOf(e),e.k==="magnet"?"#d84a4a":"#ff7a5a");
+ if(L.pet&&!L.pet.freed)dot(L.pet.x,L.pet.f,"#6ad06a");
+ if(L.toy&&L.toy.alive)dot(L.toy.x,L.toy.f,"#4ad8ff");
+ if(L.child&&!L.child.freed)dot(L.child.x,L.child.f,"#ffe14a",3);
+ if(G.hero)dot(G.hero.x,storeyOf(G.hero),"#ffffff",3);
+}
+function drawHUD(){
+ const c=ctx, top=viewTop();
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ c.fillStyle="rgba(5,7,15,.72)";c.fillRect(0,top,VW,11);
+ c.fillStyle="#e8eeff";c.fillText("SCORE "+G.score,3,top+2);
+ c.textAlign="center";
+ c.fillText("ROUND "+(G.loop+1)+"  SCENE "+(G.scene+1)+"/3",VW/2,top+2);
+ c.textAlign="right";
+ c.fillStyle="#ffc24a";c.fillText("▲".repeat(Math.max(0,Math.min(6,G.lives))),VW-3,top+2);
+ c.textAlign="left";
+ if(G.msgT>0){
+  c.fillStyle="rgba(5,7,15,.75)";c.fillRect(0,VH-12,VW,12);
+  c.fillStyle="#ffc24a";c.fillText(G.msg,3,VH-10);
+ }
+ if(G.phase==="cheer"){
+  c.textAlign="center";c.font="bold 14px ui-rounded,Helvetica,Arial,sans-serif";
+  c.fillStyle="#ffe14a";c.fillText("RESCUED",VW/2,top+Math.round(viewH()*.36));
+  c.font="8px monospace";c.textAlign="left";
+ }
+}
+// Title card: the four storeys in silhouette, the robot hanging in the middle of
+// them with his flame lit, a child two floors down and something watching.
+function drawTitle(){
+ const c=ctx, W=VW, H=VH, t=G.uiT;
+ const sky=c.createLinearGradient(0,0,0,H);
+ sky.addColorStop(0,"#05070f");sky.addColorStop(.55,"#131a33");sky.addColorStop(1,"#2a1a2e");
+ c.fillStyle=sky;c.fillRect(0,0,W,H);
+ for(let i=0;i<40;i++){
+  const x=(i*83)%W, y=(i*29)%Math.round(H*.4);
+  c.fillStyle="rgba(200,220,255,"+(.18+.4*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
+  c.fillRect(x,y,1,1);
+ }
+ // Four floors across the whole card, the robot hanging over the top one, and
+ // what he came for further down where the menu's scrim takes over.
+ const rows=[.46,.58,.70,.82].map(k=>Math.round(H*k));
+ rows.forEach((y,f)=>{
+  c.fillStyle=f%2?"#46587e":"#3b4c6e";c.fillRect(0,y,W,6);
+  c.fillStyle="#6d82a6";c.fillRect(0,y,W,2);
+  c.fillStyle="rgba(0,0,0,.45)";c.fillRect(0,y+5,W,2);
+  const gx=Math.round(W*(.14+.22*f));                        // the holes you fly through
+  c.fillStyle="#080c18";c.fillRect(gx,y,30,7);
+ });
+ // The robot, at twice his size in the game, hovering with the flame lit.
+ const hx=Math.round(W*.44), hy=rows[0]-40+Math.round(Math.sin(t*2)*3), u=2;
+ c.fillStyle="rgba(255,194,74,.8)";c.fillRect(hx+3*u,hy+16*u,6*u,6+Math.round(Math.sin(t*16)*3));
+ c.fillStyle="#fff0b0";c.fillRect(hx+5*u,hy+16*u,2*u,4);
+ c.fillStyle="#8e9ab8";c.fillRect(hx+1*u,hy+5*u,10*u,11*u);
+ c.fillStyle="#6a7695";c.fillRect(hx+1*u,hy+13*u,10*u,3*u);
+ c.fillStyle="#b6c2dc";c.fillRect(hx+2*u,hy,8*u,6*u);
+ c.fillStyle="#2a3550";c.fillRect(hx+6*u,hy+2*u,3*u,2*u);
+ c.fillStyle="#ffc24a";c.fillRect(hx+5*u,hy-3*u,2*u,3*u);c.fillRect(hx+4*u,hy-5*u,4*u,2*u);
+ c.fillStyle="#4ad8ff";c.fillRect(hx+7*u,hy+8*u,3*u,3*u);
+ c.fillStyle="#ffe14a";c.fillRect(hx+13*u,hy+9*u,7*u,2*u);   // a ball already on its way
+ const cx2=Math.round(W*.72), cy=rows[1]-20;                 // the boy, two floors down
+ c.fillStyle="#4a9ae0";c.fillRect(cx2,cy+8,11,10);
+ c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,6);
+ c.fillStyle="#6a4a28";c.fillRect(cx2,cy,11,3);
+ c.fillStyle="#2a3550";c.fillRect(cx2+1,cy+18,4,3);c.fillRect(cx2+7,cy+18,4,3);
+ const dx=Math.round(W*.18), dy=rows[2]-22;                  // and the one who took him
+ c.fillStyle="#3a2c58";c.fillRect(dx,dy+8,12,14);
+ c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,6);
+ c.fillStyle="#d84a6a";c.fillRect(dx-1,dy,14,4);
+ c.fillStyle="#ffe14a";c.fillRect(dx+4,dy-5,4,5);
+ c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+6,2,16);
+ if(G.menuTitle){c.textAlign="left";return;}   // a menu with its own headline keeps the art bare
+ c.fillStyle="rgba(5,7,15,.45)";c.fillRect(0,0,W,Math.round(H*.26));
+ const big=Math.max(22,Math.round(W/9)), letters="DROL", gap2=big*.78;
+ c.textBaseline="top";c.textAlign="center";
+ c.font="bold "+big+"px ui-rounded,Helvetica,Arial,sans-serif";
+ letters.split("").forEach((ch,i)=>{
+  const x=W/2+(i-(letters.length-1)/2)*gap2, y=Math.round(H*.04);
+  c.fillStyle="#1a1226";c.fillText(ch,x+2,y+2);
+  c.fillStyle="#ffc24a";c.fillText(ch,x,y);
+ });
+ c.font="8px monospace";c.fillStyle="#c7d2ec";
+ c.fillText("THE FOUR-STOREY MAZE",W/2,Math.round(H*.04)+big+3);
+ c.textAlign="left";
+}
+function render(){
+ const c=ctx;
+ if(G.phase==="menu"||!G.L||!G.hero){drawTitle();return;}
+ const h=G.hero, P=G.L.pal, vh=viewH(), top=viewTop();
+ G.cam.x=clamp(h.x+h.w/2-VW/2,0,Math.max(0,MAPW*TS-VW));
+ G.cam.y=clamp(h.y+h.h/2-vh/2,0,Math.max(0,MAPH*TS-vh));
+ if(G.shake>0){G.cam.x+=(Math.random()-.5)*G.shake;G.cam.y+=(Math.random()-.5)*G.shake;}
+ c.fillStyle=P.sky;c.fillRect(0,0,VW,VH);
+ drawTiles();
+ for(const p of G.L.plants){                                  // whatever was under the trapdoor
+  const x=sx(p.x), y=sy(p.y);
+  c.fillStyle="#2f7a3a";c.fillRect(x+p.w/2-3,y,6,p.h);
+  c.fillStyle="#d84a6a";c.fillRect(x,y+p.h-7,p.w,7);
+  c.fillStyle="#f0e8d0";for(let i=0;i<3;i++)c.fillRect(x+2+i*5,y+p.h-6,2,4);
+ }
+ drawPet();drawToy();drawChild();
+ for(const e of G.L.foes)if(!e.dead)drawFoe(e);
+ for(const s of G.L.shots){c.fillStyle=s.hue;c.fillRect(sx(s.x),sy(s.y),s.w,s.h);}
+ for(const cu of G.L.curses){
+  c.fillStyle=Math.floor(cu.t*20)%2?"#c86aff":"#ffe14a";
+  c.fillRect(sx(cu.x),sy(cu.y),cu.w,cu.h);
+ }
+ drawHero();
+ for(const f of G.L.fx){const k=f.t/f.life;
+  c.fillStyle="rgba(255,225,74,"+(1-k).toFixed(2)+")";
+  c.beginPath();c.arc(sx(f.x),sy(f.y),f.r*(.4+k),0,7);c.fill();}
+ if(G.flash>0){c.fillStyle="rgba(255,240,190,"+(G.flash*1.2).toFixed(2)+")";c.fillRect(0,top,VW,vh);}
+ if(G.radar)drawRadar();
+ drawHUD();
+}
+function updateStatus(){
+ if(G.phase==="menu"||!G.hero){
+  statusEl.innerHTML="<b>DROL</b> — the witch doctor has the children in the maze. Start the rescue.";
+  return;
+ }
+ const L=G.L;
+ statusEl.innerHTML="<b>Round "+(G.loop+1)+" · scene "+(G.scene+1)+"/3</b> — "+
+  SCENES[G.scene].name+" · "+G.score+" points · "+G.lives+" robots"+
+  (L.toy&&!L.toy.alive?" · toy down":"")+(L.pet&&L.pet.freed?" · pet safe":"")+
+  (G.msgT>0?" — "+G.msg:"");
+}
+
+/* ============ loop ============ */
+// The drawing surface takes the shape of the box it sits in: with the scope off
+// the maze simply gets those sixteen rows back.
+function fit(force){
+ const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||216;
+ if(!w||!hh)return;
+ const s=clamp(w/346,1,6);
+ const nw=clamp(Math.round(w/s),260,560), nh=clamp(Math.round(hh/s),150,MAPH*TS+RADAR_H);
+ if(nw===VW&&nh===VH&&!force)return;
+ VW=nw;VH=nh;cv.width=VW;cv.height=VH;
+}
+addEventListener("resize",()=>fit());
+addEventListener("orientationchange",()=>fit());
+let last=0,frame=0;
+function loop(now){
+ const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+ if(!(frame++%20))fit();
+ G.uiT+=dt;
+ if(G.phase==="play")stepGame(dt);
+ else if(G.phase==="cheer"){
+  G.cheerT-=dt;
+  if(G.cheerT<=0)nextScene();
+ }
+ render();updateStatus();updatePads();musicForState();musicTick();
+ requestAnimationFrame(loop);
+}
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout; the worker keeps the game playable without a signal. */
+function isStandaloneApp(){
+  try{
+    if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+    if(typeof matchMedia!=="function")return false;
+    return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+  }catch(e){return false;}
+}
+if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
+   typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+if(isStandaloneApp())setFocus(true);
+
+fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
