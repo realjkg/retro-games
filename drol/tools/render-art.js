@@ -57,20 +57,20 @@ function iconPNG(sprite,size){
    for(let i=Math.max(0,Math.round(x));i<Math.min(W,Math.round(x+w));i++){
     const o=(j*W+i)*3;buf[o]=c[0];buf[o+1]=c[1];buf[o+2]=c[2];}};
  rect(0,0,W,H,"#000000");                                // black, as the machine had it
- for(let f=0;f<4;f++){                                   // four floors, each with a hole
-  const y=H*(.15+f*.23);
-  rect(0,y,W,H*.055,"#3a34c8");
-  rect(0,y,W,H*.038,"#6a62e8");
-  rect(0,y,W,H*.014,"#ffffff");                          // the white edge you land on
-  rect(W*(.06+f*.24),y,W*.15,H*.06,"#000000");
+ // Two floors, one above him and one below: any more and the bands cross the
+ // character, which is what an icon cannot afford.
+ for(const y of [H*.06,H*.88]){
+  rect(0,y,W,H*.05,"#3a34c8");
+  rect(0,y,W,H*.035,"#4a3ce8");
+  rect(0,y,W,H*.013,"#ffffff");
+  rect(W*.62,y,W*.16,H*.06,"#000000");                   // the hole he came through
  }
- // The hero, centred, at whatever scale fits him into two thirds of the icon.
- const u=Math.floor(H*.62/sprite.h), ox=Math.round((W-sprite.w*u)/2), oy=Math.round(H*.21);
- rect(ox+1*u,oy+12*u,3*u,7*u,"#d838c8");                 // the jetpack, burning
- rect(ox+1*u,oy+12*u,3*u,5.5*u,"#ff8ae8");
- rect(ox+1.6*u,oy+12*u,1.6*u,4*u,"#ffffff");
+ // The hero, centred, at whatever scale fits him into three quarters of the icon.
+ const u=Math.floor(H*.62/sprite.h), ox=Math.round((W-sprite.w*u)/2), oy=Math.round(H*.19);
+ rect(ox+1*u,oy+14*u,u,4*u,"#e04040");                   // the pack's flame, as on screen
+ rect(ox+2*u,oy+14*u,u,4*u,"#eeeeee");
  for(const r of runs(sprite))rect(ox+r.x*u,oy+r.y*u,r.w*u,u,r.colour);
- rect(ox+(sprite.w+1)*u,oy+8*u,4*u,2*u,"#ffe14a");       // a ball already on its way
+ rect(ox+(sprite.w+1)*u,oy+10*u,3*u,2*u,"#eeeeee");      // a ball already on its way
  const raw=Buffer.alloc((W*3+1)*H);
  for(let y=0;y<H;y++){raw[y*(W*3+1)]=0;buf.copy(raw,y*(W*3+1)+1,y*W*3,(y+1)*W*3);}
  const chunk=(type,data)=>{
@@ -86,19 +86,19 @@ function iconPNG(sprite,size){
 
 /* ---- the tile on the collection page: the same hero, as inline SVG ---- */
 function tileSVG(sprite){
- // Sized so the hero and the flame under him both fit inside the tile.
- const u=+(46/sprite.h).toFixed(3), ox=+((64-sprite.w*u)/2).toFixed(2), oy=3;
+ // Sized so the whole of him, and the flame under the pack, fit inside the tile.
+ const u=+(50/Math.max(sprite.w,sprite.h)).toFixed(3),
+       ox=+((64-sprite.w*u)/2).toFixed(2), oy=+((64-sprite.h*u)/2-1).toFixed(2);
  const out=[START,'        <svg viewBox="0 0 64 64">'];
- for(let f=0;f<4;f++){                                   // the four floors behind him
-  const y=3+f*17;
-  out.push(`          <rect x="0" y="${y}" width="64" height="3" fill="#6a62e8"/>`+
+ for(const y of [1,60]){                                 // one floor above, one below
+  out.push(`          <rect x="0" y="${y}" width="64" height="3" fill="#4a3ce8"/>`+
            `<rect x="0" y="${y}" width="64" height="1" fill="#ffffff"/>`);
-  out.push(`          <rect x="${6+f*15}" y="${y}" width="10" height="3" fill="#000000"/>`);
+  out.push(`          <rect x="${y===1?40:12}" y="${y}" width="12" height="3" fill="#000000"/>`);
  }
- out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
-          `width="${(3*u).toFixed(2)}" height="${(7*u).toFixed(2)}" fill="#d838c8"/>`);
- out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+12*u).toFixed(2)}" `+
-          `width="${(3*u).toFixed(2)}" height="${(5*u).toFixed(2)}" fill="#ff8ae8"/>`);
+ out.push(`          <rect x="${(ox+u).toFixed(2)}" y="${(oy+14*u).toFixed(2)}" `+
+          `width="${u.toFixed(2)}" height="${(4*u).toFixed(2)}" fill="#e04040"/>`);
+ out.push(`          <rect x="${(ox+2*u).toFixed(2)}" y="${(oy+14*u).toFixed(2)}" `+
+          `width="${u.toFixed(2)}" height="${(4*u).toFixed(2)}" fill="#eeeeee"/>`);
  for(const r of runs(sprite))
   out.push(`          <rect x="${(ox+r.x*u).toFixed(2)}" y="${(oy+r.y*u).toFixed(2)}" `+
            `width="${(r.w*u).toFixed(2)}" height="${u.toFixed(2)}" fill="${r.colour}"/>`);

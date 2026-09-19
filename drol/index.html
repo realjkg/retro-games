@@ -306,8 +306,8 @@ const HERO_PIX=[
  "......BBBBBBBBBBBBB.",
  ".RR......RRRRRRR....",   // the collar, and the nozzle of the pack
  "........WWWWWWWW....",   // and the white of him below it
- "......WWWWWWWWWWWR..",
- ".........WWWWWWWWR..",
+ "......WWWWWWWWWWW...",
+ ".........WWWWWWWW...",
  "...........WWWWWWWW.",
  "...............WWWW.",   // the last of the tail, which the photograph has
 ];
@@ -1252,8 +1252,10 @@ function drawHero(){
  c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
  c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
  if(h.thrust>0){                                  // the jetpack burning, out of its nozzle
-  const len=Math.round(3+6*h.thrust+(Math.floor(G.time*24)%2));
-  const nx=h.face<0?x+15:x-2;                    // under the pack, whichever way he faces
+  // A short bar under the pack, red on the pack's side and white on the other,
+  // the length of it flickering: what the screen shows, not a rocket exhaust.
+  const len=3+Math.round(2*h.thrust)+(Math.floor(G.time*20)%2);
+  const nx=h.face<0?x+15:x-1;
   c.fillStyle="#e04040";c.fillRect(nx+(h.face<0?1:0),y+13,1,len);
   c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+13,1,len);
  }
@@ -1261,11 +1263,12 @@ function drawHero(){
  // drawn around his box rather than inside it.
  const frame=(h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
  drawPix(frame,HERO_PAL,x-2,y-1,1,h.face<0);
- // The chest port pulses - the sprite's own two pixels, repainted rather than
- // drawn again somewhere else.
- const glow=.55+.45*Math.sin(G.time*8);
- c.fillStyle="rgba(255,255,255,"+glow.toFixed(2)+")";
- c.fillRect(x+(h.face<0?6:9),y+9,2,2);           // the vent, lighting as it fires
+ // The vent lights only while a ball is actually leaving it, and in his own
+ // white rather than a glow laid over the top.
+ if(h.cool>.16){
+  c.fillStyle="#eeeeee";
+  c.fillRect(x+(h.face<0?6:9),y+9,2,2);
+ }
 }
 function drawRadar(){
  const c=ctx, L=G.L, W=VW, H=RADAR_H;
@@ -1351,16 +1354,15 @@ function drawTitle(){
  });
  // The robot, the same twelve-by-sixteen picture the game draws, at four times
  // the size and lit by his own rocket: the card and the sprite are one drawing.
- const u=Math.max(3,Math.round(W/86));                        // one sprite pixel, on this card
- const hx=Math.round(W*.46)-6*u;
+ const u=Math.max(2,Math.round(W/110));                       // one sprite pixel, on this card
+ const hx=Math.round(W*.46)-Math.round(HERO_PIX[0].length/2)*u;
  // Stand him on the top floor, but never so high that he climbs into the title.
- const hy=Math.max(Math.round(H*.28),rows[0]-16*u)+Math.round(Math.sin(t*2)*3);
- const flame=Math.round(u*3)+Math.round(Math.sin(t*16)*u);
- c.fillStyle="rgba(255,140,40,.85)";c.fillRect(hx+1*u,hy+12*u,3*u,flame+4*u);
- c.fillStyle="#ffc24a";c.fillRect(hx+1*u,hy+12*u,3*u,flame+2*u);
- c.fillStyle="#fff4c0";c.fillRect(hx+1.5*u,hy+12*u,1*u,flame);
+ const hy=Math.max(Math.round(H*.26),rows[0]-HERO_PIX.length*u)+Math.round(Math.sin(t*2)*3);
+ const flame=(4+Math.round(Math.sin(t*16)))*u;
+ c.fillStyle="#e04040";c.fillRect(hx+1*u,hy+14*u,u,flame);
+ c.fillStyle="#eeeeee";c.fillRect(hx+2*u,hy+14*u,u,flame);
  drawPix(HERO_PIX,HERO_PAL,hx,hy,u,false);
- c.fillStyle="#fff4c0";c.fillRect(hx+13*u,hy+8*u,4*u,2*u);    // a ball already on its way
+ c.fillStyle="#eeeeee";c.fillRect(hx+21*u,hy+10*u,3*u,2*u);   // a ball already on its way
  const cx2=Math.round(W*.76), cy=rows[0]-21;                 // the boy, along the same floor
  c.fillStyle="#3a86e0";c.fillRect(cx2,cy+9,11,9);
  c.fillStyle="#6aa8f0";c.fillRect(cx2,cy+9,11,2);
