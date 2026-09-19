@@ -168,8 +168,22 @@ test('5. surrender, departure, the delayed draw and the ambush all behave', ()=>
   assert.equal(out.delayedThen.phase,'tell','he never turned back');
   assert.equal(out.delayedThen.why,'delayed');
   assert.equal(out.ambush.phase,'tell');
-  assert.ok(out.ambush.tell<=260,'an ambush gave '+out.ambush.tell+'ms of warning');
   assert.ok(out.delayedThen.tell>out.ambush.tell,'a delayed draw warns no more than an ambush');
+  /* The ambush is the shortest warning in the game and is meant to be, but a
+   * warning nobody alive can answer is not a difficulty, it is a coin flip.
+   * Seeing a thing on a phone and pressing a button is about 250ms at the very
+   * best and 400-600ms in ordinary play, and the page costs something on top
+   * of that. The worst case the rules allow must still leave a fast player
+   * room, and the best case must not be a gift. */
+  const span=JSON.parse(run('JSON.stringify({T:RULES.TELLS,lo:RULES.FIRE_MIN,hi:RULES.FIRE_MAX})'));
+  for(const kind of Object.keys(span.T)){
+    const worst=span.T[kind][0]+span.lo, best=span.T[kind][1]+span.hi;
+    assert.ok(worst>=520,
+      'a '+kind+' can fire '+worst+'ms after its own warning, which no person can answer');
+    assert.ok(best<=1500,'a '+kind+' can give '+best+'ms, which is not a gunfight');
+  }
+  assert.ok(span.T.ambush[0]+span.lo<span.T.draw[0]+span.lo,
+    'an ambush is no faster than a man squaring up to you');
 });
 
 test('6. the doctor decides whether a bullet is survivable', ()=>{
@@ -891,20 +905,20 @@ test('26. three men whose hats are not like anybody else\'s', ()=>{
       return boxAt(G,G.aim.x,G.aim.y);};
     // the deputy is on your side, and the street can see the jail door
     const D=newDay({seed:70}); D.encounter=8;
-    beginEncounter(D); openDialogue(D); aimAtHat(D); shoot(D,300);
+    beginEncounter(D); openDialogue(D); aimAtHat(D); shoot(D,700);
     r.deputy={out:D.outcome,auth:D.authority,arrests:D.arrests,
               flags:D.flags.indexOf("offended")>=0};
     // the doctor decides whether your next wound is survivable
     const M=newDay({seed:71}); M.encounter=3; M.doctor.disposition=1; M.doctor.sober=true;
     beginEncounter(M); r.doctorWas=doctorState(M);
-    openDialogue(M); aimAtHat(M); shoot(M,300);
+    openDialogue(M); aimAtHat(M); shoot(M,700);
     r.doctor={out:M.outcome,auth:M.authority,state:doctorState(M)};
     // and a hold-up man's Stetson takes his bandana with it
     const R=newDay({seed:72}); R.encounter=3; R.tips.stage=true;
     runInterlude(R,"stage"); enterJob(R);
     r.masked=!!who(R).masked;
     const was=R.authority;
-    const box=aimAtHat(R); shoot(R,300);
+    const box=aimAtHat(R); shoot(R,700);
     r.robber={box:box,out:R.outcome,gain:R.authority-was,alive:R.alive,
               shot:R.badGuysShot,missed:R.crimesMissed};
     // a caller the sheriff let go does the job unmasked, and is himself again
@@ -913,12 +927,32 @@ test('26. three men whose hats are not like anybody else\'s', ()=>{
     r.namedMasked=!!who(N).masked;
     // everybody who wears one has their own words for losing it
     r.lines=CAST.filter(e=>boxesFor(e).hat).map(e=>e.id+":"+(e.hatline?e.hatline.length:0));
+    /* A hat is eight pixels deep with a man's head directly under it. Laid on
+     * carefully it comes off; snatched at, the ball goes where snatched balls
+     * go. Both of those have to be true or the best shot in the game is either
+     * impossible or free. */
+    const tally=(lat)=>{const c={hat:0,worse:0,miss:0};
+      for(let i=0;i<400;i++){
+        const G=newDay({seed:400+i}); G.encounter=8;
+        beginEncounter(G); openDialogue(G); aimAtHat(G); shoot(G,lat);
+        if(G.hatOff)c.hat++;
+        else if(G.duel&&G.duel.result==="miss")c.miss++;
+        else c.worse++;
+      }
+      return c;};
+    r.careful=tally(700); r.snatched=tally(150);
     return JSON.stringify(r);
   })()`));
   assert.equal(out.deputy.out,'hat_deputy');
   assert.equal(out.deputy.auth,-2,'shooting your own deputy\'s hat off was free');
   assert.equal(out.deputy.arrests,0,'you arrested your own deputy');
   assert.equal(out.deputy.flags,true);
+  assert.ok(out.careful.hat>=300,
+    'a carefully laid shot took the hat off only '+out.careful.hat+' times in 400');
+  assert.ok(out.snatched.hat<out.careful.hat,
+    'snatching at a hat is as good as aiming at one');
+  assert.ok(out.snatched.worse>0,
+    'a snap shot at a man\'s hat never once went somewhere worse');
   assert.equal(out.doctorWas,'civil');
   assert.equal(out.doctor.out,'hat_scared');
   assert.equal(out.doctor.auth,-2);

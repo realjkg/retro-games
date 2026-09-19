@@ -23,3 +23,15 @@ test('32. a room of players can reach everything the day has, and both ends of i
   }
   assert.match(out,/all clear/,out);
 });
+
+test('33. there is time to answer, and being slow costs something', ()=>{
+  let out='';
+  try{
+    out=execFileSync(process.execPath,[path.join(ROOT,'tools','timing.js')],
+      {encoding:'utf8',timeout:120000});
+  }catch(e){
+    out=(e.stdout||'')+(e.stderr||'');
+    assert.fail('the gunfights are not answerable:\n'+out);
+  }
+  assert.match(out,/all clear/,out);
+});

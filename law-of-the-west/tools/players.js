@@ -80,6 +80,7 @@ function playDay(who_,seed){
   let t=1000, rngState=seed*2654435761%2147483647||12345;
   const rnd=()=>{rngState=(rngState*48271)%2147483647;return rngState/2147483647;};
   const ctx={rnd:rnd,id:null,node:null};
+  let fightAt=null;                      // when the man in front of him moved
   const step=ms=>{                       // time passing, in frames, as it does
     const end=t+ms, was=G.phase;
     while(t<end){ t+=50; A.tick(G,t); if(G.phase!==was)return false; }
@@ -107,12 +108,20 @@ function playDay(who_,seed){
       A.shoot(G,320);
     }
     else if(G.phase==='tell'||G.phase==='duel'){
-      const late=who_.gun==='early'?260:who_.name==='dawdler'?1400:520;
+      /* A person answers a fight once, timed from when it started - not afresh
+       * every time the other man's pose changes. Stepping the clock per phase
+       * spent the whole reaction twice, put the shot on the far side of the
+       * deadline, and had one way of playing dying at the same robbery every
+       * single day. That was this harness lying, not the game. */
+      if(fightAt==null)fightAt=t;
+      const want=who_.gun==='early'?260:who_.name==='dawdler'?1400:520;
       A.aimAt(G,who_.name==='bully'?'torso':'arm');
-      if(!step(late))continue;
-      A.shoot(G,late);
+      const remain=want-(t-fightAt);
+      if(remain>0&&!step(remain))continue;
+      A.shoot(G,t-fightAt);
     }
     else if(G.phase==='resolve'){
+      fightAt=null;
       if(G.outcome)seenEnd.add(id+':'+G.outcome);
       day.scenes.push({who:id,outcome:G.outcome,
         end:G.ending?(G.ending.flags||[]).join('+'):null});

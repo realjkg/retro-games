@@ -9,7 +9,12 @@
 const RULES={
   ROUNDS:3,
   TELL_MIN:400, TELL_MAX:900,
-  TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
+  /* How long a man takes between showing his hand and using it. Measured
+   * against a person rather than guessed at: seeing a thing on a phone and
+   * pressing a button is about 250ms at the very best and 400-600ms in normal
+   * play, and the page's own cost sits on top of that. The old ambush gave
+   * 380-680ms for the whole business, which no one alive could answer. */
+  TELLS:{ambush:[320,500], delayed:[520,820], draw:[620,1000]},
   FIRE_MIN:260, FIRE_MAX:420,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
@@ -23,8 +28,11 @@ const RULES={
     coward: {reflex:[700,1400],  flee:-2}
   },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
-  SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
-  ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
+  /* How far off the sights the ball goes, in pixels of the picture. A snap
+   * shot throws it about; a shot he took his time over goes where he put it.
+   * It used to be a lottery between the thing aimed at and the other thing,
+   * decided by the clock alone - the crosshair chose nothing. */
+  SPREAD_SNAP:9, SPREAD_AIMED:2.2,
   WOUNDS:2,
   /* The man at the window: how often, how many in a day, how long before the
    * sash goes up, and how long the sheriff then has to do something about it.
@@ -374,7 +382,16 @@ function shoot(G,latencyMs){
   let d=G.duel, e=who(G);
   // read what the crosshair is over before drawing first changes his pose:
   // the player aimed at the hand on the hip, not at the hand he has not raised
-  const box=boxAt(G,G.aim.x,G.aim.y);
+  /* Where the ball actually went: the sights, and what haste did to them. The
+   * shot is then simply read off the picture - whatever it landed in is what
+   * it hit - so the crosshair means what it shows. */
+  const lat0=Math.max(0,latencyMs||0);
+  const qa=Math.max(0,Math.min(1,(lat0-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
+  const spread=RULES.SPREAD_SNAP-(RULES.SPREAD_SNAP-RULES.SPREAD_AIMED)*qa;
+  const ang=G.rng()*Math.PI*2, off=absNormal(G,1)*spread;
+  const land={x:G.aim.x+Math.cos(ang)*off/SCENE.w,
+              y:G.aim.y+Math.sin(ang)*off/SCENE.h};
+  const box=boxAt(G,land.x,land.y);
   // A ball through the window is not a duel with the man in the street, and it
   // ends the encounter whatever was being said: nobody carries on a
   // conversation after that.
@@ -422,18 +439,12 @@ function shoot(G,latencyMs){
   }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
-  d.fired=true; d.latency=latencyMs; G.reflex=null;
+  d.fired=true; d.latency=latencyMs; G.reflex=null; d.error=off;
   d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
   const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
   if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
   if(d.zone==="off"){d.result="miss";return theirReply(G);}
-  const q=Math.max(0,Math.min(1,(latencyMs-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
-  const sigma=RULES.SIGMA_WIDE-(RULES.SIGMA_WIDE-RULES.SIGMA_TIGHT)*q;
-  const err=absNormal(G,sigma); d.error=err;
-  const other=d.zone==="torso"?"arm":"torso";
-  const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
-  if(hit==="miss"){d.result="miss";return theirReply(G);}
-  if(hit==="arm"){
+  if(d.zone==="arm"){
     // there is nothing to shoot out of an unarmed caller's hand, and the town
     // can see that as well as the sheriff can
     if(!e.armed){d.result="wounded_innocent"; G.authority-=2; G.flags.push("offended");

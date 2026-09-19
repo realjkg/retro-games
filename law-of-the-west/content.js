@@ -934,13 +934,24 @@ const SPRX=FIG.cx-(SPR.w/2)*FIGCW;
 const SPRY=FIG.ground-SPR.h*FIGCH;
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*FIGCW,y:SPRY+r0*FIGCH,
   w:(c1-c0+1)*FIGCW,h:(r1-r0+1)*FIGCH});
+/* A hit box is not a drawing. The revolver on his hip is three pixels by two -
+ * about a fifth of a millimetre of glass on a phone - so laying the sights on
+ * it is not difficult, it is impossible, and that is why the shot used to be
+ * settled by a lottery instead of by where the sights were. Every box is grown
+ * about its own centre to something a thumb can be asked for, and nothing that
+ * is drawn changes. */
+const TOUCH_MIN=9;
+const touchable=b=>{
+  const w=Math.max(b.w,TOUCH_MIN), h=Math.max(b.h,TOUCH_MIN);
+  return {x:Math.round(b.x+(b.w-w)/2), y:Math.round(b.y+(b.h-h)/2), w:w, h:h};
+};
 const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
 function boxesFor(e){
   const b=figureOf(e).box||DEFAULT_BOX;
   return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
           hat:b.hat?cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3]):null,
-          weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
-          weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
+          weapon:touchable(cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3])),
+          weaponRaised:touchable(cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3]))};
 }
 /* The second gun. Not every caller comes alone: on some encounters a sash goes
  * up at the lit window over the street and a rifle comes out of it, and the

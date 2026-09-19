@@ -1727,13 +1727,24 @@ const SPRX=FIG.cx-(SPR.w/2)*FIGCW;
 const SPRY=FIG.ground-SPR.h*FIGCH;
 const cellsBox=(c0,r0,c1,r1)=>({x:SPRX+c0*FIGCW,y:SPRY+r0*FIGCH,
   w:(c1-c0+1)*FIGCW,h:(r1-r0+1)*FIGCH});
+/* A hit box is not a drawing. The revolver on his hip is three pixels by two -
+ * about a fifth of a millimetre of glass on a phone - so laying the sights on
+ * it is not difficult, it is impossible, and that is why the shot used to be
+ * settled by a lottery instead of by where the sights were. Every box is grown
+ * about its own centre to something a thumb can be asked for, and nothing that
+ * is drawn changes. */
+const TOUCH_MIN=9;
+const touchable=b=>{
+  const w=Math.max(b.w,TOUCH_MIN), h=Math.max(b.h,TOUCH_MIN);
+  return {x:Math.round(b.x+(b.w-w)/2), y:Math.round(b.y+(b.h-h)/2), w:w, h:h};
+};
 const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
 function boxesFor(e){
   const b=figureOf(e).box||DEFAULT_BOX;
   return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
           hat:b.hat?cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3]):null,
-          weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
-          weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
+          weapon:touchable(cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3])),
+          weaponRaised:touchable(cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3]))};
 }
 /* The second gun. Not every caller comes alone: on some encounters a sash goes
  * up at the lit window over the street and a rifle comes out of it, and the
@@ -1770,7 +1781,12 @@ const HITBOX=boxesFor(null);             // the default, for anything asking wit
 const RULES={
   ROUNDS:3,
   TELL_MIN:400, TELL_MAX:900,
-  TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
+  /* How long a man takes between showing his hand and using it. Measured
+   * against a person rather than guessed at: seeing a thing on a phone and
+   * pressing a button is about 250ms at the very best and 400-600ms in normal
+   * play, and the page's own cost sits on top of that. The old ambush gave
+   * 380-680ms for the whole business, which no one alive could answer. */
+  TELLS:{ambush:[320,500], delayed:[520,820], draw:[620,1000]},
   FIRE_MIN:260, FIRE_MAX:420,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
@@ -1784,8 +1800,11 @@ const RULES={
     coward: {reflex:[700,1400],  flee:-2}
   },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
-  SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
-  ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
+  /* How far off the sights the ball goes, in pixels of the picture. A snap
+   * shot throws it about; a shot he took his time over goes where he put it.
+   * It used to be a lottery between the thing aimed at and the other thing,
+   * decided by the clock alone - the crosshair chose nothing. */
+  SPREAD_SNAP:9, SPREAD_AIMED:2.2,
   WOUNDS:2,
   /* The man at the window: how often, how many in a day, how long before the
    * sash goes up, and how long the sheriff then has to do something about it.
@@ -2135,7 +2154,16 @@ function shoot(G,latencyMs){
   let d=G.duel, e=who(G);
   // read what the crosshair is over before drawing first changes his pose:
   // the player aimed at the hand on the hip, not at the hand he has not raised
-  const box=boxAt(G,G.aim.x,G.aim.y);
+  /* Where the ball actually went: the sights, and what haste did to them. The
+   * shot is then simply read off the picture - whatever it landed in is what
+   * it hit - so the crosshair means what it shows. */
+  const lat0=Math.max(0,latencyMs||0);
+  const qa=Math.max(0,Math.min(1,(lat0-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
+  const spread=RULES.SPREAD_SNAP-(RULES.SPREAD_SNAP-RULES.SPREAD_AIMED)*qa;
+  const ang=G.rng()*Math.PI*2, off=absNormal(G,1)*spread;
+  const land={x:G.aim.x+Math.cos(ang)*off/SCENE.w,
+              y:G.aim.y+Math.sin(ang)*off/SCENE.h};
+  const box=boxAt(G,land.x,land.y);
   // A ball through the window is not a duel with the man in the street, and it
   // ends the encounter whatever was being said: nobody carries on a
   // conversation after that.
@@ -2183,18 +2211,12 @@ function shoot(G,latencyMs){
   }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
-  d.fired=true; d.latency=latencyMs; G.reflex=null;
+  d.fired=true; d.latency=latencyMs; G.reflex=null; d.error=off;
   d.zone=box==="weapon"?"arm":(box==="lethal"?"torso":"off");
   const theirShot=(d.initiator==="them"&&G.tell)?G.tell.delay+d.fireDelay:Infinity;
   if(latencyMs>theirShot){d.result="too_slow";return takeHit(G,"outdrawn");}
   if(d.zone==="off"){d.result="miss";return theirReply(G);}
-  const q=Math.max(0,Math.min(1,(latencyMs-RULES.AIM_FLOOR)/(RULES.AIM_CEIL-RULES.AIM_FLOOR)));
-  const sigma=RULES.SIGMA_WIDE-(RULES.SIGMA_WIDE-RULES.SIGMA_TIGHT)*q;
-  const err=absNormal(G,sigma); d.error=err;
-  const other=d.zone==="torso"?"arm":"torso";
-  const hit=err<RULES.ZONE_TIGHT?d.zone:(err<RULES.ZONE_WIDE?other:"miss");
-  if(hit==="miss"){d.result="miss";return theirReply(G);}
-  if(hit==="arm"){
+  if(d.zone==="arm"){
     // there is nothing to shoot out of an unarmed caller's hand, and the town
     // can see that as well as the sheriff can
     if(!e.armed){d.result="wounded_innocent"; G.authority-=2; G.flags.push("offended");
@@ -3682,12 +3704,17 @@ const CORNERS=[[-5,-5],[-4,-5],[-5,-4], [5,-5],[4,-5],[5,-4],
 function crosshair(){
   const a=G.aim;
   const x=Math.round(a.x*SCENE.w), y=Math.round(a.y*SCENE.h);
+  /* Drawn about the point that is tested. The blocks used to be laid down from
+   * (x,y) rightwards and downwards, so the mark a player lines up sat a pixel
+   * below and right of the place the ball was judged against - on a picture
+   * where a man is seventeen pixels across, that is a miss he cannot account
+   * for. Both rings are centred on the point now. */
   ctx.fillStyle=C64.blk;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,4,4);
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-2,y+dy*2-2,4,4);
   ctx.fillStyle=G.duel&&G.duel.drawn?C64.yel:C64.wht;
-  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2,y+dy*2,2,2);
-  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2,y+dy*2,2,2);
+  for(const [dx,dy] of RETICLE)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
+  for(const [dx,dy] of CORNERS)ctx.fillRect(x+dx*2-1,y+dy*2-1,2,2);
 }
 
 /* ---- the five-line matrix ---- *
@@ -4154,6 +4181,17 @@ function fire(){
     if(warned){SND.cut();SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
     else settleSound();
     paint(); return;
+  }
+  /* A sheriff with a man drawing on him does not press one button to clear
+   * leather and a second one to use it. Until now he did, and FIRE with the
+   * gun still holstered did nothing whatever while the other man shot him:
+   * two deliberate presses inside an ambush's window, which no person can
+   * make. In a fight FIRE is the whole motion - the gun comes out and goes
+   * off, laid on the body, because that is what a snap shot is. Drawing first
+   * with UP is still how he picks a shot, and now the only way to pick one. */
+  if(G.mode!=="gun"&&(G.phase==="tell"||G.phase==="duel")){
+    drawGun(G,performance.now()); drawnAt=performance.now();
+    aimAt(G,"torso"); SND.leather();
   }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
