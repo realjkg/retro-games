@@ -17,7 +17,8 @@ const END="<!-- /drol-art -->";
 /* ---- the one picture of the hero, read back out of the game ---- */
 function readSprite(){
  const src=fs.readFileSync(PAGE,"utf8");
- const pix=src.match(/const HERO_PIX=\[([\s\S]*?)\];/);
+ // The icon and the tile show him flying, so they read the flying pose.
+ const pix=src.match(/const HERO_FLY=\[([\s\S]*?)\];/)||src.match(/const HERO_PIX=\[([\s\S]*?)\];/);
  const pal=src.match(/const HERO_PAL=\{([\s\S]*?)\};/);
  if(!pix||!pal)throw new Error("index.html no longer defines HERO_PIX/HERO_PAL");
  const rows=(pix[1].match(/"[^"]*"/g)||[]).map(s=>s.slice(1,-1));

@@ -190,13 +190,13 @@ const SCENES=[
  // nothing at all.
  {name:"The boy and his plane", child:"boy",  toy:"plane",   pet:"lizard",
   foes:["scorpion","scorpion","turkey"],
-  sky:"#000000", stone:"#1a7a9a", trim:"#30b8d8", lit:"#ffffff"},
+  sky:"#000000", stone:"#3a34c8", trim:"#4a3ce8", lit:"#ffffff"},
  {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
   foes:["monster","doctor","magnet","scorpion"],
-  sky:"#000000", stone:"#9a28b4", trim:"#d838c8", lit:"#ffffff"},
+  sky:"#000000", stone:"#4438b8", trim:"#5b50e8", lit:"#ffffff"},
  {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
   foes:["serpent","blade","vacuum","monster"],
-  sky:"#000000", stone:"#3a34c8", trim:"#6a62e8", lit:"#ffffff"}
+  sky:"#000000", stone:"#2f2aa8", trim:"#4038d8", lit:"#ffffff"}
 ];
 const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
 const PET_NAME={lizard:"the boy's lizard",gator:"the girl's alligator"};
@@ -207,7 +207,7 @@ function genScene(scene,loop,diff,rand){
  const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(AIR));
  for(let x=0;x<MAPW;x++){map[x][0]=SLAB;for(let f=0;f<FLOORS;f++)map[x][slabRow(f)]=SLAB;}
  for(let y=0;y<MAPH;y++){map[0][y]=SLAB;map[MAPW-1][y]=SLAB;}
- const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],urns:[],
+ const L={scene,map,gaps:[],foes:[],shots:[],curses:[],fx:[],plants:[],traps:[],urns:[],pillars:[],
    child:null,toy:null,pet:null,pal:S};
  // Gaps in every slab: the holes you fly up and down through. The lowest slab of
  // the third scene is not holed at random - it carries the three trapdoors.
@@ -244,6 +244,10 @@ function genScene(scene,loop,diff,rand){
   L.toy={kind:S.toy,x:L.child.x+40,y:storeyTop(L.child.f)*TS+8,w:12,h:10,
     vx:(rand()<.5?-1:1)*34,vy:12,alive:true,f:L.child.f};
  }
+ // Pillars holding the storeys apart, every so often across the maze. They are
+ // scenery: nothing collides with them, and the original's stand in the same way.
+ for(let x=6+ri(10);x<MAPW-6;x+=14+ri(10))
+  for(let f=0;f<FLOORS-1;f++)L.pillars.push({x:x*TS,f});
  // The third scene has urns standing on its floors, as the original's does: they
  // soak up a ball apiece and shatter for points, and they are cover.
  if(scene===2){
@@ -261,7 +265,7 @@ function genScene(scene,loop,diff,rand){
  // Counted, quickened and made bolder by the setting: a bot playing the quiet
  // maze and the swarming one used to die at the same rate, which meant the
  // setting was decoration.
- const n=5+diff*3+loop*3;
+ const n=4+diff*4+loop*3;
  for(let i=0;i<n;i++)spawnFoe(L,S.foes[i%S.foes.length],rand,loop,diff);
  return L;
 }
@@ -281,45 +285,82 @@ function spawnFoe(L,k,rand,loop,diff){
 function mkFoe(k,x,y,f,dir,loop,diff){
  const F=FOE[k];
  return{k,x,y,f,w:F.w,h:F.h,vx:0,vy:0,dir:dir||1,cool:.6+Math.random()*1.2,anim:Math.random()*6,
-  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.09),pts:F.pts,dead:false,home:y,
-  agg:1+loop*.15+diff*.08};    // how often the ones that wait for you stop waiting
+  hp:F.hp,sp:F.sp*(1+loop*.13+diff*.13),pts:F.pts,dead:false,home:y,
+  agg:1+loop*.15+diff*.12};    // how often the ones that wait for you stop waiting
 }
 
 /* ============ the hero, once ============ */
 // One picture of the robot, twelve by sixteen, and everything that draws him -
 // the game, the title card, the app icon, the tile on the collection page -
 // reads it from here. They cannot drift apart because there is only one of him.
+// Three pictures of him, read off the screen: standing on his feet, mid-stride,
+// and flying with the white of him streaming out behind. They line up with each
+// other - the red band across his middle is the ninth row of all three - so the
+// game can swap between them without him jumping.
 const HERO_PIX=[
- "..........BBBBBB....",   // the dome of him, seen from the side
+ "..........BBBBBB...",
+ "........BBBBBBBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWW",
+ "...B.BBBBBBBBBWWWWB",
+ ".BBB.BBBBBBBWWWWBBB",
+ "BBBBWBBBBBBBWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR",
+ "BBBBWBBBBBWWWWBBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "WWWWWBBBBBWWWWBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".........RRRRRRR...",
+ "........WWWWWWWWW..",
+ "......WWWWWWWWWWWWW",
+ "......WWWWWWWWWWWWW",
+];
+const HERO_WALK=[
+ "..........BBBBBB...",
+ "........BBBBBBBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWW",
+ "...B.BBBBBBBBBWWWWB",
+ ".BBB.BBBBBBBWWWWBBB",
+ "BBBBWBBBBBBBWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR",
+ "BBBBWBBBBBWWWWBBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "BBBBWBBBBWWBWWWBBBB",
+ "WWWWWBBBBBWWWWBBBBB",
+ "......BBBBBBBBBBBBB",
+ ".........RRRRRRR...",
+ ".......WWWWWWWWW...",
+ ".....WWWWWWWWWWWW..",
+ ".....WWWWWWWWWWWW..",
+];
+const HERO_FLY=[
+ "..........BBBBBB....",
  "........BBBBBBBBBBB.",
  "......BBBBBBBBBBBBBB",
- ".....BBBBBBBBBBBWWWW",   // the white eye, on whichever side he faces
- "..BB.BBBBBBBBBWWWWBW",   // the pack strapped on behind
+ ".....BBBBBBBBBBBWWWW",
+ "..BB.BBBBBBBBBWWWWBW",
  ".BBB.BBBBBBBWWWWBBBW",
  "BBBBWBBBBBBBWWWWWWWW",
  "BBBBWBBBBBBBBBBBBBBB",
- ".RRR..RRRRRRRRRRRRR.",   // the red band across his middle
+ ".RRR..RRRRRRRRRRRRR.",
  "BBBBWBBBBBWWWWBBBBBB",
- "BBBBWBBBBWWBWWWBBBBB",   // the vent the balls come out of
+ "BBBBWBBBBWWBWWWBBBBB",
  "BBBBWBBBBWWBWWWBBBBB",
  "WWWWWBBBBBWWWWBBBBBB",
  "......BBBBBBBBBBBBB.",
- ".RR......RRRRRRR....",   // the collar, and the nozzle of the pack
- "........WWWWWWWW....",   // and the white of him below it
+ ".RR......RRRRRRR....",
+ "........WWWWWWWW....",
  "......WWWWWWWWWWW...",
  ".........WWWWWWWW...",
  "...........WWWWWWWW.",
- "...............WWWW.",   // the last of the tail, which the photograph has
+ "...............WWWW.",
 ];
-// The same robot with his skirt swung the other way, for when he is walking.
-const HERO_WALK=HERO_PIX.slice(0,15).concat([
- ".........WWWWWWWW...",
- ".......WWWWWWWWWWW..",
- "..........WWWWWWWW..",
- "............WWWWWWW.",
- "................WWWW"
-]);
-// Three colours and the black behind them, sampled from the photograph.
+// Each pose hangs off the body that collides by its own offset.
+const HERO_OFF={stand:-1,walk:-1,fly:-2};
 const HERO_PAL={B:"#4a3ce8",W:"#eeeeee",R:"#e04040"};
 // Draws one of those pictures at any size, facing either way. Runs of the same
 // colour go out as one rectangle, which is what keeps this cheap at title size.
@@ -508,6 +549,9 @@ const PILLAR_PIX=[
  "WWCCCCCCCCCCCCCCCC.."
 ];
 const PILLAR_PAL={C:"#40c0ff",W:"#ffffff",M:"#ff40ff"};
+// In the maze they stand further back than on the title card, so they are drawn
+// in the greys a background gets.
+const PILLAR_BG={C:"#7a86a8",W:"#c8ccd8",M:"#5a6080"};
 
 /* ============ the game ============ */
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
@@ -615,7 +659,20 @@ function heroStep(dt){
   if(d<VACUUM_REACH)dragX+=Math.sign(dx)*VACUUM_PULL*(1-d/VACUUM_REACH);
  }
  const r=moveBody(h,(h.vx+dragX)*dt,(h.vy+dragY)*dt);
- if(r.bx)h.vx=0;
+ // Stepping over the lip of a floor. Blocked sideways with room just above is a
+ // robot pressing into the edge of a slab he is hovering beside - in a hole, or
+ // half a body-height too low. Lift him over it rather than stopping him dead,
+ // which is otherwise a wall with no way of knowing it is there.
+ if(r.bx&&Math.abs(h.vx)>1){
+  const x0=h.x, y0=h.y;
+  for(let lift=2;lift<=6;lift+=2){
+   h.y=y0-lift;
+   if(hits(h)){h.y=y0;break;}
+   if(!moveBody(h,(h.vx+dragX)*dt,0).bx)break;   // over it
+   h.x=x0;h.y=y0;
+  }
+ }
+
  if(r.by)h.vy=0;
  // On his feet on a floor, with the jetpack off: that is walking, and the sprite
  // and the sound follow it. Standing is asked of the floor rather than of this
@@ -1084,6 +1141,15 @@ function gameOverMenu(){
 }
 
 /* ============ drawing ============ */
+// A pillar of the ruin: cyan capital, dentil frieze, fluted shaft repeated to
+// whatever height is asked of it, cyan base.
+function drawPillar(x,top,bot,pal){
+ const P=pal||PILLAR_PAL;
+ const CAP=PILLAR_PIX.slice(0,11), SHAFT=[PILLAR_PIX[11]], BASE=PILLAR_PIX.slice(20);
+ drawPix(CAP,P,x,top,1,false);
+ for(let y=top+CAP.length;y<bot-BASE.length;y++)drawPix(SHAFT,P,x,y,1,false);
+ drawPix(BASE,P,x,bot-BASE.length,1,false);
+}
 const px=v=>Math.round(v);
 const viewTop=()=>G.radar?RADAR_H:0;
 const viewH=()=>VH-viewTop();
@@ -1101,7 +1167,9 @@ function drawTiles(){
    if(G.L.map[x][slabRow(f)]!==SLAB)continue;
    const sxx=sx(x*TS), syy=sy(y);
    c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band
-   c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);               // the white edge you land on
+   // The white edge is dashed, as the screen has it: on for six pixels of every
+   // ten, which reads as a rail rather than a line.
+   if((x%3)!==2){c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);}
    c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,2);           // its underside
    // the lip either side of a hole, so a gap reads as an edge you can fall past
    if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,7);}
@@ -1122,6 +1190,13 @@ function drawTiles(){
  // The three trapdoors of the third scene: shut, they are boards across the hole
  // with a hinge at either end. Sprung, the flap hangs down through it and the
  // colour says which kind of door you picked.
+ // the pillars first: they stand behind everything
+ for(const q of G.L.pillars){
+  const px0=sx(q.x);
+  if(px0<-PILLAR_PIX[0].length||px0>VW)continue;
+  const top=slabRow(q.f)*TS+5, bot=slabRow(q.f+1)*TS;
+  drawPillar(px0,sy(top),sy(bot),PILLAR_BG);
+ }
  for(const t of G.L.traps){
   const sxx=sx(t.x), syy=sy(t.y);
   if(!t.sprung){
@@ -1307,19 +1382,25 @@ function drawHero(){
   // A short bar under the pack, red on the pack's side and white on the other,
   // the length of it flickering: what the screen shows, not a rocket exhaust.
   const len=3+Math.round(2*h.thrust)+(Math.floor(G.time*20)%2);
-  const nx=h.face<0?x+15:x-1;
-  c.fillStyle="#e04040";c.fillRect(nx+(h.face<0?1:0),y+13,1,len);
-  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+13,1,len);
+  const nx=h.face<0?x+15:x-1;      // the nozzle of the pack, whichever way he faces
+  c.fillStyle="#e04040";c.fillRect(nx+(h.face<0?1:0),y+14,1,len);
+  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+14,1,len);
  }
  // The picture is twenty across and the body that collides is sixteen, so he is
  // drawn around his box rather than inside it.
- const frame=(h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
- drawPix(frame,HERO_PAL,x-2,y-1,1,h.face<0);
+ // Three pictures of him: standing, mid-stride, and flying with the white of him
+ // streaming out behind. The screen shows all three; which one is on is the
+ // difference between the jetpack and his feet.
+ const flying=h.thrust>0;
+ const frame=flying?HERO_FLY:
+   (h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
+ const off=flying?HERO_OFF.fly:HERO_OFF.stand;
+ drawPix(frame,HERO_PAL,x+off,y,1,h.face<0);
  // The vent lights only while a ball is actually leaving it, and in his own
  // white rather than a glow laid over the top.
  if(h.cool>.16){
   c.fillStyle="#eeeeee";
-  c.fillRect(x+(h.face<0?6:9),y+9,2,2);
+  c.fillRect(x+(h.face<0?5:9),y+10,2,2);
  }
 }
 function drawRadar(){
@@ -1412,18 +1493,11 @@ function drawTitle(){
  // Pillars standing on each floor and holding up the one above. The capital and
  // the base are fixed; the fluted shaft is repeated to fill whatever is between
  // them, so a pillar is the height of its storey rather than a fixed picture.
- const CAP=PILLAR_PIX.slice(0,11), SHAFT=[PILLAR_PIX[11]], BASE=PILLAR_PIX.slice(20);
- for(let r=0;r<rows.length-1;r++){
-  const top=rows[r]+7, bot=rows[r+1];
+ for(let r=0;r<rows.length-1;r++)
   // Two to a storey, at the ends, as the original has them - anything in the
   // middle would stand in front of the wordmark.
-  for(const fx of [.07,.93]){
-   const px0=Math.round(W*fx-PILLAR_PIX[0].length/2);
-   drawPix(CAP,PILLAR_PAL,px0,top,1,false);
-   for(let y=top+CAP.length;y<bot-BASE.length;y++)drawPix(SHAFT,PILLAR_PAL,px0,y,1,false);
-   drawPix(BASE,PILLAR_PAL,px0,bot-BASE.length,1,false);
-  }
- }
+  for(const fx of [.07,.93])
+   drawPillar(Math.round(W*fx-PILLAR_PIX[0].length/2),rows[r]+7,rows[r+1]);
  // the robot, hovering over the top floor with his pack lit
  const u=Math.max(1,Math.round(W/190)), hw=HERO_PIX[0].length*u;
  const hx=Math.round(W*.42-hw/2), hy=rows[0]-HERO_PIX.length*u-2+Math.round(Math.sin(t*2)*3);

@@ -216,7 +216,7 @@ function makeAgent(K){                       // K: the geometry constants of the
   }
   // Wedged: a robot inside a hole cannot move sideways, because the slab is on
   // both sides of him. Climb out before trying again.
-  if(memory.jam>18){
+  if(memory.jam>10){
    delete keys.HOLD;
    if(goalF<myF||myF===K.FLOORS-1){keys.U=true;delete keys.D;}
    else{keys.D=true;delete keys.U;}
@@ -288,8 +288,14 @@ function play(opts){
   if(keys.FIRE||keys.VERT)log.shots++;
   run(`stepGame(${DT});`);
   log.frames++;
-  const moved=Math.abs(run("G.hero?G.hero.x:0")-s.hero.x);
-  memory.jam=((keys.L||keys.R)&&moved<.4)?memory.jam+1:0;
+  // Jammed is about where he has got to over the last third of a second, not
+  // about this frame: pressed into the lip of a floor he shuffles back and forth
+  // by half a pixel, which frame-by-frame looks like movement.
+  const nowX=run("G.hero?G.hero.x:0");
+  (memory.xs=memory.xs||[]).push(nowX);
+  if(memory.xs.length>20)memory.xs.shift();
+  const span=Math.max(...memory.xs)-Math.min(...memory.xs);
+  memory.jam=((keys.L||keys.R)&&memory.xs.length===20&&span<2)?memory.jam+1:0;
   // Standing still is not the test - flying up and down a hole without ever
   // reaching the child is just as stuck. Measure progress towards the goal, and
   // call twelve seconds without any a stall.

@@ -72,7 +72,12 @@ The art is drawn from a photograph of the original running, supplied by the owne
 repository — I cannot reach a screenshot or a disk image from where this is built, so that
 photograph is the only sight of the game anyone here has had.
 
-**The hero, the wordmark and the pillars are transcriptions of it.** The photograph is a 320×240 screen at double size, so
+**The hero, the wordmark and the pillars are transcriptions of it.** Three pictures of him,
+in fact, because the screen has three: standing on his feet with the white of him in a block
+under the collar, mid-stride with that block swung forward, and flying with it streaming out
+behind. They line up with each other — the red band across his middle is the ninth row of all
+three — so the game swaps between them without him jumping, and which one is on is the
+difference between the jetpack and his feet. The photograph is a 320×240 screen at double size, so
 each native pixel is a 2×2 block; the blocks under the character were averaged, matched to the
 nearest of the four colours on screen, mirrored (he faces left in the photograph and right in
 the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
@@ -124,12 +129,17 @@ What that means on screen:
   with the pack on his back. The pack burns from its nozzle only while ▲ is held; on a floor
   with the pack off he walks, and the white of him swings as he goes. He throws a shadow on
   the floor below him, which shrinks as he rises — the one cue that says how high up he is.
-- **The floors** are bands with a white edge along the top and a darker line beneath, with a
-  bright lip either side of every hole. There is nothing behind them: the background is black,
-  which is what makes four colours look like more.
-- **Each scene has one colour**, as the machine would have done it: cyan for the boy's scene,
-  magenta for the girl's and the witch doctor's, and the photograph's blue for the descent to
-  the mother, which is the scene the photograph shows.
+- **The floors** are blue bands with a **dashed** white edge along the top — on for two tiles
+  of every three, which reads as a rail rather than a line — and a bright lip either side of
+  every hole. There is nothing behind them: the background is black, which is what makes four
+  colours look like more.
+- **Pillars stand in the maze**, not only on the title card: a classical column every dozen
+  tiles or so, holding each storey apart, drawn in greys because they are behind everything
+  that moves. Nothing collides with them.
+- **Each scene has its own blue**, because both photographs of the game in play are blue: a
+  deeper one for the boy's scene, a violet one for the girl's and the witch doctor's, and a
+  darker one again for the descent to the mother. Magenta is left to the title screen, which
+  is where the original uses it.
 - **The menagerie is a handful of blocks each, two frames apiece**, with one bright colour so
   you can tell what it is at a glance: the scorpion's tail curls over its back, the turkey
   flaps, the monster hops on its belly, the serpent's body ripples along, the witch doctor
@@ -167,6 +177,10 @@ joystick game:
   two digital buttons on glass.
 - The scope can be switched off, which is not a thing the original offered; on a phone those
   sixteen rows are worth more as maze.
+- **Stepping over the lip of a floor.** Blocked sideways with room just above — hovering in a
+  hole, or half a body too low beside a slab — used to stop you dead against an edge you had
+  no way of seeing. The robot now lifts himself over it. The bot found this one by spending
+  forty seconds pressing right against a ledge.
 - A difficulty choice on the way in (Quiet / Busy / Crowded / Swarming). The original had no
   such switch — it simply came round again harder — so this only sets where round one starts:
   how many things are in the maze, how fast they move, and how often the ones that wait for
@@ -260,7 +274,8 @@ so `--seed 7` is the same game every time.
 - **The difficulty setting was decoration.** The bot died at the same rate on Quiet as on
   Swarming, because the only thing the setting moved was the number of enemies in a maze big
   enough to swallow them. It now scales the count, the speed and the aggression, and the
-  bot's rescues per minute fall from 3.6 to 2.1 across the four settings.
+  bot pays 0.28 robots per child rescued on Quiet and 1.73 on Swarming — six times the price —
+  with its rescues per minute falling by more than half.
 - **The holes were too tight.** Two tiles wide against a twelve-pixel robot; the bot kept
   thrusting into the edge of a slab. Three tiles now.
 - **The witch doctor was the only hazard with one answer.** His curse outruns you, so the

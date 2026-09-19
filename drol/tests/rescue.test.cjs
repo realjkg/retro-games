@@ -408,10 +408,11 @@ test('The install button is there for a browser that can install it',()=>{
 
 test('There is one picture of the hero, and everything draws that one',()=>{
   const r=runtime(2,67);
-  const rows=r.run('HERO_PIX.join("|")'), palKeys=r.run('Object.keys(HERO_PAL).sort().join("")');
+  // The icon and the tile show him flying, so that is the pose they read.
+  const rows=r.run('HERO_FLY.join("|")'), palKeys=r.run('Object.keys(HERO_PAL).sort().join("")');
   assert.equal(r.run('HERO_PIX.every(x=>x.length===HERO_PIX[0].length)'),true,'a rectangle');
   // The picture is drawn around the body that collides, never smaller than it.
-  const pw=r.run('HERO_PIX[0].length'), ph=r.run('HERO_PIX.length');
+  const pw=r.run('HERO_FLY[0].length'), ph=r.run('HERO_FLY.length');
   assert.ok(pw>=r.run('G.hero.w')&&pw<=r.run('G.hero.w')+6,`${pw} wide against a ${r.run('G.hero.w')} body`);
   assert.ok(ph>=r.run('G.hero.h')&&ph<=r.run('G.hero.h')+4,`${ph} tall against a ${r.run('G.hero.h')} body`);
   assert.ok(r.run('G.hero.w')<HOLE_PX(r),'and he fits through a hole');
@@ -426,10 +427,19 @@ test('There is one picture of the hero, and everything draws that one',()=>{
   const hero=src.slice(src.indexOf('function drawHero('),src.indexOf('function drawRadar('));
   const title=src.slice(src.indexOf('function drawTitle('),src.indexOf('function render('));
   assert.match(hero,/drawPix\(frame,HERO_PAL/,'the game draws the sprite');
-  assert.match(src,/const HERO_WALK=HERO_PIX\.slice/,'and the walking frame is the same robot');
-  assert.equal(r.run('HERO_WALK.length'),r.run('HERO_PIX.length'));
-  assert.equal(r.run('HERO_WALK.slice(0,15).join("|")===HERO_PIX.slice(0,15).join("|")'),true,
-    'only the bottom of him moves');
+  // Three poses. Each is a rectangle, and each hangs off the body by its own
+  // offset, but they line up with each other where it matters.
+  for(const name of ['HERO_WALK','HERO_FLY'])
+    assert.equal(r.run(name+'.every(x=>x.length==='+name+'[0].length)'),true,name+' is a rectangle');
+  assert.equal(r.run('HERO_WALK.length'),r.run('HERO_PIX.length'),'standing and walking are one pose apart');
+  assert.equal(r.run('HERO_WALK.slice(0,14).join("|")===HERO_PIX.slice(0,14).join("|")'),true,
+    'walking moves only the white of him');
+  // The three poses line up with each other: the red band across his middle is on
+  // the same row in all of them, so swapping frames never makes him jump.
+  const bandRow=name=>r.run(`${name}.findIndex(row=>(row.match(/R/g)||[]).length>8)`);
+  assert.equal(bandRow('HERO_WALK'),bandRow('HERO_PIX'));
+  assert.equal(bandRow('HERO_FLY'),bandRow('HERO_PIX'));
+  assert.ok(bandRow('HERO_PIX')>0,'and there is a band to line up');
   assert.match(title,/drawPix\(HERO_PIX,HERO_PAL/,'so does the title card');
   // And so does the tool that writes the icon and the tile on the collection page.
   const art=require('../tools/render-art.js');
