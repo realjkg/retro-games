@@ -409,10 +409,13 @@ test('The install button is there for a browser that can install it',()=>{
 test('There is one picture of the hero, and everything draws that one',()=>{
   const r=runtime(2,67);
   const rows=r.run('HERO_PIX.join("|")'), palKeys=r.run('Object.keys(HERO_PAL).sort().join("")');
-  assert.equal(r.run('HERO_PIX.length'),16,'sixteen rows');
   assert.equal(r.run('HERO_PIX.every(x=>x.length===HERO_PIX[0].length)'),true,'a rectangle');
-  assert.equal(r.run('HERO_PIX[0].length'),r.run('G.hero.w'),'as wide as the robot is');
-  assert.equal(r.run('HERO_PIX.length'),r.run('G.hero.h'),'and as tall');
+  // The picture is drawn around the body that collides, never smaller than it.
+  const pw=r.run('HERO_PIX[0].length'), ph=r.run('HERO_PIX.length');
+  assert.ok(pw>=r.run('G.hero.w')&&pw<=r.run('G.hero.w')+6,`${pw} wide against a ${r.run('G.hero.w')} body`);
+  assert.ok(ph>=r.run('G.hero.h')&&ph<=r.run('G.hero.h')+4,`${ph} tall against a ${r.run('G.hero.h')} body`);
+  assert.ok(r.run('G.hero.w')<HOLE_PX(r),'and he fits through a hole');
+  function HOLE_PX(r){return r.run('HOLEW*TS');}
   // Every pixel that is not blank has a colour.
   const missing=r.run(`(()=>{const bad=new Set();
     for(const row of HERO_PIX)for(const ch of row)if(ch!=="."&&!HERO_PAL[ch])bad.add(ch);
@@ -425,8 +428,8 @@ test('There is one picture of the hero, and everything draws that one',()=>{
   assert.match(hero,/drawPix\(frame,HERO_PAL/,'the game draws the sprite');
   assert.match(src,/const HERO_WALK=HERO_PIX\.slice/,'and the walking frame is the same robot');
   assert.equal(r.run('HERO_WALK.length'),r.run('HERO_PIX.length'));
-  assert.equal(r.run('HERO_WALK.slice(0,13).join("|")===HERO_PIX.slice(0,13).join("|")'),true,
-    'only the legs move');
+  assert.equal(r.run('HERO_WALK.slice(0,15).join("|")===HERO_PIX.slice(0,15).join("|")'),true,
+    'only the bottom of him moves');
   assert.match(title,/drawPix\(HERO_PIX,HERO_PAL/,'so does the title card');
   // And so does the tool that writes the icon and the tile on the collection page.
   const art=require('../tools/render-art.js');

@@ -159,7 +159,7 @@ const TS=10, MAPW=100, FLOORH=5, FLOORS=4, MAPH=FLOORH*FLOORS;
 const RADAR_H=34;                       // the panel across the top, as in the original
 let VW=346, VH=234;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
-const HOLEW=3;                          // tiles cut out of a slab to make one hole
+const HOLEW=4;                          // tiles cut out of a slab to make one hole
 const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
 const storeyTop=f=>f*FLOORH;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -249,7 +249,7 @@ function genScene(scene,loop,diff,rand){
  if(scene===2){
   for(let i=0,n=5+ri(3);i<n;i++){
    const f=ri(FLOORS), x=6+ri(MAPW-14);
-   L.urns.push({x:x*TS,y:slabRow(f)*TS-14,w:10,h:14,f,hp:2,gone:false});
+   L.urns.push({x:x*TS,y:slabRow(f)*TS-16,w:12,h:16,f,hp:2,gone:false});
   }
  }
  if(S.pet){
@@ -290,33 +290,35 @@ function mkFoe(k,x,y,f,dir,loop,diff){
 // the game, the title card, the app icon, the tile on the collection page -
 // reads it from here. They cannot drift apart because there is only one of him.
 const HERO_PIX=[
- "...GGGGG....",   // a round head with a snout and one big eye
- "..GGGGGGGG..",
- "..GWWKGGGGG.",
- "..GWKKGGGGSS",   // the snout, out in front of whichever way he faces
- "..GGGGGGGSSS",
- "..GGGGGGGGS.",
- ".MMMGGGGGG..",   // the strap over the shoulder
- ".JJJGGBBBG..",   // the jetpack on his back, the white front on his chest
- ".JJJGGBCBG..",   // and the port the balls come out of
- ".JJJGGBBBG..",
- ".JJJGGGGGG..",
- ".NNNGGGGGG..",   // the nozzle the pack burns out of
- "...GGGGGGG..",
- "...GG..GG...",   // legs
- "..OOO..OOO..",   // boots
- "..OOO..OOO.."
+ "..........BBBBBB....",   // the dome of him, seen from the side
+ "........BBBBBBBBBBB.",
+ "......BBBBBBBBBBBBBB",
+ ".....BBBBBBBBBBBWWWW",   // the white eye, on whichever side he faces
+ "..BB.BBBBBBBBBWWWWBW",   // the pack strapped on behind
+ ".BBB.BBBBBBBWWWWBBBW",
+ "BBBBWBBBBBBBWWWWWWWW",
+ "BBBBWBBBBBBBBBBBBBBB",
+ ".RRR..RRRRRRRRRRRRR.",   // the red band across his middle
+ "BBBBWBBBBBWWWWBBBBBB",
+ "BBBBWBBBBWWBWWWBBBBB",   // the vent the balls come out of
+ "BBBBWBBBBWWBWWWBBBBB",
+ "WWWWWBBBBBWWWWBBBBBB",
+ "......BBBBBBBBBBBBB.",
+ ".RR......RRRRRRR....",   // the collar, and the nozzle of the pack
+ "........WWWWWWWW....",   // and the white of him below it
+ "......WWWWWWWWWWWR..",
+ ".........WWWWWWWWR..",
+ "...........WWWWWWWW.",
 ];
-// The same robot with his legs mid-stride, for when he is walking rather than flying.
-const HERO_WALK=HERO_PIX.slice(0,13).concat([
- "..GG....GG..",
- ".OOO...OOO..",
- ".OOO...OOO.."
+// The same robot with his skirt swung the other way, for when he is walking.
+const HERO_WALK=HERO_PIX.slice(0,15).concat([
+ ".........WWWWWWWW...",
+ ".......WWWWWWWWWWWR.",
+ "..........WWWWWWWWR.",
+ "............WWWWWWWW",
 ]);
-// Violet-blue on black with a white front, which is what the machine actually put
-// on the screen: four colours and no shading to speak of.
-const HERO_PAL={G:"#6a62e8",S:"#9a92ff",W:"#ffffff",K:"#100c30",M:"#d8d8ec",
- J:"#b4b4d4",N:"#6a6a90",B:"#f0f0f8",C:"#ffffff",O:"#e8e8f4"};
+// Three colours and the black behind them, sampled from the photograph.
+const HERO_PAL={B:"#4a3ce8",W:"#eeeeee",R:"#e04040"};
 // Draws one of those pictures at any size, facing either way. Runs of the same
 // colour go out as one rectangle, which is what keeps this cheap at title size.
 function drawPix(map,pal,x,y,scale,flip){
@@ -471,7 +473,7 @@ function newGame(diff=2,seed){
 }
 function startScene(){
  G.L=genScene(G.scene,G.loop,G.diff,G.rand);
- G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.4,alive:true,
+ G.hero={x:2*TS,y:slabRow(0)*TS-18,w:16,h:18,vx:0,vy:0,face:1,cool:0,inv:1.4,alive:true,
    thrust:0,onGround:true,walking:true,step:0};
  G.cam.x=0;G.cam.y=0;G.flash=0;G.shake=0;
 }
@@ -759,7 +761,7 @@ function stepGame(dt){
   G.deathT-=dt;
   if(G.deathT<=0){
    if(G.lives<=0){G.phase="over";gameOverMenu();}
-   else{G.hero={x:2*TS,y:slabRow(0)*TS-16,w:12,h:16,vx:0,vy:0,face:1,cool:0,inv:1.6,alive:true,
+   else{G.hero={x:2*TS,y:slabRow(0)*TS-18,w:16,h:18,vx:0,vy:0,face:1,cool:0,inv:1.6,alive:true,
      thrust:0,onGround:true,walking:true,step:0};}
   }
   return;
@@ -1044,18 +1046,18 @@ function drawTiles(){
   for(let x=lo;x<=hi;x++){
    if(G.L.map[x][slabRow(f)]!==SLAB)continue;
    const sxx=sx(x*TS), syy=sy(y);
-   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,6);              // the band
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band
    c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);               // the white edge you land on
-   c.fillStyle=P.stone;c.fillRect(sxx,syy+6,TS,3);           // its underside
+   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,2);           // its underside
    // the lip either side of a hole, so a gap reads as an edge you can fall past
-   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,9);}
-   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,9);}
+   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,7);}
+   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,7);}
   }
  }
  // The roof over the top storey, and the two end walls.
  for(let x=lo;x<=hi;x++){
   const sxx=sx(x*TS);
-  c.fillStyle=P.trim;c.fillRect(sxx,sy(0)+TS-6,TS,6);
+  c.fillStyle=P.trim;c.fillRect(sxx,sy(0)+TS-5,TS,5);
   c.fillStyle=P.lit;c.fillRect(sxx,sy(0)+TS-2,TS,2);
  }
  for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
@@ -1236,7 +1238,7 @@ function drawHero(){
   const k=clamp(1-G.deathT/1.3,0,1);
   for(let i=0;i<9;i++){
    const a=i*0.7, r=k*30;
-   c.fillStyle=i%3===0?"#ffffff":i%3===1?"#6a62e8":"#d838c8";
+   c.fillStyle=i%3===0?"#eeeeee":i%3===1?"#4a3ce8":"#e04040";
    c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r*.7),4,4);
   }
   return;
@@ -1248,20 +1250,20 @@ function drawHero(){
  c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
  c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
  if(h.thrust>0){                                  // the jetpack burning, out of its nozzle
-  const len=Math.round(2+5*h.thrust+(Math.floor(G.time*24)%2));
-  const nx=h.face<0?x+9:x+1;
-  c.fillStyle="rgba(216,56,200,"+(.45+.55*h.thrust).toFixed(2)+")";
-  c.fillRect(nx,y+12,3,len);
-  c.fillStyle="#ff8ae8";c.fillRect(nx,y+12,3,Math.max(2,len-3));
-  c.fillStyle="#ffffff";c.fillRect(nx+1,y+12,1,Math.max(1,len-5));
+  const len=Math.round(3+6*h.thrust+(Math.floor(G.time*24)%2));
+  const nx=h.face<0?x+14:x-1;                    // under the pack, whichever way he faces
+  c.fillStyle="#e04040";c.fillRect(nx,y+13,3,len);
+  c.fillStyle="#eeeeee";c.fillRect(nx+(h.face<0?0:1),y+13,2,Math.max(2,len-2));
  }
+ // The picture is twenty across and the body that collides is sixteen, so he is
+ // drawn around his box rather than inside it.
  const frame=(h.walking&&Math.abs(h.vx)>4&&Math.floor(h.step)%2)?HERO_WALK:HERO_PIX;
- drawPix(frame,HERO_PAL,x,y,1,h.face<0);
+ drawPix(frame,HERO_PAL,x-2,y-1,1,h.face<0);
  // The chest port pulses - the sprite's own two pixels, repainted rather than
  // drawn again somewhere else.
  const glow=.55+.45*Math.sin(G.time*8);
  c.fillStyle="rgba(255,255,255,"+glow.toFixed(2)+")";
- c.fillRect(x+(h.face<0?4:7),y+8,1,1);
+ c.fillRect(x+(h.face<0?6:9),y+9,2,2);           // the vent, lighting as it fires
 }
 function drawRadar(){
  const c=ctx, L=G.L, W=VW, H=RADAR_H;
@@ -1270,8 +1272,8 @@ function drawRadar(){
  // left: the score, and how many robots are left, with one of them drawn beside it
  c.fillStyle="#e8e8f4";c.fillText("SCORE",3,2);
  c.fillText(String(G.score).padStart(6," "),3,11);
- drawPix(HERO_PIX,HERO_PAL,3,22,.7,false);
- c.fillStyle="#e8e8f4";c.fillText(String(Math.max(0,G.lives)).padStart(2,"0"),18,23);
+ drawPix(HERO_PIX,HERO_PAL,2,21,.62,false);
+ c.fillStyle="#e8e8f4";c.fillText(String(Math.max(0,G.lives)).padStart(2,"0"),17,24);
  // right: the best so far, and the name of the game in the red it was written in
  c.textAlign="right";
  c.fillStyle="#e8e8f4";c.fillText("HISCORE",W-3,2);
@@ -1407,11 +1409,14 @@ function render(){
  }
  for(const u of G.L.urns){                                    // the urns of the third scene
   const ux=sx(u.x), uy=sy(u.y);
-  c.fillStyle="#e8e8f4";c.fillRect(ux+1,uy+3,8,8);
-  c.fillStyle="#ffffff";c.fillRect(ux+2,uy+4,3,6);
-  c.fillStyle="#b4b4d4";c.fillRect(ux,uy+1,10,2);            // the lip
-  c.fillStyle="#e8e8f4";c.fillRect(ux+2,uy+11,6,3);          // the foot
-  c.fillStyle="#b4b4d4";c.fillRect(ux+1,uy+13,8,1);
+  c.fillStyle="#eeeeee";
+  c.fillRect(ux,uy,12,3);                                    // the lip
+  c.fillRect(ux+1,uy+3,10,7);                                // the shoulders
+  c.fillRect(ux+2,uy+10,8,3);                                // the waist
+  c.fillRect(ux,uy+13,12,3);                                 // the foot
+  c.fillStyle="#9aa0c0";                                     // and the shading down one side
+  c.fillRect(ux+8,uy+3,3,7);c.fillRect(ux+8,uy+10,2,3);c.fillRect(ux+9,uy+13,3,3);
+  c.fillStyle="#ffffff";c.fillRect(ux+2,uy+4,2,5);
  }
  drawPet();drawToy();drawChild();
  for(const e of G.L.foes)if(!e.dead)drawFoe(e);

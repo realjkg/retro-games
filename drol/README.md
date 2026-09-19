@@ -70,25 +70,33 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 
 The art is drawn from a photograph of the original running, supplied by the owner of this
 repository — I cannot reach a screenshot or a disk image from where this is built, so that
-photograph is the only sight of the game anyone here has had. Nothing is traced from it:
-what it settled were the things descriptions could not, and every pixel below was drawn to
-match what it showed rather than copied out of it.
+photograph is the only sight of the game anyone here has had.
+
+**The hero is a transcription of it.** The photograph is a 320×240 screen at double size, so
+each native pixel is a 2×2 block; the blocks under the character were averaged, matched to the
+nearest of the four colours on screen, mirrored (he faces left in the photograph and right in
+the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
+That is where the shape comes from: the blue dome, the white eye with its blue pupil, the red
+band across his middle, the white vent the balls come out of, the red collar, the white of him
+below it, and the pack on his back with its own red band and a nozzle under it. Everything else
+on screen is drawn to match what the photograph shows rather than copied out of it.
 
 What the photograph settled:
 
 - **The screen is black**, and the floors are bright bands with a white edge along the top —
   not shaded stone. Four colours and a black background is what the machine had.
-- **The hero is violet-blue with a white front**, round-headed and snouted, with the pack on
-  his back: a bot shaped like a cartoon creature.
+- **The hero is a blue dome with a white eye and a red band**, a white vent below it and the
+  pack on his back — a bot shaped like a cartoon creature, and now transcribed rather than
+  imagined.
 - **The top of the screen is a panel, not a strip**: SCORE at the left with a little robot
   and the count of them beside it, a magenta-framed scope in the middle with a line per
   storey and a dot for everything on it, HISCORE at the right, and the game's name in red
   beside three green bars.
 - **The serpents are coiled and upright**, swaying where they stand, with a red tongue.
 - **Thrown weapons are swords**: a white blade with a red hilt, crossing a floor.
-- **White urns stand on the floors** of the scene the photograph shows. They are here too:
-  a ball apiece stops in them, two shatters one for points, and they are cover while they
-  last.
+- **White urns stand on the floors** of the scene the photograph shows — lipped, waisted and
+  footed, and taller than a child. They are here too: a ball apiece stops in them, two
+  shatters one for points, and they are cover while they last.
 
 **There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
 twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
@@ -108,11 +116,11 @@ did not show, nobody here has seen.
 
 What that means on screen:
 
-- **The robot** is violet-blue with a white front, round-headed and snouted, one big eye,
-  pale boots and a jetpack strapped to his back. The pack burns from its nozzle only while ▲
-  is held; on a floor with the pack off he walks, and his legs take strides. He throws a
-  shadow on the floor below him, which shrinks as he rises — the one cue that says how high
-  up he is.
+- **The robot** is the photograph's: a blue dome with one white eye, a red band across his
+  middle, a white vent that lights as it fires, a red collar and the white of him below it,
+  with the pack on his back. The pack burns from its nozzle only while ▲ is held; on a floor
+  with the pack off he walks, and the white of him swings as he goes. He throws a shadow on
+  the floor below him, which shrinks as he rises — the one cue that says how high up he is.
 - **The floors** are bands with a white edge along the top and a darker line beneath, with a
   bright lip either side of every hole. There is nothing behind them: the background is black,
   which is what makes four colours look like more.
