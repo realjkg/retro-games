@@ -330,7 +330,20 @@ test('11. twelve figures, no two alike, each with hitboxes over his own art', ()
       const bx=boxesFor(e);
       if(over(bx.weapon,bx.lethal))bad.push(e.id+": weapon and lethal boxes overlap");
       if(over(bx.weaponRaised,bx.lethal))bad.push(e.id+": raised and lethal boxes overlap");
-      for(const k of Object.keys(bx)){const r=bx[k];
+      // a hat and the man under it must be two targets, or a ball meant for the
+      // Stetson is a ball through his head
+      if(bx.hat){
+        if(over(bx.hat,bx.lethal))bad.push(e.id+": hat and lethal boxes overlap");
+        if(over(bx.hat,bx.weapon))bad.push(e.id+": hat and weapon boxes overlap");
+        const [c0,r0,c1,r1]=(figureOf(e).box||DEFAULT_BOX).hat;
+        let h=false;
+        for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)
+          if(((figureOf(e).rows[r]||"")[c])==="H")h=true;
+        if(!h)bad.push(e.id+": the hat box is not over a hat");
+      }else if(FIGSPEC[e.figure||e.id]&&FIGSPEC[e.figure||e.id].hat!=="none"){
+        bad.push(e.id+": wears a hat and has no hat box");
+      }
+      for(const k of Object.keys(bx)){const r=bx[k]; if(!r)continue;
         if(r.x<0||r.y<0||r.x+r.w>SCENE.w||r.y+r.h>SCENE.h)bad.push(e.id+"/"+k+" is off the scene");}
     }
     return JSON.stringify({bad,figures:[...seen.values()]});
@@ -756,6 +769,101 @@ test('23. every caller answers a drawn gun in his own way and on his own clock',
   assert.equal(out.results.doctor.auth,-1,'frightening the doctor off was free');
   assert.equal(out.results.kid.wound,1,'the Kid stood and took it');
   assert.equal(out.results.lastgun.wound,1,'the last man stood and took it');
+});
+
+test('24. the sights stay out of the sheriff\'s own arm', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:50}); G.encounter=0; beginEncounter(G); openDialogue(G);
+    drawGun(G,0);
+    // dragged hard left at the height of his own levelled revolver
+    setAim(G,0.02,95/SCENE.h);
+    r.overArm=G.aim.x*SCENE.w;
+    r.armEdge=SHERIFF_EDGE[9];
+    // and walked left a step at a time, which is the other way in
+    setAim(G,0.5,95/SCENE.h);
+    for(let i=0;i<60;i++)moveAim(G,-1,0);
+    r.walkedIn=G.aim.x*SCENE.w;
+    // over his head there is much less of him, and the sights go further
+    setAim(G,0.02,70/SCENE.h);
+    r.overHead=G.aim.x*SCENE.w;
+    // the man at the window is still reachable, which is the point of banding it
+    r.windowReachable=(SNIPER_BOX.x+SNIPER_BOX.w/2)/SCENE.w>
+      sightFloor((SNIPER_BOX.y+SNIPER_BOX.h/2)/SCENE.h);
+    // and nothing stops them being walked off the bottom, which is a holster
+    setAim(G,0.6,0.5);
+    for(let i=0;i<120;i++)moveAim(G,0,1);
+    r.bottom=G.aim.y;
+    return JSON.stringify(r);
+  })()`));
+  assert.ok(out.overArm>out.armEdge,
+    'the sights sit on his own revolver at x'+out.overArm);
+  assert.ok(out.overArm<out.armEdge+10,'they are pushed further out than he is');
+  assert.ok(out.walkedIn>out.armEdge,
+    'walked left a step at a time they got onto him at x'+out.walkedIn);
+  assert.ok(out.overHead<out.armEdge-40,
+    'over his head the sights are held out as far as over his gun');
+  assert.equal(out.windowReachable,true,'the man at the window cannot be shot');
+  assert.equal(out.bottom,1,'the sights no longer reach the bottom of the street');
+});
+
+/* A ball an inch above a man is a different sentence from a ball through him. */
+test('25. shooting a hat off is a sentence of its own, and who he is decides it', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const aimAtHat=(G)=>{const b=boxesFor(who(G)).hat;
+      G.mode="gun"; G.phase="aiming";
+      G.aim={x:(b.x+b.w/2)/SCENE.w,y:(b.y+b.h/2)/SCENE.h};
+      return boxAt(G,G.aim.x,G.aim.y);};
+    // an armed patient man gives it up: an arrest, and nobody hurt
+    const P=newDay({seed:60}); P.encounter=0;          // A Dude, armed, patient
+    beginEncounter(P); openDialogue(P);
+    r.readsAs=aimAtHat(P);
+    shoot(P,300);
+    r.patient={out:P.outcome,arrests:P.arrests,auth:P.authority,
+               off:P.hatOff,wounds:P.wounds,alive:P.alive};
+    // an armed hostile man comes for you bareheaded and at once
+    const H=newDay({seed:61}); H.encounter=2;           // the Kid, armed, hostile
+    beginEncounter(H); openDialogue(H); aimAtHat(H); shoot(H,300);
+    r.hostile={phase:H.phase,why:H.tell&&H.tell.why,off:H.hatOff,arrests:H.arrests};
+    // and anybody with no gun on them has just been shot at
+    const U=newDay({seed:62}); U.encounter=6;           // Miss April, unarmed
+    beginEncounter(U); openDialogue(U); aimAtHat(U); shoot(U,300);
+    r.unarmed={out:U.outcome,auth:U.authority,off:U.hatOff,wounds:U.wounds};
+    // it is one hat: the box is gone once it is off
+    r.goneAfter=boxAt(U,U.aim.x,U.aim.y);
+    // mid-duel it is showing off, and showing off is a miss
+    const D=newDay({seed:63}); D.encounter=2;
+    beginEncounter(D); openDialogue(D); theyDraw(D,"draw");
+    D.phase="duel"; D.duel.drawn=true;
+    const box=aimAtHat(D); D.phase="duel";
+    shoot(D,300);
+    r.duel={box:box,result:D.duel.result,off:D.hatOff};
+    // and a bare head is no target at all
+    const N=newDay({seed:64}); N.encounter=1;           // Miss Rose, no hat
+    beginEncounter(N); openDialogue(N);
+    r.noHat=boxesFor(who(N)).hat;
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.readsAs,'hat','the crosshair does not know a hat when it is over one');
+  assert.equal(out.patient.out,'hat_yield');
+  assert.equal(out.patient.arrests,1,'the best shot in the game made no arrest');
+  assert.equal(out.patient.auth,2,'it counted for nothing with the town');
+  assert.equal(out.patient.wounds,0); assert.equal(out.patient.alive,true);
+  assert.equal(out.patient.off,true);
+  assert.equal(out.hostile.phase,'tell','the Kid stood there and let you do that');
+  assert.equal(out.hostile.why,'ambush','he took his time about answering it');
+  assert.equal(out.hostile.arrests,0,'a hat cowed a man who was never going to be');
+  assert.equal(out.unarmed.out,'hat_scared');
+  assert.equal(out.unarmed.auth,-2,'shooting at an unarmed woman was free');
+  assert.equal(out.unarmed.wounds,0,'she has no gun; nobody should be hit');
+  assert.equal(out.goneAfter,null,'the hat is still a target with the hat gone');
+  assert.equal(out.duel.box,'hat');
+  assert.equal(out.duel.result,'miss','showing off mid-duel worked');
+  assert.equal(out.duel.off,false,'the hat came off in the middle of a gunfight');
+  assert.equal(out.noHat,null,'a bare head is a hat box');
 });
 
 test('report', ()=>{

@@ -60,7 +60,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
-    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0, hatOff:false,
     atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
@@ -94,7 +94,7 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.spoke=false; G.balked=false; G.blackout=false;
+  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
@@ -184,6 +184,7 @@ const temperOf=e=>(e&&RULES.TEMPERS[e.temper])||RULES.TEMPERS.patient;
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  G.aim.x=Math.max(sightFloor(G.aim.y),G.aim.x);
   // A man who has a gun pointed at him before he has been answered stops
   // talking, and does not start again while it is out. Keeping it on him is
   // still the sheriff's business: the reflex below decides what he does about
@@ -205,14 +206,16 @@ function holster(G){
  * unless the gun is out. */
 function setAim(G,x,y){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,x));
   G.aim.y=Math.max(0,Math.min(1,y));
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,x));
   return G.aim;
 }
 function moveAim(G,dx,dy){
   if(G.mode!=="gun")return null;
-  G.aim.x=Math.max(0,Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   G.aim.y=Math.max(0,Math.min(1,G.aim.y+dy*RULES.AIM_STEP));
+  // the sights are pushed back out of him whichever way they got there: moved
+  // down the picture into his shoulder, as much as dragged left across it
+  G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
 function tick(G,nowMs){
@@ -256,6 +259,8 @@ const weaponBox=G=>{const b=boxesFor(who(G));
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
   if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
+  const hb=G.hatOff?null:boxesFor(who(G)).hat;
+  if(hb&&inBox(px,py,hb))return "hat";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -297,6 +302,28 @@ function shoot(G,latencyMs){
     G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
     G.flags.push("sniper_down"); G.reflex=null;
     return resolve(G,"sniper_down");
+  }
+  /* His hat. A ball an inch above a man is a different sentence from a ball
+   * through him, and who he is decides which. An armed man who was giving you
+   * time to think better of it gives it up instead, and that is the best piece
+   * of policing in the game: an arrest, nobody hurt, and the street watching.
+   * An armed man who was already minded to answer you is now minded to answer
+   * you bareheaded and at once. And anybody with no gun at all has just been
+   * shot at, which the street also watched. Mid-duel it is showing off, and
+   * showing off is a miss. */
+  if(box==="hat"&&!G.hatOff&&e){
+    if(d&&d.drawn){d.fired=true;d.result="miss";d.zone="off";return theirReply(G);}
+    G.hatOff=true; G.reflex=null;
+    if(!e.armed){
+      G.authority-=2; G.flags.push("offended");
+      return resolve(G,"hat_scared");
+    }
+    if(e.temper==="hostile"){
+      G.flags.push("hat_off");
+      return theyDraw(G,"ambush");
+    }
+    G.arrests++; G.authority+=2; G.flags.push("arrest","hat_off");
+    return resolve(G,"hat_yield");
   }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;

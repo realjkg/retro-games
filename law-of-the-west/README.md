@@ -117,6 +117,27 @@ either and runs, and the whole street watches what they were running from: that
 costs two points of authority, where facing down a patient unarmed caller costs
 one. An armed man of any temper answers the gun, which is a wound.
 
+**His hat.** Every caller who wears one has it as a target of its own, read off
+his own drawing and kept clear of his face, because a ball through a Stetson and
+a ball an inch lower are different sentences. Who he is decides which sentence
+it is. An **armed, patient** man — the dude, the Gambler — gives it up: hands go
+up before the hat lands, an arrest, nobody hurt, and two points of authority
+with the whole street watching, which is the best piece of policing in the game.
+An **armed, hostile** man comes for you bareheaded and at once, on the shortest
+tell there is. Anybody **with no gun on them** has simply been shot at, and the
+street watched that too: two points the other way. Mid-duel it is showing off,
+and showing off is a miss. One hat: once it is off, the target is gone and he is
+drawn without it.
+
+**Where the sights may not go.** A gunsight that can be walked back over the
+sheriff's own sleeve, glove and revolver is a gunsight aimed at the man holding
+it, and at 320×200 he is a third of the picture. The reticle is held clear of
+his own outline, banded ten rows at a time off his drawing, so over his head it
+comes much further left than it does over his levelled gun — and the man at the
+upstairs window is still reachable, which a plain rectangle would have prevented.
+Nothing is clamped vertically: walking them off the bottom of the street is how
+a stand-off ends.
+
 **Firing.** The shot is the one thing the arm does that is not a position it
 settles into. Recoil throws the barrel above level and it comes back down inside
 a fifth of a second, and the flare sits on the end of the barrel — drawn inside
@@ -191,6 +212,21 @@ barrel reaching most of the way to the man he is talking to. 44×40 cells at
 three pixels each, the largest thing on the screen, rimmed a pixel in light grey
 so a dark gun over a dark doorway is never just a hole. Holstered, the same hand
 holds it muzzle-down.
+
+**How he holsters it.** The supplied drawing has one pose and it is the levelled
+one, so a whole man drawn whole is a man aiming a revolver at everyone he speaks
+to. The picture is therefore hinged. It was hinged on a **rectangle at the
+elbow**, and that was wrong: a rectangle cannot contain an arm that has a body
+to the left of it, so the cut took the hand and the revolver and left the sleeve
+behind — lowered, he had a sleeve pointing at nothing and a glove hanging under
+it. The arm is now an **outline**, traced down the seam where the sleeve leaves
+his back, round the armpit and out past the muzzle, and it turns about the
+**shoulder**, which is where an arm turns. Two draws a frame: him with an
+arm-shaped hole cut out of him, and the arm, clipped to that same outline built
+after the turn so it turns with it. At level it reassembles to the pixel; at
+1.42 radians the whole arm is down with the revolver at the leather. Not one
+pixel of the supplied drawing is repainted; only the line it comes apart on
+changed.
 
 **And a hitching rail at his own boots**, nearer than anything else on the
 ground, dark across the bottom-left. Between the two, the player is standing in
@@ -404,7 +440,8 @@ and ambushes; a caller you let walk turning up as the man in the alley, and one
 who outwits you costing you the next encounter rather than the game; robberies you were warned about or were not; a blackout when the
 sheriff is hit and a doctor who decides whether that was survivable; surviving
 to sundown as the only requirement; the 320×200 holster-level composition; and
-the seven dimensions at sundown.
+the seven dimensions at sundown; a gunsight bounded off the sheriff's own body;
+and a hat you can shoot off a man instead of shooting the man.
 
 The dialogue, the figures, the street, the melodies and the numbers are new.
 Nothing from the original's code, artwork, script or sound is reused. The

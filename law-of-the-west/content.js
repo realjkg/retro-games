@@ -868,7 +868,11 @@ function figBoxes(S,stand,up){
   const lethal=[CX-half,R.shoulder+2,CX+half,R.waist-1];
   const gone=[Math.max(0,CX-half-9),R.waist,CX-half-2,Math.min(SPR.h-1,R.beltEnd+9)];
   const rgone=[Math.max(0,CX-half-14),R.chest-4,CX-half-2,R.chest+3];
-  return {lethal:lethal,
+  // His hat, wherever the builder put it, and only the part of it that is clear
+  // of his face: a ball through a Stetson takes the Stetson, and a ball an inch
+  // lower takes the man, so the two must not be the same target.
+  const hat=figInk(stand,"H",0,R.eye-2);
+  return {lethal:lethal, hat:hat,
           weapon:figInk(stand,"G",R.waist-2,SPR.h-1)||gone,
           raised:figInk(up,"G",0,R.waist-1)||rgone};
 }
@@ -892,6 +896,7 @@ const figureOf=e=>(e&&FIGURES[e.figure||e.id])||FIGURES.robber;
 function boxesFor(e){
   const b=figureOf(e).box||DEFAULT_BOX;
   return {lethal:cellsBox(b.lethal[0],b.lethal[1],b.lethal[2],b.lethal[3]),
+          hat:b.hat?cellsBox(b.hat[0],b.hat[1],b.hat[2],b.hat[3]):null,
           weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
           weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
 }
@@ -902,4 +907,17 @@ function boxesFor(e){
  * ROW[1] is x0 74, top 56, and plastered() puts that window at x1-16, top+11 -
  * and the box is that pane with a cell of slack round it. */
 const SNIPER_BOX={x:92, y:65, w:13, h:14};
+/* Where the sights may not go. A gunsight that can be walked back over the
+ * sheriff's own sleeve, glove and revolver is a gunsight aimed at the man
+ * holding it, and at 320 by 200 he is a third of the picture. This is the right
+ * edge of his own drawing, banded ten rows at a time and read at full level,
+ * which is the only pose the sights exist in; the reticle's centre is kept a
+ * few pixels clear of it. Nothing is clamped vertically, because walking them
+ * off the bottom of the street is how a stand-off is ended. */
+const SHERIFF_EDGE=[45,57,61,62,61,59,59,59,61,124,119,99,94,88,45,74,75,74,73,73];
+const SIGHT_CLEAR=4;
+function sightFloor(y){
+  const b=Math.max(0,Math.min(SHERIFF_EDGE.length-1,Math.floor(y*SCENE.h/10)));
+  return (SHERIFF_EDGE[b]+SIGHT_CLEAR)/SCENE.w;
+}
 const HITBOX=boxesFor(null);             // the default, for anything asking without a caller

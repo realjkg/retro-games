@@ -941,24 +941,36 @@ test('9u. he draws and holsters with his own arm, and reloads between',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]'); p.ready();
-  // the picture comes apart at the elbow: three pieces of body, one arm
-  const arm=p.ev('ARM'), elbow=p.ev('ELBOW');
-  assert.ok(arm.sx>0&&arm.sy>0&&arm.w>0&&arm.h>0,'no arm to move');
-  assert.equal(elbow.x,arm.sx,'the hinge is not on the seam');
-  assert.ok(elbow.y>arm.sy&&elbow.y<arm.sy+arm.h,'the hinge is outside the arm');
+  // The picture comes apart along the arm's own outline, not on a rectangle:
+  // the bug this holds shut is a box cut at the elbow, which took the hand and
+  // the revolver and left the whole sleeve standing level behind them.
+  const poly=p.ev('ARMPOLY'), sh=p.ev('SHOULDER'), own=p.ev('OWN');
+  assert.ok(poly.length>=5,'the arm is '+poly.length+' points; a box is four');
+  const xs=poly.map(q=>q[0]), ys=poly.map(q=>q[1]);
+  assert.ok(Math.max.apply(null,xs)>=own.w,'the outline stops short of the muzzle');
+  // the shoulder is inside the outline, and it is where an arm turns
+  const inside=(px,py)=>{let c=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const [xi,yi]=poly[i], [xj,yj]=poly[j];
+      if((yi>py)!==(yj>py)&&px<xi+(py-yi)*(xj-xi)/(yj-yi))c=!c;
+    } return c;};
+  assert.ok(inside(sh.x+6,sh.y),'the shoulder is not on the arm');
+  assert.ok(!inside(sh.x-8,sh.y),'the outline has taken his back with it');
+  // and the sleeve is on the arm's side of it, which is the whole fix
+  assert.ok(inside(90,100)&&inside(60,120),'the sleeve was left behind again');
   // jsdom fetches no images, so his drawing stands in as one that is loaded;
   // what is under test is how the picture is cut up, not what is in it
   p.ev('sheriffImg={complete:true,naturalWidth:129,naturalHeight:200};');
   const draws=()=>{p.painted.length=0; p.ev('ownGun(G.mode==="gun")');
     return {n:p.painted.filter(q=>q.draw).length,
             turn:p.painted.filter(q=>q.rotate!==undefined).map(q=>q.rotate)};};
-  // levelled: the four pieces tile back to the drawing, with no turn at all
-  p.ev('swing=1;'); const level=draws();
-  assert.equal(level.n,4,'the body and arm are '+level.n+' pieces');
+  // levelled: him with the arm cut out, and the arm back in it, no turn at all
+  p.ev('swing=1;kickAt=-1e9;'); const level=draws();
+  assert.equal(level.n,2,'the body and arm are '+level.n+' pieces');
   assert.deepEqual(level.turn,[],'the levelled arm was turned');
-  // down: the same four pieces, and the arm turned
+  // down: the same two, and the arm turned
   p.ev('swing=0;'); const down=draws();
-  assert.equal(down.n,4,'lowering lost a piece');
+  assert.equal(down.n,2,'lowering lost a piece');
   assert.equal(down.turn.length,1,'the arm did not turn');
   assert.ok(down.turn[0]>0.5,'the arm barely moved: '+down.turn[0]);
 
