@@ -1469,6 +1469,13 @@ function boxesFor(e){
           weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
           weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
 }
+/* The second gun. Not every caller comes alone: on some encounters a sash goes
+ * up at the lit window over the street and a rifle comes out of it, and the
+ * sheriff who is looking only at the man in front of him is the sheriff who
+ * gets shot from above. The pane is the upper right one on the green front -
+ * ROW[1] is x0 74, top 56, and plastered() puts that window at x1-16, top+11 -
+ * and the box is that pane with a cell of slack round it. */
+const SNIPER_BOX={x:92, y:65, w:13, h:14};
 const HITBOX=boxesFor(null);             // the default, for anything asking without a caller
 
 
@@ -1490,11 +1497,16 @@ const RULES={
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
-  WOUNDS:2
+  WOUNDS:2,
+  // the man at the window: how often, how many in a day, how long before the
+  // sash goes up, and how long after that before he fires
+  SNIPER_ODDS:0.3, SNIPERS:2,
+  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
+  SNIPER_MIN:5200, SNIPER_MAX:8200
 };
-/* Where each job falls in the day. Every job sits after the callers who could
- * have warned about it: the stage after Rose, the train after Miss April, the
- * bank after the Doctor, the new gun, Willy and the Deputy. */
+/* The phases in which the street is still happening and a second gun in it can
+ * do something. On the resolve screen and between encounters it cannot. */
+const LIVE=["dialogue","aiming","tell","duel"];
 /* The three jobs sit between callers, each after the point where somebody
  * could have warned about it: Rose carries the stage tip and calls first,
  * April carries the train tip and calls fifth, and the bank tip is on the
@@ -1520,7 +1532,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
-    spoke:false, balked:false, blackout:false,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -1542,6 +1554,17 @@ function beginEncounter(G){
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.spoke=false; G.balked=false; G.blackout=false;
+  // Somebody at the window over the street, on some encounters and not others,
+  // and never more than twice in a day: a day where every caller brings a
+  // second gun is a day about windows rather than about people. The doctor's
+  // own scene is indoors, so nobody is above it.
+  G.sniper=null;
+  if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
+    G.snipers++;
+    G.sniper={alive:true,fired:false,shown:false,at:null,
+      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
+      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+  }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
@@ -1635,6 +1658,19 @@ function moveAim(G,dx,dy){
   return G.aim;
 }
 function tick(G,nowMs){
+  // The man at the window keeps his own clock, and it runs whatever the two in
+  // the street are doing. The sash goes up first, which is the only warning
+  // there is; a while after that he fires.
+  const sn=G.sniper;
+  if(sn&&sn.alive&&!sn.fired&&LIVE.indexOf(G.phase)>=0){
+    if(sn.at==null)sn.at=nowMs;
+    const t=nowMs-sn.at;
+    if(!sn.shown&&t>=sn.show)sn.shown=true;
+    if(t>=sn.limit){
+      sn.fired=true;
+      return takeHit(G,"a rifle out of the window over the street");
+    }
+  }
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
@@ -1656,6 +1692,7 @@ const weaponBox=G=>{const b=boxesFor(who(G));
   return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?b.weaponRaised:b.weapon;};
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
+  if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -1690,6 +1727,14 @@ function shoot(G,latencyMs){
   // read what the crosshair is over before drawing first changes his pose:
   // the player aimed at the hand on the hip, not at the hand he has not raised
   const box=boxAt(G,G.aim.x,G.aim.y);
+  // A ball through the window is not a duel with the man in the street, and it
+  // ends the encounter whatever was being said: nobody carries on a
+  // conversation after that.
+  if(box==="sniper"){
+    G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
+    G.flags.push("sniper_down"); G.reflex=null;
+    return resolve(G,"sniper_down");
+  }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.reflex=null;
@@ -2935,6 +2980,7 @@ function drawScene(now){
   }
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
+  sniperInWindow();
   grade();
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
@@ -2948,6 +2994,23 @@ function drawScene(now){
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
   ctx.restore();
+}
+/* The man at the window over the street. He is small and he is behind glass,
+ * so what there is to see is the pane going dark where he is standing in it and
+ * a barrel out over the sill. That is the whole warning; the rest is whether
+ * the sheriff is looking at anything but the man in front of him. */
+function sniperInWindow(){
+  const sn=G.sniper;
+  if(!sn||!sn.alive||!sn.shown)return;
+  const bx=SNIPER_BOX, x=bx.x+2, y=bx.y+2, w=bx.w-4, h=bx.h-4;
+  px(x,y,w,h,"rgba(8,6,5,.92)");                      // he fills the lit pane
+  px(x+3,y+1,5,3,C64.brn);                            // the crown of a hat
+  px(x+2,y+4,7,1,C64.brn);                            // and its brim
+  px(x+3,y+5,4,3,"#7d5f43");                          // a face, in shadow
+  px(x-6,y+8,12,2,C64.lgy);                           // the barrel out over the sill
+  px(x-7,y+8,2,2,C64.wht);                            // and the glint off its muzzle
+  px(x-6,y+10,12,1,"rgba(0,0,0,.6)");
+  px(x,y+h,w,1,"rgba(0,0,0,.55)");
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
@@ -3118,6 +3181,7 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
@@ -3623,7 +3687,11 @@ function frame(now){
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
       const before=G.phase;
+      const sashWas=!!(G.sniper&&G.sniper.shown);
       const ev=tick(G,now);
+      // the sash going up is the only warning the street gives, so it makes a
+      // noise: once, when it goes up, and never again for that window
+      if(!sashWas&&G.sniper&&G.sniper.shown){SND.creak();SND.tension();}
       // a man who outdraws you ends the encounter, and sometimes the day, from
       // inside the loop rather than from a keypress: repaint either way
       if(ev&&G.phase==="resolve"){settleSound();paint();}

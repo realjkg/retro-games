@@ -710,4 +710,11 @@ function boxesFor(e){
           weapon:cellsBox(b.weapon[0],b.weapon[1],b.weapon[2],b.weapon[3]),
           weaponRaised:cellsBox(b.raised[0],b.raised[1],b.raised[2],b.raised[3])};
 }
+/* The second gun. Not every caller comes alone: on some encounters a sash goes
+ * up at the lit window over the street and a rifle comes out of it, and the
+ * sheriff who is looking only at the man in front of him is the sheriff who
+ * gets shot from above. The pane is the upper right one on the green front -
+ * ROW[1] is x0 74, top 56, and plastered() puts that window at x1-16, top+11 -
+ * and the box is that pane with a cell of slack round it. */
+const SNIPER_BOX={x:92, y:65, w:13, h:14};
 const HITBOX=boxesFor(null);             // the default, for anything asking without a caller

@@ -81,6 +81,16 @@ by then he has said his piece. Keeping it on him is a separate matter, and the
 one the reflex clock settles: an armed man answers the gun, an unarmed one walks
 away from it.
 
+**The second gun.** Not every caller comes alone. On some encounters — about
+one in five, never more than twice in a day, and never at the doctor's, whose
+scene is indoors — the sash goes up at the lit upstairs window on the green
+front across the street and a rifle comes out of it. The sash makes a noise and
+the pane goes dark behind a hat: that is the whole warning, and it comes a
+second or two before he fires. He is a target like any other, and the crosshair
+finds him where the drawing put him; a ball through that window ends the
+encounter, whatever was being said. Left alone, he shoots the sheriff, and it
+makes no difference at all what the man in the street was saying at the time.
+
 **Blacking out.** A ball that lands on the sheriff puts the street out — all the
 way to black, then slowly back to a dim version of where he is lying — and it
 stays dim until he is on his feet and walking on. What he wakes up to is the
@@ -307,6 +317,10 @@ From `node --test test/*.test.js` and 500 simulated days:
 - **The figures.** Eight figures — the seven callers and the outlaw of the
   hold-ups — no two alike, every hitbox on the grid, every lethal box over the
   man and every weapon box over actual gunmetal, and no box overlapping another.
+- **The second gun.** Between a tenth and four tenths of encounters have one and
+  no day has more than two; the sash always goes up at least 1.2 seconds before
+  the shot; the window is not a target until it does; shooting him counts, and
+  leaving him alone costs a wound and blacks the street out.
 - **Audio.** 51 cues through the runtime with no non-finite, negative or
   out-of-range value; every theme reachable, none needing a fourth voice at
   once, none shorter than 0.8 s or longer than 6. The gunfight, rendered:

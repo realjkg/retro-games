@@ -542,6 +542,81 @@ test('18. being shot blacks the street out, and the doctor reads the whole town'
     'the town standing behind the sheriff counts for nothing with the doctor');
 });
 
+test('19. the second gun at the window shows itself, can be shot, and shoots back', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // he is not on every caller, and never more than twice in a day
+    const counts=[]; let enc=0, sn=0;
+    for(let seed=0;seed<40;seed++){
+      const G=newDay({seed}); let n=0;
+      for(let i=0;i<CAST.length;i++){
+        G.encounter=i; beginEncounter(G); enc++;
+        if(G.sniper){n++;sn++;}
+      }
+      counts.push(n);
+    }
+    r.most=Math.max.apply(null,counts);
+    r.rate=sn/enc;
+    r.quiet=counts.filter(n=>n===0).length;
+    // find a day that has one, and walk its clock
+    let G=null;
+    for(let seed=0;seed<60&&!G;seed++){
+      const H=newDay({seed}); H.encounter=0; beginEncounter(H);
+      if(H.sniper)G=H;
+    }
+    r.found=!!G;
+    openDialogue(G);
+    r.hiddenAtFirst=boxAt(G,(SNIPER_BOX.x+3)/SCENE.w,(SNIPER_BOX.y+3)/SCENE.h);
+    tick(G,0); tick(G,G.sniper.show+1);
+    r.shown=G.sniper.shown;
+    r.nowATarget=boxAt(G,(SNIPER_BOX.x+3)/SCENE.w,(SNIPER_BOX.y+3)/SCENE.h);
+    // the sash goes up before he fires, or there was no warning at all
+    r.warning=G.sniper.limit-G.sniper.show;
+    r.phaseStill=G.phase;
+    // shoot him
+    const shot=newDay({seed:0});
+    Object.assign(shot,{sniper:{alive:true,fired:false,shown:true,at:0,show:0,limit:9e9}});
+    shot.encounter=0; shot.phase="aiming"; shot.mode="gun";
+    shot.aim={x:(SNIPER_BOX.x+3)/SCENE.w,y:(SNIPER_BOX.y+3)/SCENE.h};
+    shoot(shot,300);
+    r.outcome=shot.outcome; r.badGuys=shot.badGuysShot;
+    r.windowEmpty=shot.sniper.alive;
+    // and if he is left alone he fires
+    const hit=newDay({seed:0}); hit.encounter=0; beginEncounter(hit); openDialogue(hit);
+    hit.sniper={alive:true,fired:false,shown:false,at:null,show:10,limit:20};
+    hit.doctor.sober=true; hit.doctor.disposition=1;
+    tick(hit,0); tick(hit,25);
+    r.fired=hit.sniper.fired; r.wounds=hit.wounds; r.blackout=hit.blackout;
+    // but not once the street is over
+    const past=newDay({seed:0}); past.encounter=0; beginEncounter(past);
+    past.phase="resolve";
+    past.sniper={alive:true,fired:false,shown:true,at:0,show:0,limit:10};
+    tick(past,999);
+    r.firedAfter=past.sniper.fired;
+    return JSON.stringify(r);
+  })()`));
+  assert.ok(out.most<=2,'a day had '+out.most+' men at the window');
+  // some callers bring one and most do not: a street where every window has a
+  // rifle in it is a game about windows rather than about people
+  assert.ok(out.rate>0.1&&out.rate<0.4,
+    'a window over '+(out.rate*100).toFixed(0)+'% of encounters');
+  assert.ok(out.quiet>=1,'no day of forty passed without one');
+  assert.equal(out.found,true,'no seed in sixty put a man at the window');
+  assert.equal(out.hiddenAtFirst,null,'the window was a target before the sash went up');
+  assert.equal(out.shown,true,'the sash never went up');
+  assert.equal(out.nowATarget,'sniper','the sash went up and he still cannot be shot');
+  assert.ok(out.warning>=1200,'only '+out.warning+'ms between the sash and the shot');
+  assert.equal(out.phaseStill,'dialogue','the sash going up ended the conversation');
+  assert.equal(out.outcome,'sniper_down');
+  assert.equal(out.badGuys,1,'shooting him off the sill counted for nothing');
+  assert.equal(out.windowEmpty,false);
+  assert.equal(out.fired,true,'he was left alone and never fired');
+  assert.equal(out.wounds,1,'his shot did nothing');
+  assert.equal(out.blackout,true,'being shot from a window does not black the street out');
+  assert.equal(out.firedAfter,false,'he fired into an encounter that was already over');
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));

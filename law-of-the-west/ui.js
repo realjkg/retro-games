@@ -1093,6 +1093,7 @@ function drawScene(now){
   }
   // The street and the man standing in it are both fifty feet off, so both sit
   // in the same air. The sheriff is a foot away and stands outside it.
+  sniperInWindow();
   grade();
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
@@ -1106,6 +1107,23 @@ function drawScene(now){
     ctx.fillRect(0,build.rows*(SCENE.h/10),SCENE.w,SCENE.h-build.rows*(SCENE.h/10));
   }
   ctx.restore();
+}
+/* The man at the window over the street. He is small and he is behind glass,
+ * so what there is to see is the pane going dark where he is standing in it and
+ * a barrel out over the sill. That is the whole warning; the rest is whether
+ * the sheriff is looking at anything but the man in front of him. */
+function sniperInWindow(){
+  const sn=G.sniper;
+  if(!sn||!sn.alive||!sn.shown)return;
+  const bx=SNIPER_BOX, x=bx.x+2, y=bx.y+2, w=bx.w-4, h=bx.h-4;
+  px(x,y,w,h,"rgba(8,6,5,.92)");                      // he fills the lit pane
+  px(x+3,y+1,5,3,C64.brn);                            // the crown of a hat
+  px(x+2,y+4,7,1,C64.brn);                            // and its brim
+  px(x+3,y+5,4,3,"#7d5f43");                          // a face, in shadow
+  px(x-6,y+8,12,2,C64.lgy);                           // the barrel out over the sill
+  px(x-7,y+8,2,2,C64.wht);                            // and the glint off its muzzle
+  px(x-6,y+10,12,1,"rgba(0,0,0,.6)");
+  px(x,y+h,w,1,"rgba(0,0,0,.55)");
 }
 /* A reticle of blocks, dark behind light, so it reads over a lit window or a
  * black doorway alike. */
@@ -1276,6 +1294,7 @@ const OUTCOME_LINES={
   surrendered:"Hands up, gun in the dust, and a walk to the jail ahead of you.",
   departed:"He goes, and the street closes behind him.",
   walked_away:"He looks at the gun in your hand, thinks better of all of it, and leaves.",
+  sniper_down:"The pane goes in and the rifle comes down into the street ahead of him. Whoever you were talking to is already gone.",
   job_missed:"It happened while you were elsewhere, and nobody had told you it would.",
   unwritten:"[this caller is not written yet]"
 };
@@ -1781,7 +1800,11 @@ function frame(now){
     if(bodyFall>0&&bodyFall<1.4)bodyFall+=0.06;
     if(G.phase!=="intro"&&G.phase!=="summary"){
       const before=G.phase;
+      const sashWas=!!(G.sniper&&G.sniper.shown);
       const ev=tick(G,now);
+      // the sash going up is the only warning the street gives, so it makes a
+      // noise: once, when it goes up, and never again for that window
+      if(!sashWas&&G.sniper&&G.sniper.shown){SND.creak();SND.tension();}
       // a man who outdraws you ends the encounter, and sometimes the day, from
       // inside the loop rather than from a keypress: repaint either way
       if(ev&&G.phase==="resolve"){settleSound();paint();}

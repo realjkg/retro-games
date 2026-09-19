@@ -15,11 +15,16 @@ const RULES={
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
-  WOUNDS:2
+  WOUNDS:2,
+  // the man at the window: how often, how many in a day, how long before the
+  // sash goes up, and how long after that before he fires
+  SNIPER_ODDS:0.3, SNIPERS:2,
+  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
+  SNIPER_MIN:5200, SNIPER_MAX:8200
 };
-/* Where each job falls in the day. Every job sits after the callers who could
- * have warned about it: the stage after Rose, the train after Miss April, the
- * bank after the Doctor, the new gun, Willy and the Deputy. */
+/* The phases in which the street is still happening and a second gun in it can
+ * do something. On the resolve screen and between encounters it cannot. */
+const LIVE=["dialogue","aiming","tell","duel"];
 /* The three jobs sit between callers, each after the point where somebody
  * could have warned about it: Rose carries the stage tip and calls first,
  * April carries the train tip and calls fifth, and the bank tip is on the
@@ -45,7 +50,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
-    spoke:false, balked:false, blackout:false,
+    spoke:false, balked:false, blackout:false, sniper:null, snipers:0,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -67,6 +72,17 @@ function beginEncounter(G){
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
   G.spoke=false; G.balked=false; G.blackout=false;
+  // Somebody at the window over the street, on some encounters and not others,
+  // and never more than twice in a day: a day where every caller brings a
+  // second gun is a day about windows rather than about people. The doctor's
+  // own scene is indoors, so nobody is above it.
+  G.sniper=null;
+  if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
+    G.snipers++;
+    G.sniper={alive:true,fired:false,shown:false,at:null,
+      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
+      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+  }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
@@ -160,6 +176,19 @@ function moveAim(G,dx,dy){
   return G.aim;
 }
 function tick(G,nowMs){
+  // The man at the window keeps his own clock, and it runs whatever the two in
+  // the street are doing. The sash goes up first, which is the only warning
+  // there is; a while after that he fires.
+  const sn=G.sniper;
+  if(sn&&sn.alive&&!sn.fired&&LIVE.indexOf(G.phase)>=0){
+    if(sn.at==null)sn.at=nowMs;
+    const t=nowMs-sn.at;
+    if(!sn.shown&&t>=sn.show)sn.shown=true;
+    if(t>=sn.limit){
+      sn.fired=true;
+      return takeHit(G,"a rifle out of the window over the street");
+    }
+  }
   if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
@@ -181,6 +210,7 @@ const weaponBox=G=>{const b=boxesFor(who(G));
   return (G.duel&&(G.duel.drawn||G.duel.initiator==="you"))?b.weaponRaised:b.weapon;};
 function boxAt(G,x,y){
   const px=x*SCENE.w, py=y*SCENE.h;
+  if(G.sniper&&G.sniper.alive&&G.sniper.shown&&inBox(px,py,SNIPER_BOX))return "sniper";
   if(inBox(px,py,weaponBox(G)))return "weapon";
   if(inBox(px,py,boxesFor(who(G)).lethal))return "lethal";
   return null;
@@ -215,6 +245,14 @@ function shoot(G,latencyMs){
   // read what the crosshair is over before drawing first changes his pose:
   // the player aimed at the hand on the hip, not at the hand he has not raised
   const box=boxAt(G,G.aim.x,G.aim.y);
+  // A ball through the window is not a duel with the man in the street, and it
+  // ends the encounter whatever was being said: nobody carries on a
+  // conversation after that.
+  if(box==="sniper"){
+    G.sniper.alive=false; G.badGuysShot++; G.authority+=1;
+    G.flags.push("sniper_down"); G.reflex=null;
+    return resolve(G,"sniper_down");
+  }
   if(!d){playerDraws(G);d=G.duel;}
   if(!d||d.fired)return null;
   d.fired=true; d.latency=latencyMs; G.reflex=null;
