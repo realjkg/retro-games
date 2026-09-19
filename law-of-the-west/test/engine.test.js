@@ -34,8 +34,20 @@ test('2. eleven callers, in order, and every written tree is sound', ()=>{
         if(n.npc&&n.npc.length>LIMITS.NPC)bad.push(e.id+"/"+id+": visitor line "+n.npc.length+" chars");
         if(!n.replies||n.replies.length!==LIMITS.REPLIES)
           bad.push(e.id+"/"+id+": "+(n.replies||[]).length+" replies, expected "+LIMITS.REPLIES);
+        // a beat that answers back must answer something a reply can actually
+        // say, and must keep to the same line length as the beat it varies
+        for(const m of Object.keys(n.npcIf||{})){
+          if(["warm","hard","sly","kind"].indexOf(m)<0)
+            bad.push(e.id+"/"+id+": npcIf has no manner called "+m);
+          if(n.npcIf[m].length>LIMITS.NPC)
+            bad.push(e.id+"/"+id+"/"+m+": "+n.npcIf[m].length+" chars");
+          if(n.npcIf[m]===n.npc)
+            bad.push(e.id+"/"+id+"/"+m+": the variant is the line it varies");
+        }
         (n.replies||[]).forEach((r,i)=>{
           const where=e.id+"/"+id+" reply "+(i+1);
+          if(r.as&&["warm","hard","sly"].indexOf(r.as)<0)
+            bad.push(where+": unknown manner "+r.as);
           if(!r.text)bad.push(where+": no words");
           if(r.text&&r.text.length>LIMITS.REPLY)bad.push(where+": "+r.text.length+" chars");
           const routes=["next","end","action"].filter(k=>r[k]);
@@ -736,7 +748,11 @@ test('23. every caller answers a drawn gun in his own way and on his own clock',
       const e=CAST[i];
       r.tempers[e.id]=e.temper||null;
       const G=newDay({seed:40+i}); G.encounter=i;
-      beginEncounter(G); if(written(e))openDialogue(G);
+      // openDialogue for everyone, including the last gunfighter, who has no
+      // words and goes straight to a tell. Calling it only for the written ones
+      // left him in "approach", which is not a phase a gun can be drawn in and
+      // not a phase he is ever in when a player meets him.
+      beginEncounter(G); openDialogue(G);
       drawGun(G,0);
       r.windows[e.id]=G.reflex.limit;
       tick(G,G.reflex.limit+1);
@@ -974,7 +990,222 @@ test('27. a robbery starts clean, like any other scene', ()=>{
   assert.equal(out.shared,true,'the two ways a scene starts have drifted apart again');
 });
 
+/* The clocks. A player on a phone reads for fifteen to twenty-five seconds a
+ * beat, locks the screen, takes a call, and comes back. None of that is the
+ * sheriff standing still to be shot at. */
+test('28. no clock resolves a scene while the street is being read', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    // the man at the window warns before he fires, and the warning lands after
+    // a person could have read the line rather than during it
+    const shows=[], reacts=[];
+    for(let seed=0;seed<40;seed++){
+      const G=newDay({seed});
+      for(let i=0;i<CAST.length;i++){
+        G.encounter=i; beginEncounter(G);
+        if(G.sniper){shows.push(G.sniper.show); reacts.push(G.sniper.limit-G.sniper.show);}
+      }
+    }
+    r.earliestSash=Math.min.apply(null,shows);
+    r.shortestWindow=Math.min.apply(null,reacts);
+    r.longestFuse=Math.max.apply(null,shows.map((s,i)=>s+reacts[i]));
+    // a scene left alone stays where it is
+    const G=newDay({seed:90}); G.encounter=0; beginEncounter(G); openDialogue(G);
+    G.sniper={alive:true,fired:false,shown:false,at:null,show:8000,limit:13000};
+    for(let t=0;t<=7000;t+=16)tick(G,t);
+    r.stillTalking=G.phase; r.woundsAt7s=G.wounds; r.sashAt7s=G.sniper.shown;
+    // and the time the page was not running is not time he stood there
+    const B=newDay({seed:91}); B.encounter=0; beginEncounter(B); openDialogue(B);
+    B.sniper={alive:true,fired:false,shown:false,at:null,show:8000,limit:13000};
+    for(let t=0;t<=2000;t+=16)tick(B,t);
+    catchUp(B,60000);                         // a minute in another app
+    for(let t=62000;t<=64000;t+=16)tick(B,t);
+    r.afterBackgrounding=B.phase; r.woundsAfter=B.wounds;
+    // the reflex clock cannot fire on a screen that is not the street
+    const R=newDay({seed:92}); R.encounter=0; beginEncounter(R); openDialogue(R);
+    drawGun(R,0); R.phase="resolve";
+    tick(R,99999);
+    r.reflexOnResolve=R.wounds;
+    // and a tell stamps itself on its first live frame instead of 1970
+    const T=newDay({seed:93}); T.encounter=10;   // the last gunfighter
+    beginEncounter(T); openDialogue(T);
+    r.tellPhase=T.phase; r.tellAt=T.tell.at;
+    const late=500000;                        // the day is minutes old
+    tick(T,late);
+    r.firedOnFirstFrame=(T.phase==="summary"||T.wounds>0);
+    let shot=-1;
+    for(let t=late;t<late+4000&&shot<0;t+=16){tick(T,t); if(T.wounds>0)shot=t-late;}
+    r.reactionWindow=shot;
+    return JSON.stringify(r);
+  })()`));
+  assert.ok(out.earliestSash>=6000,
+    'the sash can go up after '+out.earliestSash+'ms, while the line is still being read');
+  assert.ok(out.shortestWindow>=3000,
+    'only '+out.shortestWindow+'ms between the warning and the shot');
+  assert.ok(out.longestFuse<=25000,'his fuse runs to '+out.longestFuse+'ms, which is no threat');
+  assert.equal(out.stillTalking,'dialogue','seven seconds of reading cost the scene');
+  assert.equal(out.woundsAt7s,0,'shot at seven seconds without touching anything');
+  assert.equal(out.sashAt7s,false,'the sash went up before the line could be read');
+  assert.equal(out.afterBackgrounding,'dialogue','a minute in another app resolved the scene');
+  assert.equal(out.woundsAfter,0,'he was shot while the page was not even running');
+  assert.equal(out.reflexOnResolve,0,'the reflex clock fired on a resolve screen');
+  assert.equal(out.tellPhase,'tell','the last gunfighter did not draw');
+  assert.equal(out.tellAt,null,'the tell was stamped before it was ever live');
+  assert.equal(out.firedOnFirstFrame,false,
+    'the last gunfighter still kills on the first frame he exists');
+  assert.ok(out.reactionWindow>=300,
+    'only '+out.reactionWindow+'ms to answer the last gunfighter');
+});
+
+/* Every journey, not one path through each. Eleven callers, every reply at
+ * every node, to whatever it ends in - and the day that ends must be able to
+ * say which of them you just had. */
+test('29. every path of every caller reaches an ending that reads as its own', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={paths:0, perCaller:{}, dead:[], deep:[], ends:{}, actions:{}};
+    CAST.forEach((e,i)=>{
+      if(!written(e)){r.perCaller[e.id]=0; return;}
+      let n=0;
+      const walk=(node,depth,seenHere)=>{
+        if(depth>RULES.ROUNDS+1){r.deep.push(e.id+"/"+node);return;}
+        const nd=e.rounds[node];
+        if(!nd){r.dead.push(e.id+"/"+node);return;}
+        nd.replies.forEach((x,j)=>{
+          if(x.action){n++; r.actions[x.action]=(r.actions[x.action]||0)+1; return;}
+          if(x.end){
+            n++;
+            const t=e.ends[x.end];
+            if(!t){r.dead.push(e.id+"/"+node+"["+j+"] -> "+x.end);return;}
+            const key=e.id+":"+x.end;
+            r.ends[key]={text:(t.text||"").length, flags:(t.flags||[]).join("+")};
+            return;
+          }
+          if(x.next){
+            if(seenHere.indexOf(x.next)>=0){n++; return;}   // a loop is an ending
+            walk(x.next,depth+1,seenHere.concat([node]));
+          }
+        });
+      };
+      (e.roots||["opening"]).forEach(root=>walk(root,1,[]));
+      r.perCaller[e.id]=n; r.paths+=n;
+    });
+    return JSON.stringify(r);
+  })()`));
+
+  assert.deepEqual(out.dead,[],'paths that go nowhere: '+out.dead.join(', '));
+  assert.deepEqual(out.deep,[],'paths deeper than the three-exchange limit: '+out.deep.join(', '));
+  // every caller who speaks has a tree worth walking
+  for(const id of Object.keys(out.perCaller)){
+    if(id==='lastgun'){assert.equal(out.perCaller[id],0,'the last gunfighter grew words');continue;}
+    assert.ok(out.perCaller[id]>=8,
+      id+' has only '+out.perCaller[id]+' ways out of his encounter');
+  }
+  assert.ok(out.paths>=150,'only '+out.paths+' journeys across the whole cast');
+  // every authored ending has words and a record of what happened
+  const ends=Object.keys(out.ends);
+  assert.ok(ends.length>=28,'only '+ends.length+' authored endings are reachable');
+  for(const k of ends)
+    assert.ok(out.ends[k].text>40,k+' ends on '+out.ends[k].text+' characters');
+  // and every action class is still spoken for
+  for(const a of ['draw','ambush','delayed','surrender','depart','trick'])
+    assert.ok(out.actions[a]>0,'no reply anywhere answers with "'+a+'"');
+  report.journeys={paths:out.paths,endings:ends.length,perCaller:out.perCaller};
+});
+
+test('30. no two kinds of conclusion read the same', ()=>{
+  const {run}=load();
+  const fs2=require('fs');
+  const ui=fs2.readFileSync(path.join(ROOT,'ui.js'),'utf8');
+  assert.match(ui,/function walkOn\(\)/,'the conclusion is not chosen at all');
+  // the flag table is what the authored endings are read through; the outcome
+  // table covers the gun. Between them nothing may fall through to the default.
+  const flags=JSON.parse(run(`JSON.stringify(CAST.flatMap(e=>
+    Object.keys(e.ends||{}).map(k=>(e.ends[k].flags||[]).join("+"))))`));
+  const known=['date','offended','doctor_insulted','doctor_civil','doctor_sober',
+               'tip_train','tip_stage','tip_bank','arrest','depart'];
+  const orphan=flags.filter(f=>f&&!f.split('+').some(x=>known.includes(x)));
+  assert.deepEqual(orphan,[],
+    'authored endings whose flags no conclusion reads: '+orphan.join(', '));
+  for(const k of known)
+    assert.ok(ui.includes('"'+k+'"'),'walkOn never looks at the '+k+' flag');
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));
+});
+
+test('31. what the sheriff says changes what he hears back', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={tagged:0, beats:0, answering:0, railed:[], reachable:{}, opens:0};
+    for(const e of CAST){
+      if(!written(e))continue;
+      const nodes=Object.keys(e.rounds);
+      r.beats+=nodes.length;
+      const into={};
+      for(const n of nodes)for(const x of (e.rounds[n].replies||[])){
+        if(x.as)r.tagged++;
+        if(x.next)into[x.next]=(into[x.next]||0)+1;
+      }
+      const answering=nodes.filter(n=>e.rounds[n].npcIf);
+      r.answering+=answering.length;
+      if(e.rounds.opening&&e.rounds.opening.npcIf)r.opens++;
+      // a beat two or more replies reach, with nothing to say about which one
+      const conv=nodes.filter(n=>(into[n]||0)>1&&!e.rounds[n].npcIf);
+      if(conv.length)r.railed.push(e.id+":"+conv.join("+"));
+      // every manner a beat answers must be a manner some reply into it carries
+      for(const n of answering){
+        const manners=new Set();
+        for(const m of nodes)for(const x of (e.rounds[m].replies||[]))
+          if(x.next===n&&x.as)manners.add(x.as);
+        for(const k of Object.keys(e.rounds[n].npcIf))
+          if(k!=="hard"&&k!=="kind"&&!manners.has(k))
+            (r.reachable[e.id+"/"+n]=r.reachable[e.id+"/"+n]||[]).push(k);
+      }
+    }
+    return JSON.stringify(r);
+  })()`));
+
+  assert.ok(out.tagged>=40,'only '+out.tagged+' replies carry a manner');
+  assert.ok(out.answering>=20,
+    'only '+out.answering+' of '+out.beats+' beats answer back differently');
+  assert.deepEqual(out.railed,[],
+    'beats reached more than one way that say the same words regardless: '+
+    out.railed.join(', '));
+  assert.deepEqual(out.reachable,{},
+    'beats answering a manner no reply into them carries: '+
+    JSON.stringify(out.reachable));
+  assert.ok(out.opens>=5,
+    'only '+out.opens+' callers greet the sheriff by his standing in town');
+
+  // and the machinery picks them up: the same beat, two manners, two lines
+  const heard=JSON.parse(run(`(()=>{
+    const G=newDay({seed:5}); const e=CAST[0];
+    const n=e.rounds.train;
+    const say=m=>{G.as=m; return npcOf(G,n);};
+    return JSON.stringify({plain:say(null),hard:say("hard"),warm:say("warm")});
+  })()`));
+  assert.notEqual(heard.hard,heard.plain,'a hard reply earned the same words');
+  assert.notEqual(heard.warm,heard.hard,'warm and hard read alike');
+
+  // a standing only colours the opening, where nothing has been said yet
+  const rep=JSON.parse(run(`(()=>{
+    const G=newDay({seed:5});
+    const n=CAST.find(e=>e.id==="deputy").rounds.opening;
+    const at=s=>{G.as=null; G.standing=s; return npcOf(G,n);};
+    const shot=(()=>{const g=newDay({seed:5});
+      g.badGuysShot=2; g.flags.push("offended","gun_first"); return standing(g);})();
+    const told=(()=>{const g=newDay({seed:5});
+      g.dates=1; g.flags.push("tip_train","tip_bank","doctor_civil"); return standing(g);})();
+    return JSON.stringify({even:at("even"),hard:at("hard"),kind:at("kind"),
+                           afterShooting:shot,afterListening:told});
+  })()`));
+  assert.equal(rep.afterShooting,'hard','a morning of shooting left him no reputation');
+  assert.equal(rep.afterListening,'kind','a morning of listening left him no reputation');
+  assert.notEqual(rep.hard,rep.even,'the deputy greets a killer the usual way');
+  assert.notEqual(rep.kind,rep.hard,'the two reputations read alike');
+  report.causeEffect={tagged:out.tagged,answering:out.answering,beats:out.beats};
 });

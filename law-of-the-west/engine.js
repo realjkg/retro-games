@@ -11,7 +11,6 @@ const RULES={
   TELL_MIN:400, TELL_MAX:900,
   TELLS:{ambush:[120,260], delayed:[300,620], draw:[380,820]},
   FIRE_MIN:260, FIRE_MAX:420,
-  REFLEX_MIN:1500, REFLEX_MAX:2600,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
    * them, which made every caller the same man wearing a different hat. A
@@ -27,11 +26,24 @@ const RULES={
   SIGMA_WIDE:0.95, SIGMA_TIGHT:0.42,
   ZONE_TIGHT:0.30, ZONE_WIDE:0.62,
   WOUNDS:2,
-  // the man at the window: how often, how many in a day, how long before the
-  // sash goes up, and how long after that before he fires
+  /* The man at the window: how often, how many in a day, how long before the
+   * sash goes up, and how long the sheriff then has to do something about it.
+   *
+   * These were 1.6-3.4s to the sash and 5.2-8.2s to the shot, both measured
+   * from the moment the scene began - while the caller was still walking in,
+   * while the dialogue panel was still building itself a row at a time, and
+   * while the player was reading a hundred and fifty characters and four
+   * replies. Reading one beat takes fifteen to twenty-five seconds. He fired
+   * two or three times over before anybody could have finished the first line,
+   * every time, on a third of all encounters. That is not a hidden threat, it
+   * is a coin flip with a wound on one face.
+   *
+   * The sash now goes up after the reading rather than during it, and what
+   * follows it is a window wide enough to look up, find him and fire. The
+   * warning is still the only warning. */
   SNIPER_ODDS:0.3, SNIPERS:2,
-  SNIPER_SHOW_MIN:1600, SNIPER_SHOW_MAX:3400,
-  SNIPER_MIN:5200, SNIPER_MAX:8200
+  SNIPER_SHOW_MIN:8000, SNIPER_SHOW_MAX:14000,
+  SNIPER_REACT_MIN:4000, SNIPER_REACT_MAX:6000
 };
 /* The phases in which the street is still happening and a second gun in it can
  * do something. On the resolve screen and between encounters it cannot. */
@@ -58,7 +70,7 @@ function rawDay(opts){
     authority:0, arrests:0, dates:0, badGuysShot:0, innocentsKilled:0, crimesMissed:0,
     tips:{train:false,stage:false,bank:false},
     doctor:{met:false,disposition:0,sober:true,alive:true},
-    met:[], flags:[], log:[], results:[],
+    met:[], flags:[], log:[], results:[], manner:{}, as:null, standing:"even",
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
     spoke:false, balked:false, blackout:false, sniper:null, snipers:0, hatOff:false,
     atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
@@ -97,7 +109,7 @@ const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 function resetScene(G){
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
+  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false; G.as=null;
   G.sniper=null;
 }
 function beginEncounter(G){
@@ -106,19 +118,51 @@ function beginEncounter(G){
   resetScene(G);
   G.phase="approach"; G.round=1;
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
+  /* What kind of morning the sheriff has had, settled before the next man
+   * opens his mouth. A caller who has heard he shot two men does not greet him
+   * the way he would have at dawn, and until now every one of them did. */
+  G.standing=standing(G);
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
   // own scene is indoors, so nobody is above it.
   if(!e.doctor&&G.snipers<RULES.SNIPERS&&G.rng()<RULES.SNIPER_ODDS){
     G.snipers++;
-    G.sniper={alive:true,fired:false,shown:false,at:null,
-      show:Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX)),
-      limit:Math.round(rnd(G,RULES.SNIPER_MIN,RULES.SNIPER_MAX))};
+    const show=Math.round(rnd(G,RULES.SNIPER_SHOW_MIN,RULES.SNIPER_SHOW_MAX));
+    G.sniper={alive:true,fired:false,shown:false,at:null, show:show,
+      limit:show+Math.round(rnd(G,RULES.SNIPER_REACT_MIN,RULES.SNIPER_REACT_MAX))};
   }
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
+}
+/* What the street has decided about him by the time the next man walks up. */
+function standing(G){
+  const c=f=>G.flags.filter(x=>x===f).length, m=k=>G.manner[k]||0;
+  const hard=G.badGuysShot+G.innocentsKilled*2+m("hard")
+    +c("offended")+c("gun_first")+c("outsmarted");
+  const kind=G.dates+m("warm")+c("tip_train")+c("tip_stage")+c("tip_bank")
+    +c("doctor_civil");
+  return hard-kind>=3?"hard":kind-hard>=3?"kind":"even";
+}
+/* The same beat, said differently because of what the sheriff said to earn it.
+ * A beat two or more replies reach used to read identically whether he had
+ * been civil about it or hard, which is the whole of the complaint: the words
+ * he chose changed where he went and never once changed what he heard back.
+ * A reply carries its manner - warm, hard, sly - and the beat it leads to
+ * answers that manner if it has an answer for it. Keying it on the beat he
+ * came from is not enough: two replies of the same beat, one kind and one
+ * cruel, very often arrive at the same place. */
+function npcOf(G,n){
+  n=n||nodeOf(G);
+  if(!n)return "";
+  if(n.npcIf){
+    // inside a scene it is the manner of the reply that earned this beat; at
+    // the opening, where nothing has been said yet, it is his standing in town
+    if(G.as&&n.npcIf[G.as])return n.npcIf[G.as];
+    if(!G.as&&G.standing&&n.npcIf[G.standing])return n.npcIf[G.standing];
+  }
+  return n.npc;
 }
 function openDialogue(G){
   const e=who(G);
@@ -137,6 +181,8 @@ function say(G,index){
   G.spoke=true;
   if(reply.action)return act(G,reply.action);
   if(reply.end)return terminal(G,reply.end);
+  if(reply.as)G.manner[reply.as]=(G.manner[reply.as]||0)+1;
+  G.as=reply.as||null;
   if(reply.next){
     G.node=reply.next; G.round++;
     if(G.round>RULES.ROUNDS)return terminal(G,Object.keys(who(G).ends)[0]);
@@ -199,7 +245,12 @@ function drawGun(G,nowMs){
   // talking, and does not start again while it is out. Keeping it on him is
   // still the sheriff's business: the reflex below decides what he does about
   // it, which is answer it if he is armed and leave if he is not.
-  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
+  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn)){
+    G.balked=true;
+    // pulling it before a man has been answered is remembered by the street
+    if(G.flags.indexOf("gun_first:"+G.encounter)<0)
+      G.flags.push("gun_first","gun_first:"+G.encounter);
+  }
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   const t=temperOf(who(G)).reflex;
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,t[0],t[1]))};
@@ -228,6 +279,17 @@ function moveAim(G,dx,dy){
   G.aim.x=Math.max(sightFloor(G.aim.y),Math.min(1,G.aim.x+dx*RULES.AIM_STEP));
   return G.aim;
 }
+/* Time the page was not running is not time the sheriff stood there. rAF stops
+ * while a phone is locked or the player is in another app, but performance.now()
+ * does not, so the first frame back used to deliver a nowMs that had jumped by
+ * the whole absence and every clock expired on that single frame: you came back
+ * to the street already shot. Every origin moves forward with the gap instead. */
+function catchUp(G,gap){
+  if(!(gap>0))return;
+  if(G.sniper&&G.sniper.at!=null)G.sniper.at+=gap;
+  if(G.reflex)G.reflex.at+=gap;
+  if(G.tell&&G.tell.at!=null)G.tell.at+=gap;
+}
 function tick(G,nowMs){
   // The man at the window keeps his own clock, and it runs whatever the two in
   // the street are doing. The sash goes up first, which is the only warning
@@ -242,7 +304,7 @@ function tick(G,nowMs){
       return takeHit(G,"a rifle out of the window over the street");
     }
   }
-  if(G.reflex&&nowMs-G.reflex.at>=G.reflex.limit){
+  if(G.reflex&&LIVE.indexOf(G.phase)>=0&&nowMs-G.reflex.at>=G.reflex.limit){
     const e=who(G); G.reflex=null;
     if(e&&e.armed)return takeHit(G,"he answered the gun in his face");
     // Nobody unarmed is a threat, but frightening one off the street with a gun
@@ -252,6 +314,7 @@ function tick(G,nowMs){
     if(cost<0)G.flags.push("offended");
     return resolve(G,cost<=-2?"fled":"walked_away");
   }
+  if(G.tell&&G.tell.at==null&&(G.phase==="tell"||G.phase==="duel"))G.tell.at=nowMs;
   if(G.phase==="tell"&&G.tell&&nowMs-G.tell.at>=G.tell.delay){G.phase="duel";G.duel.drawn=true;}
   if(G.phase==="duel"&&G.duel&&G.duel.drawn&&!G.duel.fired&&G.tell){
     if(nowMs-(G.tell.at+G.tell.delay)>=G.duel.fireDelay){
@@ -285,7 +348,14 @@ function theyDraw(G,why){
   const e=who(G);
   const span=RULES.TELLS[why]||[RULES.TELL_MIN,RULES.TELL_MAX];
   G.phase="tell";
-  G.tell={at:0,why,delay:Math.round(rnd(G,span[0],span[1]))};
+  /* Stamped on the first frame this is live, the way the sniper's is. It used
+   * to be 0, and the UI re-stamped it on two of the four paths that reach here.
+   * On the other two - the last gunfighter, who never talks, and the ambush a
+   * shot-off hat provokes - it stayed 0, and since nowMs is performance.now()
+   * and the day is minutes old, the very first tick found the whole tell and
+   * the whole fire delay already elapsed and answered with "outdrawn". The
+   * eleventh caller killed you the instant he appeared, every game. */
+  G.tell={at:null,why,delay:Math.round(rnd(G,span[0],span[1]))};
   G.duel={initiator:"them",drawn:false,fired:false,zone:"torso",why,
     fireDelay:Math.round(rnd(G,RULES.FIRE_MIN,RULES.FIRE_MAX)),
     latency:null,error:null,result:null};

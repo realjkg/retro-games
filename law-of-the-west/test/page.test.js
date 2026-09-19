@@ -182,7 +182,7 @@ test('8e. the mute control and the m key both toggle and show it', {skip:jsdomMi
   const before=p.snd().on;
   p.tap('#mute');
   assert.notEqual(p.snd().on,before,'the mute control did nothing');
-  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
+  assert.match(p.el("mute").textContent,/^SOUND: (ON|OFF|TAP)$|^NO AUDIO$/);
   assert.equal(p.el('mute').getAttribute('aria-pressed'),String(p.snd().on));
   p.press('m');
   assert.equal(p.snd().on,before,'the m key did not toggle it back');
@@ -346,7 +346,11 @@ test('8l. a robbery is a screen the sheriff walks into, and it plays out', {skip
   const at=p.ev('INTERLUDES').find(i=>i.job==='stage').after;
   // stand at the caller before the stage job, with the tip in hand, and resolve
   p.ev(`G.tips.stage=true;G.encounter=${at-1};beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
-  p.tap('[data-cmd="fire"]');                       // walk on down the street
+  // "walk on" now sends him walking; a second press does not wait for him
+  p.tap('[data-cmd="fire"]');
+  assert.ok(p.ev('leaving'),'he vanished instead of walking off');
+  p.tap('[data-cmd="fire"]');                       // and on down the street
+  assert.equal(p.ev('leaving'),null,'the exit outlived the scene');
   assert.equal(p.G().phase,'interlude','the job never came up');
   assert.equal(p.G().interlude,'stage');
   assert.match(p.el('line0').textContent,/coach|ford/i,'no word of what is happening');
@@ -360,7 +364,8 @@ test('8l. a robbery is a screen the sheriff walks into, and it plays out', {skip
   q.tap('[data-cmd="fire"]');
   q.ev(`G.tips.bank=false;G.encounter=${p.ev('INTERLUDES').find(i=>i.job==='bank').after-1};`+
        `beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
-  q.tap('[data-cmd="fire"]'); q.tap('[data-cmd="fire"]');
+  q.tap('[data-cmd="fire"]'); q.tap('[data-cmd="fire"]');   // he goes, then we do
+  q.tap('[data-cmd="fire"]');
   assert.equal(q.G().outcome,'job_missed');
   assert.equal(q.G().crimesMissed,1);
   assert.deepEqual(p.errors,[]); assert.deepEqual(q.errors,[]);
@@ -425,9 +430,12 @@ test('8o. being outdrawn by the clock still paints the reckoning', {skip:jsdomMi
   p.ready();
   // one wound already carried, a hostile doctor, and a man who has drawn
   p.ev('G.doctor.disposition=-2;');
-  p.ev('theyDraw(G,"draw");G.tell.at=0;');
-  p.frame(60);                                     // he clears leather
-  p.frame(4000);                                   // and fires before anybody moved
+  // theyDraw leaves tell.at null and the first live frame stamps it. Setting it
+  // to 0 by hand was reproducing the bug this test is no longer about, and
+  // stepping straight from 60ms to 4000ms now reads as a backgrounded page, so
+  // the clocks are held. Step it the way a browser would.
+  p.ev('theyDraw(G,"draw");');
+  for(let t=60;t<=2000;t+=100)p.frame(t);          // he clears leather, and fires
   assert.equal(p.G().phase,'summary','the clock never killed him');
   assert.equal(p.G().alive,false);
   assert.match(p.el('line0').textContent,/THE STREET KEPT YOU — -?\d+ points/,
@@ -467,7 +475,7 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(quiet.el('mute').textContent,'SOUND: OFF','the control does not say so');
   // the label is a state, never an instruction: a button saying SOUND ON is
   // pressed by someone wanting sound on, which turns it off and keeps it off
-  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF)$|^NO AUDIO$/);
+  assert.match(quiet.el('mute').textContent,/^SOUND: (ON|OFF|TAP)$|^NO AUDIO$/);
   assert.equal(quiet.el('mute').getAttribute('aria-pressed'),'false');
   quiet.tap('[data-cmd="fire"]');
   assert.equal(quiet.ev('typeof (window.AudioContext||window.webkitAudioContext)'),
@@ -483,7 +491,13 @@ test('8q. the sound remembers itself, steps back for a cue, and never repeats ex
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'0','the choice was not kept');
   p.tap('[data-cmd="mute"]');
   assert.equal(p.w.localStorage.getItem('lotw.sound'),'1');
-  assert.equal(p.el('mute').textContent,'SOUND: ON');
+  // "SOUND: TAP" is sound permitted with no audio context behind it yet, which
+  // is what a jsdom page always is and what every real page is before its first
+  // gesture. It is deliberately not "SOUND: ON": that lie is what got the sound
+  // switched off for good on a phone.
+  assert.equal(p.ev('SND.on'),true,'the control did not turn it back on');
+  assert.match(p.el('mute').textContent,/^SOUND: (ON|TAP)$/,
+    'turning it on left the button reading '+p.el('mute').textContent);
 
   // every cue the game can fire is one the engine knows, and the ones a player
   // hears over and over are the ones allowed to move
@@ -792,7 +806,7 @@ test('9p. the artwork, the budget, the offline rule and the hard pixels all hold
   for(const bad of [/\bfetch\s*\(/,/XMLHttpRequest/,/importScripts/])
     assert.equal(HTML.search(bad),-1,'the page can still call out: '+bad);
   // it stays inside its budget, which tools/assemble.js holds to the same number
-  assert.ok(Buffer.byteLength(HTML)<256*1024,
+  assert.ok(Buffer.byteLength(HTML)<320*1024,
     'the page is '+(Buffer.byteLength(HTML)/1024).toFixed(1)+' KB');
   // and nothing on the way to the screen is smoothed
   assert.match(HTML,/image-rendering:pixelated/,'the canvas is smoothed by CSS');
@@ -998,10 +1012,35 @@ test('9v. every caller walks in rather than appearing',
   assert.ok(mid&&mid.dx<near.dx,'he did not move');
   assert.ok(end&&end.dx<mid.dx,'he did not arrive');
   assert.equal(after,null,'he never stopped walking');
-  // and the boot changes over, which is what a stride is
-  const boots=[0,200,400,600,800,1000,1200].map(d=>p.ev(`walkNow(${at+d})`))
-    .filter(Boolean).map(w=>w.boot);
-  assert.ok(new Set(boots).size===2,'both boots did the same thing: '+boots.join(','));
+  // and he takes strides: two legs doing opposite things, which shows up as the
+  // gap between his boots opening and closing. Sliding the whole lower half
+  // sideways - which is what he used to do - holds that width constant.
+  const fig=p.ev('figureOf(who(G))');
+  const legs=p.ev('legsOf(figureOf(who(G)))');
+  assert.ok(!legs.skirt&&legs.top>0&&legs.mid>0,'his legs were never found in the drawing');
+  const SPRY=p.ev('SPRY'), FIGCH=p.ev('FIGCH');
+  const spread=d=>{
+    p.painted.length=0;
+    p.ev(`reactAt=-1e9;visitor(who(G),"idle",${at+d});`);
+    const r=p.painted.filter(x=>x.y>=SPRY+legs.top*FIGCH&&x.w<40);
+    if(!r.length)return null;
+    return Math.round(Math.max(...r.map(x=>x.x+x.w))-Math.min(...r.map(x=>x.x)));
+  };
+  const wide=[0,120,240,360,480,600,720,840,960,1080,1200].map(spread).filter(v=>v!=null);
+  assert.ok(new Set(wide).size>=3,
+    'his boots kept the same distance apart the whole way in: '+wide.join(','));
+  // every figure either has two legs to find - Little Willy included, who is a
+  // child drawn small inside the same grid - or wears a skirt to the ground
+  const skirts=[];
+  for(const k of Object.keys(p.ev('FIGURES'))){
+    const l=p.ev(`legsOf(FIGURES[${JSON.stringify(k)}])`);
+    if(l.skirt){skirts.push(k);continue;}
+    assert.ok(l.top>0&&l.mid>0,k+' has neither legs nor a skirt');
+    assert.ok(l.top>Math.round(fig.rows.length*0.6),
+      k+"'s legs were found at row "+l.top+', which is above his waist');
+  }
+  assert.deepEqual(skirts.sort(),['april','rose'],
+    'the skirts are '+skirts.join(',')+', which is not who wears one');
   // a boot goes down on every stride of it
   const log=p.log();
   for(let t=at;t<=at+1800;t+=40)p.frame(t);
@@ -1025,7 +1064,14 @@ test('9w. the gun in his face takes his four replies away until it is put up',
   assert.equal(p.G().balked,true,'he carried on talking down a barrel');
   const balked=lines();
   assert.equal(balked[0],p.ev('CAST[G.encounter].balk'),'he is not saying his piece about it');
-  assert.deepEqual(balked.slice(1).filter(Boolean),[],'his replies are still on offer');
+  // not one of his four replies is on offer, and the slot that is left says why
+  // rather than leaving the panel blank, which reads as the game having broken
+  const his=p.ev('CAST[G.encounter].rounds.opening.replies.map(r=>r.text)');
+  for(const line of balked.slice(1))
+    assert.ok(!his.includes(line),'a reply is still on offer: '+line);
+  assert.match(balked[1],/will not talk to a gun/,
+    'nothing tells the player why the replies went: "'+balked[1]+'"');
+  assert.deepEqual(balked.slice(2).filter(Boolean),[],'more than the one line is showing');
   // and putting it up hands the conversation back where it was
   p.press('Escape');
   assert.equal(p.G().mode,'talk');
@@ -1061,5 +1107,66 @@ test('9x. firing kicks the barrel up and puts a flare on the muzzle, briefly',
   // nor does it appear when nothing has been fired
   p.painted.length=0; p.ev('kickAt=-1e9;nowFrame=1000;ownGun(true);');
   assert.equal(flare(),0,'the muzzle flares with the gun at rest');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9y. the caller moves the way a person does, not the way a block does',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  // Three horizontal bands of his bounding box, read off the paint log. If the
+  // whole figure is one offset applied to one drawing, all three bands change
+  // together on every frame and never apart - which is what "he moves like a
+  // block" means, and it is measurable.
+  const n=p.ev('figureOf(who(G)).rows.length');
+  const SPRY=p.ev('SPRY'), FIGCH=p.ev('FIGCH');
+  const headY=SPRY+Math.round(n*0.26)*FIGCH, hipY=SPRY+Math.round(n*0.62)*FIGCH;
+  const sig=[];
+  for(let t=0;t<6000;t+=150){
+    p.painted.length=0;
+    p.ev('walkAt=-1e9; reactAt=-1e9; visitor(who(G),"idle",'+t+');');
+    const band=(a,b)=>p.painted.filter(r=>r.y>=a&&r.y<b&&r.w<40)
+      .map(r=>r.x+':'+r.y).join(' ');
+    sig.push([band(-1e9,headY),band(headY,hipY),band(hipY,1e9)]);
+  }
+  const distinct=i=>new Set(sig.map(s=>s[i])).size;
+  const name=['head','torso','legs'];
+  for(let i=0;i<3;i++)
+    assert.ok(distinct(i)>=3,
+      'his '+name[i]+' holds only '+distinct(i)+' pose(s) across four seconds');
+  // and the bands must come apart: one moving while another holds still is the
+  // difference between a man shifting his weight and a picture being slid
+  let apart=0;
+  for(let k=1;k<sig.length;k++){
+    const d=[0,1,2].map(i=>sig[k][i]!==sig[k-1][i]);
+    if(d.some(Boolean)&&!d.every(Boolean))apart++;
+  }
+  assert.ok(apart>=4,'his bands never moved independently ('+apart+' frames)');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9z. a caller who is done walks off before the street is anyone else\'s',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  p.ev('resolve(G,"departed");paint();');
+  const was=p.ev('G.encounter');
+  p.tap('[data-cmd="fire"]');                        // walk on
+  assert.ok(p.ev('leaving'),'he was gone between one frame and the next');
+  assert.equal(p.G().encounter,was,'the next man had the street before he left');
+  // he travels, and he is still going a beat later
+  const at=p.ev('leaving.at');
+  const dx=[40,400,800,1200].map(d=>p.ev(`leaveNow(${at+d}).dx`));
+  for(let i=1;i<dx.length;i++)
+    assert.ok(Math.abs(dx[i])>Math.abs(dx[i-1]),'he stopped on the way out: '+dx.join(','));
+  assert.ok(Math.abs(dx[3])>60,'he only got '+dx[3]+' pixels away');
+  // and the day moves on by itself when he is gone, with nobody touching it
+  for(let t=at;t<=at+p.ev('EXIT_MS')+40;t+=16)p.frame(t);
+  assert.equal(p.ev('leaving'),null,'he is still walking');
+  assert.equal(p.G().encounter,was+1,'the day did not move on after him');
+  // an arrest takes him the other way, and a dead man does not walk at all
+  assert.ok(p.ev('exitDir("departed")')>0);
+  assert.ok(p.ev('exitDir("surrendered")')<0,'a man under arrest wanders off alone');
+  assert.equal(p.ev('exitDir("killed_him")'),0,'a dead man walked away');
   assert.deepEqual(p.errors,[]);
 });

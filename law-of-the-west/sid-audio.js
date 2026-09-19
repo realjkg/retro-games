@@ -556,10 +556,17 @@ const SND=(function(){
       else{parked=false; keepSession(); ctx(); play("select");}
       return on;},
     stopAll,
-    /* Backgrounding. The context is suspended rather than torn down, and only
-     * another gesture resumes it. */
+    /* Backgrounding. The context is suspended rather than torn down. `parked`
+     * means one thing and one thing only: the page is not being looked at. */
     suspend(){ parked=true; dropSession(); stopAll();
                if(ac&&ac.state==="running"){try{ac.suspend();}catch(e){}} },
+    /* Coming back. This is the half that was missing: suspend() parked it and
+     * wake() refuses to touch anything parked, so every recovery path after a
+     * backgrounding - including the once-a-second watchdog - was a no-op and
+     * the street stayed silent for the rest of the day. The page being visible
+     * again is what unparks it, and the keep-alive element has to be started
+     * again too, because dropSession() paused it on the way out. */
+    regain(){ if(!on)return false; parked=false; keepSession(); return this.wake(); },
     get suspended(){ return !!ac&&ac.state!=="running"; },
     get state(){ return ac?ac.state:"none"; },
     get stuck(){ return stuck; },

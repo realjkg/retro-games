@@ -135,5 +135,22 @@
       "alive": false,
       "wounds": 1
     }
+  },
+  "journeys": {
+    "paths": 515,
+    "endings": 31,
+    "perCaller": {
+      "stranger": 34,
+      "rose": 49,
+      "kid": 40,
+      "doctor": 56,
+      "shotgun": 46,
+      "willie": 58,
+      "april": 49,
+      "gambler": 58,
+      "deputy": 64,
+      "belle": 61,
+      "lastgun": 0
+    }
   }
 }
