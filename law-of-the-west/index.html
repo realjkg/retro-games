@@ -803,6 +803,7 @@ const CAST=[
  /* 1 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
+  balk:"She stops with her hand on the bottle and does not pour. \u201cPut that away or take it outside, Sheriff. I can wait all afternoon.\u201d",
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
     replies:[
@@ -853,6 +854,7 @@ const CAST=[
  /* 2 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
+  balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
     replies:[
@@ -895,6 +897,7 @@ const CAST=[
  /* 3 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
   armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
+  balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
    opening_drunk:{npc:"Sheriff. I have had a night of it and a bottle after the night, and I am ashamed of neither. Ask me what you like, but ask it slowly.",
@@ -948,6 +951,7 @@ const CAST=[
  /* 4 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
   armed:false, arrive:["crowd"],
+  balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
     replies:[
@@ -1004,6 +1008,7 @@ const CAST=[
  /* 5 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
   armed:false, arrive:["crowd"],
+  balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
     replies:[
@@ -1054,6 +1059,7 @@ const CAST=[
  /* 6 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
   armed:true, arrive:["hooves"],
+  balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
     replies:[
@@ -1110,6 +1116,7 @@ const CAST=[
  /* 7 ------------------------------------------------------------- */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
   armed:true, arrive:["hooves"],
+  balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
     replies:[
@@ -1160,6 +1167,9 @@ const CAST=[
         flags:["depart"], authority:1}}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
+/* What a caller does when the gun comes out before he has been answered: he
+ * stops talking, and does not start again while it is out. */
+const BALK_LINE="He is looking at the gun in your hand and not at you, and he has stopped talking.";
 
 /* ============ the pixel grid ============
  * A 320x200 logical screen, presented in 4:3 the way a C64 was. The sheriff
@@ -1510,6 +1520,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
+    spoke:false, balked:false, blackout:false,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -1530,6 +1541,7 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
+  G.spoke=false; G.balked=false; G.blackout=false;
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
@@ -1545,8 +1557,10 @@ function openDialogue(G){
  * or is answered with a hand rather than a sentence. */
 function say(G,index){
   if(G.phase!=="dialogue")return null;
+  if(G.balked&&G.mode==="gun")return null;   // he is not talking to a gun
   const n=nodeOf(G); if(!n)return null;
   const reply=n.replies[index]; if(!reply)return null;
+  G.spoke=true;
   if(reply.action)return act(G,reply.action);
   if(reply.end)return terminal(G,reply.end);
   if(reply.next){
@@ -1590,6 +1604,11 @@ function terminal(G,id){
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  // A man who has a gun pointed at him before he has been answered stops
+  // talking, and does not start again while it is out. Keeping it on him is
+  // still the sheriff's business: the reflex below decides what he does about
+  // it, which is answer it if he is armed and leave if he is not.
+  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
   return G.mode;
@@ -1711,15 +1730,29 @@ function theirReply(G){
  *   civil       alive, sober and well disposed — patched up, and the day goes on
  *   neutral     alive and sober but owing nothing: one wound, no more
  * Not having met him yet counts as neutral; he is in the town either way. */
+/* Whether the doctor comes, and how willingly, is not only about the doctor.
+ * A sheriff who has shot men who never drew, or put the whole street's back up,
+ * is a sheriff Gold Gulch is slower to send for - so the town's standing moves
+ * his disposition a step either way before it is read. */
+function doctorStanding(G){
+  let n=G.doctor.disposition;
+  n-=G.innocentsKilled;                     // the town saw all of them
+  if(G.flags.filter(f=>f==="offended").length>=2)n-=1;
+  if(G.authority>=3)n+=1;                   // a sheriff worth patching up
+  return n;
+}
 function doctorState(G){
   const d=G.doctor;
   if(!d.alive)return "dead";
-  if(d.disposition<0)return "hostile";
+  const n=doctorStanding(G);
+  if(n<0)return "hostile";
   if(!d.sober)return "drunk";
-  return d.disposition>0?"civil":"neutral";
+  return n>0?"civil":"neutral";
 }
+/* Being shot is not a line of bookkeeping either: the street goes out, and the
+ * next thing the sheriff knows is whether anybody came. */
 function takeHit(G,why){
-  G.wounds++;
+  G.wounds++; G.blackout=true;
   const state=doctorState(G);
   if(state==="dead"){
     G.alive=false;
@@ -2859,7 +2892,21 @@ function town(now,armed){
   }
   propAt(here.prop);
 }
+/* Being shot puts the street out. It comes back the way a man comes back: all
+ * at once to nothing, then slowly to a dim version of where he was lying, and
+ * it stays dim until he is on his feet and walking on. */
+let blackAt=-1e9, blackOn=false;
+const BLACK_OUT=420, BLACK_BACK=1500;
+function blackLevel(now){
+  if(!G.blackout)return 0;
+  const t=now-blackAt;
+  if(t<BLACK_OUT)return 1;
+  const u=Math.min(1,(t-BLACK_OUT)/BLACK_BACK);
+  return 1-u*0.58;                       // never all the way back while he is down
+}
 function drawScene(now){
+  if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
+  if(!G.blackout)blackOn=false;
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
@@ -2892,6 +2939,9 @@ function drawScene(now){
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
+    ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  const black=blackLevel(now);                             // he has been shot
+  if(black>0){ctx.fillStyle="rgba(0,0,0,"+black.toFixed(3)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
   if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
@@ -3037,15 +3087,20 @@ function paint(){
     hud(); fitText(); return;
   }
   const him=who(G);
-  lineEls[0].textContent=b?b.npc
+  // A caller who had a gun pointed at him before he was answered has stopped
+  // talking, and his four replies are not on offer while it is out. Putting it
+  // up hands him back the conversation where he left it.
+  const balked=G.balked&&G.mode==="gun";
+  lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
     :"Nobody is saying anything. The street has gone quiet.";
-  const replies=b?b.replies:[];
+  const replies=(b&&!balked)?b.replies:[];
   for(let i=0;i<4;i++){
     // the cursor stays visible with the gun out, so holstering does not lose your place
     setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
-      (live&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
+      (live&&!balked&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
   }
   hud(); fitText();
 }

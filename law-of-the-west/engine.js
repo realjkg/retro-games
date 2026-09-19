@@ -45,6 +45,7 @@ function rawDay(opts){
     doctor:{met:false,disposition:0,sober:true,alive:true},
     met:[], flags:[], log:[], results:[],
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
+    spoke:false, balked:false, blackout:false,
     duel:null, tell:null, outcome:null, ending:null, interlude:null, over:null
   };
 }
@@ -65,6 +66,7 @@ function beginEncounter(G){
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
+  G.spoke=false; G.balked=false; G.blackout=false;
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
@@ -80,8 +82,10 @@ function openDialogue(G){
  * or is answered with a hand rather than a sentence. */
 function say(G,index){
   if(G.phase!=="dialogue")return null;
+  if(G.balked&&G.mode==="gun")return null;   // he is not talking to a gun
   const n=nodeOf(G); if(!n)return null;
   const reply=n.replies[index]; if(!reply)return null;
+  G.spoke=true;
   if(reply.action)return act(G,reply.action);
   if(reply.end)return terminal(G,reply.end);
   if(reply.next){
@@ -125,6 +129,11 @@ function terminal(G,id){
 function drawGun(G,nowMs){
   if(G.mode==="gun")return G.mode;
   G.mode="gun"; G.aim={x:0.5,y:0.5};
+  // A man who has a gun pointed at him before he has been answered stops
+  // talking, and does not start again while it is out. Keeping it on him is
+  // still the sheriff's business: the reflex below decides what he does about
+  // it, which is answer it if he is armed and leave if he is not.
+  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,RULES.REFLEX_MIN,RULES.REFLEX_MAX))};
   return G.mode;
@@ -246,15 +255,29 @@ function theirReply(G){
  *   civil       alive, sober and well disposed — patched up, and the day goes on
  *   neutral     alive and sober but owing nothing: one wound, no more
  * Not having met him yet counts as neutral; he is in the town either way. */
+/* Whether the doctor comes, and how willingly, is not only about the doctor.
+ * A sheriff who has shot men who never drew, or put the whole street's back up,
+ * is a sheriff Gold Gulch is slower to send for - so the town's standing moves
+ * his disposition a step either way before it is read. */
+function doctorStanding(G){
+  let n=G.doctor.disposition;
+  n-=G.innocentsKilled;                     // the town saw all of them
+  if(G.flags.filter(f=>f==="offended").length>=2)n-=1;
+  if(G.authority>=3)n+=1;                   // a sheriff worth patching up
+  return n;
+}
 function doctorState(G){
   const d=G.doctor;
   if(!d.alive)return "dead";
-  if(d.disposition<0)return "hostile";
+  const n=doctorStanding(G);
+  if(n<0)return "hostile";
   if(!d.sober)return "drunk";
-  return d.disposition>0?"civil":"neutral";
+  return n>0?"civil":"neutral";
 }
+/* Being shot is not a line of bookkeeping either: the street goes out, and the
+ * next thing the sheriff knows is whether anybody came. */
 function takeHit(G,why){
-  G.wounds++;
+  G.wounds++; G.blackout=true;
   const state=doctorState(G);
   if(state==="dead"){
     G.alive=false;

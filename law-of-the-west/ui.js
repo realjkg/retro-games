@@ -1050,7 +1050,21 @@ function town(now,armed){
   }
   propAt(here.prop);
 }
+/* Being shot puts the street out. It comes back the way a man comes back: all
+ * at once to nothing, then slowly to a dim version of where he was lying, and
+ * it stays dim until he is on his feet and walking on. */
+let blackAt=-1e9, blackOn=false;
+const BLACK_OUT=420, BLACK_BACK=1500;
+function blackLevel(now){
+  if(!G.blackout)return 0;
+  const t=now-blackAt;
+  if(t<BLACK_OUT)return 1;
+  const u=Math.min(1,(t-BLACK_OUT)/BLACK_BACK);
+  return 1-u*0.58;                       // never all the way back while he is down
+}
 function drawScene(now){
+  if(G.blackout&&!blackOn){blackOn=true;blackAt=now;}
+  if(!G.blackout)blackOn=false;
   const g=sceneGeom();
   ctx.fillStyle="#000"; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.save(); ctx.translate(g.ox,g.oy); ctx.scale(g.sx,g.sy);
@@ -1083,6 +1097,9 @@ function drawScene(now){
   ownGun(G.mode==="gun");   // his own body is the near foreground now
   if(G.mode==="gun"&&build.rows>=6)crosshair();
   if(flash>0){ctx.fillStyle="rgba(255,255,255,"+Math.min(1,flash*6)+")";
+    ctx.fillRect(0,0,SCENE.w,SCENE.h);}
+  const black=blackLevel(now);                             // he has been shot
+  if(black>0){ctx.fillStyle="rgba(0,0,0,"+black.toFixed(3)+")";
     ctx.fillRect(0,0,SCENE.w,SCENE.h);}
   if(build.rows<10){                                       // the block-load cadence
     ctx.fillStyle="#000";
@@ -1228,15 +1245,20 @@ function paint(){
     hud(); fitText(); return;
   }
   const him=who(G);
-  lineEls[0].textContent=b?b.npc
+  // A caller who had a gun pointed at him before he was answered has stopped
+  // talking, and his four replies are not on offer while it is out. Putting it
+  // up hands him back the conversation where he left it.
+  const balked=G.balked&&G.mode==="gun";
+  lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
+    :b?b.npc
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
     :"Nobody is saying anything. The street has gone quiet.";
-  const replies=b?b.replies:[];
+  const replies=(b&&!balked)?b.replies:[];
   for(let i=0;i<4;i++){
     // the cursor stays visible with the gun out, so holstering does not lose your place
     setChoice(lineEls[i+1],i+1,replies[i]?replies[i].text:"",
-      (live&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
+      (live&&!balked&&cursor===i?"sel":"")+(G.mode==="gun"?" dim":""));
   }
   hud(); fitText();
 }

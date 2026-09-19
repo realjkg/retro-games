@@ -44,6 +44,7 @@ const CAST=[
  /* 1 ------------------------------------------------------------- */
  {id:"rose", name:"Miss Rose", place:"SALOON", theme:"th_rose",
   armed:false, arrive:["piano","bottle"],
+  balk:"She stops with her hand on the bottle and does not pour. \u201cPut that away or take it outside, Sheriff. I can wait all afternoon.\u201d",
   rounds:{
    opening:{npc:"Well. The badge came in for a drink at last. Sit where I can see you, Sheriff — it's the only view worth having.",
     replies:[
@@ -94,6 +95,7 @@ const CAST=[
  /* 2 ------------------------------------------------------------- */
  {id:"kid", name:"The Mexicali Kid", place:"STREET", theme:"th_kid",
   armed:true, arrive:["hooves","spurs"],
+  balk:"He goes very still, and his hands go nowhere at all. Whatever he rode in to say, he is not saying it down a barrel.",
   rounds:{
    opening:{npc:"They're offering four hundred dollars for me two counties over, Sheriff. I came to see what you'd offer.",
     replies:[
@@ -136,6 +138,7 @@ const CAST=[
  /* 3 ------------------------------------------------------------- */
  {id:"doctor", name:"The Doctor", place:"DOCTOR", theme:"th_doctor",
   armed:false, arrive:["crowd"], doctor:true, roots:["opening","opening_drunk"],
+  balk:"He folds his arms. \u201cI have sewn up four men who opened a conversation that way. Put it up and I will talk to you.\u201d",
   rounds:{
    /* Which of the two he opens with is settled at dawn, not by the player. */
    opening_drunk:{npc:"Sheriff. I have had a night of it and a bottle after the night, and I am ashamed of neither. Ask me what you like, but ask it slowly.",
@@ -189,6 +192,7 @@ const CAST=[
  /* 4 ------------------------------------------------------------- */
  {id:"willie", name:"Little Willy", place:"STREET", theme:"th_willie",
   armed:false, arrive:["crowd"],
+  balk:"The boy's mouth shuts and stays shut. He is looking at the gun and at nothing else in the street.",
   rounds:{
    opening:{npc:"Sheriff! I ain't supposed to be up this end of town and I ain't supposed to tell you neither, so you can't say it was me that said it.",
     replies:[
@@ -245,6 +249,7 @@ const CAST=[
  /* 5 ------------------------------------------------------------- */
  {id:"april", name:"Miss April", place:"SCHOOL", theme:"th_april",
   armed:false, arrive:["crowd"],
+  balk:"She steps back into the schoolhouse doorway. \u201cNot one word, Sheriff, until that is back where it belongs.\u201d",
   rounds:{
    opening:{npc:"Sheriff. The children have been at the window all morning saying the new sheriff would be shot before dinner. I told them that was not arithmetic.",
     replies:[
@@ -295,6 +300,7 @@ const CAST=[
  /* 6 ------------------------------------------------------------- */
  {id:"deputy", name:"The Deputy", place:"JAIL", theme:"th_deputy",
   armed:true, arrive:["hooves"],
+  balk:"He puts both hands up about level with his ears. \u201cThat is a fine way to greet a man on your own side. I'll wait.\u201d",
   rounds:{
    opening:{npc:"Sheriff! There's men at the bank. There was. I run the whole way from the corner and now I ain't certain what I saw, but I'm certain I saw it.",
     replies:[
@@ -351,6 +357,7 @@ const CAST=[
  /* 7 ------------------------------------------------------------- */
  {id:"belle", name:"Belle", place:"CORRAL", theme:"th_belle",
   armed:true, arrive:["hooves"],
+  balk:"She looks at the gun, and then at you, and says nothing. Whatever she came about, it will keep until you put it up.",
   rounds:{
    opening:{npc:"You'll be wanting the two steers with the Bar-K burn on them. They're in my corral and I'll not pretend they walked in there by themselves.",
     replies:[
@@ -401,6 +408,9 @@ const CAST=[
         flags:["depart"], authority:1}}}
 ];
 const written=e=>!!(e.rounds&&e.rounds.opening);
+/* What a caller does when the gun comes out before he has been answered: he
+ * stops talking, and does not start again while it is out. */
+const BALK_LINE="He is looking at the gun in your hand and not at you, and he has stopped talking.";
 
 /* ============ the pixel grid ============
  * A 320x200 logical screen, presented in 4:3 the way a C64 was. The sheriff

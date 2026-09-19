@@ -998,3 +998,25 @@ test('9v. every caller walks in rather than appearing',
   assert.ok(log.indexOf('door')<log.indexOf('step'),'he walked before the door went');
   assert.deepEqual(p.errors,[]);
 });
+
+test('9w. the gun in his face takes his four replies away until it is put up',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  const lines=()=>[0,1,2,3,4].map(i=>p.el('line'+i).textContent);
+  const before=lines();
+  assert.ok(before[0].length>10,'no caller line to begin with');
+  assert.ok(before.slice(1).filter(Boolean).length>=4,'the four replies were not up');
+  // up draws the gun, the way the joystick did
+  p.press('ArrowUp');
+  assert.equal(p.G().mode,'gun','up did not draw');
+  assert.equal(p.G().balked,true,'he carried on talking down a barrel');
+  const balked=lines();
+  assert.equal(balked[0],p.ev('CAST[G.encounter].balk'),'he is not saying his piece about it');
+  assert.deepEqual(balked.slice(1).filter(Boolean),[],'his replies are still on offer');
+  // and putting it up hands the conversation back where it was
+  p.press('Escape');
+  assert.equal(p.G().mode,'talk');
+  assert.deepEqual(lines(),before,'holstering did not give the conversation back');
+  assert.deepEqual(p.errors,[]);
+});

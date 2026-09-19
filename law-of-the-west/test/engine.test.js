@@ -467,6 +467,81 @@ test('16. all three robberies happen, in their place, and only once each', ()=>{
       'nobody can warn about the '+i.job+' job before it happens');
 });
 
+/* The three mechanics the 1985 description names that this build did not have:
+ * a gun in a man's face before he has been answered, the blackout when the
+ * sheriff is the one hit, and a doctor whose willingness is not only about the
+ * doctor. */
+test('17. a gun drawn before he is answered stops him talking until it is up', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:17});
+    beginEncounter(G); openDialogue(G);
+    r.opening=G.phase;
+    drawGun(G,0);
+    r.balked=G.balked;
+    r.saidAnyway=say(G,0);                 // he is not talking to a gun
+    r.stillOpening=G.node;
+    holster(G);
+    r.afterHolster=G.phase;
+    r.saysNow=!!say(G,0);                  // and the conversation is handed back
+    // but a gun drawn after he has been answered is not the same thing
+    const H=newDay({seed:18});
+    beginEncounter(H); openDialogue(H); say(H,0);
+    drawGun(H,0);
+    r.lateDraw=H.balked;
+    // every caller has words for it, and none of them runs long
+    r.lines=CAST.map(e=>e.balk?e.balk.length:0);
+    r.fallback=typeof BALK_LINE;
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.opening,'dialogue');
+  assert.equal(out.balked,true,'the gun came out first and he carried on regardless');
+  assert.equal(out.saidAnyway,null,'he answered a man pointing a gun at him');
+  assert.equal(out.stillOpening,'opening','the conversation moved on without him');
+  assert.equal(out.afterHolster,'dialogue');
+  assert.equal(out.saysNow,true,'putting it up did not hand the conversation back');
+  assert.equal(out.lateDraw,false,'drawing after he was answered counts as balking him');
+  assert.equal(out.fallback,'string','no line for a caller who has none of his own');
+  for(const n of out.lines)assert.ok(n>20&&n<=150,'a balk line is '+n+' characters');
+});
+
+test('18. being shot blacks the street out, and the doctor reads the whole town', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={};
+    const G=newDay({seed:19}); G.doctor.sober=true; G.doctor.disposition=1;
+    beginEncounter(G);
+    r.before=G.blackout;
+    takeHit(G,"shot");
+    r.after=G.blackout;
+    r.outcome=G.outcome;
+    beginEncounter(G);                     // and it lifts when he walks on
+    r.next=G.blackout;
+    // a sheriff who shoots men who never drew is one the town is slower to send for
+    const K=newDay({seed:20}); K.doctor.sober=true; K.doctor.disposition=1;
+    r.civil=doctorState(K);
+    K.innocentsKilled=2;
+    r.afterKillings=doctorState(K);
+    // and one the street stands behind is patched up
+    const P=newDay({seed:21}); P.doctor.sober=true; P.doctor.disposition=0;
+    r.neutral=doctorState(P);
+    P.authority=3;
+    r.afterStanding=doctorState(P);
+    return JSON.stringify(r);
+  })()`));
+  assert.equal(out.before,false);
+  assert.equal(out.after,true,'he was shot and the street stayed lit');
+  assert.equal(out.outcome,'doctor_saved');
+  assert.equal(out.next,false,'the blackout never lifted');
+  assert.equal(out.civil,'civil');
+  assert.equal(out.afterKillings,'hostile',
+    'the doctor does not care how many men the sheriff shot who never drew');
+  assert.equal(out.neutral,'neutral');
+  assert.equal(out.afterStanding,'civil',
+    'the town standing behind the sheriff counts for nothing with the doctor');
+});
+
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));

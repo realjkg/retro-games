@@ -68,6 +68,24 @@ Doctor, Willy and the Deputy. Warned, the sheriff is standing in
 front of it with his gun still in the leather, and it opens as an ambush;
 unwarned, he reads about it afterwards and it counts against him.
 
+**Drawing.** The gun comes out on **up** — the arrow, `W`, keypad `8`, the pad's
+up, a swipe — which is how the joystick did it, and the crosshair then goes
+where up, down, left and right take it. `HOL`, `Escape` or walking the sights
+off the bottom of the street puts it away.
+
+**A gun in his face.** A caller who has a gun pointed at him **before he has
+been answered** stops talking, says so in his own words, and takes his four
+replies off the table until it is put up. Holstering hands the conversation back
+where he left it; drawing after he has been answered does not balk him, because
+by then he has said his piece. Keeping it on him is a separate matter, and the
+one the reflex clock settles: an armed man answers the gun, an unarmed one walks
+away from it.
+
+**Blacking out.** A ball that lands on the sheriff puts the street out — all the
+way to black, then slowly back to a dim version of where he is lying — and it
+stays dim until he is on his feet and walking on. What he wakes up to is the
+doctor, or nobody.
+
 **The doctor.** He is the difference between a wound and a grave, and he is in
 one of five states by the time he is needed: dead (the sheriff can shoot him,
 and there is no other one), hostile, drunk, neutral, or civil. Only a civil,
@@ -75,7 +93,14 @@ sober doctor patches the sheriff up and lets the day go on; drunk and neutral
 each carry one wound and no more; hostile and dead make the first ball the last
 thing that happens. Whether he has been drinking is settled before the day
 starts — his scene opens differently when he has — and coffee, poured and stood
-over, is what does something about it.
+over, is what does something about it. He does not read the sheriff alone,
+either: men shot who never drew count against him, a street put up with twice
+counts against him, and a sheriff the town stands behind is one it is quicker to
+send for.
+
+**The goal is to be alive at sundown**, and nothing else is required of you. You
+can gun down every caller without hearing a word from any of them; the day will
+end, and the reckoning will say so.
 
 **Sundown** reports the original seven dimensions: authority maintained, crooks
 captured, romance, bad guys shot, wounds survived, innocents killed, and crimes
@@ -307,15 +332,22 @@ dialogue, audiovisual assets, or musical compositions.
 ## What is faithful, and what is not
 
 Not an emulator, a port, or a copy of the original's content. The structure is
-the 1985 design's: a day of callers met one at a time, one caller line and four replies
-with up to three exchanges, a gun that interrupts any of it, surrender and
-departure and delayed draws and ambushes, robberies you were warned about or
-were not, the doctor deciding whether a bullet is survivable, the 320×200
-holster-level composition, and the seven dimensions at sundown.
+the 1985 design's, taken from its published description: eight characters — the
+sheriff you play and seven who call on him; a day of callers met one at a time
+on one street; one caller line and four replies with up to three exchanges, the
+interaction style the original introduced; a gun drawn on up that puts a
+crosshair on the screen and interrupts anything; a caller who will not talk to a
+gun drawn before he has been answered; surrender and departure and delayed draws
+and ambushes; robberies you were warned about or were not; a blackout when the
+sheriff is hit and a doctor who decides whether that was survivable; surviving
+to sundown as the only requirement; the 320×200 holster-level composition; and
+the seven dimensions at sundown.
 
 The dialogue, the figures, the street, the melodies and the numbers are new.
-Nothing from the original's code, artwork, script or sound is reused, and none
-of it was taken from a walkthrough, a longplay, a wiki or a ROM. Modern
+Nothing from the original's code, artwork, script or sound is reused. The
+characters, the mechanics and the framing above are facts about how the game
+worked; no line, picture or bar of it has been copied, and none of its writing
+was taken from a walkthrough, a longplay or a ROM. Modern
 conveniences — touch controls, responsive placement, fullscreen, mute, keyboard
 support and the test suite — are kept deliberately; they do not touch the
 composition, the dialogue grammar, the encounter behaviour or the scoring.
