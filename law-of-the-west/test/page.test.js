@@ -346,7 +346,11 @@ test('8l. a robbery is a screen the sheriff walks into, and it plays out', {skip
   const at=p.ev('INTERLUDES').find(i=>i.job==='stage').after;
   // stand at the caller before the stage job, with the tip in hand, and resolve
   p.ev(`G.tips.stage=true;G.encounter=${at-1};beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
-  p.tap('[data-cmd="fire"]');                       // walk on down the street
+  // "walk on" now sends him walking; a second press does not wait for him
+  p.tap('[data-cmd="fire"]');
+  assert.ok(p.ev('leaving'),'he vanished instead of walking off');
+  p.tap('[data-cmd="fire"]');                       // and on down the street
+  assert.equal(p.ev('leaving'),null,'the exit outlived the scene');
   assert.equal(p.G().phase,'interlude','the job never came up');
   assert.equal(p.G().interlude,'stage');
   assert.match(p.el('line0').textContent,/coach|ford/i,'no word of what is happening');
@@ -360,7 +364,8 @@ test('8l. a robbery is a screen the sheriff walks into, and it plays out', {skip
   q.tap('[data-cmd="fire"]');
   q.ev(`G.tips.bank=false;G.encounter=${p.ev('INTERLUDES').find(i=>i.job==='bank').after-1};`+
        `beginEncounter(G);openDialogue(G);resolve(G,"departed");paint();`);
-  q.tap('[data-cmd="fire"]'); q.tap('[data-cmd="fire"]');
+  q.tap('[data-cmd="fire"]'); q.tap('[data-cmd="fire"]');   // he goes, then we do
+  q.tap('[data-cmd="fire"]');
   assert.equal(q.G().outcome,'job_missed');
   assert.equal(q.G().crimesMissed,1);
   assert.deepEqual(p.errors,[]); assert.deepEqual(q.errors,[]);
@@ -1007,10 +1012,35 @@ test('9v. every caller walks in rather than appearing',
   assert.ok(mid&&mid.dx<near.dx,'he did not move');
   assert.ok(end&&end.dx<mid.dx,'he did not arrive');
   assert.equal(after,null,'he never stopped walking');
-  // and the boot changes over, which is what a stride is
-  const boots=[0,200,400,600,800,1000,1200].map(d=>p.ev(`walkNow(${at+d})`))
-    .filter(Boolean).map(w=>w.boot);
-  assert.ok(new Set(boots).size===2,'both boots did the same thing: '+boots.join(','));
+  // and he takes strides: two legs doing opposite things, which shows up as the
+  // gap between his boots opening and closing. Sliding the whole lower half
+  // sideways - which is what he used to do - holds that width constant.
+  const fig=p.ev('figureOf(who(G))');
+  const legs=p.ev('legsOf(figureOf(who(G)))');
+  assert.ok(!legs.skirt&&legs.top>0&&legs.mid>0,'his legs were never found in the drawing');
+  const SPRY=p.ev('SPRY'), FIGCH=p.ev('FIGCH');
+  const spread=d=>{
+    p.painted.length=0;
+    p.ev(`reactAt=-1e9;visitor(who(G),"idle",${at+d});`);
+    const r=p.painted.filter(x=>x.y>=SPRY+legs.top*FIGCH&&x.w<40);
+    if(!r.length)return null;
+    return Math.round(Math.max(...r.map(x=>x.x+x.w))-Math.min(...r.map(x=>x.x)));
+  };
+  const wide=[0,120,240,360,480,600,720,840,960,1080,1200].map(spread).filter(v=>v!=null);
+  assert.ok(new Set(wide).size>=3,
+    'his boots kept the same distance apart the whole way in: '+wide.join(','));
+  // every figure either has two legs to find - Little Willy included, who is a
+  // child drawn small inside the same grid - or wears a skirt to the ground
+  const skirts=[];
+  for(const k of Object.keys(p.ev('FIGURES'))){
+    const l=p.ev(`legsOf(FIGURES[${JSON.stringify(k)}])`);
+    if(l.skirt){skirts.push(k);continue;}
+    assert.ok(l.top>0&&l.mid>0,k+' has neither legs nor a skirt');
+    assert.ok(l.top>Math.round(fig.rows.length*0.6),
+      k+"'s legs were found at row "+l.top+', which is above his waist');
+  }
+  assert.deepEqual(skirts.sort(),['april','rose'],
+    'the skirts are '+skirts.join(',')+', which is not who wears one');
   // a boot goes down on every stride of it
   const log=p.log();
   for(let t=at;t<=at+1800;t+=40)p.frame(t);
@@ -1112,5 +1142,31 @@ test('9y. the caller moves the way a person does, not the way a block does',
     if(d.some(Boolean)&&!d.every(Boolean))apart++;
   }
   assert.ok(apart>=4,'his bands never moved independently ('+apart+' frames)');
+  assert.deepEqual(p.errors,[]);
+});
+
+test('9z. a caller who is done walks off before the street is anyone else\'s',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  p.ev('resolve(G,"departed");paint();');
+  const was=p.ev('G.encounter');
+  p.tap('[data-cmd="fire"]');                        // walk on
+  assert.ok(p.ev('leaving'),'he was gone between one frame and the next');
+  assert.equal(p.G().encounter,was,'the next man had the street before he left');
+  // he travels, and he is still going a beat later
+  const at=p.ev('leaving.at');
+  const dx=[40,400,800,1200].map(d=>p.ev(`leaveNow(${at+d}).dx`));
+  for(let i=1;i<dx.length;i++)
+    assert.ok(Math.abs(dx[i])>Math.abs(dx[i-1]),'he stopped on the way out: '+dx.join(','));
+  assert.ok(Math.abs(dx[3])>60,'he only got '+dx[3]+' pixels away');
+  // and the day moves on by itself when he is gone, with nobody touching it
+  for(let t=at;t<=at+p.ev('EXIT_MS')+40;t+=16)p.frame(t);
+  assert.equal(p.ev('leaving'),null,'he is still walking');
+  assert.equal(p.G().encounter,was+1,'the day did not move on after him');
+  // an arrest takes him the other way, and a dead man does not walk at all
+  assert.ok(p.ev('exitDir("departed")')>0);
+  assert.ok(p.ev('exitDir("surrendered")')<0,'a man under arrest wanders off alone');
+  assert.equal(p.ev('exitDir("killed_him")'),0,'a dead man walked away');
   assert.deepEqual(p.errors,[]);
 });

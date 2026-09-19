@@ -2539,6 +2539,40 @@ function drawFigure(rows,x0,y0,look,cw,ch){
  * one row for all of them left five of the twelve with no blink, no brow and no
  * mouth, and split three of them through the jaw. It is read off the drawing
  * instead, once per figure. */
+/* Where a figure's two legs part company, and on which column. A walk is two
+ * legs doing opposite things; sliding the whole lower half sideways is not a
+ * walk, it is a drawer opening. Read off the drawing rather than assumed,
+ * because Little Willy is a child built small inside the same grid and his
+ * legs are nowhere near where everyone else's are. Found from the bottom up:
+ * the lowest row a figure occupies is boots, and the gap between them is the
+ * only interior gap there is that low. Walking up while that gap holds finds
+ * where the legs join. */
+const LEGSOF={};
+function legsOf(fig){
+  const rows=fig.rows, key=rows.join("|");
+  if(LEGSOF[key])return LEGSOF[key];
+  let last=-1;
+  for(let r=0;r<rows.length;r++)if(/[^.]/.test(rows[r]||""))last=r;
+  const gap=s=>{const m=/[^.](\.+)[^.]/.exec(s||"");
+    return m?{c:m.index+1,w:m[1].length}:null;};
+  const g0=last>=0?gap(rows[last]):null;
+  // Two of them wear a skirt to the ground: a solid hem and one block of boot,
+  // with no two legs in the drawing to move against each other. A skirt does
+  // not stride, it swings, so there is nothing here to find and the walk is
+  // told about it rather than guessing.
+  let out={top:-1,mid:-1,skirt:true};
+  if(g0){
+    const mid=g0.c+g0.w/2;
+    let top=last;
+    for(let r=last-1;r>=0;r--){
+      const g=gap(rows[r]);
+      if(!g||Math.abs(g.c+g.w/2-mid)>2)break;
+      top=r;
+    }
+    out={top:top,mid:Math.round(mid),skirt:false};
+  }
+  return LEGSOF[key]=out;
+}
 const HEADOF={};
 function headOf(fig){
   const key=fig.rows.join("|");
@@ -2635,7 +2669,9 @@ function visitor(enc,pose,now){
     else if(reactKind==="nod"){rdy=Math.round(2.4*e);}
     else rdx=Math.round(1.2*e)*GEST;
   }
-  const walk=walkNow(now||0);
+  const walk=walkNow(now||0), leave=leaveNow(now||0);
+  // one number for "how far through a walk he is", whichever way he is going
+  const gait=walk?walk.t:(leave?leave.t:null);
   const lean=mood.lean*GEST, rise=mood.rise*2;
   const cut=headOf(fig);
   const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
@@ -2664,10 +2700,16 @@ function visitor(enc,pose,now){
   const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
   // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
   // he leans into it and comes upright as he arrives
-  const wob=walk?(1-Math.abs(Math.cos(walk.t*Math.PI*STRIDE))):0;
-  const wbob=walk?-Math.round(wob*1.6):0;
-  const wlean=walk?Math.round((1-walk.t)*2)*GEST:0;
-  const legX=(walk?walk.dx:0);
+  const wob=gait!=null?(1-Math.abs(Math.cos(gait*Math.PI*STRIDE))):0;
+  const wbob=gait!=null?-Math.round(wob*1.6):0;
+  const wlean=walk?Math.round((1-walk.t)*2)*GEST
+             :leave?Math.round(leave.t*2)*GEST*leave.dir:0;
+  const legX=(walk?walk.dx:0)+(leave?leave.dx:0);
+  // and the legs themselves: one forward while the other is back, the forward
+  // one lifted off the dirt. STRIDE boots go down over the walk, so a whole
+  // gait cycle - left and right - is two of them.
+  const sw=gait==null?0:Math.sin(gait*Math.PI*STRIDE);
+  const stepX=Math.round(sw*4), lift=Math.round(Math.abs(sw)*2);
   const torsoX=legX+lean+wlean+shoX;
   const headDX=legX+lean+wlean+headX;
   const bdy=breath+rise+wbob+settle;
@@ -2675,9 +2717,18 @@ function visitor(enc,pose,now){
   ctx.fillRect(SPRX+Math.round(SPR.w*0.24)+legX+Math.round(hipX*0.5),
                SPRY+(lowest+1)*FIGCH,Math.round(SPR.w*0.52),2*FIGCH);
   const band=(a,b)=>rows.map((r,i)=>(i>=a&&i<b)?r:"");
-  // legs: they carry the weight and, walking, the stride
-  drawFigure(band(hips,rows.length),
-    SPRX+legX+hipX+(walk?walk.boot*GEST:0),SPRY+(walk?wbob:0),look);
+  // legs: they carry the weight and, walking, the stride - and walking, they
+  // are two legs, drawn apart and moved against each other
+  const legs=legsOf(fig), lx=SPRX+legX+hipX, ly=SPRY+(gait!=null?wbob:0);
+  if(gait!=null&&legs.skirt){
+    drawFigure(band(hips,rows.length),lx+Math.round(stepX*0.5),ly,look);
+  } else if(gait!=null&&legs.top>hips){
+    const col=(c0,c1)=>rows.map((r,i)=>(i>=legs.top)
+      ? r.replace(/./g,(ch,k)=>(k>=c0&&k<c1)?ch:".") : "");
+    drawFigure(band(hips,legs.top),lx,ly,look);                 // the pelvis
+    drawFigure(col(0,legs.mid),lx-stepX,ly-(sw<0?lift:0),look);
+    drawFigure(col(legs.mid,1e9),lx+stepX,ly-(sw>0?lift:0),look);
+  } else drawFigure(band(hips,rows.length),lx,ly,look);
   // torso: comes back the other way, and breathes
   drawFigure(band(cut.head,hips),SPRX+torsoX,SPRY+bdy,look);
   // The shoulders come up, the head stays where it was: that is what hunching
@@ -3907,7 +3958,7 @@ function firstGesture(){
 }
 /* Back to the title from the sundown table: the music starts over with it. */
 function toTitle(){
-  newSeq(); SND.stopAll(); themePlayed=false;
+  newSeq(); SND.stopAll(); themePlayed=false; leaving=null;
   G=newDay({}); G.phase="intro"; cursor=0; said=""; react="";
   build={at:performance.now(),rows:0};
   themePlayed=true; cueAtMs(0,titleLoop);
@@ -3917,7 +3968,7 @@ function startDay(){
   SND.unlock(); started=true; enterGameModeIfWanted();
   // whatever was sounding — the title, the sundown, the last man's theme — is
   // over, and nothing it scheduled is still owed
-  newSeq(); SND.stopAll();
+  newSeq(); SND.stopAll(); leaving=null;
   SND.dawn();
   G=newDay({}); cursor=0; said=""; react="";
   beginEncounter(G); openDialogue(G);
@@ -3952,14 +4003,29 @@ function newScene(after){
   const theme=e&&e.theme;
   if(theme)cueAtMs(t0+WALK_MS*0.45,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
 }
-/* Where he is on that walk, and which boot is forward. */
+/* Where he is on that walk. */
 function walkNow(now){
   const t=(now-walkAt)/WALK_MS;
   if(t<0||t>=1)return null;
   const e=1-Math.pow(1-t,1.7);                      // slowing as he arrives
-  return {t:t, dx:Math.round(WALK_FROM*(1-e)),
-          bob:(Math.floor(t*STRIDE*2)%2)?-1:0,
-          boot:(Math.floor(t*STRIDE)%2)?1:-1};
+  return {t:t, dx:Math.round(WALK_FROM*(1-e))};
+}
+/* And the other half of it, which was missing: nobody left either. The scene
+ * cut and the next man was simply standing there, so eleven encounters ran
+ * together into one. A man who is done walks off the way the outcome sends
+ * him - back up the street, or ahead of the sheriff to the jail - and the day
+ * moves on when he is gone. A killed man does not walk anywhere, which is what
+ * the zero is for. */
+const EXIT_MS=1400, EXIT_TO=130;
+let leaving=null;                                   // {at, dir}
+const exitDir=o=>(o==="killed_him"||o==="innocent_killed")?0
+  :(o==="surrendered"||o==="arrest")?-1:1;
+function leaveNow(now){
+  if(!leaving)return null;
+  const t=(now-leaving.at)/EXIT_MS;
+  if(t<0)return null;
+  const u=Math.min(1,t), e=Math.pow(u,1.5);         // gathering pace as he goes
+  return {t:u, dx:Math.round(EXIT_TO*e)*leaving.dir, dir:leaving.dir};
 }
 /* A navigation click marks a selection changing. Walking into a wall is not a
  * selection changing, and neither is a reply that is not there. */
@@ -4082,7 +4148,18 @@ function endSound(){
   cueAtMs(700,()=>{(G.over&&G.over.score>=400)?SND.respect():SND.disgrace();});
 }
 function advance(){
-  if(G.phase==="summary")return;
+  if(G.phase==="summary"){leaving=null;return;}
+  const dir=leaving?0:exitDir(G.outcome);
+  if(dir&&G.phase==="resolve"&&who(G)){
+    // he walks off before the street is anyone else's. Pressing again while
+    // he goes skips it, the way a player who has read enough should be able to.
+    newSeq(); SND.cut();
+    leaving={at:performance.now(),dir:dir};
+    for(let i=0;i<STRIDE;i++)
+      cueAtMs(Math.round((i+0.5)*EXIT_MS/STRIDE),()=>SND.step());
+    paint(); return;
+  }
+  leaving=null;
   // the last man's footsteps, bell and reload are no longer owed to anyone
   newSeq(); SND.cut();
   const r=nextEncounter(G);
@@ -4306,6 +4383,7 @@ function frame(now){
       build.at+=gap;
       if(reloadAt>0)reloadAt+=gap;
       kickAt+=gap; blackAt+=gap; walkAt+=gap; reactAt+=gap; drawnAt+=gap;
+      if(leaving)leaving.at+=gap;
       if(held)held.next+=gap;
       shiftQueue(gap);
     }
@@ -4314,6 +4392,9 @@ function frame(now){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
     }
+    // when he is gone, the day moves on by itself. advance() clears `leaving`
+    // on its way through; clearing it here would only arm a second exit.
+    if(leaving&&now-leaving.at>=EXIT_MS)advance();
     if(held&&now>=held.next){held.next=now+REPEAT_RATE;runCmd(held.cmd,held.el);}
     // His arm comes up when the gun does and goes down when it is put away, and
     // dips once between the two while he puts a fresh round in the chamber -

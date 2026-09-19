@@ -54,6 +54,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     line:document.getElementById('line0').textContent,
     replies:[1,2,3,4].map(i=>document.getElementById('line'+i).textContent).filter(Boolean),
     swing:typeof swing!=='undefined'?swing:null,
+    leaving:typeof leaving!=='undefined'&&!!leaving,
     sound:document.getElementById('mute').textContent,
     sndOn:SND.on, sndState:SND.state
   }));
@@ -72,7 +73,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     drunk:e.rounds&&e.rounds.opening_drunk?e.rounds.opening_drunk.npc:null
   })));
   const met=new Set(), conclusions=[], hours=[], places=[];
-  let reachedSundown=0;
+  let reachedSundown=0, left=0;
 
   for(let branch=0; branch<4; branch++){
     if(branch)await p.reload();
@@ -155,6 +156,16 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
           conclusions.push({who:expected[s.enc].id,outcome:s.outcome,
                             line:s.line.slice(0,46),walkOn:s.walkOn});
         await tap('[data-cmd="fire"]');
+        /* Nobody should vanish. Anyone still on his feet walks off the street
+         * before the next man has it; only a man who has been shot stays. */
+        if(!s.leaving){
+          const after=await state();
+          const dead=s.outcome==='killed_him'||s.outcome==='innocent_killed';
+          if(!dead&&after.phase==='resolve'&&!after.leaving)
+            ok(false,(expected[s.enc]?expected[s.enc].id:s.interlude)+
+              ': ended on '+s.outcome+' and was simply gone');
+          if(!dead&&after.leaving)left++;
+        }
       }
       else if(s.phase==='approach'){ await tap('[data-cmd="fire"]'); }
       else { note.push('unexpected phase '+s.phase); break; }
@@ -167,6 +178,8 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
   const missing=expected.map(e=>e.id).filter(id=>!met.has(id));
   ok(missing.length===0,'never met: '+missing.join(', '));
   ok(reachedSundown>0,'not one of the four passes reached sundown alive');
+  note.push('walked off rather than vanished: '+left+' times');
+  ok(left>=8,'only '+left+' callers walked off the street');
   note.push('places in order: '+places.join(' '));
   note.push('sky at each caller: '+hours.join(' '));
   const dull=hours.filter((h,i)=>i&&h===hours[i-1]);
