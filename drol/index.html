@@ -81,8 +81,10 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
-#sound,#fs{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+#sound,#fs,#install{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
   padding:9px 12px;min-height:40px}
+#install{border-color:var(--gold);color:var(--gold)}
+#install[hidden]{display:none}
 /* Full screen: the maze and the controls, nothing else. The page goes black in
    both colour schemes so there is no doubt which mode you are in. */
 /* svh is the viewport with the browser's toolbars showing. Sizing to it means a
@@ -93,7 +95,7 @@ body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow
 body.fs .btn{background:#141c33;border-color:#2a3550;color:#e8eeff}
 body.fs .btn:active,body.fs .btn.on{background:#ffc24a;color:#101426;border-color:#ffc24a}
 body.fs .btn.lit{border-color:#ffc24a;color:#ffc24a}
-body.fs #sound,body.fs #fs{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs #sound,body.fs #fs,body.fs #install{background:#141c33;border-color:#2a3550;color:#e8eeff}
 body.fs #fs{border-color:#ffc24a;color:#ffc24a}
 body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
   padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
@@ -123,7 +125,7 @@ body.fs #audio-status{display:none}
   body.fs .sbtn{width:66px;height:38px}
   body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
     margin:0;z-index:5;font-size:10px}
-  body.fs #sound,body.fs #fs{padding:6px 10px;min-height:32px;font-size:11px}
+  body.fs #sound,body.fs #fs,body.fs #install{padding:6px 10px;min-height:32px;font-size:11px}
 }
 </style>
 </head>
@@ -146,7 +148,7 @@ body.fs #audio-status{display:none}
       </div>
     </div>
   </div>
-  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><span id="audio-status">Tap a control to enable audio</span></div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><button id="install" type="button" hidden>INSTALL</button><span id="audio-status">Tap a control to enable audio</span></div>
 </div>
 <script>
 "use strict";
@@ -183,12 +185,17 @@ const FOE={
 // Three scenes, then the whole thing again and harder - the original's only
 // structure. Each scene names its own rescue, its own pet and its own menagerie.
 const SCENES=[
+ // Each scene is one palette, the way a machine with a handful of colours would
+ // have done it: a dark ground, a stone, a lit top edge for the slabs.
  {name:"The boy and his plane", child:"boy",  toy:"plane",   pet:"lizard",
-  foes:["scorpion","scorpion","turkey"],           sky:"#101a2e", stone:"#4a5b76", trim:"#6d82a6"},
+  foes:["scorpion","scorpion","turkey"],
+  sky:"#0d1526", stone:"#46587c", trim:"#6d84b0", lit:"#a8bde0"},
  {name:"The girl and her balloon", child:"girl", toy:"balloon", pet:"gator",
-  foes:["monster","doctor","magnet","scorpion"],   sky:"#1a1130", stone:"#5b4a7a", trim:"#8b76b4"},
+  foes:["monster","doctor","magnet","scorpion"],
+  sky:"#170e2a", stone:"#57457e", trim:"#8b74bc", lit:"#c3aee8"},
  {name:"Mother, bound and gagged", child:"mom", toy:null,      pet:null,
-  foes:["serpent","blade","vacuum","monster"],     sky:"#2a1210", stone:"#7a4a36", trim:"#b4715a"}
+  foes:["serpent","blade","vacuum","monster"],
+  sky:"#240f0d", stone:"#7a4634", trim:"#b4705a", lit:"#e0a088"}
 ];
 const CHILD_NAME={boy:"the boy",girl:"the girl",mom:"their mother"};
 const PET_NAME={lizard:"the boy's lizard",gator:"the girl's alligator"};
@@ -328,7 +335,8 @@ const PATTERNS={
       bass:[52,0,52,0,57,0,57,0,59,0,59,0,52,0,0,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1]}
 };
 const MUSIC={on:true,cur:null,next:0,step:0,pat:null};
-function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}}
+function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}
+ if(typeof savePrefs==="function")savePrefs();}
 function musicNote(hz,dur,type,level,when){
  if(!SOUND.enabled||!SOUND.ctx||!SOUND.music||!MUSIC.on)return;
  const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain(),t=Math.max(when,c.currentTime);
@@ -366,6 +374,25 @@ function musicTick(){
  }
 }
 
+/* ============ what the browser remembers ============ */
+// Sound, music, the scope and the best score survive a reload. Every call is
+// wrapped: private windows and blocked site data throw here rather than return
+// nothing, and a game that will not start because of a storage setting is worse
+// than a game that forgets.
+const PREF_KEY="drol.prefs";
+function loadPrefs(){
+ try{
+  const raw=localStorage.getItem(PREF_KEY);
+  return raw?JSON.parse(raw)||{}:{};
+ }catch(e){return {};}
+}
+function savePrefs(){
+ try{
+  localStorage.setItem(PREF_KEY,JSON.stringify(
+   {sound:SOUND.enabled,music:MUSIC.on,radar:G.radar,best:G.best}));
+ }catch(e){}
+}
+
 /* ============ the game ============ */
 const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
       ov=document.getElementById("overlay"), statusEl=document.getElementById("status");
@@ -395,7 +422,7 @@ function nextScene(){
 function addScore(n){
  G.score+=n;
  while(G.score>=G.nextLife){G.nextLife+=10000;G.lives++;lifeSound();say("Extra robot!");}
- if(G.score>G.best)G.best=G.score;
+ if(G.score>G.best){G.best=G.score;savePrefs();}
 }
 
 /* ---- bodies and the maze they are in ---- */
@@ -715,7 +742,8 @@ function press(k){
   else if(k==="FIRE"||k==="VERT")chooseMenu();
   return;
  }
- if(k==="RADAR"){G.radar=!G.radar;say(G.radar?"Scope on.":"Scope off — more maze on screen.");fit(true);return;}
+ if(k==="RADAR"){G.radar=!G.radar;savePrefs();
+  say(G.radar?"Scope on.":"Scope off — more maze on screen.");fit(true);return;}
  if(G.phase!=="play")return;
  if(k==="FIRE")shoot(G.hero.face,0);
  else if(k==="VERT")shoot(0,keys.D?1:-1);
@@ -761,7 +789,7 @@ document.getElementById("sound").addEventListener("click",()=>{
  if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
  const b=document.getElementById("sound");
  b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
- audioLabel();});
+ audioLabel();savePrefs();});
 document.addEventListener("pointerdown",unlockAudio,{capture:true});
 // A held button is an input, not a text selection - refuse both gestures outright.
 const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
@@ -792,6 +820,32 @@ fsBtn.addEventListener("click",toggleFullscreen);
 // Leaving fullscreen by Esc or the system gesture drops the layout with it.
 for(const ev of ["fullscreenchange","webkitfullscreenchange"])
  document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
+
+/* ============ installing it ============ */
+// Installed, the game launches with no browser chrome at all, which is the only
+// way to stop iOS sliding its toolbars over a game in play. Chrome hands us the
+// prompt; iOS has no such event, so there the button explains Add to Home Screen.
+const installBtn=document.getElementById("install");
+let installPrompt=null;
+function showInstall(on){if(installBtn)installBtn.hidden=!on;}
+function isIOS(){
+ try{const ua=navigator.userAgent||"";
+  return /iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);}
+ catch(e){return false;}
+}
+addEventListener("beforeinstallprompt",e=>{
+ if(e&&e.preventDefault)e.preventDefault();
+ installPrompt=e;showInstall(true);
+});
+addEventListener("appinstalled",()=>{installPrompt=null;showInstall(false);savePrefs();});
+if(installBtn)installBtn.addEventListener("click",()=>{
+ if(installPrompt){installPrompt.prompt();installPrompt=null;showInstall(false);return;}
+ showMenu("Play without the browser",
+  "iOS has no full-screen switch for a web page, so the browser's bars stay over the maze. "+
+  "Installing the game removes them: Share \u25b8 Add to Home Screen, then open Drol from the icon.",
+  [{label:"Back",fn:()=>{if(G.phase==="menu")mainMenu();else{G.phase==="paused"?pauseMenu():hideOverlay();}}}]);
+});
+if(!isStandaloneApp()&&isIOS())showInstall(true);
 
 /* ============ what the buttons say ============ */
 // The pad is only as clear as its labels: FIRE points where the robot is facing,
@@ -875,7 +929,7 @@ function pauseMenu(){
    {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
    {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
    {label:"Controls",fn:()=>helpMenu(true)},
-   {label:"Scope on/off",fn:()=>{G.radar=!G.radar;fit(true);pauseMenu();}},
+   {label:"Scope on/off",fn:()=>{G.radar=!G.radar;savePrefs();fit(true);pauseMenu();}},
    {label:"Give up",fn:mainMenu}],"","menugrid");
 }
 function gameOverMenu(){
@@ -892,97 +946,173 @@ const sx=x=>px(x-G.cam.x), sy=y=>px(y-G.cam.y+viewTop());
 function drawTiles(){
  const c=ctx, P=G.L.pal, cam=G.cam;
  const x0=Math.floor(cam.x/TS)-1, x1=Math.ceil((cam.x+VW)/TS)+1;
+ const lo=Math.max(0,x0), hi=Math.min(MAPW-1,x1);
+ // The floors are drawn as slabs with a top face, a front face and a shadow under
+ // them. ANALOG's review of the 1983 original praised its "pseudo-3D" look, and
+ // this is where that came from: one row of tiles pretending to have thickness.
  for(let f=0;f<FLOORS;f++){
   const y=slabRow(f)*TS;
-  for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++){
-   if(G.L.map[x][slabRow(f)]!==SLAB)continue;               // a gap is drawn by leaving it out
-   c.fillStyle=P.stone;c.fillRect(sx(x*TS),sy(y),TS,TS);
-   c.fillStyle=P.trim;c.fillRect(sx(x*TS),sy(y),TS,2);     // the lit top edge you land on
-   c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sx(x*TS),sy(y)+TS-3,TS,3);
-   if((x+f)%2)c.fillStyle="rgba(0,0,0,.18)",c.fillRect(sx(x*TS),sy(y)+2,1,TS-5);
+  for(let x=lo;x<=hi;x++){
+   if(G.L.map[x][slabRow(f)]!==SLAB)continue;
+   const sxx=sx(x*TS), syy=sy(y);
+   c.fillStyle=P.stone;c.fillRect(sxx,syy,TS,TS);            // the front face
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,3);              // the top you land on
+   c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,1);
+   c.fillStyle="rgba(0,0,0,.45)";c.fillRect(sxx,syy+TS-3,TS,3);
+   // brickwork: a seam every other tile, offset by storey so it never lines up
+   if((x+f)%2){c.fillStyle="rgba(0,0,0,.22)";c.fillRect(sxx,syy+3,1,TS-6);}
+   // the lip either side of a hole, so a gap reads as an edge you can fall past
+   if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,1,TS-3);}
+   if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sxx+TS-1,syy,1,TS-3);}
   }
  }
- c.fillStyle=P.stone;                                        // the roof, and the two end walls
- for(let x=Math.max(0,x0);x<=Math.min(MAPW-1,x1);x++)c.fillRect(sx(x*TS),sy(0),TS,TS);
- for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
-  c.fillStyle=P.stone;c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
-  c.fillStyle=(y%2)?"rgba(255,255,255,.06)":"rgba(0,0,0,.22)";
-  c.fillRect(sx(wx*TS),sy(y*TS),TS,TS);
+ // The roof over the top storey, and the two end walls, blocked out the same way.
+ for(let x=lo;x<=hi;x++){
+  const sxx=sx(x*TS);
+  c.fillStyle=P.stone;c.fillRect(sxx,sy(0),TS,TS);
+  c.fillStyle="rgba(0,0,0,.4)";c.fillRect(sxx,sy(0)+TS-3,TS,3);
+  if(x%2){c.fillStyle="rgba(0,0,0,.18)";c.fillRect(sxx,sy(0),1,TS-3);}
  }
- for(const t of G.L.traps){                                  // the three trapdoors of scene three
-  c.fillStyle=t.sprung?(t.safe?"#6fd08a":"#d05a4a"):"#caa24a";
-  c.fillRect(sx(t.x),sy(t.y)+TS-3,t.w,3);
-  c.fillStyle="rgba(0,0,0,.5)";c.fillRect(sx(t.x)+2,sy(t.y)+TS-3,2,3);
-  c.fillRect(sx(t.x)+t.w-4,sy(t.y)+TS-3,2,3);
+ for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
+  const sxx=sx(wx*TS), syy=sy(y*TS);
+  c.fillStyle=P.stone;c.fillRect(sxx,syy,TS,TS);
+  c.fillStyle=(y%2)?"rgba(255,255,255,.07)":"rgba(0,0,0,.25)";c.fillRect(sxx,syy,TS,TS);
+  c.fillStyle=P.lit;c.fillRect(sx(wx*TS)+(wx?0:TS-1),syy,1,TS);
+ }
+ // The three trapdoors of the third scene: shut, they are boards across the hole
+ // with a hinge at either end. Sprung, the flap hangs down through it and the
+ // colour says which kind of door you picked.
+ for(const t of G.L.traps){
+  const sxx=sx(t.x), syy=sy(t.y);
+  if(!t.sprung){
+   c.fillStyle="#8a6a34";c.fillRect(sxx,syy+2,t.w,TS-2);
+   c.fillStyle="#caa24a";c.fillRect(sxx,syy+2,t.w,2);
+   c.fillStyle="rgba(0,0,0,.45)";
+   for(let i=6;i<t.w;i+=8)c.fillRect(sxx+i,syy+2,1,TS-2);    // the boards
+   c.fillStyle="#e8d0a0";c.fillRect(sxx+1,syy+4,2,3);c.fillRect(sxx+t.w-3,syy+4,2,3);  // hinges
+  }else{
+   c.fillStyle=t.safe?"#6fd08a":"#d05a4a";
+   c.fillRect(sxx+1,syy+TS-2,t.w-2,2);                       // what is left of the frame
+   c.fillStyle="#6a4a22";c.fillRect(sxx+t.w-4,syy+TS,3,8);   // the flap, hanging open
+   c.fillStyle="#8a6a34";c.fillRect(sxx+1,syy+TS,3,6);
+  }
  }
 }
+// Behind everything: a back wall with pillars in it, so the maze has a depth for
+// the floors to stand in rather than a hole where a background should be.
+function drawBackWall(){
+ const c=ctx, P=G.L.pal, cam=G.cam;
+ const x0=Math.floor(cam.x/(TS*4))-1, x1=Math.ceil((cam.x+VW)/(TS*4))+1;
+ for(let f=0;f<FLOORS;f++){
+  const top=storeyTop(f)*TS, bot=slabRow(f)*TS;
+  c.fillStyle="rgba(255,255,255,.035)";c.fillRect(0,sy(top),VW,bot-top);
+  for(let i=x0;i<=x1;i++){
+   const px0=sx(i*TS*4);
+   c.fillStyle="rgba(255,255,255,.05)";c.fillRect(px0,sy(top+3),TS,bot-top-3);   // pillar
+   c.fillStyle="rgba(0,0,0,.18)";c.fillRect(px0+TS,sy(top+3),3,bot-top-3);       // its shadow
+  }
+  c.fillStyle="rgba(0,0,0,.22)";c.fillRect(0,sy(bot-4),VW,4);                    // skirting
+ }
+}
+/* The menagerie, drawn the way the machines of 1983 drew things: a handful of
+   blocks each, two frames of animation, and one bright colour to tell it apart
+   from the floor at a glance. */
 function drawFoe(e){
- const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir;
+ const c=ctx, x=sx(e.x), y=sy(e.y), d=e.dir, beat=Math.floor(e.anim*9)%2;
  if(e.k==="scorpion"){
-  c.fillStyle="#d8a13a";c.fillRect(x+2,y+3,8,5);
-  c.fillRect(x+(d>0?9:1),y+1,3,3);                           // the sting, up and over
-  c.fillStyle="#8a5e18";for(let i=0;i<3;i++)c.fillRect(x+1+i*3,y+8,2,2);
-  c.fillStyle="#ffe6a8";c.fillRect(x+(d>0?0:8),y+4,3,2);
+  const back=d>0?x+1:x+7, front=d>0?x+7:x+1;                 // which end is which
+  c.fillStyle="#e0a83c";c.fillRect(x+2,y+4,8,3);             // the body, low and flat
+  c.fillStyle="#f4d27a";c.fillRect(x+2,y+4,8,1);
+  c.fillStyle="#c8801c";c.fillRect(back,y+2,3,2);            // tail, curling up
+  c.fillStyle="#e0a83c";c.fillRect(back+(d>0?-1:2),y,2,3);   // and over
+  c.fillStyle="#fff0c0";c.fillRect(back+(d>0?-1:2),y,2,1);   // the sting on the end
+  c.fillStyle="#c8801c";
+  c.fillRect(front+(d>0?4:-2),y+3,2,2);c.fillRect(front+(d>0?4:-2),y+6,2,2);  // pincers
+  c.fillStyle="#8a5e18";
+  for(let i=0;i<3;i++)c.fillRect(x+2+i*3,y+7,2,beat?2:1);    // legs, mid-scuttle
+  c.fillStyle="#2a1c04";c.fillRect(front+(d>0?2:1),y+4,1,1); // eye
  }else if(e.k==="turkey"){
-  const flap=Math.sin(e.anim*11)>0?0:3;
-  c.fillStyle="#7a3c2a";c.fillRect(x+2,y+3,10,6);
-  c.fillStyle="#b45a38";c.fillRect(x+1,y+2-flap,12,3);       // wings
-  c.fillStyle="#e8d8c0";c.fillRect(x+(d>0?11:0),y+1,3,3);
-  c.fillStyle="#e04a2a";c.fillRect(x+(d>0?13:-1),y+3,2,2);   // wattle
+  c.fillStyle="#8a4430";c.fillRect(x+3,y+4,8,5);             // body
+  c.fillStyle="#5e2a1c";c.fillRect(x+(d>0?2:9),y+7,3,3);     // tail fan
+  c.fillStyle="#c86a44";c.fillRect(x+2,beat?y+1:y+3,10,3);   // wings, flapping
+  c.fillStyle="#e8d8c0";c.fillRect(x+(d>0?10:1),y+2,4,3);    // head
+  c.fillStyle="#1a1008";c.fillRect(x+(d>0?12:2),y+3,1,1);
+  c.fillStyle="#e04a2a";c.fillRect(x+(d>0?13:0),y+4,2,3);    // wattle
  }else if(e.k==="monster"){
-  const bob=Math.sin(e.anim*8)>0?0:1;
-  c.fillStyle="#57b06a";c.fillRect(x+1,y+5+bob,11,9);
-  c.fillStyle="#3d8a4f";c.fillRect(x+2,y+12+bob,3,4);c.fillRect(x+8,y+12+bob,3,4);
-  c.fillStyle="#7ad08a";c.fillRect(x+2,y+bob,9,6);           // head
-  c.fillStyle="#1a2a1a";c.fillRect(x+(d>0?7:3),y+2+bob,2,2);
-  c.fillStyle="#e8e8a0";c.fillRect(x+3,y+7+bob,7,2);         // belly, beer or otherwise
+  const hop=beat?0:1;
+  c.fillStyle="#57b06a";c.fillRect(x+1,y+5+hop,11,7);        // the beer belly
+  c.fillStyle="#8fe0a0";c.fillRect(x+2,y+7+hop,9,3);
+  c.fillStyle="#3d8a4f";c.fillRect(x+1,y+12+hop,4,4);c.fillRect(x+8,y+12+hop,4,4);
+  c.fillStyle="#7ad08a";c.fillRect(x+2,y+hop,9,6);           // head
+  c.fillStyle="#f0f0e0";c.fillRect(x+(d>0?6:2),y+2+hop,4,3); // one big eye
+  c.fillStyle="#1a2a1a";c.fillRect(x+(d>0?8:3),y+3+hop,2,2);
+  c.fillStyle="#3d8a4f";c.fillRect(x+(d>0?11:0),y+6+hop,2,4);// arm
  }else if(e.k==="serpent"){
   c.fillStyle="#4fb87a";
-  for(let i=0;i<4;i++)c.fillRect(x+i*4,y+2+(Math.sin(e.anim*7+i)>0?0:2),4,4);
-  c.fillStyle="#2e7a4e";c.fillRect(x+(d>0?12:0),y+1,4,4);
+  for(let i=0;i<4;i++){                                      // a body that slithers
+   const yy=y+2+(Math.sin(e.anim*8+i*1.1)>0?0:2);
+   c.fillRect(x+i*4,yy,4,4);
+   c.fillStyle=i%2?"#3a9a62":"#4fb87a";
+  }
+  c.fillStyle="#2e7a4e";c.fillRect(x+(d>0?12:0),y+1,5,4);    // head
   c.fillStyle="#ffe14a";c.fillRect(x+(d>0?15:0),y+2,1,1);
+  c.fillStyle="#e04a6a";c.fillRect(x+(d>0?16:-1),y+3,1,1);   // tongue
  }else if(e.k==="doctor"){
   c.fillStyle="#3a2c58";c.fillRect(x+2,y+7,8,10);            // robe
-  c.fillStyle="#c08a4a";c.fillRect(x+3,y+2,6,5);             // face
-  c.fillStyle="#e0e0e0";c.fillRect(x+4,y+4,2,1);c.fillRect(x+7,y+4,1,1);
-  c.fillStyle="#d84a6a";c.fillRect(x+1,y,10,3);              // mask and plume
-  c.fillStyle="#ffe14a";c.fillRect(x+4,y-3,3,3);
-  c.fillStyle="#8a6a2a";c.fillRect(x+(d>0?10:1),y+6,1,9);    // staff
+  c.fillStyle="#54407e";c.fillRect(x+2,y+7,8,2);
+  c.fillStyle="#2a1f40";c.fillRect(x+3,y+14,3,3);c.fillRect(x+7,y+14,3,3);
+  c.fillStyle="#c08a4a";c.fillRect(x+3,y+2,6,5);             // the mask
+  c.fillStyle="#f0f0e0";c.fillRect(x+4,y+3,2,2);c.fillRect(x+7,y+3,1,2);
+  c.fillStyle="#1a1008";c.fillRect(x+(d>0?5:4),y+4,1,1);
+  c.fillStyle="#d84a6a";c.fillRect(x+1,y,10,3);              // headdress
+  c.fillStyle="#ffe14a";c.fillRect(x+3,y-4,2,4);c.fillRect(x+7,y-3,2,3);
+  c.fillStyle="#8a6a2a";c.fillRect(x+(d>0?10:1),y+5,1,11);   // staff
+  c.fillStyle=beat?"#ffe14a":"#e0902a";c.fillRect(x+(d>0?9:0),y+3,3,3);
  }else if(e.k==="vacuum"){
-  c.fillStyle="#9aa6c0";c.fillRect(x+2,y+2,12,6);
+  c.fillStyle="#9aa6c0";c.fillRect(x+3,y+2,11,6);            // the canister
+  c.fillStyle="#c8d2e8";c.fillRect(x+3,y+2,11,2);
   c.fillStyle="#586480";c.fillRect(x+1,y+8,14,2);
-  c.fillStyle="#2c3550";c.fillRect(x+(d>0?0:12),y+4,4,4);    // the mouth of it
-  c.fillStyle="#ffe14a";c.fillRect(x+5,y+3,3,2);
+  c.fillStyle="#2c3550";c.fillRect(x+(d>0?0:12),y+3,4,5);    // the mouth of it
+  c.fillStyle=beat?"#4ad8ff":"#2a90b8";c.fillRect(x+(d>0?0:12),y+4,2,3);
+  c.fillStyle="#3a4456";c.fillRect(x+4,y+9,3,2);c.fillRect(x+9,y+9,3,2);  // wheels
  }else if(e.k==="blade"){
-  const spin=Math.floor(e.anim*14)%2;
-  c.fillStyle="#d8dce8";
-  if(spin){c.fillRect(x+1,y+3,10,2);c.fillRect(x+4,y,3,8);}
+  c.fillStyle="#d8dce8";                                      // an axe head over a handle
+  if(beat){c.fillRect(x+1,y+3,10,2);c.fillRect(x+4,y,3,8);}
   else{c.fillRect(x+2,y+1,7,2);c.fillRect(x+2,y+5,7,2);}
+  c.fillStyle="#f4f8ff";c.fillRect(x+3,y+3,5,1);
   c.fillStyle="#8a5e2a";c.fillRect(x+4,y+3,2,2);
  }else if(e.k==="magnet"){
-  c.fillStyle="#3a4668";c.fillRect(x+5,y,4,4);               // the stem it hangs by
-  c.fillStyle="#d84a4a";c.fillRect(x,y+4,14,5);
-  c.fillStyle="#e8eaf2";c.fillRect(x,y+9,4,3);c.fillRect(x+10,y+9,4,3);
-  const pull=(Math.floor(G.time*6)%2)?.28:.12;
-  c.fillStyle="rgba(216,74,74,"+pull+")";c.fillRect(x-6,y+2,26,14);
+  c.fillStyle="#3a4668";c.fillRect(x+5,y-3,4,4);             // the stem it hangs from
+  c.fillStyle="#d84a4a";c.fillRect(x,y+1,14,6);              // the horseshoe
+  c.fillStyle="#f07a7a";c.fillRect(x,y+1,14,2);
+  c.fillStyle="#e8eaf2";c.fillRect(x,y+7,4,5);c.fillRect(x+10,y+7,4,5);
+  const pulse=(Math.floor(G.time*7)%2)?.30:.14;              // the field, breathing
+  c.strokeStyle="rgba(216,74,74,"+pulse+")";c.lineWidth=1;
+  for(let r=8;r<=20;r+=6){c.beginPath();c.arc(x+7,y+9,r,.2,Math.PI-.2);c.stroke();}
  }
 }
 function drawChild(){
  const c=ctx, k=G.L.child;
  if(!k||k.freed)return;
- const x=sx(k.x), y=sy(k.y);
+ const x=sx(k.x), y=sy(k.y), run=Math.floor(G.time*7)%2;
  if(k.kind==="mom"){
   c.fillStyle="#c86a9a";c.fillRect(x+1,y+7,10,13);           // bound at the bottom right
+  c.fillStyle="#e08ab4";c.fillRect(x+1,y+7,10,2);
   c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,8,6);
-  c.fillStyle="#3a2a18";c.fillRect(x+1,y,10,3);
-  c.fillStyle="#e8e8e8";c.fillRect(x+2,y+4,8,2);             // the gag
+  c.fillStyle="#6a3a20";c.fillRect(x+1,y-1,10,4);c.fillRect(x,y+1,2,5);c.fillRect(x+10,y+1,2,5);
+  c.fillStyle="#1a1008";c.fillRect(x+3,y+3,1,1);c.fillRect(x+7,y+3,1,1);
+  c.fillStyle="#e8e8e8";c.fillRect(x+2,y+5,8,2);             // the gag
   c.fillStyle="#c8a05a";for(let i=0;i<3;i++)c.fillRect(x,y+9+i*4,12,2);   // the ropes
+  c.fillStyle="#8a6a2a";c.fillRect(x+5,y+8,2,11);
  }else{
-  const run=Math.floor(G.time*7)%2;
-  c.fillStyle=k.kind==="boy"?"#4a9ae0":"#e06aa0";
-  c.fillRect(x+1,y+6,8,7);
-  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,6,5);
-  c.fillStyle="#6a4a28";c.fillRect(x+1,y,8,2);
+  const boy=k.kind==="boy";
+  c.fillStyle=boy?"#3a86e0":"#e05a9a";c.fillRect(x+1,y+6,8,7);           // shirt or dress
+  c.fillStyle=boy?"#6aa8f0":"#f08ac0";c.fillRect(x+1,y+6,8,2);
+  c.fillStyle="#f0c89a";c.fillRect(x+2,y+1,6,5);                         // face
+  c.fillStyle="#1a1008";c.fillRect(x+3,y+3,1,1);c.fillRect(x+6,y+3,1,1);
+  c.fillStyle=boy?"#6a4a28":"#d8a13a";c.fillRect(x+1,y,8,2);             // hair
+  if(!boy)c.fillRect(x,y+1,1,4),c.fillRect(x+8,y+1,1,4);
+  c.fillStyle="#f0c89a";c.fillRect(x+(run?9:0),y+7,2,3);                 // an arm, reaching up
   c.fillStyle="#2a3550";c.fillRect(x+(run?1:2),y+13,3,3);c.fillRect(x+(run?6:5),y+13,3,3);
  }
 }
@@ -991,54 +1121,75 @@ function drawToy(){
  if(!t||!t.alive)return;
  const x=sx(t.x), y=sy(t.y);
  if(t.kind==="plane"){
-  c.fillStyle="#e8e8f0";c.fillRect(x,y+4,12,3);
-  c.fillStyle="#d84a4a";c.fillRect(x+3,y+1,5,2);c.fillRect(x+3,y+7,5,2);
-  c.fillStyle="#4ad8ff";c.fillRect(x+9,y+2,2,2);
+  c.fillStyle="#e8ecf6";c.fillRect(x,y+4,12,3);              // fuselage
+  c.fillStyle="#d84a4a";c.fillRect(x+3,y+1,5,2);c.fillRect(x+3,y+7,5,2);  // wings
+  c.fillStyle="#d84a4a";c.fillRect(x,y+2,2,3);               // tail fin
+  c.fillStyle="#4ad8ff";c.fillRect(x+8,y+4,3,2);             // canopy
+  c.fillStyle=(Math.floor(G.time*20)%2)?"#f0f0c0":"#b0b8c8"; // the propeller, spinning
+  c.fillRect(x+11,y+2,1,7);
  }else{
   c.fillStyle="#ff6ad5";c.beginPath();c.arc(x+6,y+4,5,0,7);c.fill();
-  c.fillStyle="#f0e8d0";c.fillRect(x+6,y+8,1,4);
+  c.fillStyle="#ffb0e8";c.beginPath();c.arc(x+4,y+2,2,0,7);c.fill();     // the shine on it
+  c.fillStyle="#ff6ad5";c.fillRect(x+5,y+8,2,2);
+  c.fillStyle="#f0e8d0";c.fillRect(x+6,y+9,1,5);             // the string
  }
 }
 function drawPet(){
  const c=ctx, p=G.L.pet;
  if(!p||p.freed)return;
- const x=sx(p.x), y=sy(p.y), d=p.dir;
- c.fillStyle=p.kind==="lizard"?"#6ad06a":"#4a7a4a";
- c.fillRect(x+1,y+3,14,5);
- c.fillRect(x+(d>0?12:0),y+1,4,3);
- c.fillStyle="#2a4a2a";for(let i=0;i<4;i++)c.fillRect(x+2+i*3,y+1,2,2);
- c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);
+ const x=sx(p.x), y=sy(p.y), d=p.dir, step=Math.floor(G.time*6)%2;
+ const skin=p.kind==="lizard"?"#6ad06a":"#4a7a4a", dark=p.kind==="lizard"?"#3a9a46":"#2f5232";
+ c.fillStyle=skin;c.fillRect(x+1,y+3,14,4);                  // body
+ c.fillStyle=dark;c.fillRect(x+1,y+6,14,1);
+ c.fillStyle=skin;c.fillRect(x+(d>0?12:0),y+1,4,3);          // head
+ c.fillStyle=dark;for(let i=0;i<4;i++)c.fillRect(x+2+i*3,y+1,2,2);       // back plates
+ c.fillStyle=dark;c.fillRect(x+(d>0?0:13),y+4,2,2);          // tail
+ c.fillStyle=skin;c.fillRect(x+3,y+7,2,step?3:2);c.fillRect(x+10,y+7,2,step?2:3);
+ c.fillStyle="#ffe14a";c.fillRect(x+(d>0?14:1),y+2,1,1);     // eye
+ if(p.kind==="gator"){c.fillStyle="#f0f0e0";c.fillRect(x+(d>0?12:0),y+4,4,1);}  // teeth
 }
-// The robot: a levitating box with a lit chest port and a backpack that shows
-// its flame the moment you ask it to climb.
+// The robot: small, blue and boxy, with a lit chest port for the balls it fires
+// and a flame under the backpack whenever you ask it to climb.
 function drawHero(){
  const h=G.hero, c=ctx;
  if(!h)return;
  if(!h.alive){                                               // a short, loud coming-apart
   const k=clamp(1-G.deathT/1.3,0,1);
-  for(let i=0;i<7;i++){
-   const a=i*0.9, r=k*26;
-   c.fillStyle=i%2?"#ffc24a":"#9aa6c0";
-   c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r),4,4);
+  for(let i=0;i<9;i++){
+   const a=i*0.7, r=k*30;
+   c.fillStyle=i%3===0?"#ffc24a":i%3===1?"#3a86e0":"#b6c8ec";
+   c.fillRect(sx(h.x+h.w/2+Math.cos(a)*r),sy(h.y+h.h/2+Math.sin(a)*r*.7),4,4);
   }
   return;
  }
  if(h.inv>0&&Math.floor(h.inv*16)%2)return;
  const x=sx(h.x), y=sy(h.y), d=h.face;
+ // A shadow on the floor he is flying over: the one cue that says how high up he is.
+ const fy=slabRow(storeyOf(h))*TS, drop=clamp((fy-h.y-h.h)/40,0,1);
+ c.fillStyle="rgba(0,0,0,"+(.34*(1-drop)).toFixed(2)+")";
+ c.fillRect(x+1+Math.round(drop*2),sy(fy)-2,10-Math.round(drop*4),2);
  if(h.thrust>0){                                             // backpack flame
-  c.fillStyle="rgba(255,194,74,"+(.5+.5*h.thrust).toFixed(2)+")";
-  c.fillRect(x+3,y+16,6,Math.round(3+5*h.thrust));
-  c.fillStyle="#fff0b0";c.fillRect(x+5,y+16,2,Math.round(2+3*h.thrust));
+  const len=Math.round(3+6*h.thrust+(Math.floor(G.time*24)%2));
+  c.fillStyle="rgba(255,140,40,"+(.45+.55*h.thrust).toFixed(2)+")";
+  c.fillRect(x+2,y+16,8,len);
+  c.fillStyle="#ffc24a";c.fillRect(x+3,y+16,6,Math.max(2,len-2));
+  c.fillStyle="#fff4c0";c.fillRect(x+5,y+16,2,Math.max(1,len-4));
  }
- c.fillStyle="#8e9ab8";c.fillRect(x+1,y+5,10,11);            // torso
- c.fillStyle="#6a7695";c.fillRect(x+1,y+13,10,3);
- c.fillStyle="#b6c2dc";c.fillRect(x+2,y,8,6);                // head
- c.fillStyle="#2a3550";c.fillRect(x+(d>0?6:2),y+2,3,2);      // visor, looking where you fly
- c.fillStyle="#ffc24a";c.fillRect(x+5,y-3,2,3);c.fillRect(x+4,y-5,4,2);   // antenna
+ c.fillStyle="#1a3f8a";c.fillRect(x+1,y+13,4,3);c.fillRect(x+7,y+13,4,3);   // feet
+ c.fillStyle="#2f6ad0";c.fillRect(x+1,y+5,10,9);             // torso
+ c.fillStyle="#6aa8f0";c.fillRect(x+1,y+5,10,2);             // shoulder highlight
+ c.fillStyle="#1a3f8a";c.fillRect(x+1,y+11,10,2);
+ c.fillStyle="#12306a";c.fillRect(x+(d>0?-1:10),y+6,2,6);    // the backpack, behind him
+ c.fillStyle="#8ec8ff";c.fillRect(x+2,y,8,5);                // head
+ c.fillStyle="#b6ddff";c.fillRect(x+2,y,8,1);
+ c.fillStyle="#10204a";c.fillRect(x+(d>0?5:2),y+2,4,2);      // visor, facing your way
+ c.fillStyle="#4ad8ff";c.fillRect(x+(d>0?7:2),y+2,1,2);      // and the light in it
+ c.fillStyle="#b6c8ec";c.fillRect(x+5,y-3,2,3);              // antenna
+ c.fillStyle=(Math.floor(G.time*6)%2)?"#ff5a5a":"#c03030";c.fillRect(x+4,y-5,4,2);
  const glow=.55+.45*Math.sin(G.time*8);
- c.fillStyle="rgba(74,216,255,"+glow.toFixed(2)+")";
- c.fillRect(x+(d>0?7:2),y+8,3,3);                            // the chest port the balls come from
- c.fillStyle="#586480";c.fillRect(x+(d>0?11:-1),y+7,2,4);    // arm
+ c.fillStyle="rgba(255,225,90,"+glow.toFixed(2)+")";
+ c.fillRect(x+(d>0?6:3),y+7,4,4);                            // the chest port
+ c.fillStyle="#fff4c0";c.fillRect(x+(d>0?7:4),y+8,2,2);
 }
 function drawRadar(){
  const c=ctx, L=G.L, w=VW, h=RADAR_H;
@@ -1086,38 +1237,61 @@ function drawTitle(){
   c.fillStyle="rgba(200,220,255,"+(.18+.4*(.5+.5*Math.sin(t*1.9+i))).toFixed(2)+")";
   c.fillRect(x,y,1,1);
  }
- // Four floors across the whole card, the robot hanging over the top one, and
- // what he came for further down where the menu's scrim takes over.
- const rows=[.46,.58,.70,.82].map(k=>Math.round(H*k));
+ // Four floors across the whole card, with the pillared wall behind them, the
+ // robot hanging over the top one and what he came for further down, where the
+ // menu's scrim takes over.
+ const rows=[.50,.61,.72,.83].map(k=>Math.round(H*k));
  rows.forEach((y,f)=>{
-  c.fillStyle=f%2?"#46587e":"#3b4c6e";c.fillRect(0,y,W,6);
+  const above=f?rows[f-1]+6:Math.round(H*.34);
+  c.fillStyle="rgba(120,150,200,.05)";c.fillRect(0,above,W,y-above);
+  for(let px0=(f%2?18:0);px0<W;px0+=48){                     // pillars in the back wall
+   c.fillStyle="rgba(150,180,230,.06)";c.fillRect(px0,above,10,y-above);
+   c.fillStyle="rgba(0,0,0,.18)";c.fillRect(px0+10,above,3,y-above);
+  }
+  c.fillStyle=f%2?"#46587e":"#3b4c6e";c.fillRect(0,y,W,6);   // the slab
   c.fillStyle="#6d82a6";c.fillRect(0,y,W,2);
-  c.fillStyle="rgba(0,0,0,.45)";c.fillRect(0,y+5,W,2);
-  const gx=Math.round(W*(.14+.22*f));                        // the holes you fly through
-  c.fillStyle="#080c18";c.fillRect(gx,y,30,7);
+  c.fillStyle="#a8bde0";c.fillRect(0,y,W,1);
+  c.fillStyle="rgba(0,0,0,.5)";c.fillRect(0,y+5,W,2);
+  const gx=Math.round(W*[.62,.20,.38,.54][f]);               // the holes you fly through,
+                                                             // kept clear of the cast
+  c.fillStyle="#070b16";c.fillRect(gx,y,30,7);
  });
- // The robot, at twice his size in the game, hovering with the flame lit.
+ // The robot, at twice the size he is in the game, hovering with the flame lit.
  const hx=Math.round(W*.44), hy=rows[0]-40+Math.round(Math.sin(t*2)*3), u=2;
- c.fillStyle="rgba(255,194,74,.8)";c.fillRect(hx+3*u,hy+16*u,6*u,6+Math.round(Math.sin(t*16)*3));
- c.fillStyle="#fff0b0";c.fillRect(hx+5*u,hy+16*u,2*u,4);
- c.fillStyle="#8e9ab8";c.fillRect(hx+1*u,hy+5*u,10*u,11*u);
- c.fillStyle="#6a7695";c.fillRect(hx+1*u,hy+13*u,10*u,3*u);
- c.fillStyle="#b6c2dc";c.fillRect(hx+2*u,hy,8*u,6*u);
- c.fillStyle="#2a3550";c.fillRect(hx+6*u,hy+2*u,3*u,2*u);
- c.fillStyle="#ffc24a";c.fillRect(hx+5*u,hy-3*u,2*u,3*u);c.fillRect(hx+4*u,hy-5*u,4*u,2*u);
- c.fillStyle="#4ad8ff";c.fillRect(hx+7*u,hy+8*u,3*u,3*u);
- c.fillStyle="#ffe14a";c.fillRect(hx+13*u,hy+9*u,7*u,2*u);   // a ball already on its way
- const cx2=Math.round(W*.72), cy=rows[1]-20;                 // the boy, two floors down
- c.fillStyle="#4a9ae0";c.fillRect(cx2,cy+8,11,10);
- c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,6);
- c.fillStyle="#6a4a28";c.fillRect(cx2,cy,11,3);
+ const flame=8+Math.round(Math.sin(t*16)*4);
+ c.fillStyle="rgba(255,140,40,.85)";c.fillRect(hx+2*u,hy+16*u,8*u,flame);
+ c.fillStyle="#ffc24a";c.fillRect(hx+3*u,hy+16*u,6*u,flame-3);
+ c.fillStyle="#fff4c0";c.fillRect(hx+5*u,hy+16*u,2*u,flame-6);
+ c.fillStyle="#1a3f8a";c.fillRect(hx+1*u,hy+13*u,4*u,3*u);c.fillRect(hx+7*u,hy+13*u,4*u,3*u);
+ c.fillStyle="#2f6ad0";c.fillRect(hx+1*u,hy+5*u,10*u,9*u);
+ c.fillStyle="#6aa8f0";c.fillRect(hx+1*u,hy+5*u,10*u,2*u);
+ c.fillStyle="#1a3f8a";c.fillRect(hx+1*u,hy+11*u,10*u,2*u);
+ c.fillStyle="#12306a";c.fillRect(hx-1*u,hy+6*u,2*u,6*u);
+ c.fillStyle="#8ec8ff";c.fillRect(hx+2*u,hy,8*u,5*u);
+ c.fillStyle="#10204a";c.fillRect(hx+5*u,hy+2*u,4*u,2*u);
+ c.fillStyle="#4ad8ff";c.fillRect(hx+7*u,hy+2*u,1*u,2*u);
+ c.fillStyle="#b6c8ec";c.fillRect(hx+5*u,hy-3*u,2*u,3*u);
+ c.fillStyle="#ff5a5a";c.fillRect(hx+4*u,hy-5*u,4*u,2*u);
+ c.fillStyle="#ffe14a";c.fillRect(hx+6*u,hy+7*u,4*u,4*u);    // the chest port, lit
+ c.fillStyle="#fff4c0";c.fillRect(hx+13*u,hy+8*u,5*u,2*u);   // a ball already on its way
+ const cx2=Math.round(W*.76), cy=rows[0]-21;                 // the boy, along the same floor
+ c.fillStyle="#3a86e0";c.fillRect(cx2,cy+9,11,9);
+ c.fillStyle="#6aa8f0";c.fillRect(cx2,cy+9,11,2);
+ c.fillStyle="#f0c89a";c.fillRect(cx2+2,cy+2,8,7);
+ c.fillStyle="#6a4a28";c.fillRect(cx2+1,cy,9,3);
+ c.fillStyle="#1a1008";c.fillRect(cx2+4,cy+4,1,2);c.fillRect(cx2+7,cy+4,1,2);
  c.fillStyle="#2a3550";c.fillRect(cx2+1,cy+18,4,3);c.fillRect(cx2+7,cy+18,4,3);
- const dx=Math.round(W*.18), dy=rows[2]-22;                  // and the one who took him
- c.fillStyle="#3a2c58";c.fillRect(dx,dy+8,12,14);
- c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,6);
+ c.fillStyle="#f0c89a";c.fillRect(cx2+11,cy+6,2,4);          // an arm up, for the toy
+ const dx=Math.round(W*.16), dy=rows[0]-24;                  // and the one who took him
+ c.fillStyle="#3a2c58";c.fillRect(dx,dy+9,12,15);
+ c.fillStyle="#54407e";c.fillRect(dx,dy+9,12,2);
+ c.fillStyle="#c08a4a";c.fillRect(dx+2,dy+3,8,7);
+ c.fillStyle="#f0f0e0";c.fillRect(dx+3,dy+5,3,3);c.fillRect(dx+7,dy+5,2,3);
+ c.fillStyle="#1a1008";c.fillRect(dx+4,dy+6,1,1);c.fillRect(dx+7,dy+6,1,1);
  c.fillStyle="#d84a6a";c.fillRect(dx-1,dy,14,4);
- c.fillStyle="#ffe14a";c.fillRect(dx+4,dy-5,4,5);
- c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+6,2,16);
+ c.fillStyle="#ffe14a";c.fillRect(dx+3,dy-5,3,5);c.fillRect(dx+8,dy-4,3,4);
+ c.fillStyle="#8a6a2a";c.fillRect(dx+13,dy+4,2,20);          // the staff
+ c.fillStyle=(Math.floor(t*4)%2)?"#ffe14a":"#e0902a";c.fillRect(dx+12,dy,4,4);
  if(G.menuTitle){c.textAlign="left";return;}   // a menu with its own headline keeps the art bare
  c.fillStyle="rgba(5,7,15,.45)";c.fillRect(0,0,W,Math.round(H*.26));
  const big=Math.max(22,Math.round(W/9)), letters="DROL", gap2=big*.78;
@@ -1140,6 +1314,7 @@ function render(){
  G.cam.y=clamp(h.y+h.h/2-vh/2,0,Math.max(0,MAPH*TS-vh));
  if(G.shake>0){G.cam.x+=(Math.random()-.5)*G.shake;G.cam.y+=(Math.random()-.5)*G.shake;}
  c.fillStyle=P.sky;c.fillRect(0,0,VW,VH);
+ drawBackWall();
  drawTiles();
  for(const p of G.L.plants){                                  // whatever was under the trapdoor
   const x=sx(p.x), y=sy(p.y);
@@ -1164,7 +1339,8 @@ function render(){
 }
 function updateStatus(){
  if(G.phase==="menu"||!G.hero){
-  statusEl.innerHTML="<b>DROL</b> — the witch doctor has the children in the maze. Start the rescue.";
+  statusEl.innerHTML="<b>DROL</b> — the witch doctor has the children in the maze. Start the rescue."+
+   (G.best>0?" Best so far <b>"+G.best+"</b>.":"");
   return;
  }
  const L=G.L;
@@ -1216,6 +1392,17 @@ if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
    typeof isSecureContext!=="undefined"&&isSecureContext)
   addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
 if(isStandaloneApp())setFocus(true);
+
+// Settings from last time, applied before the first frame is drawn.
+(function restorePrefs(){
+ const p=loadPrefs();
+ if(p.sound===false){SOUND.enabled=false;
+  const b=document.getElementById("sound");
+  if(b){b.textContent="SOUND OFF";b.setAttribute("aria-pressed","false");}}
+ if(p.music===false)MUSIC.on=false;
+ if(p.radar===false)G.radar=false;
+ if(typeof p.best==="number"&&isFinite(p.best)&&p.best>0)G.best=Math.floor(p.best);
+})();
 
 fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
 </script>

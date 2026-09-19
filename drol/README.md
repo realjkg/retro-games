@@ -63,6 +63,42 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 - A witch doctor's curse travels faster than the backpack, so it cannot be outrun along a
   floor: climb out of its path, or shoot it out of the air.
 
+## The look of it
+
+The sprites and the maze are drawn to the original's description rather than copied from it.
+I could not open a screenshot or a disk image from where this was built, so nothing here is
+traced: what the art follows is what the sources say the 1983 game looked like — a small
+**blue robot** with a rocket backpack, a maze of chunky floors seen from the side, and
+ANALOG Computing's February 1984 note that it had "some of the best pseudo-3D graphics I've
+ever seen". Everything is therefore an homage in the idiom of the machines it ran on, not a
+reproduction of anyone's pixels.
+
+What that means on screen:
+
+- **The robot** is blue and boxy: a pale blue head with a visor that faces the way you fly, a
+  red beacon on an antenna, a backpack that shows its flame the moment you ask it to climb,
+  and a lit chest port that the balls come out of. He throws a shadow on the floor below him,
+  which shrinks as he rises — the one cue that says how high up he is.
+- **The floors** are slabs with three faces: a lit top edge you land on, a stone front, and a
+  shadow under it, with brickwork seams offset storey by storey and a bright lip either side
+  of every hole. Behind them is a pillared back wall, so the maze has a depth to stand in.
+- **Each scene has one palette**, the way a machine with a handful of colours would have done
+  it: steel blue for the boy's scene, violet for the girl's and the witch doctor's, and a
+  burnt red-brown for the descent to the mother.
+- **The menagerie is a handful of blocks each, two frames apiece**, with one bright colour so
+  you can tell what it is at a glance: the scorpion's tail curls over its back, the turkey
+  flaps, the monster hops on its belly, the serpent's body ripples along, the witch doctor
+  carries a lit staff under a red headdress, the vacuum has a mouth and wheels, the axe spins,
+  and the magnet is a red horseshoe with a field pulsing out of it.
+- **The trapdoors** of the third scene are boards across the hole with a hinge at either end
+  while they are shut, and a flap hanging through it once sprung — green if that was the safe
+  one, red if it was not.
+- **The title card** is the same cast at twice the size: the robot hovering with a ball
+  already on its way, the boy along the floor to the right, and the witch doctor to the left
+  with his staff lit.
+- **The icon and the gallery tile** are the same robot again, so the game looks like itself
+  from the collection page, the home screen and the browser tab.
+
 ## Mobile tweaks
 
 This is the improved-for-touch version of the idea, not a key-for-key port of a 1983
@@ -95,8 +131,18 @@ joystick game:
 - Nothing on the page is selectable text: holding a control holds the control, rather than
   raising iOS Safari's selection handles and Copy / Look Up callout over the pad. A button
   also lets go when the finger slides off it or the browser swallows the release.
-- A title screen rather than a menu on a black rectangle: the four storeys in silhouette with
-  the robot hanging between them, a child two floors down and something watching from below.
+- A title screen rather than a menu on a black rectangle: the four storeys with the pillared
+  wall behind them, the robot hanging over the top one, the boy along the floor and the witch
+  doctor watching from the other end.
+- **SOUND ON/OFF, the music switch, the scope and your best score are remembered** between
+  visits, in `localStorage` under one key, and every read and write is wrapped: a private
+  window that refuses storage is still a game.
+- An **INSTALL** button beside SOUND and FULL SCREEN, as the other games in the collection
+  have: Chrome and Android hand over their own install prompt, and on iOS — which has no such
+  event and no full-screen switch for a web page — the button explains Share ▸ Add to Home
+  Screen instead.
+- A card in the [collection page](../index.html) and in its 404 page, with the same robot on
+  it, so Drol is one of the games rather than a directory you have to know about.
 
 ## Music
 
@@ -209,6 +255,10 @@ Two details the sources disagree on, and how they are resolved here:
   [review](https://www.lemon64.com/review/drol/1162) — the witch doctor's curse, the children
   lured into multi-levelled ruins, the per-level enemy lists, the pets, and the mother bound
   at the lower right of the third level.
+- Contemporary reviews, for what it looked like: a small **blue** robot, and ANALOG
+  Computing's February 1984 line that Drol had "some of the best pseudo-3D graphics I've ever
+  seen" — the two facts the art here is drawn towards, since no screenshot of the original was
+  reachable from where this was built.
 - [MobyGames: Drol](https://www.mobygames.com/game/9314/drol/) — the hero with the rocket
   backpack and the full-screen radar scope; hopping scorpions, monsters, snakes, flying
   turkeys, swords, daggers, arrows, magnets, witch doctors and vacuum cleaners; the boy
@@ -233,8 +283,10 @@ magnet that eats shots and drags you, shooting the toy to root the child, the re
 scene order through to the loop back to scene one, the pet bonus, the third scene's three
 trapdoors and the thing behind the wrong two, the curse, lives and the respawn's
 invulnerability, extra robots at every 10,000 points, the scope switch and the rows it hands
-back, the way the view is sized to its box, the full-screen toggle, the button labels, the
-rules that stop a held control turning into a text selection, and the music engine — that it
+back and remembers the switch, the way the view is sized to its box, the full-screen toggle,
+the button labels, the settings and best score that survive a reload, the browser that refuses
+storage altogether, the install button, the rules that stop a held control turning into a text
+selection, and the music engine — that it
 plays, follows the game state, quickens round after round, and answers both the mute and the
 music switch. They verify audio events and mute, not subjective sound authenticity.
 
