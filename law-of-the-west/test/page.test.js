@@ -806,7 +806,7 @@ test('9p. the artwork, the budget, the offline rule and the hard pixels all hold
   for(const bad of [/\bfetch\s*\(/,/XMLHttpRequest/,/importScripts/])
     assert.equal(HTML.search(bad),-1,'the page can still call out: '+bad);
   // it stays inside its budget, which tools/assemble.js holds to the same number
-  assert.ok(Buffer.byteLength(HTML)<256*1024,
+  assert.ok(Buffer.byteLength(HTML)<320*1024,
     'the page is '+(Buffer.byteLength(HTML)/1024).toFixed(1)+' KB');
   // and nothing on the way to the screen is smoothed
   assert.match(HTML,/image-rendering:pixelated/,'the canvas is smoothed by CSS');

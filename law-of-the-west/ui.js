@@ -1475,7 +1475,7 @@ function paint(){
   const hatted=G.hatOff&&(G.phase==="tell"||G.phase==="duel");
   lineEls[0].textContent=balked?((him&&him.balk)||BALK_LINE)
     :hatted?hatLine()
-    :b?b.npc
+    :b?npcOf(G,b)
     :(him&&him.standoff)?him.standoff
     :(G.interlude&&JOBS[G.interlude])?JOBS[G.interlude].brief
     :"Nobody is saying anything. The street has gone quiet.";

@@ -55,6 +55,8 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     replies:[1,2,3,4].map(i=>document.getElementById('line'+i).textContent).filter(Boolean),
     swing:typeof swing!=='undefined'?swing:null,
     leaving:typeof leaving!=='undefined'&&!!leaving,
+    said:typeof npcOf==='function'&&typeof beat==='function'&&beat()
+      ?npcOf(G,beat()):null,
     sound:document.getElementById('mute').textContent,
     sndOn:SND.on, sndState:SND.state
   }));
@@ -67,12 +69,17 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
    * real day, but it is not a test of the other three. */
   /* What each caller was written to say, read out of the page's own tables, so
    * the assertion is against the authored line and not against a copy of it. */
-  const expected=await p.evaluate(()=>CAST.map(e=>({
-    id:e.id, name:e.name, place:e.place, armed:!!e.armed,
-    opening:e.rounds&&e.rounds.opening?e.rounds.opening.npc:null,
-    drunk:e.rounds&&e.rounds.opening_drunk?e.rounds.opening_drunk.npc:null
-  })));
+  const expected=await p.evaluate(()=>{
+    const lines=n=>n?[n.npc].concat(Object.keys(n.npcIf||{}).map(k=>n.npcIf[k])):[];
+    return CAST.map(e=>({
+      id:e.id, name:e.name, place:e.place, armed:!!e.armed,
+      opening:e.rounds&&e.rounds.opening?e.rounds.opening.npc:null,
+      openings:lines(e.rounds&&e.rounds.opening)
+        .concat(lines(e.rounds&&e.rounds.opening_drunk))
+    }));
+  });
   const met=new Set(), conclusions=[], hours=[], places=[];
+  const heard={}, endings=[];
   let reachedSundown=0, left=0;
 
   for(let branch=0; branch<4; branch++){
@@ -94,7 +101,24 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     const metHere=new Set();
     for(let guard=0; guard<300; guard++){
       s=await state();
-      if(s.phase==='summary'){ if(s.alive)reachedSundown++; break; }
+      if(s.phase==='summary'){
+        if(s.alive)reachedSundown++;
+        /* Both ends of the day have to arrive somewhere a player can read:
+         * the sundown table, the seven things it counts, and a verdict that
+         * matches whether he is standing up at the end of it. */
+        const over=await p.evaluate(()=>({
+          score:G.over&&G.over.score, alive:G.over&&G.over.alive,
+          cats:Object.keys((G.over&&G.over.categories)||{}),
+          why:G.over&&G.over.why,
+          panel:[0,1,2,3,4].map(i=>document.getElementById('line'+i).textContent)
+            .filter(Boolean).join(' / ')}));
+        ok(over.cats.length===7,'the sundown table counts '+over.cats.length+' things');
+        ok(/\S/.test(over.panel),'the day ended on an empty panel');
+        endings.push({alive:over.alive,score:over.score,why:over.why,
+                      band:over.score>=400?'respect':'disgrace',panel:over.panel});
+        await shot('99-sundown-'+branch+'-'+(over.alive?'alive':'killed'));
+        break;
+      }
 
       if(s.phase==='dialogue'){
         const e=expected[s.enc];
@@ -108,11 +132,12 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
             await shot(String(s.enc+1).padStart(2,'0')+'-'+e.id);
           }
           if(s.round===1&&e.opening){
-            const want=[e.opening,e.drunk].filter(Boolean);
-            ok(want.indexOf(s.line)>=0,
-              e.id+': opened on "'+s.line.slice(0,50)+'…" not his authored line');
+            ok(e.openings.indexOf(s.line)>=0,
+              e.id+': opened on "'+s.line.slice(0,50)+'…" not one of his authored lines');
           }
           ok(s.replies.length===4,e.id+': '+s.replies.length+' replies, not four');
+          ok(s.said===null||s.said===s.line,
+            e.id+': the panel is not showing the line the engine chose');
 
           if(!branch){
             /* he is still there to talk to after a person-sized pause */
@@ -133,6 +158,10 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
             await tap('[data-cmd="holster"]');
             ok((await state()).mode==='talk',e.id+': HOL did not put it away');
           }
+        }
+        if(!s.interlude&&expected[s.enc]){
+          const k=expected[s.enc].id+'/'+s.node;
+          (heard[k]=heard[k]||new Set()).add(s.line);
         }
         for(let k=0;k<branch;k++)await tap('[data-cmd="down"]');
         await tap('[data-cmd="fire"]');
@@ -174,10 +203,20 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
       ((await state()).alive?'alive':'killed')+' at '+(await state()).phase);
   }
 
-  await shot('99-sundown');
+  note.push('how the days ended:');
+  for(const e of endings)
+    note.push('  '+(e.alive?'alive  ':'killed ')+String(e.score).padStart(5)+
+      '  '+e.band.padEnd(9)+e.panel.slice(0,64));
+  ok(endings.some(e=>e.alive),'not one of the four days ended with him standing');
+  ok(endings.some(e=>!e.alive),'the sheriff could not be killed in four days');
   const missing=expected.map(e=>e.id).filter(id=>!met.has(id));
   ok(missing.length===0,'never met: '+missing.join(', '));
   ok(reachedSundown>0,'not one of the four passes reached sundown alive');
+  const twoWays=Object.keys(heard).filter(k=>heard[k].size>1);
+  note.push('beats that read two different ways on screen: '+twoWays.length+
+    ' ('+twoWays.slice(0,6).join(' ')+')');
+  ok(twoWays.length>=3,
+    'not one beat read differently for a different reply, across four passes');
   note.push('walked off rather than vanished: '+left+' times');
   ok(left>=8,'only '+left+' callers walked off the street');
   note.push('places in order: '+places.join(' '));

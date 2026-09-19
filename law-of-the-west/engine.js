@@ -70,7 +70,7 @@ function rawDay(opts){
     authority:0, arrests:0, dates:0, badGuysShot:0, innocentsKilled:0, crimesMissed:0,
     tips:{train:false,stage:false,bank:false},
     doctor:{met:false,disposition:0,sober:true,alive:true},
-    met:[], flags:[], log:[], results:[],
+    met:[], flags:[], log:[], results:[], manner:{}, as:null, standing:"even",
     mode:"talk", aim:{x:0.5,y:0.5}, reflex:null, pending:null,
     spoke:false, balked:false, blackout:false, sniper:null, snipers:0, hatOff:false,
     atLarge:[], by:null, jobEnc:null, incapacitated:false, skipped:0,
@@ -109,7 +109,7 @@ const nodeOf=G=>{const e=who(G);return e&&e.rounds?e.rounds[G.node]:null;};
 function resetScene(G){
   G.outcome=null; G.ending=null; G.duel=null; G.tell=null;
   G.mode="talk"; G.reflex=null; G.aim={x:0.5,y:0.5};
-  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false;
+  G.spoke=false; G.balked=false; G.blackout=false; G.hatOff=false; G.as=null;
   G.sniper=null;
 }
 function beginEncounter(G){
@@ -118,6 +118,10 @@ function beginEncounter(G){
   resetScene(G);
   G.phase="approach"; G.round=1;
   G.node=(e.doctor&&!G.doctor.sober&&e.rounds.opening_drunk)?"opening_drunk":"opening";
+  /* What kind of morning the sheriff has had, settled before the next man
+   * opens his mouth. A caller who has heard he shot two men does not greet him
+   * the way he would have at dawn, and until now every one of them did. */
+  G.standing=standing(G);
   // Somebody at the window over the street, on some encounters and not others,
   // and never more than twice in a day: a day where every caller brings a
   // second gun is a day about windows rather than about people. The doctor's
@@ -131,6 +135,34 @@ function beginEncounter(G){
   if(e.doctor)G.doctor.met=true;
   if(!G.met.includes(e.id))G.met.push(e.id);
   return e;
+}
+/* What the street has decided about him by the time the next man walks up. */
+function standing(G){
+  const c=f=>G.flags.filter(x=>x===f).length, m=k=>G.manner[k]||0;
+  const hard=G.badGuysShot+G.innocentsKilled*2+m("hard")
+    +c("offended")+c("gun_first")+c("outsmarted");
+  const kind=G.dates+m("warm")+c("tip_train")+c("tip_stage")+c("tip_bank")
+    +c("doctor_civil");
+  return hard-kind>=3?"hard":kind-hard>=3?"kind":"even";
+}
+/* The same beat, said differently because of what the sheriff said to earn it.
+ * A beat two or more replies reach used to read identically whether he had
+ * been civil about it or hard, which is the whole of the complaint: the words
+ * he chose changed where he went and never once changed what he heard back.
+ * A reply carries its manner - warm, hard, sly - and the beat it leads to
+ * answers that manner if it has an answer for it. Keying it on the beat he
+ * came from is not enough: two replies of the same beat, one kind and one
+ * cruel, very often arrive at the same place. */
+function npcOf(G,n){
+  n=n||nodeOf(G);
+  if(!n)return "";
+  if(n.npcIf){
+    // inside a scene it is the manner of the reply that earned this beat; at
+    // the opening, where nothing has been said yet, it is his standing in town
+    if(G.as&&n.npcIf[G.as])return n.npcIf[G.as];
+    if(!G.as&&G.standing&&n.npcIf[G.standing])return n.npcIf[G.standing];
+  }
+  return n.npc;
 }
 function openDialogue(G){
   const e=who(G);
@@ -149,6 +181,8 @@ function say(G,index){
   G.spoke=true;
   if(reply.action)return act(G,reply.action);
   if(reply.end)return terminal(G,reply.end);
+  if(reply.as)G.manner[reply.as]=(G.manner[reply.as]||0)+1;
+  G.as=reply.as||null;
   if(reply.next){
     G.node=reply.next; G.round++;
     if(G.round>RULES.ROUNDS)return terminal(G,Object.keys(who(G).ends)[0]);
@@ -211,7 +245,12 @@ function drawGun(G,nowMs){
   // talking, and does not start again while it is out. Keeping it on him is
   // still the sheriff's business: the reflex below decides what he does about
   // it, which is answer it if he is armed and leave if he is not.
-  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn))G.balked=true;
+  if(G.phase==="dialogue"&&!G.spoke&&who(G)&&!(G.duel&&G.duel.drawn)){
+    G.balked=true;
+    // pulling it before a man has been answered is remembered by the street
+    if(G.flags.indexOf("gun_first:"+G.encounter)<0)
+      G.flags.push("gun_first","gun_first:"+G.encounter);
+  }
   if(G.phase==="dialogue")G.phase="aiming";            // drawing interrupts anything
   const t=temperOf(who(G)).reflex;
   G.reflex={at:nowMs||0,limit:Math.round(rnd(G,t[0],t[1]))};

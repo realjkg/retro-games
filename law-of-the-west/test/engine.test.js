@@ -34,8 +34,20 @@ test('2. eleven callers, in order, and every written tree is sound', ()=>{
         if(n.npc&&n.npc.length>LIMITS.NPC)bad.push(e.id+"/"+id+": visitor line "+n.npc.length+" chars");
         if(!n.replies||n.replies.length!==LIMITS.REPLIES)
           bad.push(e.id+"/"+id+": "+(n.replies||[]).length+" replies, expected "+LIMITS.REPLIES);
+        // a beat that answers back must answer something a reply can actually
+        // say, and must keep to the same line length as the beat it varies
+        for(const m of Object.keys(n.npcIf||{})){
+          if(["warm","hard","sly","kind"].indexOf(m)<0)
+            bad.push(e.id+"/"+id+": npcIf has no manner called "+m);
+          if(n.npcIf[m].length>LIMITS.NPC)
+            bad.push(e.id+"/"+id+"/"+m+": "+n.npcIf[m].length+" chars");
+          if(n.npcIf[m]===n.npc)
+            bad.push(e.id+"/"+id+"/"+m+": the variant is the line it varies");
+        }
         (n.replies||[]).forEach((r,i)=>{
           const where=e.id+"/"+id+" reply "+(i+1);
+          if(r.as&&["warm","hard","sly"].indexOf(r.as)<0)
+            bad.push(where+": unknown manner "+r.as);
           if(!r.text)bad.push(where+": no words");
           if(r.text&&r.text.length>LIMITS.REPLY)bad.push(where+": "+r.text.length+" chars");
           const routes=["next","end","action"].filter(k=>r[k]);
@@ -1123,4 +1135,77 @@ test('30. no two kinds of conclusion read the same', ()=>{
 test('report', ()=>{
   fs.writeFileSync(path.join(ROOT,'test','last-report.json'),JSON.stringify(report,null,2));
   console.log('\n'+JSON.stringify(report,null,2));
+});
+
+test('31. what the sheriff says changes what he hears back', ()=>{
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const r={tagged:0, beats:0, answering:0, railed:[], reachable:{}, opens:0};
+    for(const e of CAST){
+      if(!written(e))continue;
+      const nodes=Object.keys(e.rounds);
+      r.beats+=nodes.length;
+      const into={};
+      for(const n of nodes)for(const x of (e.rounds[n].replies||[])){
+        if(x.as)r.tagged++;
+        if(x.next)into[x.next]=(into[x.next]||0)+1;
+      }
+      const answering=nodes.filter(n=>e.rounds[n].npcIf);
+      r.answering+=answering.length;
+      if(e.rounds.opening&&e.rounds.opening.npcIf)r.opens++;
+      // a beat two or more replies reach, with nothing to say about which one
+      const conv=nodes.filter(n=>(into[n]||0)>1&&!e.rounds[n].npcIf);
+      if(conv.length)r.railed.push(e.id+":"+conv.join("+"));
+      // every manner a beat answers must be a manner some reply into it carries
+      for(const n of answering){
+        const manners=new Set();
+        for(const m of nodes)for(const x of (e.rounds[m].replies||[]))
+          if(x.next===n&&x.as)manners.add(x.as);
+        for(const k of Object.keys(e.rounds[n].npcIf))
+          if(k!=="hard"&&k!=="kind"&&!manners.has(k))
+            (r.reachable[e.id+"/"+n]=r.reachable[e.id+"/"+n]||[]).push(k);
+      }
+    }
+    return JSON.stringify(r);
+  })()`));
+
+  assert.ok(out.tagged>=40,'only '+out.tagged+' replies carry a manner');
+  assert.ok(out.answering>=20,
+    'only '+out.answering+' of '+out.beats+' beats answer back differently');
+  assert.deepEqual(out.railed,[],
+    'beats reached more than one way that say the same words regardless: '+
+    out.railed.join(', '));
+  assert.deepEqual(out.reachable,{},
+    'beats answering a manner no reply into them carries: '+
+    JSON.stringify(out.reachable));
+  assert.ok(out.opens>=5,
+    'only '+out.opens+' callers greet the sheriff by his standing in town');
+
+  // and the machinery picks them up: the same beat, two manners, two lines
+  const heard=JSON.parse(run(`(()=>{
+    const G=newDay({seed:5}); const e=CAST[0];
+    const n=e.rounds.train;
+    const say=m=>{G.as=m; return npcOf(G,n);};
+    return JSON.stringify({plain:say(null),hard:say("hard"),warm:say("warm")});
+  })()`));
+  assert.notEqual(heard.hard,heard.plain,'a hard reply earned the same words');
+  assert.notEqual(heard.warm,heard.hard,'warm and hard read alike');
+
+  // a standing only colours the opening, where nothing has been said yet
+  const rep=JSON.parse(run(`(()=>{
+    const G=newDay({seed:5});
+    const n=CAST.find(e=>e.id==="deputy").rounds.opening;
+    const at=s=>{G.as=null; G.standing=s; return npcOf(G,n);};
+    const shot=(()=>{const g=newDay({seed:5});
+      g.badGuysShot=2; g.flags.push("offended","gun_first"); return standing(g);})();
+    const told=(()=>{const g=newDay({seed:5});
+      g.dates=1; g.flags.push("tip_train","tip_bank","doctor_civil"); return standing(g);})();
+    return JSON.stringify({even:at("even"),hard:at("hard"),kind:at("kind"),
+                           afterShooting:shot,afterListening:told});
+  })()`));
+  assert.equal(rep.afterShooting,'hard','a morning of shooting left him no reputation');
+  assert.equal(rep.afterListening,'kind','a morning of listening left him no reputation');
+  assert.notEqual(rep.hard,rep.even,'the deputy greets a killer the usual way');
+  assert.notEqual(rep.kind,rep.hard,'the two reputations read alike');
+  report.causeEffect={tagged:out.tagged,answering:out.answering,beats:out.beats};
 });

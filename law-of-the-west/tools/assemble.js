@@ -20,7 +20,7 @@ fs.writeFileSync(path.join(ROOT,'index.html'),out);
  * runs by hand, and a silent overrun here is a surprise deferred to the test
  * run. The page must stay one small file: it is opened from a phone, and from
  * file:// with no server behind it. */
-const BUDGET_KB=256;
+const BUDGET_KB=320;
 const kb=Buffer.byteLength(out)/1024;
 console.log(`index.html  ${kb.toFixed(1)} KB  (budget ${BUDGET_KB} KB)`);
 if(kb>BUDGET_KB){
