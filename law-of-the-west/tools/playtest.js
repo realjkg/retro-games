@@ -19,6 +19,22 @@
  * stopped flat at the wrist and the glove hung under it with nothing between.
  * Turning a rigid piece about a point keeps the ink; opening a seam does not.
  *
+ * Ink alone is not enough, though, and it took a second report from a player
+ * to find out why: a joint drawn wide enough to cover the whole of where the
+ * arm meets him swallows the forearm instead. Nothing is lost - the forearm is
+ * still drawn, just never turned - so the weight comes out right while the
+ * sleeve ends in a rounded stump on the joint's own edge and the arm above the
+ * hand is missing. So it also turns him and checks that the whole arm turned:
+ * his ink is taken in rings about the elbow, and a rigid arm moves every ring
+ * by the same angle.
+ *
+ * And it looks for the same fault in the callers. They were drawn in three
+ * bands - legs, torso, head - each offset by a few pixels to sway, and each
+ * smoothed and lit as if it were a whole figure. So every cut grew a keyline
+ * of its own and they were outlined into pieces: a head clear of its collar, a
+ * hand adrift of its cuff. A keyline belongs on a man's edge; one that runs
+ * across the inside of him is a cut.
+ *
  * Its sibling tools/playthrough.js drives the same page and asks what it says -
  * that the line is on screen, that nothing resolves without an input. This one
  * asks how it moved. Both are run by hand and neither is part of `npm test`:
@@ -36,6 +52,8 @@ const OUT=path.join(ROOT,'.playtest');
 const KEEP=process.argv.includes('--keep');
 const JUMP=10;                                     // px in one frame: a teleport
 const SHED=0.02;                                   // of him, lost to a torn seam
+const KEYLINE=6;                                   // px of outline across his middle
+const RIGID=40;                                    // degrees of disagreement between rings
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -81,6 +99,60 @@ const INK=function(sv){
   return n;
 };
 
+/* Where his ink sits round each ring about the elbow, at a given swing. */
+const RINGS=function(sv){
+  swing=sv; kickAt=-1e9; nowFrame=1000;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#d6c39a'; g.fillRect(0,0,145,200); g.restore();
+  ownGun(true);
+  const d=g.getImageData(0,0,145,200).data;
+  const ex=ELBOW.x, ey=ELBOW.y;
+  return [[14,22],[22,30],[30,38],[38,48]].map(function(band){
+    let sx=0,sy=0,n=0;
+    for(let y=60;y<190;y++)for(let x=ex-6;x<145;x++){
+      const q=((y*145)+x)*4;
+      if(Math.abs(d[q]-0xd6)+Math.abs(d[q+1]-0xc3)+Math.abs(d[q+2]-0x9a)<=24)continue;
+      const dx=x-ex, dy=y-ey, r=Math.hypot(dx,dy);
+      if(r<band[0]||r>=band[1])continue;
+      sx+=dx/r; sy+=dy/r; n++;                     // a mean direction, not a mean angle
+    }
+    return n?Math.atan2(sy,sx):null;
+  });
+};
+
+/* The longest run of keyline that has the caller's own body above and below
+ * it, over a flat ground. His outline belongs on his edge. */
+const SEAM=function(tm){
+  const enc=who(G); if(!enc)return 0;
+  const keep=[walkAt,leaving,reactAt];
+  walkAt=-1e9; leaving=null; reactAt=-1e9;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  const X0=130,Y0=20,W=180,H=180;
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#b0a898'; g.fillRect(X0,Y0,W,H); g.restore();
+  visitor(enc,'idle',tm);
+  const d=g.getImageData(X0,Y0,W,H).data;
+  const on=new Uint8Array(W*H), dark=new Uint8Array(W*H);
+  for(let p=0;p<W*H;p++){
+    const q=p*4;
+    on[p]=(Math.abs(d[q]-0xb0)+Math.abs(d[q+1]-0xa8)+Math.abs(d[q+2]-0x98)>20)?1:0;
+    dark[p]=(on[p]&&d[q]<60&&d[q+1]<60&&d[q+2]<60)?1:0;
+  }
+  let worst=0;
+  for(let y=1;y<H-1;y++){
+    let run=0;
+    for(let x=0;x<W;x++){
+      const p=y*W+x;
+      if(dark[p]&&on[p-W]&&on[p+W]&&!dark[p-W]&&!dark[p+W]){
+        if(++run>worst)worst=run;
+      } else run=0;
+    }
+  }
+  walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
+  return worst;
+};
+
 /* Runs inside the page: one row per painted frame. `drawn` is the question the
  * suite cannot ask - whether the figure was on the screen at all. */
 const RECORD=function(){
@@ -121,8 +193,8 @@ const RECORD=function(){
   const shot=async n=>{if(KEEP)fs.writeFileSync(path.join(OUT,n+'.png'),
     await page.locator('#scene').screenshot());};
 
-  const met=new Set();
-  let ink=null, turns=0;
+  const met=new Set(), seams=[];
+  let ink=null, rings=null, turns=0;
   while(turns++<500){
     const s=await state();
     if(s.phase==='summary')break;
@@ -133,6 +205,13 @@ const RECORD=function(){
       if(s.who&&!met.has(s.who)){
         met.add(s.who);
         await shot(String(met.size).padStart(2,'0')+'-'+s.who);
+        // is he drawn as one man, or outlined into the pieces he sways in?
+        await page.evaluate(()=>{window.__probing=true;});
+        let seam=0;
+        for(const tm of [0,500,1000,1700,2400,3100])
+          seam=Math.max(seam,await page.evaluate(SEAM,tm));
+        seams.push([s.who,seam]);
+        await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
           await shot(String(met.size).padStart(2,'0')+'-'+s.who+'-gun');
@@ -142,6 +221,7 @@ const RECORD=function(){
             await page.evaluate(()=>{window.__probing=true;});
             for(const sv of [1,0.75,0.5,0.34,0.2,0])
               ink.push([sv,await page.evaluate(INK,sv)]);
+            rings=[await page.evaluate(RINGS,1),await page.evaluate(RINGS,0)];
             await page.evaluate(()=>{swing=1;paint();window.__probing=false;});
           }
           await page.keyboard.press('ArrowLeft');await page.waitForTimeout(120);
@@ -154,10 +234,10 @@ const RECORD=function(){
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs,ink);
+  report(log,errs,ink,seams,rings);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs,ink){
+function report(log,errs,ink,seams,rings){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -211,6 +291,30 @@ function report(log,errs,ink){
     console.log(`${inkOk?'  ok  ':'  BAD '} the arm holds together: `+
       `${(shed*100).toFixed(1)}% of him lost at swing ${worst[0]} `+
       `(${ink.map(([s,n])=>s+':'+n).join(' ')})`);
+  }
+  if(!rings)console.log('  --   the whole arm turning was not reached this run');
+  else{
+    const turn=rings[0].map((u,i)=>{
+      if(u==null||rings[1][i]==null)return null;
+      let t=rings[1][i]-u;
+      while(t>Math.PI)t-=2*Math.PI; while(t<-Math.PI)t+=2*Math.PI;
+      return t*180/Math.PI;
+    }).filter(v=>v!=null);
+    const spread=Math.max.apply(null,turn)-Math.min.apply(null,turn);
+    const ok=spread<=RIGID;
+    if(!ok)bad++;
+    console.log(`${ok?'  ok  ':'  BAD '} the whole arm turns: rings about the elbow moved `+
+      `${turn.map(v=>Math.round(v)+'\u00b0').join(' ')} - they disagree by `+
+      `${Math.round(spread)}\u00b0`);
+  }
+  if(!seams||!seams.length)console.log('  --   no caller was looked at closely this run');
+  else{
+    const torn=seams.filter(([,n])=>n>KEYLINE);
+    if(torn.length)bad++;
+    const w=seams.reduce((a,b)=>b[1]>a[1]?b:a,seams[0]);
+    console.log(`${torn.length?'  BAD ':'  ok  '} the callers hold together: `+
+      `worst keyline across a caller's inside ${w[1]}px (${w[0]})`+
+      (torn.length?`; torn: ${torn.map(([n,v])=>n+' '+v+'px').join(', ')}`:''));
   }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');
