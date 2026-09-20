@@ -974,21 +974,32 @@ test('9u. he draws and holsters with his own arm, and reloads between',
    * and the arm is what lies beyond it. */
   const poly=p.ev('ARMPOLY'), E=p.ev('ELBOW'), R=p.ev('JOINT'),
         own=p.ev('OWN'), muz=p.ev('MUZZLE');
-  assert.ok(R>12,'the joint is '+R+' across, which will not cover a cuff');
+  /* Wide enough to be a joint, narrow enough not to be the arm. */
+  assert.ok(R>=8,'the joint is '+R+' across, which is a pin, not an elbow');
+  assert.ok(R<=14,'the joint is '+R+' across, which is most of his forearm');
   const inside=(px,py)=>{let c=false;
     for(let i=0,j=poly.length-1;i<poly.length;j=i++){
       const [xi,yi]=poly[i], [xj,yj]=poly[j];
       if((yi>py)!==(yj>py)&&px<xi+(py-yi)*(xj-xi)/(yj-yi))c=!c;
     } return c;};
   const far=(x,y)=>Math.hypot(x-E.x,y-E.y);
-  /* The arm meets the body along the near edge of its reach, and every part of
-   * that edge the forearm crosses must be inside the joint - that is what the
-   * forearm comes out from under. Any of it left outside is a place the
-   * drawing can come apart, which is where the flat cut at the wrist was. */
-  const nearX=Math.min.apply(null,poly.map(q=>q[0]));
-  for(let y=95;y<=130;y+=5)
-    assert.ok(Math.hypot(nearX-E.x,y-E.y)<R,
-      'the arm meets him at '+nearX+','+y+', which the joint does not cover');
+  /* The arm meets the body along one short edge of its reach, and that edge
+   * must lie inside the joint - it is what the forearm comes out from under.
+   * The rest of the reach runs through empty ground round the outside of the
+   * forearm, the glove and the revolver, so it cuts nothing. */
+  const inJoint=poly.filter(q=>far(q[0],q[1])<=R);
+  assert.equal(inJoint.length,2,
+    'the reach meets him at '+inJoint.length+' corners; a joint has two');
+  assert.ok(far((inJoint[0][0]+inJoint[1][0])/2,(inJoint[0][1]+inJoint[1][1])/2)<=R,
+    'the edge between them leaves the joint, and can open');
+  /* And the joint must be small enough to be a joint. Made wide enough to
+   * cover the whole of that meeting it swallows the forearm instead, and a
+   * swallowed forearm does not turn: the sleeve ends in a rounded stump on
+   * the joint's own edge, the hand hangs somewhere below it, and the arm
+   * above the hand is simply missing. The wrist and the glove turn, or there
+   * is no forearm on the screen. */
+  assert.ok(far(80,110)>R,'the joint has swallowed his forearm');
+  assert.ok(far(95,115)>R,'the joint has swallowed his hand');
   // the reach holds the whole of what moves: the glove and the muzzle
   assert.ok(inside(muz.x,muz.y),'the reach stops short of the muzzle');
   assert.ok(inside(95,115)&&far(95,115)>R,'the glove is not part of the arm');
@@ -997,8 +1008,8 @@ test('9u. he draws and holsters with his own arm, and reloads between',
   // and nothing of his that stands still is inside it
   assert.ok(!inside(10,100),'the reach has taken his back with it');
   assert.ok(!inside(55,175),'the reach has taken the scabbard with it');
-  // the sleeve meets the cuff inside the joint, so it is drawn at every angle
-  assert.ok(far(60,120)<R,'the cuff is outside the joint and can be torn off');
+  // and the elbow itself is inside it, so it is drawn at every angle
+  assert.ok(far(E.x,E.y+4)<R,'the elbow is outside its own joint');
   // jsdom fetches no images, so his drawing stands in as one that is loaded;
   // what is under test is how the picture is cut up, not what is in it
   p.ev('sheriffImg={complete:true,naturalWidth:129,naturalHeight:200};');

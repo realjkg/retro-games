@@ -55,8 +55,18 @@ point it turned about, and rotating a straight seam opens it. That is what
 each figure moved between two painted frames, how much of the sheriff is still
 on the screen through the whole swing of his arm, and whether a caller's
 keyline runs anywhere but around his edge. Run against the build before the
-fixes it reports fourteen teleports, four per cent of the sheriff shed, and ten
-of the eleven callers outlined into pieces.
+fixes it reports fourteen teleports, four per cent of the sheriff shed, ten of
+the eleven callers outlined into pieces, and the near rings of his arm turning
+three degrees where the far ones turn eighty.
+
+That last one is there because weighing him was not enough. A joint cut wide
+enough to cover the whole of where the arm meets him swallows the forearm
+instead: the forearm is still drawn, and still weighs the same, but it is
+never turned. The sleeve ends in a rounded stump on the joint's own edge, the
+hand sits somewhere past it, and the arm above the hand is missing — and the
+scales say nothing is wrong. So the tool turns him and takes his ink in rings
+about the elbow: a rigid arm moves every ring by the same angle, and a frozen
+forearm shows up as the near rings disagreeing with the far ones.
 
 The callers had the same fault as the arm and it took the same cure. They were
 drawn in three bands — legs, torso, head — each offset a few pixels to sway and

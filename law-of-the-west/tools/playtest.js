@@ -19,6 +19,15 @@
  * stopped flat at the wrist and the glove hung under it with nothing between.
  * Turning a rigid piece about a point keeps the ink; opening a seam does not.
  *
+ * Ink alone is not enough, though, and it took a second report from a player
+ * to find out why: a joint drawn wide enough to cover the whole of where the
+ * arm meets him swallows the forearm instead. Nothing is lost - the forearm is
+ * still drawn, just never turned - so the weight comes out right while the
+ * sleeve ends in a rounded stump on the joint's own edge and the arm above the
+ * hand is missing. So it also turns him and checks that the whole arm turned:
+ * his ink is taken in rings about the elbow, and a rigid arm moves every ring
+ * by the same angle.
+ *
  * And it looks for the same fault in the callers. They were drawn in three
  * bands - legs, torso, head - each offset by a few pixels to sway, and each
  * smoothed and lit as if it were a whole figure. So every cut grew a keyline
@@ -44,6 +53,7 @@ const KEEP=process.argv.includes('--keep');
 const JUMP=10;                                     // px in one frame: a teleport
 const SHED=0.02;                                   // of him, lost to a torn seam
 const KEYLINE=6;                                   // px of outline across his middle
+const RIGID=40;                                    // degrees of disagreement between rings
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -87,6 +97,28 @@ const INK=function(sv){
   for(let i=0;i<d.length;i+=4)
     if(Math.abs(d[i]-0xd6)+Math.abs(d[i+1]-0xc3)+Math.abs(d[i+2]-0x9a)>24)n++;
   return n;
+};
+
+/* Where his ink sits round each ring about the elbow, at a given swing. */
+const RINGS=function(sv){
+  swing=sv; kickAt=-1e9; nowFrame=1000;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#d6c39a'; g.fillRect(0,0,145,200); g.restore();
+  ownGun(true);
+  const d=g.getImageData(0,0,145,200).data;
+  const ex=ELBOW.x, ey=ELBOW.y;
+  return [[14,22],[22,30],[30,38],[38,48]].map(function(band){
+    let sx=0,sy=0,n=0;
+    for(let y=60;y<190;y++)for(let x=ex-6;x<145;x++){
+      const q=((y*145)+x)*4;
+      if(Math.abs(d[q]-0xd6)+Math.abs(d[q+1]-0xc3)+Math.abs(d[q+2]-0x9a)<=24)continue;
+      const dx=x-ex, dy=y-ey, r=Math.hypot(dx,dy);
+      if(r<band[0]||r>=band[1])continue;
+      sx+=dx/r; sy+=dy/r; n++;                     // a mean direction, not a mean angle
+    }
+    return n?Math.atan2(sy,sx):null;
+  });
 };
 
 /* The longest run of keyline that has the caller's own body above and below
@@ -162,7 +194,7 @@ const RECORD=function(){
     await page.locator('#scene').screenshot());};
 
   const met=new Set(), seams=[];
-  let ink=null, turns=0;
+  let ink=null, rings=null, turns=0;
   while(turns++<500){
     const s=await state();
     if(s.phase==='summary')break;
@@ -189,6 +221,7 @@ const RECORD=function(){
             await page.evaluate(()=>{window.__probing=true;});
             for(const sv of [1,0.75,0.5,0.34,0.2,0])
               ink.push([sv,await page.evaluate(INK,sv)]);
+            rings=[await page.evaluate(RINGS,1),await page.evaluate(RINGS,0)];
             await page.evaluate(()=>{swing=1;paint();window.__probing=false;});
           }
           await page.keyboard.press('ArrowLeft');await page.waitForTimeout(120);
@@ -201,10 +234,10 @@ const RECORD=function(){
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs,ink,seams);
+  report(log,errs,ink,seams,rings);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs,ink,seams){
+function report(log,errs,ink,seams,rings){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -258,6 +291,21 @@ function report(log,errs,ink,seams){
     console.log(`${inkOk?'  ok  ':'  BAD '} the arm holds together: `+
       `${(shed*100).toFixed(1)}% of him lost at swing ${worst[0]} `+
       `(${ink.map(([s,n])=>s+':'+n).join(' ')})`);
+  }
+  if(!rings)console.log('  --   the whole arm turning was not reached this run');
+  else{
+    const turn=rings[0].map((u,i)=>{
+      if(u==null||rings[1][i]==null)return null;
+      let t=rings[1][i]-u;
+      while(t>Math.PI)t-=2*Math.PI; while(t<-Math.PI)t+=2*Math.PI;
+      return t*180/Math.PI;
+    }).filter(v=>v!=null);
+    const spread=Math.max.apply(null,turn)-Math.min.apply(null,turn);
+    const ok=spread<=RIGID;
+    if(!ok)bad++;
+    console.log(`${ok?'  ok  ':'  BAD '} the whole arm turns: rings about the elbow moved `+
+      `${turn.map(v=>Math.round(v)+'\u00b0').join(' ')} - they disagree by `+
+      `${Math.round(spread)}\u00b0`);
   }
   if(!seams||!seams.length)console.log('  --   no caller was looked at closely this run');
   else{

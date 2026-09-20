@@ -578,8 +578,8 @@ if(typeof Image==="function"){
  * It turns about the elbow, because that is the joint this drawing has: the
  * upper arm hangs and the forearm is level, and what lowering a revolver does
  * to that is close it. At level it reassembles to the pixel. */
-const ARMPOLY=[[66,86],[180,86],[180,142],[66,142]];
-const ELBOW={x:64,y:112}, JOINT=22, DOWN=1.42;
+const ARMPOLY=[[62,104],[78,88],[129,84],[129,141],[74,141],[62,124]];
+const ELBOW={x:60,y:114}, JOINT=11, DOWN=1.42;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
 /* A shot is the one thing the arm does that is not a position it settles into.
