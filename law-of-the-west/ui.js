@@ -116,8 +116,7 @@ function figureRows(fig,pose){
   const rows=fig.rows.slice();
   const over=pose==="raise"?fig.raise
            :pose==="surrender"?(fig.surrender||SURRENDER)
-           :pose==="strideA"?fig.strideA
-           :pose==="strideB"?fig.strideB:null;
+           :(fig.gait&&fig.gait[pose])||null;
   if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
   return rows;
 }
@@ -389,8 +388,11 @@ function visitor(enc,pose,now){
     const w0=walkNow(now||0), l0=leaveNow(now||0);
     const g0=(w0&&!w0.before)?w0.t:(l0?l0.t:null);
     if(g0!=null&&!legsOf(fig).skirt){
-      const p0=Math.sin(g0*Math.PI*STRIDE);
-      if(p0>0.3)walking="strideA"; else if(p0<-0.3)walking="strideB";
+      /* Where he is in the cycle. sin says which foot is forward, cos says
+       * which way it is going - and between the two contacts, the leg that is
+       * swinging through is the one that was behind. */
+      const ph=g0*Math.PI*STRIDE, sn=Math.sin(ph), cs=Math.cos(ph);
+      walking=sn>0.55?"strideA":sn<-0.55?"strideB":(cs<0?"passB":"passA");
     }
   }
   let rows=figureRows(fig,walking||pose);
@@ -448,9 +450,14 @@ function visitor(enc,pose,now){
    * two quantises every band to 0, 2 or 4, which is how the articulation came
    * to be there in the arithmetic and absent on the screen - the head's share
    * never cleared a half pixel, so the head never moved at all. */
+  /* Standing, his weight goes hip to hip on a clock of its own. Walking, it
+   * goes on the clock his feet are on - the hips swing over the leg that is
+   * taking the weight and the shoulders come back the other way - and a walk
+   * without that opposition is a man being carried along upright. */
   const SWAY=1.15;                                   // rad/s: a shift every few seconds
-  const w=Math.sin(t*SWAY+ph);                       // the weight, hip to hip
-  const wLag=Math.sin((t-0.22)*SWAY+ph);             // what the head has caught up to
+  const legPh=gait!=null?gait*Math.PI*STRIDE:null;
+  const w=legPh!=null?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
+  const wLag=legPh!=null?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
   const hipX=Math.round(w*3);
   const shoX=-Math.round(w*2);                       // the counter-turn
   const headX=-Math.round(wLag*2);
@@ -461,8 +468,11 @@ function visitor(enc,pose,now){
   const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
   // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
   // he leans into it and comes upright as he arrives
-  const wob=gait!=null?(1-Math.abs(Math.cos(gait*Math.PI*STRIDE))):0;
-  const wbob=gait!=null?-Math.round(wob*1.6):0;
+  /* And he rises and falls on it. He was highest at the contacts, which is
+   * backwards: a man is lowest when his heel lands and takes his weight, and
+   * tallest going over the planted leg in the middle of the step. */
+  const wob=gait!=null?(1-Math.abs(Math.sin(gait*Math.PI*STRIDE))):0;
+  const wbob=gait!=null?-Math.round(wob*2):0;
   /* He leaned by four pixels, which on a man this wide puts his shoulders off
    * his hips and reads as falling rather than walking. Two is a lean. */
   const wlean=walk?Math.round((1-walk.t)*2)*(GEST/2)

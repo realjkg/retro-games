@@ -1337,9 +1337,28 @@ test('9C. a walk is two legs he is drawn on, not a standing man cut in half',
   const stand=p.ev('figureRows(figureOf(who(G)),"stand")');
   const A=p.ev('figureRows(figureOf(who(G)),"strideA")');
   const B=p.ev('figureRows(figureOf(who(G)),"strideB")');
+  const pA=p.ev('figureRows(figureOf(who(G)),"passA")');
+  const pB=p.ev('figureRows(figureOf(who(G)),"passB")');
   assert.notDeepEqual(A,stand,'there is no walk pose; he is still being cut');
   assert.notDeepEqual(B,stand,'the other foot has no pose of its own');
   assert.notDeepEqual(A,B,'both strides are the same foot');
+  /* Four poses, not two. Two contacts on their own is a scissor: both feet
+   * stay down and the legs only open and shut, which is a man shuffling. What
+   * makes it a walk is the half of the cycle in between, where one leg swings
+   * through with the boot off the dirt and the knee bent. */
+  for(const [n,rows] of [['passA',pA],['passB',pB]]){
+    assert.notDeepEqual(rows,stand,'there is no '+n+'; the walk has no passing half');
+    const ink=r=>r.search(/[^.]/)>=0;
+    let lastStand=0, lastPass=0;
+    for(let y=0;y<stand.length;y++){if(ink(stand[y]))lastStand=y;if(ink(rows[y]))lastPass=y;}
+    assert.equal(lastPass,lastStand,n+' lifts him off the ground, not his foot');
+    // one boot up: the lowest rows carry less of him than when he stands
+    const low=(rows,y)=>(rows[y].match(/[^.]/g)||[]).length;
+    let lighter=0;
+    for(let y=lastStand-5;y<=lastStand;y++)if(low(rows,y)<low(stand,y))lighter++;
+    assert.ok(lighter>=3,n+' has both boots still on the dirt ('+lighter+' rows lighter)');
+  }
+  assert.notDeepEqual(pA,pB,'the same foot swings through twice');
   /* The legs part, and they part where a walk parts them: below the waist the
    * stride stands wider than he does still, and the daylight between his boots
    * opens. Counting runs is not enough - he has two boots standing as well -
