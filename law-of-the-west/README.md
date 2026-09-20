@@ -23,6 +23,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `tools/render-sounds.js` | Renders the cue table to wavs for auditioning |
 | `tools/check-audio.js` | Drives every cue through the runtime with a stubbed AudioContext |
 | `tools/playthrough.js` | Plays all eleven journeys in a real browser at phone size |
+| `tools/playtest.js` | Plays the day in a real browser and reports on how the figures moved |
 | `test/` | The sandbox harness and the tests |
 
 ```
@@ -34,7 +35,26 @@ node tools/render-sounds.js  # 55 wavs plus 00-all-sounds.wav (gitignored)
 # Not part of npm test: it needs a browser, and it skips cleanly without one.
 npm i playwright-core
 PW=$PWD/node_modules/playwright-core node tools/playthrough.js
+
+# and the same browser again, watching the picture rather than the words:
+# every frame the page paints, and how far each figure moved between two of
+# them. A stride is three or four pixels; anything above ten is a teleport.
+PW=$PWD/node_modules/playwright-core node tools/playtest.js
 ```
+
+The suite can only check what the page computes. `walkNow()` returned exactly
+the right offsets and test 9v passed on them while the screen showed every
+caller appear at his post, stand there, and jump the whole width of the walk
+backwards to begin it — because `walkNow()` returned `null` both before the
+walk and after it, and the drawing read `null` as *stand him on his mark*. The
+sheriff's own arm passed 9u the same way while the picture came apart at the
+wrist: the sleeve stopped in a flat cut and the glove hung below it with no
+forearm in between, because the seam it was hinged on ran forty pixels from the
+point it turned about, and rotating a straight seam opens it. That is what
+`tools/playtest.js` is for, and it is how both were found — it counts how far
+each figure moved between two painted frames, and how much of the sheriff is
+still on the screen through the whole swing of his arm. Run against the build
+before the fixes it reports fourteen teleports and four per cent of him shed.
 
 `index.html` is committed and is what runs; the four scripts exist so the source
 can be edited in pieces. Opening it from the file system and serving it from
