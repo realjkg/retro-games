@@ -665,7 +665,7 @@ const BONE={
    * the waist than at the chest. He was thirty cells wide from shoulder to
    * hip and the same width all the way down - a door with a face on it. */
   shoulderW:18, chestW:16, waistW:12, hipW:14,
-  upperArm:4, foreArm:4, handW:4, thighW:9, calfW:7, bootW:9
+  upperArm:5, foreArm:4, handW:4, thighW:9, calfW:7, bootW:9
 };
 const CX=24;                                      // he stands on the middle of it
 
@@ -722,8 +722,14 @@ function figLayout(S){
    * ribs, so arms and body fused into one rectangle and every caller read as
    * a slab with a face on it. A body is legible at this size by its outline
    * and nothing else, so the gap is the whole drawing. */
-  const armX=(Wd.chestW/2+Wd.upperArm/2+1);
-  return {R:R, Wd:Wd, armX:armX, elbowX:armX+0.5, wristX:armX,
+  /* The arm used to stand a pixel clear of the chest, and a pixel of air is a
+   * pixel of rim: both the sleeve and the body were outlined along it, so each
+   * arm read as a black-edged stick leaned against him rather than as part of
+   * him. It touches now, and the coat-seam below does the separating. It also
+   * bows: a man's arm goes out at the elbow and comes back in at the wrist,
+   * and a bar that does neither is the blockiest thing on him. */
+  const armX=(Wd.chestW/2+Wd.upperArm/2-0.5);
+  return {R:R, Wd:Wd, armX:armX, elbowX:armX+1.1, wristX:armX-0.6,
           gunSide:-1, holsterX:CX-(Wd.waistW/2+2.5)};
 }
 function buildFigure(S,pose){
@@ -785,7 +791,11 @@ function buildFigure(S,pose){
   for(const s of [1,-1]){
     const sx=CX+s*armX, ex=CX+s*elbowX, wx=CX+s*wristX;
     const sleeve=(S.coat==="vest")?(S.linen||"W"):"C";
-    figDisc(g,sx,R.shoulder+3,Wd.upperArm/2,2,(S.coat==="vest")?(S.linen||"W"):"C");
+    /* and the shoulder is a slope off the chest, not a blob set beside it:
+     * squared off, the join is a right angle with a notch of air in it */
+    figTaper(g,R.shoulder,R.shoulder+4,
+             CX+s*(Wd.chestW/2-1.5),Wd.upperArm*0.9,sx,Wd.upperArm,
+             (S.coat==="vest")?(S.linen||"W"):"C");
     if(up||(raised&&s===gunSide)){
       // forearm up: the elbow stays where it is and the hand goes over the hat
       const topY=up?R.crown+(S.tall?2:2):R.chest-2;

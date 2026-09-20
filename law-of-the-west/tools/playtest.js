@@ -35,6 +35,12 @@
  * hand adrift of its cuff. A keyline belongs on a man's edge; one that runs
  * across the inside of him is a cut.
  *
+ * And it counts the air inside each of them. A sleeve that stands one pixel
+ * clear of the chest puts a slot of street through him the length of the arm,
+ * shut at the shoulder and shut at the hand, rimmed in black down both sides -
+ * which is what made every caller read as sticks leaned against a coat. Air
+ * the outside cannot reach is air that should not be there.
+ *
  * Its sibling tools/playthrough.js drives the same page and asks what it says -
  * that the line is on screen, that nothing resolves without an input. This one
  * asks how it moved. Both are run by hand and neither is part of `npm test`:
@@ -54,6 +60,7 @@ const JUMP=10;                                     // px in one frame: a telepor
 const SHED=0.02;                                   // of him, lost to a torn seam
 const KEYLINE=6;                                   // px of outline across his middle
 const RIGID=40;                                    // degrees of disagreement between rings
+const TRAPPED=16;                                  // px of street shut inside a caller
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -119,6 +126,33 @@ const RINGS=function(sv){
     }
     return n?Math.atan2(sy,sx):null;
   });
+};
+
+/* Air that is inside the caller: background the outside cannot reach. */
+const TRAP=function(tm){
+  const enc=who(G); if(!enc)return 0;
+  const keep=[walkAt,leaving,reactAt];
+  walkAt=-1e9; leaving=null; reactAt=-1e9;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  const X0=130,Y0=20,W=180,H=180;
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#b0a898'; g.fillRect(X0,Y0,W,H); g.restore();
+  visitor(enc,'idle',tm);
+  const d=g.getImageData(X0,Y0,W,H).data;
+  const on=new Uint8Array(W*H);
+  for(let i=0,p=0;i<d.length;i+=4,p++)
+    on[p]=(Math.abs(d[i]-0xb0)+Math.abs(d[i+1]-0xa8)+Math.abs(d[i+2]-0x98)>20)?1:0;
+  const seen=new Uint8Array(W*H), st=new Int32Array(W*H); let tp=0;
+  const push=q=>{if(!on[q]&&!seen[q]){seen[q]=1;st[tp++]=q;}};
+  for(let x=0;x<W;x++){push(x);push((H-1)*W+x);}
+  for(let y=0;y<H;y++){push(y*W);push(y*W+W-1);}
+  while(tp){const q=st[--tp],x=q%W,y=(q-x)/W;
+    if(x>0)push(q-1); if(x<W-1)push(q+1);
+    if(y>0)push(q-W); if(y<H-1)push(q+W);}
+  let n=0;
+  for(let p=0;p<W*H;p++)if(!on[p]&&!seen[p])n++;
+  walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
+  return n;
 };
 
 /* The longest run of keyline that has the caller's own body above and below
@@ -207,10 +241,12 @@ const RECORD=function(){
         await shot(String(met.size).padStart(2,'0')+'-'+s.who);
         // is he drawn as one man, or outlined into the pieces he sways in?
         await page.evaluate(()=>{window.__probing=true;});
-        let seam=0;
-        for(const tm of [0,500,1000,1700,2400,3100])
+        let seam=0, trap=0;
+        for(const tm of [0,500,1000,1700,2400,3100]){
           seam=Math.max(seam,await page.evaluate(SEAM,tm));
-        seams.push([s.who,seam]);
+          trap=Math.max(trap,await page.evaluate(TRAP,tm));
+        }
+        seams.push([s.who,seam,trap]);
         await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
@@ -319,6 +355,13 @@ function report(log,errs,ink,seams,rings){
     console.log(`${torn.length?'  BAD ':'  ok  '} the callers hold together: `+
       `worst keyline across a caller's inside ${w[1]}px (${w[0]})`+
       (torn.length?`; torn: ${torn.map(([n,v])=>n+' '+v+'px').join(', ')}`:''));
+    const slotted=seams.filter(q=>q[2]>TRAPPED);
+    if(slotted.length)bad++;
+    const t=seams.reduce((a,b)=>b[2]>a[2]?b:a,seams[0]);
+    const mean=(seams.reduce((a,b)=>a+b[2],0)/seams.length).toFixed(1);
+    console.log(`${slotted.length?'  BAD ':'  ok  '} the callers are one body: `+
+      `worst ${t[2]}px of street shut inside one (${t[0]}), mean ${mean}px`+
+      (slotted.length?`; slotted: ${slotted.map(q=>q[0]+' '+q[2]+'px').join(', ')}`:''));
   }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');

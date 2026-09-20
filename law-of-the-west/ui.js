@@ -209,6 +209,7 @@ function figureRuns(rows,look,w,h){
   /* 3. The rim, and then the runs. Every pixel of air that touches him is put
    *    down in black first: that one pixel is what keeps him legible against a
    *    lit window or a dark doorway, at any cell size. */
+  const RIM1="rgba(0,0,0,0.34)", RIM2="rgba(0,0,0,0.62)";
   const SH=new Map(), toned=(col,t)=>{
     const k=col+"@"+t; let v=SH.get(k);
     if(v===undefined){v=t?shade(col,TONES[t+2]):col;SH.set(k,v);}
@@ -222,10 +223,21 @@ function figureRuns(rows,look,w,h){
       if(X>=0&&X<W&&Y>=0&&Y<H&&inside[Y*W+X]){
         c=toned(pix[Y*W+X],tone[Y*W+X]-2);
       }else{
-        for(let dy=-1;dy<=1&&!c;dy++)for(let dx=-1;dx<=1;dx++){
+        /* The rim is one pixel of air, put down in black, and on a staircase
+         * that black is the staircase: every outer corner of every step gets
+         * the full weight of it, which is what makes a four-pixel sleeve read
+         * as a black-edged stick. How much of him a pixel of air is actually
+         * touching is countable - a flat edge touches three of him, an outer
+         * corner one or two - so a corner takes less of the black and the
+         * step stops being a step. The flats keep all of it, which is what
+         * the rim is for: he stays legible against a lit window. */
+        let n=0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+          if(!dx&&!dy)continue;
           const x=X+dx, y=Y+dy;
-          if(x>=0&&x<W&&y>=0&&y<H&&inside[y*W+x]){c=C64.blk;break;}
+          if(x>=0&&x<W&&y>=0&&y<H&&inside[y*W+x])n++;
         }
+        if(n)c=n>=3?C64.blk:(n===2?RIM2:RIM1);
       }
       if(run&&run.c===c)run.w++;
       else{ if(run)runs.push(run); run=c?{x:X,y:Y,w:1,c:c}:null; }
@@ -2128,9 +2140,30 @@ function moveCursor(d){
 }
 /* Putting the gun up is one sound, the same one whichever way he does it: the
  * HOL control, Escape, or walking the sights off the bottom of the street. */
+/* Clearing leather, wherever it is asked for. */
+function clearLeather(){
+  drawGun(G,performance.now()); drawnAt=performance.now();
+  beginSeq("draw",performance.now());
+  SND.cut();                                  // the theme stops where the gun starts
+  // leather at the first move, the hammer back as the spin comes round, the
+  // sights settling as the arm stops: once each, on the draw's own clock
+  SND.leather(); cueAtMs(Math.round(DRAW_MS*0.55),()=>SND.cock());
+  cueAtMs(Math.round(DRAW_MS*0.92),()=>SND.aim());
+  paint();
+}
+/* HOL is the gun's own button, and it was only half of one: with the gun
+ * already up it did nothing whatever and said nothing about it, which is a
+ * dead button - the same fault the up control had before it learned to say no.
+ * A player reaching for the button marked HOL is asking about the revolver, so
+ * it answers about the revolver: out if it is away, away if it is out. Only
+ * where neither is possible - a resolve screen, between encounters - does it
+ * refuse, and then it says so. */
 function putUp(){
-  if(G.mode!=="gun")return;
-  holster(G); beginSeq("holster",performance.now()); SND.holster(); paint();
+  if(G.mode==="gun"){
+    holster(G); beginSeq("holster",performance.now()); SND.holster(); paint(); return;
+  }
+  if(G.phase==="dialogue"||G.phase==="tell"){clearLeather(); return;}
+  SND.deny();
 }
 function up(){
   if(screen==="sound"){soundCmd("prev");return;}
@@ -2138,16 +2171,7 @@ function up(){
   // A gun cannot come out on a resolve screen or between encounters. It used to
   // do nothing at all and say nothing about it, which reads as a dead button.
   if(G.mode==="talk"&&G.phase!=="dialogue"&&G.phase!=="tell"){SND.deny();return;}
-  if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
-    drawGun(G,performance.now()); drawnAt=performance.now();
-    beginSeq("draw",performance.now());
-    SND.cut();                                  // the theme stops where the gun starts
-    // leather at the first move, the hammer back as the spin comes round, the
-    // sights settling as the arm stops: once each, on the draw's own clock
-    SND.leather(); cueAtMs(Math.round(DRAW_MS*0.55),()=>SND.cock());
-    cueAtMs(Math.round(DRAW_MS*0.92),()=>SND.aim());
-    paint(); return;
-  }
+  if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){clearLeather(); return;}
   if(G.mode==="gun")moveAim(G,0,-1);            // the sights make no sound
 }
 function down(){

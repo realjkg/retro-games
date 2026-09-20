@@ -92,7 +92,46 @@ way, landing as the gun reaches leather. Settled at either end the spin is
 nothing and the arm is the arm, which is what keeps the levelled pose exact to
 the pixel.
 
-## The callers
+## The callers, and what is still square about them
+
+Two things made them read as sticks leaned against a coat, and one thing still
+does.
+
+Each arm stood one pixel clear of the chest. A pixel of air is a pixel of rim,
+so the sleeve and the body were both outlined along it and the slot ran the
+length of the arm, shut at the shoulder and shut at the hand. They touch now,
+and the coat-seam that was already written for an attached sleeve does the
+separating it was meant to do. Measured as air the outside cannot reach, that
+is a mean of 18.9px of street shut inside a caller before, and 9.2px after;
+seven of the eleven were over the bar, and none are now. `tools/playtest.js`
+holds it.
+
+The rim was a staircase. One pixel of air in black is what keeps a figure
+legible against a lit window, but on a stepped edge that black *is* the steps.
+How much of him a pixel of air touches is countable — a flat edge touches three
+of him, an outer corner one or two — so corners take a third or two thirds of
+the black and flats keep all of it.
+
+What is still square is the **wall**: the longest run of rows down which the
+outer edge of a caller does not move a single pixel. It is about twenty rows on
+an eighty-four-row figure, and it was about twenty rows before. That is the
+outside of the legs, and it did not move because it cannot at this size with
+integer edges: three pixels of width travel through a knee and a calf is one
+and a half pixels of edge travel, which rounds to one or two values and still
+sits there for a dozen rows. Shaping the legs and arms harder was tried and
+measured — it made the arms detach again (mean trapped air 10.2px to 15.1px)
+and left the wall where it was, so it was reverted. Fixing it properly means
+authoring the figures at twice the resolution and sampling down with coverage,
+which is a real change to the sprite pipeline and not a tweak.
+
+Related, and worth knowing: the silhouette smoothing in `figureRuns` does
+nothing and never has. It interpolates coverage between cells, and these
+figures are drawn at a cell size of one pixel, so every weight it computes is
+one or zero. The comment above it describes rounding a stepped corner off. It
+has never rounded anything. It would work at a larger cell, which is the same
+conclusion from the other direction.
+
+## The callers came apart, too
 
 The callers had the same fault as the arm and it took the same cure. They were
 drawn in three bands — legs, torso, head — each offset a few pixels to sway and
