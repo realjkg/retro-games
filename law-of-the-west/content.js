@@ -762,11 +762,17 @@ function buildFigure(S,pose){
 
   /* legs, or a skirt over them */
   if(dress){
-    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX,Wd.hipW*1.75,"L");
-    figTaper(g,R.ankle+5,R.ground,CX-Wd.thighW*0.45,Wd.bootW*0.8,
-             CX-Wd.thighW*0.45,Wd.bootW*0.8,"B");
-    figTaper(g,R.ankle+5,R.ground,CX+Wd.thighW*0.45,Wd.bootW*0.8,
-             CX+Wd.thighW*0.45,Wd.bootW*0.8,"B");
+    /* A skirt does not stride, but the woman in it is still walking. The hem
+     * swings the way her weight goes and her boots come out from under it in
+     * turn - which is a walk at this size. Leaving her sliding while everybody
+     * else strode was the last scene in the day that had nobody walking in it. */
+    const hemSw=gait?(gait.lead[1]-gait.lead[-1])*1.7:0;
+    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX+hemSw,Wd.hipW*1.75,"L");
+    for(const s of [-1,1]){
+      const lead=gait?gait.lead[s]:0, lift=gait?gait.lift[s]:0;
+      const bx=CX+s*Wd.thighW*0.45+lead*2.4;
+      figTaper(g,R.ankle+5-lift,R.ground-lift,bx,Wd.bootW*0.8,bx,Wd.bootW*0.8,"B");
+    }
   }else{
     /* A stride is drawn, not sheared. It used to be cut out of the standing
      * pose: the trousers are one column with the boots touching at the bottom,

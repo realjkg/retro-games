@@ -41,11 +41,24 @@
  * which is what made every caller read as sticks leaned against a coat. Air
  * the outside cannot reach is air that should not be there.
  *
+ * Above the waist, that is. Below it there is a gap between a man's legs, and
+ * it is shut at the bottom whenever his boots meet - so a flood fill calls it
+ * trapped and it is nothing of the kind. Counting it cost this check its
+ * meaning: the three robbers stand with their boots together and came in at
+ * sixteen to eighteen pixels of perfectly good daylight, over a bar set on
+ * callers whose boots happen to be apart. The arm slot is what is being looked
+ * for and the arm is above the waist.
+ *
  * Its sibling tools/playthrough.js drives the same page and asks what it says -
  * that the line is on screen, that nothing resolves without an input. This one
  * asks how it moved. Both are run by hand and neither is part of `npm test`:
  * CI has no browser, and the game must stay playable from file:// with nothing
  * installed.
+ *
+ * It reads one thing the page writes down for it - gaitPose, which beat of the
+ * walk a caller was drawn on - and it reads it defensively, because the point
+ * of this tool is being run against the build you are replacing as well as the
+ * one you are proposing, and that build will not have it.
  *
  *   PW=$PWD/node_modules/playwright-core node tools/playtest.js
  *   node tools/playtest.js --keep      # and write the screenshots to .playtest
@@ -128,13 +141,29 @@ const RINGS=function(sv){
   });
 };
 
+/* A cheap fingerprint of the caller as he is drawn at a given moment. */
+const STILL=function(tm){
+  const enc=who(G); if(!enc)return '-';
+  const keep=[walkAt,leaving,reactAt];
+  walkAt=-1e9; leaving=null; reactAt=-1e9;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#b0a898'; g.fillRect(130,20,180,180); g.restore();
+  visitor(enc,'idle',tm);
+  const d=g.getImageData(130,20,180,180).data;
+  let h=0;
+  for(let i=0;i<d.length;i+=16)h=(h*31+d[i]+d[i+1]*3+d[i+2]*7)|0;
+  walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
+  return String(h);
+};
+
 /* Air that is inside the caller: background the outside cannot reach. */
 const TRAP=function(tm){
   const enc=who(G); if(!enc)return 0;
   const keep=[walkAt,leaving,reactAt];
   walkAt=-1e9; leaving=null; reactAt=-1e9;
   const c=document.getElementById('scene'), g=c.getContext('2d');
-  const X0=130,Y0=20,W=180,H=180;
+  const X0=130,Y0=20,W=180,H=180, Y0h=SPRY;
   g.save(); g.setTransform(1,0,0,1,0,0);
   g.fillStyle='#b0a898'; g.fillRect(X0,Y0,W,H); g.restore();
   visitor(enc,'idle',tm);
@@ -149,8 +178,10 @@ const TRAP=function(tm){
   while(tp){const q=st[--tp],x=q%W,y=(q-x)/W;
     if(x>0)push(q-1); if(x<W-1)push(q+1);
     if(y>0)push(q-W); if(y<H-1)push(q+W);}
+  /* only above his waist: the daylight between his legs is his own */
+  const waist=Y0h+Math.round(SPR.h*0.62)*FIGCH-Y0;
   let n=0;
-  for(let p=0;p<W*H;p++)if(!on[p]&&!seen[p])n++;
+  for(let p=0;p<W*H;p++)if(!on[p]&&!seen[p]&&(p-(p%W))/W<waist)n++;
   walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
   return n;
 };
@@ -202,6 +233,9 @@ const RECORD=function(){
       drawn:G.phase!=="intro"&&G.phase!=="summary"&&!(w&&w.before),
       dx:(w&&!w.before?w.dx:0)+(l?l.dx:0),
       swing:+swing.toFixed(3),
+      beat:(typeof gaitPose==='string'?gaitPose:''),                    // which of the four he is drawn on
+      scene:G.interlude?('job:'+G.interlude)
+            :(who(G)&&who(G).id)||G.phase,
       probing:!!window.__probing        // frames this tool posed itself
     });
     requestAnimationFrame(rec);
@@ -227,13 +261,37 @@ const RECORD=function(){
   const shot=async n=>{if(KEEP)fs.writeFileSync(path.join(OUT,n+'.png'),
     await page.locator('#scene').screenshot());};
 
-  const met=new Set(), seams=[];
+  /* Every scene the day has, not just the ones with a man in them: eleven
+   * callers, three robberies, the interludes between them and the reckoning at
+   * the end. For each one the same questions - did he walk in on his own feet,
+   * did he stride or only slide, is he alive while he stands there, does the
+   * scene answer what is pressed at it, and does he leave the way he came. */
+  const met=new Set(), seams=[], scenes=new Map();
+  const note=(id,k,v)=>{
+    let r=scenes.get(id);
+    if(!r){r={id:id,arrived:0,beats:new Set(),alive:-1,answered:false,left:0,
+              seam:null,trap:null};scenes.set(id,r);}
+    if(k)r[k]=v;
+    return r;
+  };
   let ink=null, rings=null, turns=0;
   while(turns++<500){
     const s=await state();
     if(s.phase==='summary')break;
     if(s.phase==='intro'){await page.keyboard.press('Enter');await page.waitForTimeout(400);continue;}
-    if(s.moving){await page.waitForTimeout(150);continue;}   // let him walk; watch him do it
+    if(s.moving){                                   // let him walk; watch him do it
+      const m=await page.evaluate(()=>{
+        const w=walkNow(performance.now()), l=leaveNow(performance.now());
+        return {id:G.interlude?('job:'+G.interlude):((who(G)&&who(G).id)||G.phase),
+                walk:(w&&!w.before)?w.dx:null, leave:l?Math.abs(l.dx):null,
+                beat:(typeof gaitPose==='string'?gaitPose:'')};
+      });
+      const r=note(m.id);
+      if(m.beat)r.beats.add(m.beat);
+      if(m.walk!=null)r.arrived=Math.max(r.arrived,m.walk);
+      if(m.leave!=null)r.left=Math.max(r.left,m.leave);
+      await page.waitForTimeout(90); continue;
+    }
     if(s.phase==='dialogue'||s.phase==='tell'){
       if(s.rows<10){await page.waitForTimeout(150);continue;}
       if(s.who&&!met.has(s.who)){
@@ -247,6 +305,11 @@ const RECORD=function(){
           trap=Math.max(trap,await page.evaluate(TRAP,tm));
         }
         seams.push([s.who,seam,trap]);
+        note(s.who,'seam',seam); note(s.who,'trap',trap);
+        /* Standing there, is he alive? Two moments a second apart must not be
+         * the same picture: a caller who holds one pose is a cut-out. */
+        const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
+        note(s.who,'alive',a1===a2?0:1);
         await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
@@ -264,16 +327,40 @@ const RECORD=function(){
           await page.keyboard.press('Escape');   await page.waitForTimeout(500);
         }
       }
-      await page.keyboard.press('1'); await page.waitForTimeout(500); continue;
+      // and does the scene answer? Something pressed at it must change it.
+      {
+        const was=await page.evaluate(()=>G.phase+'/'+G.round+'/'+G.node);
+        await page.keyboard.press('1'); await page.waitForTimeout(500);
+        const now2=await page.evaluate(()=>G.phase+'/'+G.round+'/'+G.node);
+        if(was!==now2)note(s.who||s.phase,'answered',true);
+      }
+      continue;
     }
-    await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+    {
+      const id=await page.evaluate(()=>G.interlude?('job:'+G.interlude)
+        :((who(G)&&who(G).id)||G.phase));
+      const r=note(id);
+      // a robbery and a stand-off are scenes too: is the man in them alive?
+      if(r.alive<0&&await page.evaluate(()=>!!who(G))){
+        await page.evaluate(()=>{window.__probing=true;});
+        const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
+        r.alive=a1===a2?0:1;
+        r.seam=Math.max(await page.evaluate(SEAM,0),await page.evaluate(SEAM,1300));
+        r.trap=Math.max(await page.evaluate(TRAP,0),await page.evaluate(TRAP,1300));
+        await page.evaluate(()=>{window.__probing=false;paint();});
+      }
+      const was=await page.evaluate(()=>G.phase+'/'+(G.interlude||''));
+      await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+      const now2=await page.evaluate(()=>G.phase+'/'+(G.interlude||''));
+      if(was!==now2)note(id,'answered',true);
+    }
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs,ink,seams,rings);
+  report(log,errs,ink,seams,rings,scenes);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs,ink,seams,rings){
+function report(log,errs,ink,seams,rings,scenes){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -362,6 +449,39 @@ function report(log,errs,ink,seams,rings){
     console.log(`${slotted.length?'  BAD ':'  ok  '} the callers are one body: `+
       `worst ${t[2]}px of street shut inside one (${t[0]}), mean ${mean}px`+
       (slotted.length?`; slotted: ${slotted.map(q=>q[0]+' '+q[2]+'px').join(', ')}`:''));
+  }
+  /* And the standing rule: every scene the day has, asked the same questions.
+   * A day that is right on average is not the point - a caller who never walks
+   * in, or a scene that does not answer what is pressed at it, is a scene a
+   * player will meet. */
+  if(scenes&&scenes.size){
+    console.log('\n  scene        walked in   strode        alive  answers  walked off');
+    let sceneBad=0;
+    const all=[...scenes.values()].filter(r=>r.id!=='summary'&&r.id!=='intro');
+    const last=all.length?all[all.length-1].id:null;
+    for(const r of all){
+      const ending=r.id===last;          // the day stops here; it owes no exit
+      const beats=[...r.beats].filter(Boolean);
+      const moved=r.arrived>0||r.left>0;
+      const fail=[];
+      if(!moved)fail.push('never moved');
+      if(moved&&beats.length<2)fail.push('slid');
+      if(r.alive===0)fail.push('held one pose');
+      if(!r.answered&&!ending)fail.push('no answer');
+      if(r.seam!=null&&r.seam>KEYLINE)fail.push('torn');
+      if(r.trap!=null&&r.trap>TRAPPED)fail.push('slotted');
+      if(fail.length)sceneBad++;
+      console.log(`  ${fail.length?'BAD ':'ok  '} ${r.id.padEnd(11)}`+
+        `${String(r.arrived||'-').padStart(6)}px  `+
+        `${String(beats.length||'-').padStart(2)} beat(s)  `+
+        `${r.alive<0?'  -  ':(r.alive?' yes ':' NO  ')}  `+
+        `${r.answered?' yes ':' NO  '}  `+
+        `${String(r.left||'-').padStart(6)}px`+
+        (fail.length?'   <- '+fail.join(', '):''));
+    }
+    if(sceneBad)bad++;
+    console.log(sceneBad?`\n  ${sceneBad} scene(s) a player would meet and find wrong.`
+                        :'\n  Every scene walked, strode, lived, answered and left.');
   }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');

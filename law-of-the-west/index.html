@@ -1555,11 +1555,17 @@ function buildFigure(S,pose){
 
   /* legs, or a skirt over them */
   if(dress){
-    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX,Wd.hipW*1.75,"L");
-    figTaper(g,R.ankle+5,R.ground,CX-Wd.thighW*0.45,Wd.bootW*0.8,
-             CX-Wd.thighW*0.45,Wd.bootW*0.8,"B");
-    figTaper(g,R.ankle+5,R.ground,CX+Wd.thighW*0.45,Wd.bootW*0.8,
-             CX+Wd.thighW*0.45,Wd.bootW*0.8,"B");
+    /* A skirt does not stride, but the woman in it is still walking. The hem
+     * swings the way her weight goes and her boots come out from under it in
+     * turn - which is a walk at this size. Leaving her sliding while everybody
+     * else strode was the last scene in the day that had nobody walking in it. */
+    const hemSw=gait?(gait.lead[1]-gait.lead[-1])*1.7:0;
+    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX+hemSw,Wd.hipW*1.75,"L");
+    for(const s of [-1,1]){
+      const lead=gait?gait.lead[s]:0, lift=gait?gait.lift[s]:0;
+      const bx=CX+s*Wd.thighW*0.45+lead*2.4;
+      figTaper(g,R.ankle+5-lift,R.ground-lift,bx,Wd.bootW*0.8,bx,Wd.bootW*0.8,"B");
+    }
   }else{
     /* A stride is drawn, not sheared. It used to be cut out of the standing
      * pose: the trousers are one column with the boots touching at the bottom,
@@ -2592,12 +2598,20 @@ const LOOK={
   lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
   robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.org,W:C64.gry}
 };
-function figureRows(fig,pose){
+/* A pose and a gait are different questions. The pose says what his arms are
+ * doing - up, surrendered, or by his sides - and the gait says which foot he
+ * is on. They used to be one argument, so a man who had been given a pose had
+ * no gait: a robber walks into his scene with the gun already up, and asking
+ * for "raise" threw the walk away and slid him in. They are laid on in order
+ * now, gait first and pose over it, because the pose owns the arms. */
+function figureRows(fig,pose,gait){
   const rows=fig.rows.slice();
-  const over=pose==="raise"?fig.raise
-           :pose==="surrender"?(fig.surrender||SURRENDER)
-           :(fig.gait&&fig.gait[pose])||null;
-  if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
+  const lay=over=>{if(over)for(const k of Object.keys(over))
+    rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);};
+  lay(gait&&fig.gait&&fig.gait[gait]);
+  lay(pose==="raise"?fig.raise
+     :pose==="surrender"?(fig.surrender||SURRENDER)
+     :(fig.gait&&fig.gait[pose])||null);
   return rows;
 }
 /* ---- how a caller is painted ---- *
@@ -2740,6 +2754,11 @@ function drawFigure(rows,x0,y0,look,cw,ch){
   }
 }
 
+/* The beat of the walk the last caller was drawn on. The walk is four poses
+ * and which one is showing is not recoverable from the offsets afterwards, so
+ * it is written down as he is drawn - tools/playtest.js reads it to say whether
+ * a caller actually strode through a scene or only slid through it. */
+let gaitPose="";
 /* ---- what a body does while it is standing there ---- *
  * A figure that holds one pose is a cut-out, whatever is drawn on it. These
  * are twenty-four cells across, so there is no room to act with; what there is
@@ -2864,18 +2883,20 @@ function visitor(enc,pose,now){
   /* Which foot he is on. Only when he is going somewhere, and never over a
    * pose that was asked for by name: a man with his hands up is not walking. */
   let walking=null;
-  if(!pose||pose==="idle"||pose==="stand"){
+  {
     const w0=walkNow(now||0), l0=leaveNow(now||0);
     const g0=(w0&&!w0.before)?w0.t:(l0?l0.t:null);
-    if(g0!=null&&!legsOf(fig).skirt){
+    if(g0!=null){
       /* Where he is in the cycle. sin says which foot is forward, cos says
        * which way it is going - and between the two contacts, the leg that is
-       * swinging through is the one that was behind. */
+       * swinging through is the one that was behind. A woman in a skirt walks
+       * too: the hem swings and her boots come out from under it in turn. */
       const ph=g0*Math.PI*STRIDE, sn=Math.sin(ph), cs=Math.cos(ph);
       walking=sn>0.55?"strideA":sn<-0.55?"strideB":(cs<0?"passB":"passA");
     }
   }
-  let rows=figureRows(fig,walking||pose);
+  gaitPose=walking||"";               // which beat he is on, for the tools
+  let rows=figureRows(fig,pose,walking);
   // a man whose hat has been shot off is drawn without it, and it is drawn
   // going where it went
   if(G.hatOff)rows=rows.map(r=>r.replace(/H/g,"."));
@@ -3015,11 +3036,7 @@ function visitor(enc,pose,now){
       for(let i=0;i<rs.length;i++){
         const r=rs[i];
         ctx.fillStyle=r.c;
-        if(gait!=null&&legs.skirt&&y>=hip){          // a skirt swings, it does not stride
-          ctx.fillRect(ox+r.x+Math.round(stepX*0.5),SPRY+d,r.w,1);
-        } else {
-          ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
-        }
+        ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
       }
     }
     last=dest;
