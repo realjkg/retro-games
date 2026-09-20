@@ -1241,6 +1241,88 @@ test('9y. the caller moves the way a person does, not the way a block does',
   assert.deepEqual(p.errors,[]);
 });
 
+test('9B. he draws quick and spins it on the way, and it is a gun that spins',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  const DRAW=p.ev('DRAW_MS'), PUT=p.ev('PUTUP_MS'), TURN=p.ev('TURN');
+  assert.ok(DRAW<=320,'the draw takes '+DRAW+'ms, which is not a quick draw');
+  /* Pressing up starts it. Before this the arm crept toward level on a lerp
+   * and there was no draw to speak of - it was a dial being turned. */
+  p.ev('swing=0;spin=0;seqKind="";');
+  p.tap('[data-cmd="up"]');
+  assert.equal(p.ev('seqKind'),'draw','up did not start a draw');
+
+  const walk=(kind,span,from)=>{
+    p.ev('swing='+from+';spin=0;');
+    p.ev('beginSeq('+JSON.stringify(kind)+',1000);');
+    const out=[];
+    for(let t=0;t<=span;t+=span/28){
+      const s=p.ev('seqNow('+(1000+t)+')');
+      if(s)out.push([t,s.swing,s.spin]);
+    }
+    return out;
+  };
+  const d=walk('draw',DRAW-1,0);
+  assert.ok(d.length>8,'the draw is only '+d.length+' frames long');
+  /* it arrives early: most of the way up in the first third */
+  const third=d.find(q=>q[0]>=DRAW/3);
+  assert.ok(third[1]>0.55,'a third of the way in he is only '+third[1].toFixed(2)+' up');
+  /* it goes past level and comes back, which is what reads as snap */
+  assert.ok(Math.max.apply(null,d.map(q=>q[1]))>1.02,'the draw never passes level');
+  assert.ok(d[d.length-1][1]<1.06,'it is still overshooting when it ends');
+  /* and nothing jumps: a jump on the first frame of a draw is the one frame
+   * a player is certain to be looking at */
+  for(let i=1;i<d.length;i++)
+    assert.ok(Math.abs(d[i][1]-d[i-1][1])<0.3,
+      'the arm jumped '+(d[i][1]-d[i-1][1]).toFixed(2)+' at '+d[i][0]+'ms');
+  assert.ok(Math.abs(d[0][1])<0.02,'the draw does not start from where the arm is');
+  /* one whole turn, finished before the arm has settled */
+  assert.ok(Math.abs(d[d.length-1][2]+TURN)<0.05,
+    'the spin ends at '+d[d.length-1][2].toFixed(2)+', which is not one turn');
+  const spun=d.find(q=>Math.abs(q[2]+TURN)<0.05);
+  assert.ok(spun[0]<DRAW*0.8,'the spin is still going at '+spun[0]+'ms of a '+DRAW+'ms draw');
+  // it turns the other way going back, and lands on leather
+  const h=walk('holster',PUT-1,1);
+  assert.ok(h[0][1]>0.97,'putting it away does not start from level');
+  assert.ok(h[h.length-1][1]<0.06,'it never reaches the holster');
+  assert.ok(Math.abs(h[h.length-1][2]-TURN)<0.05,'it does not spin on the way down');
+  for(let i=1;i<h.length;i++)
+    assert.ok(h[i][1]<=h[i-1][1]+0.02,'the arm came back up at '+h[i][0]+'ms');
+  // and the sequence ends rather than running for ever
+  assert.equal(p.ev('seqNow(1000+'+PUT+'+1)'),null,'the sequence never finishes');
+  assert.equal(p.ev('seqKind'),'','it finished without clearing itself');
+
+  /* What spins is the revolver on the trigger finger, not the arm and not the
+   * fist: the pin is on the gun, the gun's own ground holds the muzzle, and
+   * the forearm and the wrist are nowhere inside it. Turning the whole hand
+   * about the wrist instead swings forty-five pixels of glove and barrel round
+   * an arc, which reads as a gun coming off its owner. */
+  const gun=p.ev('GUNPOLY'), pin=p.ev('TRIGGER'), pr=p.ev('TJOINT'),
+        muz=p.ev('MUZZLE'), E=p.ev('ELBOW');
+  const inGun=(x,y)=>{let c=false;
+    for(let i=0,j=gun.length-1;i<gun.length;j=i++){
+      const [xi,yi]=gun[i], [xj,yj]=gun[j];
+      if((yi>y)!==(yj>y)&&x<xi+(y-yi)*(xj-xi)/(yj-yi))c=!c;
+    } return c;};
+  assert.ok(pr<=12,'the pin is '+pr+' across, which is most of the revolver');
+  assert.ok(inGun(muz.x,muz.y),'the muzzle is not part of what spins');
+  assert.ok(!inGun(80,110),'the wrist spins with it, so the whole fist goes round');
+  assert.ok(!inGun(E.x,E.y),'the elbow is inside what spins');
+  assert.ok(Math.hypot(muz.x-pin.x,muz.y-pin.y)>pr,'the muzzle is inside the pin');
+
+  /* three pieces settled, five while it spins - and the settled pose must be
+   * untouched by any of this, which is what keeps it exact to the pixel */
+  p.ev('sheriffImg={complete:true,naturalWidth:129,naturalHeight:200};');
+  const draws=()=>{p.painted.length=0; p.ev('ownGun(true)');
+    return p.painted.filter(q=>q.draw).length;};
+  p.ev('swing=1;spin=0;kickAt=-1e9;');
+  assert.equal(draws(),3,'the settled arm is drawn in more pieces than it was');
+  p.ev('spin=1.0;');
+  assert.equal(draws(),5,'the spinning revolver is not cut out of the arm');
+  assert.deepEqual(p.errors,[]);
+});
+
 test('9z. a caller who is done walks off before the street is anyone else\'s',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();

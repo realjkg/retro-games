@@ -68,6 +68,32 @@ scales say nothing is wrong. So the tool turns him and takes his ink in rings
 about the elbow: a rigid arm moves every ring by the same angle, and a frozen
 forearm shows up as the near rings disagreeing with the far ones.
 
+## The draw
+
+He has one drawing of himself and the revolver is already in his hand in it, so
+the gun cannot literally leave the leather and come back — there is no
+holstered gun anywhere in the artwork, and an empty holster with no gun to
+explain it reads as a bin. What can be drawn is the spin.
+
+A road agent's spin turns the gun on the trigger finger: the finger is the pin,
+the revolver goes round it, and the hand stays where it is. So it is hinged the
+way the forearm is hinged on the elbow, one joint further out and much smaller —
+a disc on the trigger guard, with the revolver beyond it — and nested inside the
+arm's own turn, so the spin happens wherever the arm is pointing. Turning the
+whole fist about the wrist instead swings forty-five pixels of glove and barrel
+round an arc, and reads as a gun coming off its owner.
+
+The draw itself is 280ms and does not ease: it arrives early and settles late,
+most of the way up in the first third, past level, and back onto it. The spin
+finishes one whole revolution before the arm has stopped moving, so the
+flourish is part of the draw rather than a pose struck after it. Putting it
+away is the other shape — it gives at the top, then goes — and turns the other
+way, landing as the gun reaches leather. Settled at either end the spin is
+nothing and the arm is the arm, which is what keeps the levelled pose exact to
+the pixel.
+
+## The callers
+
 The callers had the same fault as the arm and it took the same cure. They were
 drawn in three bands — legs, torso, head — each offset a few pixels to sway and
 each smoothed and lit as though it were a whole figure. A cut is a straight

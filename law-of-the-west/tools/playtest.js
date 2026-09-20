@@ -87,7 +87,7 @@ function browserPath(){
 /* How much of the sheriff is actually on the screen at a given swing. Drawn
  * over a flat ground, so anything that is not the ground is him. */
 const INK=function(sv){
-  swing=sv; kickAt=-1e9; nowFrame=1000;
+  swing=sv; spin=0; seqKind=''; kickAt=-1e9; nowFrame=1000;
   const c=document.getElementById('scene'), g=c.getContext('2d');
   g.save(); g.setTransform(1,0,0,1,0,0);
   g.fillStyle='#d6c39a'; g.fillRect(0,0,140,200); g.restore();
@@ -101,7 +101,7 @@ const INK=function(sv){
 
 /* Where his ink sits round each ring about the elbow, at a given swing. */
 const RINGS=function(sv){
-  swing=sv; kickAt=-1e9; nowFrame=1000;
+  swing=sv; spin=0; seqKind=''; kickAt=-1e9; nowFrame=1000;
   const c=document.getElementById('scene'), g=c.getContext('2d');
   g.save(); g.setTransform(1,0,0,1,0,0);
   g.fillStyle='#d6c39a'; g.fillRect(0,0,145,200); g.restore();
@@ -276,7 +276,11 @@ function report(log,errs,ink,seams,rings){
   for(let i=1;i<sw.length;i++)
     if(sw[i]!==null&&sw[i-1]!==null)armJump=Math.max(armJump,Math.abs(sw[i]-sw[i-1]));
   const seen=new Set(sw.filter(v=>v!==null));
-  const armOk=seen.size>5&&armJump<=0.35;
+  /* A quick draw is 280ms, so at thirty frames a second one frame is an eighth
+   * of it and the fast part of the curve fairly covers a third of the travel.
+   * What this is for is a draw that is a switch rather than a movement, so the
+   * bar is a third of it in one frame, not a tenth. */
+  const armOk=seen.size>5&&armJump<=0.5;
   if(!armOk)bad++;
   console.log(`\n${armOk?'  ok  ':'  BAD '} the arm moves: ${seen.size} distinct positions, `+
     `biggest one-frame change ${armJump.toFixed(2)}`);
