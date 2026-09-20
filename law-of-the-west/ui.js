@@ -114,7 +114,10 @@ const LOOK={
 };
 function figureRows(fig,pose){
   const rows=fig.rows.slice();
-  const over=pose==="raise"?fig.raise:(pose==="surrender"?(fig.surrender||SURRENDER):null);
+  const over=pose==="raise"?fig.raise
+           :pose==="surrender"?(fig.surrender||SURRENDER)
+           :pose==="strideA"?fig.strideA
+           :pose==="strideB"?fig.strideB:null;
   if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
   return rows;
 }
@@ -379,7 +382,18 @@ function expressOn(head,mood,blink,eyeRow){
 }
 function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
-  let rows=figureRows(fig,pose);
+  /* Which foot he is on. Only when he is going somewhere, and never over a
+   * pose that was asked for by name: a man with his hands up is not walking. */
+  let walking=null;
+  if(!pose||pose==="idle"||pose==="stand"){
+    const w0=walkNow(now||0), l0=leaveNow(now||0);
+    const g0=(w0&&!w0.before)?w0.t:(l0?l0.t:null);
+    if(g0!=null&&!legsOf(fig).skirt){
+      const p0=Math.sin(g0*Math.PI*STRIDE);
+      if(p0>0.3)walking="strideA"; else if(p0<-0.3)walking="strideB";
+    }
+  }
+  let rows=figureRows(fig,walking||pose);
   // a man whose hat has been shot off is drawn without it, and it is drawn
   // going where it went
   if(G.hatOff)rows=rows.map(r=>r.replace(/H/g,"."));
@@ -449,8 +463,10 @@ function visitor(enc,pose,now){
   // he leans into it and comes upright as he arrives
   const wob=gait!=null?(1-Math.abs(Math.cos(gait*Math.PI*STRIDE))):0;
   const wbob=gait!=null?-Math.round(wob*1.6):0;
-  const wlean=walk?Math.round((1-walk.t)*2)*GEST
-             :leave?Math.round(leave.t*2)*GEST*leave.dir:0;
+  /* He leaned by four pixels, which on a man this wide puts his shoulders off
+   * his hips and reads as falling rather than walking. Two is a lean. */
+  const wlean=walk?Math.round((1-walk.t)*2)*(GEST/2)
+             :leave?Math.round(leave.t*2)*(GEST/2)*leave.dir:0;
   const legX=(walk?walk.dx:0)+(leave?leave.dx:0);
   // and the legs themselves: one forward while the other is back, the forward
   // one lifted off the dirt. STRIDE boots go down over the walk, so a whole
@@ -482,8 +498,7 @@ function visitor(enc,pose,now){
    * the only place he is ever drawn in more than one piece, and there is
    * daylight between his boots there anyway. */
   const runs=figureRuns(rows,look,FIGCW,FIGCH);
-  const split=gait!=null&&!legs.skirt&&legs.top>hips;
-  const legTop=legs.top*FIGCH, m=legs.mid*FIGCW;
+  const legTop=legs.top*FIGCH;
   // the runs, gathered by the row they came off
   const byRow=[];
   let top=Infinity, bot=-Infinity;
@@ -512,14 +527,8 @@ function visitor(enc,pose,now){
         ctx.fillStyle=r.c;
         if(gait!=null&&legs.skirt&&y>=hip){          // a skirt swings, it does not stride
           ctx.fillRect(ox+r.x+Math.round(stepX*0.5),SPRY+d,r.w,1);
-        } else if(!split||y<legTop){
+        } else {
           ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
-        } else {                                     // two legs, about the line
-          const z=r.x+r.w;                           // his boots part on
-          if(r.x<m)ctx.fillRect(ox+r.x-stepX,SPRY+d-(sw<0?lift:0),
-            Math.min(z,m)-r.x,1);
-          if(z>m){const x0=Math.max(r.x,m);
-            ctx.fillRect(ox+x0+stepX,SPRY+d-(sw>0?lift:0),z-x0,1);}
         }
       }
     }

@@ -669,6 +669,8 @@ const BONE={
 };
 const CX=24;                                      // he stands on the middle of it
 
+/* Which arm is coming forward: the one opposite the leg that is. */
+const fwdArm=(s,stride)=>!!stride&&s!==stride;
 /* ---- a very small drawing hand ---- */
 function figGrid(){const g=[];for(let r=0;r<SPR.h;r++)g.push(new Array(SPR.w).fill("."));return g;}
 function figPut(g,x,y,ch){x=Math.round(x);y=Math.round(y);
@@ -738,6 +740,9 @@ function buildFigure(S,pose){
   const dress=S.coat==="dress";
   const gunSide=P.gunSide;                // his gun hand is the one nearest us
   const armX=P.armX, elbowX=P.elbowX, wristX=P.wristX;
+  // +1 the near leg is forward, -1 the far one, 0 he is standing on both.
+  // Declared with the rest of the pose, because the legs are drawn first.
+  const stride=pose==="strideA"?1:(pose==="strideB"?-1:0);
 
   /* legs, or a skirt over them */
   if(dress){
@@ -747,11 +752,24 @@ function buildFigure(S,pose){
     figTaper(g,R.ankle+5,R.ground,CX+Wd.thighW*0.45,Wd.bootW*0.8,
              CX+Wd.thighW*0.45,Wd.bootW*0.8,"B");
   }else{
+    /* A stride is drawn, not sheared. It used to be cut out of the standing
+     * pose: the trousers are one column with the boots touching at the bottom,
+     * so a walk sliced that column down the middle and slid the halves apart -
+     * two slabs with a flat inner edge and no outline on it, because the rim
+     * had been worked out for the shape before it was cut. It did not read as
+     * legs, and it could not: there were never two of them to move. There are
+     * now. The forward leg swings out and its boot comes up off the dirt, the
+     * back leg stays under him, and the rasteriser draws the daylight between
+     * them and the outline round each, because by the time it sees him he is a
+     * man standing on two legs. */
     for(const s of [-1,1]){
-      const hipC=CX+s*Wd.thighW*0.52, ankC=CX+s*Wd.thighW*0.58;
+      const fwd=stride&&s===stride;
+      const swing=stride?(fwd?3.4:-1.4):0;
+      const lift=fwd?2:0;
+      const hipC=CX+s*Wd.thighW*0.52, ankC=CX+s*(Wd.thighW*0.58+swing);
       figTaper(g,R.hip,R.knee,hipC,Wd.thighW,ankC,Wd.calfW+1,"L");
-      figTaper(g,R.knee+1,R.ankle,ankC,Wd.calfW+1,ankC,Wd.calfW,"L");
-      figTaper(g,R.ankle+1,R.ground,ankC,Wd.bootW*0.85,ankC+s*1.2,Wd.bootW,"B");
+      figTaper(g,R.knee+1,R.ankle-lift,ankC,Wd.calfW+1,ankC,Wd.calfW,"L");
+      figTaper(g,R.ankle+1-lift,R.ground-lift,ankC,Wd.bootW*0.85,ankC+s*1.2,Wd.bootW,"B");
     }
   }
   /* the body: shoulders down to the waist, then the coat's own cut */
@@ -807,9 +825,13 @@ function buildFigure(S,pose){
       if(raised&&s===gunSide&&S.gun!=="none")
         figTaper(g,topY,topY+3,ex-6,9,ex-7,7,"G");
     }else{
+      // an arm swings against the leg on its own side, which is what stops a
+      // walk reading as a man being slid along the street
+      const aSw=stride?(s===stride?-1.6:1.6):0;
+      const wX=wx+aSw, hY=R.hand-(fwdArm(s,stride)?1:0);
       figTaper(g,R.shoulder+2,R.elbow,sx,Wd.upperArm,ex,Wd.upperArm*0.92,sleeve);
-      figTaper(g,R.elbow+1,R.wrist,ex,Wd.foreArm+1,wx,Wd.foreArm,sleeve);
-      figDisc(g,wx,R.hand,Wd.handW/2,Wd.handW/2+1,"A");
+      figTaper(g,R.elbow+1,R.wrist,ex,Wd.foreArm+1,wX,Wd.foreArm,sleeve);
+      figDisc(g,wX,hY,Wd.handW/2,Wd.handW/2+1,"A");
     }
     figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
   }
@@ -947,8 +969,10 @@ const FIGURES={};
 for(const k of Object.keys(FIGSPEC)){
   const S=FIGSPEC[k], stand=buildFigure(S,"stand");
   const up=buildFigure(S,"raise"), hands=buildFigure(S,"surrender");
+  const sA=buildFigure(S,"strideA"), sB=buildFigure(S,"strideB");
   const sparse=(a,b)=>{const o={};for(let i=0;i<a.length;i++)if(a[i]!==b[i])o[i]=a[i];return o;};
   FIGURES[k]={rows:stand, raise:sparse(up,stand), surrender:sparse(hands,stand),
+              strideA:sparse(sA,stand), strideB:sparse(sB,stand),
               box:figBoxes(S,stand,up)};
 }
 const DEFAULT_BOX=FIGURES.robber.box;

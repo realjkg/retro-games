@@ -131,6 +131,31 @@ one or zero. The comment above it describes rounding a stepped corner off. It
 has never rounded anything. It would work at a larger cell, which is the same
 conclusion from the other direction.
 
+## The walk
+
+He is drawn walking. He used not to be: the stride was cut out of the standing
+pose at run time. The trousers are one column with the boots touching at the
+bottom, so a walk sliced that column down the middle and slid the halves apart
+— two slabs with a flat inner edge and no outline on it, because the rim had
+been worked out for the shape before it was cut. It did not read as legs, and
+it could not: there were never two of them to move.
+
+`buildFigure` takes `strideA` and `strideB` now, built beside the standing pose
+and stored as sparse diffs like `raise` and `surrender` already were. The
+forward leg swings out and its boot comes up off the dirt, the back leg stays
+under him, and the arm on each side swings against the leg on that side. The
+rasteriser sees a man standing on two legs, so it draws the daylight between
+them and puts the outline round each.
+
+`visitor` picks the foot from the gait and never overrides a pose asked for by
+name — a man with his hands up is not walking. The lean was halved: four pixels
+on a figure this wide puts his shoulders off his hips and reads as falling.
+
+Test 9C holds it: the two strides exist, they are different feet, each stands
+wider than he does still and opens daylight between his boots, his arms move,
+and — the one a cut-and-slide could never fail — painted mid-stride he is not
+the standing drawing shifted sideways by any amount.
+
 ## The callers came apart, too
 
 The callers had the same fault as the arm and it took the same cure. They were
