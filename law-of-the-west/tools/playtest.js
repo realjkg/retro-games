@@ -13,6 +13,12 @@
  * A one-frame jump is the thing to look for. A stride is three or four pixels;
  * anything above ten is a man teleporting.
  *
+ * It also counts the sheriff himself. A hinged picture that tears loses the
+ * pixels the cut took and nothing draws back: lowering the arm used to shed
+ * four per cent of him, which on the screen was the forearm - the sleeve
+ * stopped flat at the wrist and the glove hung under it with nothing between.
+ * Turning a rigid piece about a point keeps the ink; opening a seam does not.
+ *
  * Its sibling tools/playthrough.js drives the same page and asks what it says -
  * that the line is on screen, that nothing resolves without an input. This one
  * asks how it moved. Both are run by hand and neither is part of `npm test`:
@@ -29,6 +35,7 @@ const PAGE='file://'+path.join(ROOT,'index.html');
 const OUT=path.join(ROOT,'.playtest');
 const KEEP=process.argv.includes('--keep');
 const JUMP=10;                                     // px in one frame: a teleport
+const SHED=0.02;                                   // of him, lost to a torn seam
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -59,6 +66,21 @@ function browserPath(){
   return null;
 }
 
+/* How much of the sheriff is actually on the screen at a given swing. Drawn
+ * over a flat ground, so anything that is not the ground is him. */
+const INK=function(sv){
+  swing=sv; kickAt=-1e9; nowFrame=1000;
+  const c=document.getElementById('scene'), g=c.getContext('2d');
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#d6c39a'; g.fillRect(0,0,140,200); g.restore();
+  ownGun(true);
+  const d=g.getImageData(0,0,140,200).data;
+  let n=0;
+  for(let i=0;i<d.length;i+=4)
+    if(Math.abs(d[i]-0xd6)+Math.abs(d[i+1]-0xc3)+Math.abs(d[i+2]-0x9a)>24)n++;
+  return n;
+};
+
 /* Runs inside the page: one row per painted frame. `drawn` is the question the
  * suite cannot ask - whether the figure was on the screen at all. */
 const RECORD=function(){
@@ -73,7 +95,8 @@ const RECORD=function(){
       who:(who(G)&&who(G).id)||null,
       drawn:G.phase!=="intro"&&G.phase!=="summary"&&!(w&&w.before),
       dx:(w&&!w.before?w.dx:0)+(l?l.dx:0),
-      swing:+swing.toFixed(3)
+      swing:+swing.toFixed(3),
+      probing:!!window.__probing        // frames this tool posed itself
     });
     requestAnimationFrame(rec);
   })();
@@ -99,7 +122,7 @@ const RECORD=function(){
     await page.locator('#scene').screenshot());};
 
   const met=new Set();
-  let turns=0;
+  let ink=null, turns=0;
   while(turns++<500){
     const s=await state();
     if(s.phase==='summary')break;
@@ -113,6 +136,14 @@ const RECORD=function(){
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
           await shot(String(met.size).padStart(2,'0')+'-'+s.who+'-gun');
+          // with it out, take the arm through its whole swing and weigh him
+          if(!ink&&await page.evaluate(()=>G.mode==='gun')){
+            ink=[];
+            await page.evaluate(()=>{window.__probing=true;});
+            for(const sv of [1,0.75,0.5,0.34,0.2,0])
+              ink.push([sv,await page.evaluate(INK,sv)]);
+            await page.evaluate(()=>{swing=1;paint();window.__probing=false;});
+          }
           await page.keyboard.press('ArrowLeft');await page.waitForTimeout(120);
           await page.keyboard.press('Escape');   await page.waitForTimeout(500);
         }
@@ -123,10 +154,10 @@ const RECORD=function(){
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs);
+  report(log,errs,ink);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs){
+function report(log,errs,ink){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -157,12 +188,30 @@ function report(log,errs){
       `biggest one-frame move ${jump}px  `+
       `held at his post before moving ${held}ms`);
   }
-  const sw=log.map(f=>f.swing);
-  let armJump=0; for(let i=1;i<sw.length;i++)armJump=Math.max(armJump,Math.abs(sw[i]-sw[i-1]));
-  const armOk=new Set(sw).size>5&&armJump<=0.35;
+  // the swing as the game moved it, not as this tool posed it
+  const sw=[]; let gap=false;
+  for(const f of log){ if(f.probing){gap=true;continue;}
+    if(gap){sw.push(null);gap=false;} sw.push(f.swing); }
+  let armJump=0;
+  for(let i=1;i<sw.length;i++)
+    if(sw[i]!==null&&sw[i-1]!==null)armJump=Math.max(armJump,Math.abs(sw[i]-sw[i-1]));
+  const seen=new Set(sw.filter(v=>v!==null));
+  const armOk=seen.size>5&&armJump<=0.35;
   if(!armOk)bad++;
-  console.log(`\n${armOk?'  ok  ':'  BAD '} the arm: ${new Set(sw).size} distinct positions, `+
+  console.log(`\n${armOk?'  ok  ':'  BAD '} the arm moves: ${seen.size} distinct positions, `+
     `biggest one-frame change ${armJump.toFixed(2)}`);
+  if(!ink)console.log('  --   the arm holding together was not reached this run');
+  else{
+    const level=ink[0][1];
+    const worst=ink.reduce((w,[sv,n])=>
+      Math.abs(n-level)>Math.abs(w[1]-level)?[sv,n]:w,ink[0]);
+    const shed=(level-worst[1])/level;
+    const inkOk=Math.abs(shed)<=SHED;
+    if(!inkOk)bad++;
+    console.log(`${inkOk?'  ok  ':'  BAD '} the arm holds together: `+
+      `${(shed*100).toFixed(1)}% of him lost at swing ${worst[0]} `+
+      `(${ink.map(([s,n])=>s+':'+n).join(' ')})`);
+  }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');
   process.exitCode=bad?1:0;

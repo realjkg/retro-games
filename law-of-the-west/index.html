@@ -2913,16 +2913,29 @@ if(typeof Image==="function"){
  * whole is a man aiming a revolver at everyone he speaks to, and holstering is
  * a word with nothing behind it. So the picture is hinged.
  *
- * It was hinged on a rectangle at the elbow, and that was wrong: a rectangle
- * cannot contain an arm that has a body to the left of it, so the cut took the
- * hand and the revolver and left the sleeve behind. Lowered, he had a sleeve
- * pointing at nothing and a glove hanging under it. The arm is an outline, not
- * a box - traced down the seam where the sleeve leaves his back, round the
- * armpit, and out past the muzzle - and it turns about the shoulder, which is
- * where an arm turns. At level it reassembles to the pixel; lowered, the whole
- * arm goes down with the gun in it. He draws and holsters with his own hand. */
-const ARMPOLY=[[74,80],[72,104],[60,110],[46,118],[43,140],[129,140],[129,80]];
-const SHOULDER={x:52,y:112}, DOWN=1.42;
+ * It was hinged twice before and torn both times. A rectangle at the elbow took
+ * the hand and the revolver and left the sleeve behind. An outline traced round
+ * the armpit, turning about a point twenty pixels inside the body, tore worse:
+ * the seam it was cut along ran up the front of the forearm, forty pixels from
+ * the point it turned about, so every degree of the swing opened it. Lowered,
+ * the sleeve stopped in a flat cut at the wrist and the glove hung below with
+ * nothing joining the two - the forearm, which is the part of him a player
+ * looks straight at.
+ *
+ * A cut-out arm cannot be hinged on a straight seam at all. Rotating about a
+ * point takes every straight line through it to a different line, so a straight
+ * seam opens by exactly the angle of the swing, and a seam that misses the
+ * point opens further still. The one curve a rotation leaves where it found it
+ * is a circle about the point it turns on. So the joint is a disc: everything
+ * within it belongs to the body and never moves, everything beyond it on the
+ * forearm's side is the arm and turns, and the disc's edge meets itself at
+ * every angle. The forearm comes out from under a cuff that is always drawn.
+ *
+ * It turns about the elbow, because that is the joint this drawing has: the
+ * upper arm hangs and the forearm is level, and what lowering a revolver does
+ * to that is close it. At level it reassembles to the pixel. */
+const ARMPOLY=[[66,86],[180,86],[180,142],[66,142]];
+const ELBOW={x:64,y:112}, JOINT=22, DOWN=1.42;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
 /* A shot is the one thing the arm does that is not a position it settles into.
@@ -2938,34 +2951,56 @@ function kickNow(now){
   return Math.sin(t*Math.PI)*(1-t*0.35);
 }
 let nowFrame=0;                       // the frame's own clock, for the kick
-function armSubPath(dx){
+/* The arm's reach: the ground the forearm, the glove and the revolver cover.
+ * Everything in it is theirs; nothing else in the drawing is inside it. */
+function reachPath(dx){
   ctx.moveTo(dx+ARMPOLY[0][0],ARMPOLY[0][1]);
   for(let i=1;i<ARMPOLY.length;i++)ctx.lineTo(dx+ARMPOLY[i][0],ARMPOLY[i][1]);
   ctx.closePath();
+}
+function jointPath(dx){
+  ctx.moveTo(dx+ELBOW.x+JOINT,ELBOW.y);
+  ctx.arc(dx+ELBOW.x,ELBOW.y,JOINT,0,Math.PI*2);
+}
+/* Canvas clips intersect and cannot subtract, so "outside the joint" is the
+ * whole picture and the joint together, counted odd-even. */
+function beyondJointPath(dx){
+  ctx.rect(dx-OWN.w,OWN.y-OWN.h,OWN.w*3,OWN.h*3);
+  jointPath(dx);
 }
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
   const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean);
   const k=kickNow(nowFrame), a=(1-swing)*DOWN-k*KICK;
-  // him, with the arm cut out of him: the whole rectangle and the arm's own
-  // outline in one path, filled odd-even, which leaves the arm-shaped hole
+  const paint=()=>ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  // 1. him, with the arm's whole reach cut out of him
   ctx.save();
   ctx.beginPath();
   ctx.rect(dx,OWN.y,OWN.w,OWN.h);
-  armSubPath(dx);
+  reachPath(dx);
   ctx.clip("evenodd");
-  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  paint();
   ctx.restore();
-  // and the arm, the same drawing turned about the shoulder and clipped to the
-  // outline - built after the turn, so the outline turns with it
+  // 2. and the joint put back, unturned: the elbow and the cuff are his, not
+  //    the arm's, and they are drawn in the same place at every angle. This is
+  //    what the forearm comes out from under, and why nothing can tear.
+  ctx.save();
+  ctx.beginPath(); reachPath(dx); ctx.clip();
+  ctx.beginPath(); jointPath(dx);  ctx.clip();
+  paint();
+  ctx.restore();
+  // 3. the arm: the same drawing turned about the elbow, clipped to the reach
+  //    and to what lies beyond the joint - both built after the turn, so the
+  //    cut turns with it
   ctx.save();
   if(Math.abs(a)>0.001){
-    ctx.translate(dx+SHOULDER.x,SHOULDER.y); ctx.rotate(a);
-    ctx.translate(-(dx+SHOULDER.x),-SHOULDER.y);
+    ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
+    ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
   }
-  ctx.beginPath(); armSubPath(dx); ctx.clip();
-  ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  ctx.beginPath(); reachPath(dx); ctx.clip();
+  ctx.beginPath(); beyondJointPath(dx); ctx.clip("evenodd");
+  paint();
   if(k>0.25)muzzle(dx,a,k);
   ctx.restore();
 }
