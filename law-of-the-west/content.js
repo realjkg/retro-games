@@ -738,20 +738,74 @@ function buildFigure(S,pose){
   const dress=S.coat==="dress";
   const gunSide=P.gunSide;                // his gun hand is the one nearest us
   const armX=P.armX, elbowX=P.elbowX, wristX=P.wristX;
+  /* A walk is four poses, not two. Two contacts alone is a scissor: both feet
+   * stay on the dirt and the legs just open and shut. What makes it read is
+   * the half of the cycle in between, where one leg swings through under him
+   * with the boot off the ground and the knee bent, and he is at his tallest.
+   *
+   *   strideA  right forward, left back, both down
+   *   passB    left swinging through, lifted, right planted
+   *   strideB  left forward, right back, both down
+   *   passA    right swinging through, lifted, left planted
+   *
+   * GAIT says, for each side, how far forward that leg is (-1 back, +1
+   * forward) and how far off the dirt. Declared with the rest of the pose,
+   * because the legs are drawn before the arms. */
+  const GAIT={
+    strideA:{lead:{1:1,"-1":-0.55}, lift:{1:0,"-1":0}},
+    strideB:{lead:{1:-0.55,"-1":1}, lift:{1:0,"-1":0}},
+    passA:  {lead:{1:0.20,"-1":-0.20}, lift:{1:7,"-1":0}},
+    passB:  {lead:{1:-0.20,"-1":0.20}, lift:{1:0,"-1":7}}
+  };
+  const gait=GAIT[pose]||null;
+  const stride=gait?1:0;                // he is on the move, whichever pose
 
   /* legs, or a skirt over them */
   if(dress){
-    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX,Wd.hipW*1.75,"L");
-    figTaper(g,R.ankle+5,R.ground,CX-Wd.thighW*0.45,Wd.bootW*0.8,
-             CX-Wd.thighW*0.45,Wd.bootW*0.8,"B");
-    figTaper(g,R.ankle+5,R.ground,CX+Wd.thighW*0.45,Wd.bootW*0.8,
-             CX+Wd.thighW*0.45,Wd.bootW*0.8,"B");
-  }else{
+    /* A skirt does not stride, but the woman in it is still walking. The hem
+     * swings the way her weight goes and her boots come out from under it in
+     * turn - which is a walk at this size. Leaving her sliding while everybody
+     * else strode was the last scene in the day that had nobody walking in it. */
+    const hemSw=gait?(gait.lead[1]-gait.lead[-1])*1.7:0;
+    figTaper(g,R.waist,R.ankle+4,CX,Wd.hipW,CX+hemSw,Wd.hipW*1.75,"L");
     for(const s of [-1,1]){
-      const hipC=CX+s*Wd.thighW*0.52, ankC=CX+s*Wd.thighW*0.58;
-      figTaper(g,R.hip,R.knee,hipC,Wd.thighW,ankC,Wd.calfW+1,"L");
-      figTaper(g,R.knee+1,R.ankle,ankC,Wd.calfW+1,ankC,Wd.calfW,"L");
-      figTaper(g,R.ankle+1,R.ground,ankC,Wd.bootW*0.85,ankC+s*1.2,Wd.bootW,"B");
+      const lead=gait?gait.lead[s]:0, lift=gait?gait.lift[s]:0;
+      const bx=CX+s*Wd.thighW*0.45+lead*2.4;
+      figTaper(g,R.ankle+5-lift,R.ground-lift,bx,Wd.bootW*0.8,bx,Wd.bootW*0.8,"B");
+    }
+  }else{
+    /* A stride is drawn, not sheared. It used to be cut out of the standing
+     * pose: the trousers are one column with the boots touching at the bottom,
+     * so a walk sliced that column down the middle and slid the halves apart -
+     * two slabs with a flat inner edge and no outline on it, because the rim
+     * had been worked out for the shape before it was cut. It did not read as
+     * legs, and it could not: there were never two of them to move. There are
+     * now. The forward leg swings out and its boot comes up off the dirt, the
+     * back leg stays under him, and the rasteriser draws the daylight between
+     * them and the outline round each, because by the time it sees him he is a
+     * man standing on two legs. */
+    for(const s of [-1,1]){
+      const lead=gait?gait.lead[s]:0, lift=gait?gait.lift[s]:0;
+      const swing=lead*6.4;                      // how far out that foot is
+      /* Seen from the front the leg that comes towards you is a little wider
+       * and the one going away a little thinner. Raising the forward boot as
+       * well was a step too far: it takes length out of the leg and he stands
+       * there looking like a man in a crouch. Width alone carries it. */
+      const near=lead>0?lead:0, away=lead<0?-lead:0;
+      const fore=0;
+      const fat=1+near*0.10-away*0.08;
+      const hipC=CX+s*Wd.thighW*0.52, ankC=CX+s*(Wd.thighW*0.58+swing);
+      /* A leg off the ground is bent: the knee comes up and the shin folds
+       * under it. Lifting a straight leg reads as a man being hoisted, which
+       * was most of what was awkward about it. */
+      /* The knee of a swinging leg comes up and forward and the shin hangs
+       * under it. Raising the boot alone leaves a straight leg hovering, which
+       * is why the passing half of the cycle still read as standing still. */
+      const kneeY=R.knee-Math.round(lift*0.72);
+      const ankY=R.ankle-lift-fore, gndY=R.ground-lift-fore;
+      figTaper(g,R.hip,kneeY,hipC,Wd.thighW*fat,ankC,(Wd.calfW+1)*fat,"L");
+      figTaper(g,kneeY+1,ankY,ankC,(Wd.calfW+1)*fat,ankC,Wd.calfW*fat,"L");
+      figTaper(g,ankY+1,gndY,ankC,Wd.bootW*0.85*fat,ankC+s*1.2,Wd.bootW*fat,"B");
     }
   }
   /* the body: shoulders down to the waist, then the coat's own cut */
@@ -807,9 +861,15 @@ function buildFigure(S,pose){
       if(raised&&s===gunSide&&S.gun!=="none")
         figTaper(g,topY,topY+3,ex-6,9,ex-7,7,"G");
     }else{
+      // an arm swings against the leg on its own side, which is what stops a
+      // walk reading as a man being slid along the street
+      // the arm opposite the forward leg comes forward, and a hand that comes
+      // forward comes up a little as well
+      const aLead=gait?-gait.lead[s]:0;
+      const wX=wx+aLead*3.0, hY=R.hand-Math.round(Math.max(0,aLead)*2);
       figTaper(g,R.shoulder+2,R.elbow,sx,Wd.upperArm,ex,Wd.upperArm*0.92,sleeve);
-      figTaper(g,R.elbow+1,R.wrist,ex,Wd.foreArm+1,wx,Wd.foreArm,sleeve);
-      figDisc(g,wx,R.hand,Wd.handW/2,Wd.handW/2+1,"A");
+      figTaper(g,R.elbow+1,R.wrist,ex,Wd.foreArm+1,wX,Wd.foreArm,sleeve);
+      figDisc(g,wX,hY,Wd.handW/2,Wd.handW/2+1,"A");
     }
     figSeam(g,CX+s*(Wd.chestW/2-1),R.shoulder+4,R.waist,"K");
   }
@@ -948,8 +1008,11 @@ for(const k of Object.keys(FIGSPEC)){
   const S=FIGSPEC[k], stand=buildFigure(S,"stand");
   const up=buildFigure(S,"raise"), hands=buildFigure(S,"surrender");
   const sparse=(a,b)=>{const o={};for(let i=0;i<a.length;i++)if(a[i]!==b[i])o[i]=a[i];return o;};
+  const walk={};
+  for(const w of ["strideA","passB","strideB","passA"])
+    walk[w]=sparse(buildFigure(S,w),stand);
   FIGURES[k]={rows:stand, raise:sparse(up,stand), surrender:sparse(hands,stand),
-              box:figBoxes(S,stand,up)};
+              gait:walk, box:figBoxes(S,stand,up)};
 }
 const DEFAULT_BOX=FIGURES.robber.box;
 /* Hands up: kept as a name for anything that asks for it generically. */

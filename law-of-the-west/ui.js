@@ -112,10 +112,20 @@ const LOOK={
   lastgun: {H:C64.blk,C:"#1a1a1a",K:"#101010",L:C64.blk,W:C64.dgy},
   robber:  {H:C64.dgy,C:C64.red,K:"#4a271d",L:C64.org,W:C64.gry}
 };
-function figureRows(fig,pose){
+/* A pose and a gait are different questions. The pose says what his arms are
+ * doing - up, surrendered, or by his sides - and the gait says which foot he
+ * is on. They used to be one argument, so a man who had been given a pose had
+ * no gait: a robber walks into his scene with the gun already up, and asking
+ * for "raise" threw the walk away and slid him in. They are laid on in order
+ * now, gait first and pose over it, because the pose owns the arms. */
+function figureRows(fig,pose,gait){
   const rows=fig.rows.slice();
-  const over=pose==="raise"?fig.raise:(pose==="surrender"?(fig.surrender||SURRENDER):null);
-  if(over)for(const k of Object.keys(over))rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);
+  const lay=over=>{if(over)for(const k of Object.keys(over))
+    rows[+k]=over[k].padEnd(SPR.w,".").slice(0,SPR.w);};
+  lay(gait&&fig.gait&&fig.gait[gait]);
+  lay(pose==="raise"?fig.raise
+     :pose==="surrender"?(fig.surrender||SURRENDER)
+     :(fig.gait&&fig.gait[pose])||null);
   return rows;
 }
 /* ---- how a caller is painted ---- *
@@ -258,6 +268,11 @@ function drawFigure(rows,x0,y0,look,cw,ch){
   }
 }
 
+/* The beat of the walk the last caller was drawn on. The walk is four poses
+ * and which one is showing is not recoverable from the offsets afterwards, so
+ * it is written down as he is drawn - tools/playtest.js reads it to say whether
+ * a caller actually strode through a scene or only slid through it. */
+let gaitPose="";
 /* ---- what a body does while it is standing there ---- *
  * A figure that holds one pose is a cut-out, whatever is drawn on it. These
  * are twenty-four cells across, so there is no room to act with; what there is
@@ -379,7 +394,23 @@ function expressOn(head,mood,blink,eyeRow){
 }
 function visitor(enc,pose,now){
   const fig=figureOf(enc), look=LOOK[enc.figure||enc.id]||LOOK.robber;
-  let rows=figureRows(fig,pose);
+  /* Which foot he is on. Only when he is going somewhere, and never over a
+   * pose that was asked for by name: a man with his hands up is not walking. */
+  let walking=null;
+  {
+    const w0=walkNow(now||0), l0=leaveNow(now||0);
+    const g0=(w0&&!w0.before)?w0.t:(l0?l0.t:null);
+    if(g0!=null){
+      /* Where he is in the cycle. sin says which foot is forward, cos says
+       * which way it is going - and between the two contacts, the leg that is
+       * swinging through is the one that was behind. A woman in a skirt walks
+       * too: the hem swings and her boots come out from under it in turn. */
+      const ph=g0*Math.PI*STRIDE, sn=Math.sin(ph), cs=Math.cos(ph);
+      walking=sn>0.55?"strideA":sn<-0.55?"strideB":(cs<0?"passB":"passA");
+    }
+  }
+  gaitPose=walking||"";               // which beat he is on, for the tools
+  let rows=figureRows(fig,pose,walking);
   // a man whose hat has been shot off is drawn without it, and it is drawn
   // going where it went
   if(G.hatOff)rows=rows.map(r=>r.replace(/H/g,"."));
@@ -434,9 +465,14 @@ function visitor(enc,pose,now){
    * two quantises every band to 0, 2 or 4, which is how the articulation came
    * to be there in the arithmetic and absent on the screen - the head's share
    * never cleared a half pixel, so the head never moved at all. */
+  /* Standing, his weight goes hip to hip on a clock of its own. Walking, it
+   * goes on the clock his feet are on - the hips swing over the leg that is
+   * taking the weight and the shoulders come back the other way - and a walk
+   * without that opposition is a man being carried along upright. */
   const SWAY=1.15;                                   // rad/s: a shift every few seconds
-  const w=Math.sin(t*SWAY+ph);                       // the weight, hip to hip
-  const wLag=Math.sin((t-0.22)*SWAY+ph);             // what the head has caught up to
+  const legPh=gait!=null?gait*Math.PI*STRIDE:null;
+  const w=legPh!=null?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
+  const wLag=legPh!=null?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
   const hipX=Math.round(w*3);
   const shoX=-Math.round(w*2);                       // the counter-turn
   const headX=-Math.round(wLag*2);
@@ -447,10 +483,15 @@ function visitor(enc,pose,now){
   const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
   // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
   // he leans into it and comes upright as he arrives
-  const wob=gait!=null?(1-Math.abs(Math.cos(gait*Math.PI*STRIDE))):0;
-  const wbob=gait!=null?-Math.round(wob*1.6):0;
-  const wlean=walk?Math.round((1-walk.t)*2)*GEST
-             :leave?Math.round(leave.t*2)*GEST*leave.dir:0;
+  /* And he rises and falls on it. He was highest at the contacts, which is
+   * backwards: a man is lowest when his heel lands and takes his weight, and
+   * tallest going over the planted leg in the middle of the step. */
+  const wob=gait!=null?(1-Math.abs(Math.sin(gait*Math.PI*STRIDE))):0;
+  const wbob=gait!=null?-Math.round(wob*2):0;
+  /* He leaned by four pixels, which on a man this wide puts his shoulders off
+   * his hips and reads as falling rather than walking. Two is a lean. */
+  const wlean=walk?Math.round((1-walk.t)*2)*(GEST/2)
+             :leave?Math.round(leave.t*2)*(GEST/2)*leave.dir:0;
   const legX=(walk?walk.dx:0)+(leave?leave.dx:0);
   // and the legs themselves: one forward while the other is back, the forward
   // one lifted off the dirt. STRIDE boots go down over the walk, so a whole
@@ -482,8 +523,7 @@ function visitor(enc,pose,now){
    * the only place he is ever drawn in more than one piece, and there is
    * daylight between his boots there anyway. */
   const runs=figureRuns(rows,look,FIGCW,FIGCH);
-  const split=gait!=null&&!legs.skirt&&legs.top>hips;
-  const legTop=legs.top*FIGCH, m=legs.mid*FIGCW;
+  const legTop=legs.top*FIGCH;
   // the runs, gathered by the row they came off
   const byRow=[];
   let top=Infinity, bot=-Infinity;
@@ -510,17 +550,7 @@ function visitor(enc,pose,now){
       for(let i=0;i<rs.length;i++){
         const r=rs[i];
         ctx.fillStyle=r.c;
-        if(gait!=null&&legs.skirt&&y>=hip){          // a skirt swings, it does not stride
-          ctx.fillRect(ox+r.x+Math.round(stepX*0.5),SPRY+d,r.w,1);
-        } else if(!split||y<legTop){
-          ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
-        } else {                                     // two legs, about the line
-          const z=r.x+r.w;                           // his boots part on
-          if(r.x<m)ctx.fillRect(ox+r.x-stepX,SPRY+d-(sw<0?lift:0),
-            Math.min(z,m)-r.x,1);
-          if(z>m){const x0=Math.max(r.x,m);
-            ctx.fillRect(ox+x0+stepX,SPRY+d-(sw>0?lift:0),z-x0,1);}
-        }
+        ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
       }
     }
     last=dest;

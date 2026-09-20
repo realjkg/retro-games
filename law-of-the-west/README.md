@@ -131,6 +131,55 @@ one or zero. The comment above it describes rounding a stepped corner off. It
 has never rounded anything. It would work at a larger cell, which is the same
 conclusion from the other direction.
 
+## The walk
+
+He is drawn walking. He used not to be: the stride was cut out of the standing
+pose at run time. The trousers are one column with the boots touching at the
+bottom, so a walk sliced that column down the middle and slid the halves apart
+— two slabs with a flat inner edge and no outline on it, because the rim had
+been worked out for the shape before it was cut. It did not read as legs, and
+it could not: there were never two of them to move.
+
+`buildFigure` takes four gait poses now, built beside the standing one and kept
+as sparse diffs like `raise` and `surrender` already were, so they cost code
+and not file size:
+
+    strideA   right forward, left back, both feet down
+    passB     left swinging through, boot up and knee bent, right planted
+    strideB   left forward, right back, both feet down
+    passA     right swinging through, left planted
+
+Two contacts on their own were not enough — that is a scissor, both feet on the
+dirt and the legs only opening and shutting, and it read as a shuffle. What
+makes it a walk is the half of the cycle in between. The knee of the swinging
+leg comes up and the shin hangs under it; raising the boot on a straight leg
+left it hovering and still read as standing still.
+
+Three other things the loop turned up, none of them obvious until it was drawn:
+
+* Seen from the front the leg coming towards you is **wider**, the one going
+  away **thinner**. Shortening the forward leg as well was a step too far — it
+  takes length out of him and he stands there in a crouch. Width alone carries
+  it.
+* The **bob was backwards**. He was tallest at the contacts; a man is lowest
+  when his heel lands and takes his weight, and tallest going over the planted
+  leg in the middle of the step.
+* The **hips swing on the feet's clock**, not on the idle sway's. Without that
+  opposition — hips over the planted leg, shoulders back the other way — he is
+  a man being carried along upright. With too much of it he is a man who has
+  been drinking; it wants about two pixels.
+
+`visitor` picks the beat from the gait and never overrides a pose asked for by
+name, because a man with his hands up is not walking. The lean was halved:
+four pixels on a figure this wide puts his shoulders off his hips.
+
+Test 9C holds the shape: four poses, two different leading feet, two different
+swinging feet, each contact standing wider and opening daylight between the
+boots, each passing pose carrying less of him on the bottom rows than standing
+does without lifting him off the ground, the arms moving — and, the one a
+cut-and-slide could never fail, painted mid-stride he is not the standing
+drawing shifted sideways by any amount.
+
 ## The callers came apart, too
 
 The callers had the same fault as the arm and it took the same cure. They were

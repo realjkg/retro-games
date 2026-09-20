@@ -1323,6 +1323,89 @@ test('9B. he draws quick and spins it on the way, and it is a gun that spins',
   assert.deepEqual(p.errors,[]);
 });
 
+test('9C. a walk is two legs he is drawn on, not a standing man cut in half',
+  {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
+  const p=openPage();
+  p.tap('[data-cmd="fire"]'); p.ready();
+  /* The stride used to be cut out of the standing pose at run time: the
+   * trousers are one column with the boots touching, so the walk sliced that
+   * column down the middle and slid the halves apart. Two slabs with a flat
+   * inner edge and no outline on it, because the rim had been worked out for
+   * the shape before it was cut - and no amount of sliding makes a second leg
+   * out of a figure that only ever had one. He is drawn on two now. */
+  const fig=p.ev('figureOf(who(G))');
+  const stand=p.ev('figureRows(figureOf(who(G)),"stand")');
+  const A=p.ev('figureRows(figureOf(who(G)),"strideA")');
+  const B=p.ev('figureRows(figureOf(who(G)),"strideB")');
+  const pA=p.ev('figureRows(figureOf(who(G)),"passA")');
+  const pB=p.ev('figureRows(figureOf(who(G)),"passB")');
+  assert.notDeepEqual(A,stand,'there is no walk pose; he is still being cut');
+  assert.notDeepEqual(B,stand,'the other foot has no pose of its own');
+  assert.notDeepEqual(A,B,'both strides are the same foot');
+  /* Four poses, not two. Two contacts on their own is a scissor: both feet
+   * stay down and the legs only open and shut, which is a man shuffling. What
+   * makes it a walk is the half of the cycle in between, where one leg swings
+   * through with the boot off the dirt and the knee bent. */
+  for(const [n,rows] of [['passA',pA],['passB',pB]]){
+    assert.notDeepEqual(rows,stand,'there is no '+n+'; the walk has no passing half');
+    const ink=r=>r.search(/[^.]/)>=0;
+    let lastStand=0, lastPass=0;
+    for(let y=0;y<stand.length;y++){if(ink(stand[y]))lastStand=y;if(ink(rows[y]))lastPass=y;}
+    assert.equal(lastPass,lastStand,n+' lifts him off the ground, not his foot');
+    // one boot up: the lowest rows carry less of him than when he stands
+    const low=(rows,y)=>(rows[y].match(/[^.]/g)||[]).length;
+    let lighter=0;
+    for(let y=lastStand-5;y<=lastStand;y++)if(low(rows,y)<low(stand,y))lighter++;
+    assert.ok(lighter>=3,n+' has both boots still on the dirt ('+lighter+' rows lighter)');
+  }
+  assert.notDeepEqual(pA,pB,'the same foot swings through twice');
+  /* The legs part, and they part where a walk parts them: below the waist the
+   * stride stands wider than he does still, and the daylight between his boots
+   * opens. Counting runs is not enough - he has two boots standing as well -
+   * so it is the width of him and the width of the gap. */
+  const hips=Math.round(stand.length*0.62);
+  const span=r=>{const a=r.search(/[^.]/); if(a<0)return 0;
+    return r.length-[...r].reverse().join('').search(/[^.]/)-a;};
+  const gapOf=r=>{const m=/[^.](\.+)[^.]/.exec(r);return m?m[1].length:0;};
+  const stance=(rows)=>{let wide=0,open=0;
+    for(let y=hips;y<rows.length;y++){
+      if(span(rows[y])>span(stand[y])+1)wide++;
+      if(gapOf(rows[y])>gapOf(stand[y])+1)open++;
+    }
+    return {wide:wide,open:open};};
+  for(const [n,rows] of [['strideA',A],['strideB',B]]){
+    const st=stance(rows);
+    assert.ok(st.wide>=8,n+' stands wider on only '+st.wide+' rows; his legs are together');
+    assert.ok(st.open>=5,n+' opens daylight between his boots on only '+st.open+' rows');
+  }
+  // and above the waist the arms have moved, because a man swings them
+  const armRows=(rows)=>{let n=0;
+    for(let y=0;y<hips;y++)if(rows[y]!==stand[y])n++;
+    return n;};
+  assert.ok(armRows(A)>=3&&armRows(B)>=3,'his arms hang dead through the whole walk');
+  // the two strides are opposite feet, so they are not the same drawing shifted
+  assert.notDeepEqual(A.slice(hips),B.slice(hips),'both feet lead');
+
+  /* and the walk uses them. Painted mid-stride he is a different shape, not
+   * the standing shape moved along: no single sideways shift makes the two
+   * agree, which is exactly what a cut-and-slide could never fail. */
+  const paintAt=(setup)=>{p.painted.length=0; p.ev(setup);
+    return p.painted.filter(r=>r.c&&r.c.indexOf('rgba')<0&&r.w<40)
+      .map(r=>r.x+','+r.y+','+r.w);};
+  const still=paintAt('walkAt=-1e9;leaving=null;reactAt=-1e9;visitor(who(G),"idle",0);');
+  const mid=paintAt('walkAt=-1e9;reactAt=-1e9;'+
+    'leaving={at:performance.now()-EXIT_MS*0.08,dir:1};'+
+    'visitor(who(G),"idle",performance.now());');
+  assert.ok(mid.length>20,'nothing was painted mid-stride');
+  const shifted=dx=>still.map(v=>{const [x,y,w]=v.split(',');
+    return (+x+dx)+','+y+','+w;});
+  let same=false;
+  for(let dx=-140;dx<=140&&!same;dx++)
+    if(JSON.stringify(shifted(dx))===JSON.stringify(mid))same=true;
+  assert.ok(!same,'walking, he is the standing drawing slid sideways');
+  assert.deepEqual(p.errors,[]);
+});
+
 test('9z. a caller who is done walks off before the street is anyone else\'s',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
