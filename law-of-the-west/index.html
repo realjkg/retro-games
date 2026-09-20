@@ -2995,6 +2995,68 @@ const ARMPOLY=[[62,104],[78,88],[129,84],[129,141],[74,141],[62,124]];
 const ELBOW={x:60,y:114}, JOINT=11, DOWN=1.42;
 let swing=0;                          // 0 hangs down, 1 is levelled
 let reloadAt=-1; const RELOAD_MS=620;
+/* ---- the flourish ---- *
+ * He has one drawing and the revolver is already in his hand in it, so the gun
+ * cannot literally leave the leather and come back: there is no holstered gun
+ * anywhere in the artwork, and an empty holster with no gun to explain it reads
+ * as a bin. What can be done is the spin itself.
+ *
+ * A road agent's spin turns the gun on the trigger finger. The finger is the
+ * pin: the revolver goes round it and the hand stays where it is - which is
+ * both what the trick actually is and, here, the only version of it that can
+ * be drawn, because turning the whole fist about the wrist swings forty-five
+ * pixels of glove and barrel round an arc and reads as a gun coming off its
+ * owner rather than spinning in his grip.
+ *
+ * So it is hinged the way the forearm is hinged on the elbow, one joint
+ * further out and much smaller: a disc on the trigger guard that the rotation
+ * cannot move off itself, with the revolver beyond it. Nested inside the arm's
+ * own turn, so the spin happens wherever the arm is pointing.
+ *
+ * It only ever happens during a draw or a holster. Settled at either end the
+ * spin is nothing and the arm is the arm, which is what keeps the levelled
+ * pose exact to the pixel. */
+const GUNPOLY=[[84,104],[84,86],[100,80],[132,80],[132,102],[106,110]];
+const TRIGGER={x:97,y:106}, TJOINT=9;
+let spin=0;                           // radians, the hand about the wrist
+/* A draw is not a dial being turned. It is over before it has been watched,
+ * and the way it reads as fast is that it arrives early and settles late: the
+ * arm is most of the way up in the first third, overshoots level, and comes
+ * back onto it. Putting it away is the other shape - it gives, then drops.
+ * The spin runs inside that: one whole turn, done while the arm is still
+ * moving, so the flourish is part of the draw rather than a pose struck after
+ * it. Holstering turns the other way, and finishes as the gun reaches leather. */
+const DRAW_MS=280, PUTUP_MS=420, TURN=Math.PI*2;
+let seqAt=-1e9, seqKind="", seqFrom=0;
+/* Starting from wherever the arm actually is, not from where it ought to be.
+ * A sequence that assumes it begins at one end jumps on its first frame if the
+ * settling lerp got a tick in first, and a jump at the start of a draw is the
+ * one frame a player is certain to be looking at. */
+function beginSeq(kind,now){seqKind=kind;seqAt=now;seqFrom=swing;}
+function seqNow(now){
+  if(!seqKind)return null;
+  const span=seqKind==="draw"?DRAW_MS:PUTUP_MS;
+  /* The frame clock is the timestamp rAF was called with, which is the start
+   * of the frame and so can be earlier than the keypress that began this. A
+   * negative t there is not "not started yet", it is "started, and this frame
+   * is the first of it" - read as null it hands the frame back to the settling
+   * lerp, which is a jump on the one frame a player is certain to see. */
+  const t=Math.max(0,(now-seqAt)/span);
+  if(t>=1){seqKind="";return null;}
+  if(seqKind==="draw"){
+    // up fast, past level, and back onto it
+    const rise=1-Math.pow(1-t,3);
+    const over=0.13*Math.sin(t*Math.PI)*(1-t*0.55);
+    // and round once, finished before the arm has settled
+    const u=Math.min(1,t/0.62);
+    return {swing:seqFrom+(1-seqFrom)*rise+over,
+            spin:-TURN*(1-Math.pow(1-u,2))};
+  }
+  // putting it away: it gives at the top, then goes
+  const fall=Math.pow(1-t,2.2);
+  const u=Math.max(0,Math.min(1,(t-0.12)/0.78));
+  return {swing:seqFrom*fall, spin:TURN*(1-Math.pow(1-u,2))};
+}
 /* A shot is the one thing the arm does that is not a position it settles into.
  * The barrel throws up and comes back down, and it is over in a fifth of a
  * second: past the hinge, because recoil takes the gun above level, and the
@@ -3025,12 +3087,37 @@ function beyondJointPath(dx){
   ctx.rect(dx-OWN.w,OWN.y-OWN.h,OWN.w*3,OWN.h*3);
   jointPath(dx);
 }
+/* and the same three shapes again, one joint further out */
+function gunPath(dx){
+  ctx.moveTo(dx+GUNPOLY[0][0],GUNPOLY[0][1]);
+  for(let i=1;i<GUNPOLY.length;i++)ctx.lineTo(dx+GUNPOLY[i][0],GUNPOLY[i][1]);
+  ctx.closePath();
+}
+function pinPath(dx){
+  ctx.moveTo(dx+TRIGGER.x+TJOINT,TRIGGER.y);
+  ctx.arc(dx+TRIGGER.x,TRIGGER.y,TJOINT,0,Math.PI*2);
+}
+function beyondPinPath(dx){
+  ctx.rect(dx-OWN.w,OWN.y-OWN.h,OWN.w*3,OWN.h*3);
+  pinPath(dx);
+}
+function beyondGunPath(dx){
+  ctx.rect(dx-OWN.w,OWN.y-OWN.h,OWN.w*3,OWN.h*3);
+  gunPath(dx);
+}
 function ownGun(out){
   if(!sheriffImg||!sheriffImg.complete||!sheriffImg.naturalWidth)return;
   ctx.imageSmoothingEnabled=false;
   const img=sheriffImg, dx=OWN.x-(out?0:OWN.lean);
   const k=kickNow(nowFrame), a=(1-swing)*DOWN-k*KICK;
+  const turning=Math.abs(spin)>0.004;
   const paint=()=>ctx.drawImage(img,dx,OWN.y,OWN.w,OWN.h);
+  const arm=()=>{                     // the arm's own turn, about the elbow
+    if(Math.abs(a)>0.001){
+      ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
+      ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
+    }
+  };
   // 1. him, with the arm's whole reach cut out of him
   ctx.save();
   ctx.beginPath();
@@ -3051,15 +3138,38 @@ function ownGun(out){
   //    and to what lies beyond the joint - both built after the turn, so the
   //    cut turns with it
   ctx.save();
-  if(Math.abs(a)>0.001){
-    ctx.translate(dx+ELBOW.x,ELBOW.y); ctx.rotate(a);
-    ctx.translate(-(dx+ELBOW.x),-ELBOW.y);
-  }
+  arm();
   ctx.beginPath(); reachPath(dx); ctx.clip();
   ctx.beginPath(); beyondJointPath(dx); ctx.clip("evenodd");
+  if(turning){                        // the revolver is being drawn separately
+    ctx.beginPath(); beyondGunPath(dx); ctx.clip("evenodd");
+  }
   paint();
-  if(k>0.25)muzzle(dx,a,k);
   ctx.restore();
+  if(turning){
+    // 4. the trigger guard put back, unspun: the pin the gun turns on
+    ctx.save();
+    arm();
+    ctx.beginPath(); reachPath(dx); ctx.clip();
+    ctx.beginPath(); gunPath(dx); ctx.clip();
+    ctx.beginPath(); pinPath(dx); ctx.clip();
+    paint();
+    ctx.restore();
+    // 5. and the revolver, turned on that pin inside the arm's own turn, so
+    //    the spin goes wherever the arm is pointing
+    ctx.save();
+    arm();
+    ctx.translate(dx+TRIGGER.x,TRIGGER.y); ctx.rotate(spin);
+    ctx.translate(-(dx+TRIGGER.x),-TRIGGER.y);
+    ctx.beginPath(); reachPath(dx); ctx.clip();
+    ctx.beginPath(); gunPath(dx); ctx.clip();
+    ctx.beginPath(); beyondPinPath(dx); ctx.clip("evenodd");
+    paint();
+    ctx.restore();
+  }
+  // the flare belongs on the muzzle wherever the arm has put it, and never
+  // while he is still spinning it
+  if(k>0.25&&!turning){ctx.save(); arm(); muzzle(dx,a,k); ctx.restore();}
 }
 /* The flare, drawn inside the arm's own rotation so it stays on the muzzle
  * wherever recoil has thrown it: a hot core, a ragged corona, and a lick along
@@ -4433,7 +4543,7 @@ function moveCursor(d){
  * HOL control, Escape, or walking the sights off the bottom of the street. */
 function putUp(){
   if(G.mode!=="gun")return;
-  holster(G); SND.holster(); paint();
+  holster(G); beginSeq("holster",performance.now()); SND.holster(); paint();
 }
 function up(){
   if(screen==="sound"){soundCmd("prev");return;}
@@ -4443,9 +4553,12 @@ function up(){
   if(G.mode==="talk"&&G.phase!=="dialogue"&&G.phase!=="tell"){SND.deny();return;}
   if(G.mode==="talk"&&(G.phase==="dialogue"||G.phase==="tell")){
     drawGun(G,performance.now()); drawnAt=performance.now();
+    beginSeq("draw",performance.now());
     SND.cut();                                  // the theme stops where the gun starts
-    // leather out of the holster, the hammer back, the sights settling: once
-    SND.leather(); SND.cock(); cueAtMs(140,()=>SND.aim());
+    // leather at the first move, the hammer back as the spin comes round, the
+    // sights settling as the arm stops: once each, on the draw's own clock
+    SND.leather(); cueAtMs(Math.round(DRAW_MS*0.55),()=>SND.cock());
+    cueAtMs(Math.round(DRAW_MS*0.92),()=>SND.aim());
     paint(); return;
   }
   if(G.mode==="gun")moveAim(G,0,-1);            // the sights make no sound
@@ -4487,6 +4600,7 @@ function fire(){
    * with UP is still how he picks a shot, and now the only way to pick one. */
   if(G.mode!=="gun"&&(G.phase==="tell"||G.phase==="duel")){
     drawGun(G,performance.now()); drawnAt=performance.now();
+    beginSeq("draw",performance.now());
     aimAt(G,"torso"); SND.leather();
   }
   if(G.mode==="gun"){
@@ -4786,6 +4900,7 @@ function frame(now){
       build.at+=gap;
       if(reloadAt>0)reloadAt+=gap;
       kickAt+=gap; blackAt+=gap; walkAt+=gap; reactAt+=gap; drawnAt+=gap;
+      seqAt+=gap;
       if(leaving)leaving.at+=gap;
       if(held)held.next+=gap;
       shiftQueue(gap);
@@ -4803,8 +4918,13 @@ function frame(now){
     // dips once between the two while he puts a fresh round in the chamber -
     // which is the reload the ear already had and the eye did not.
     const loading=reloadAt>0&&now>=reloadAt&&now<reloadAt+RELOAD_MS;
-    const want=(G.mode==="gun")?(loading?0.34:1):0;
-    if(swing!==want)swing=Math.abs(want-swing)<0.02?want:swing+(want-swing)*0.28;
+    const seq=seqNow(now);
+    if(seq){swing=seq.swing; spin=seq.spin;}
+    else{
+      spin=0;
+      const want=(G.mode==="gun")?(loading?0.34:1):0;
+      if(swing!==want)swing=Math.abs(want-swing)<0.02?want:swing+(want-swing)*0.28;
+    }
     runAim(now);
     runQueue(now);
     // Nothing announces an audio route change. Once a second, if the sound is
