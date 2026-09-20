@@ -58,7 +58,10 @@ function openPage(setup,cold){
   if(!cold)ev('themePlayed=true;');
   return {dom,w,errors,ev,painted,
     G:()=>ev('G'), snd:()=>ev('SND'), hit:()=>ev('HITBOX'),
-    ready(){ev('build').rows=10;ev('paint()');},
+    /* Ready means the picture is up AND the caller is standing in it: a man
+     * who is still walking up the street cannot be spoken to, so skipping the
+     * block-load alone no longer puts the page where these tests need it. */
+    ready(){ev('build').rows=10;ev('walkAt=-1e9');ev('paint()');},
     el:id=>w.document.getElementById(id),
     press:key=>w.document.dispatchEvent(new w.KeyboardEvent("keydown",{key,bubbles:true})),
     tap:sel=>{const el=w.document.querySelector(sel);
@@ -1012,6 +1015,16 @@ test('9v. every caller walks in rather than appearing',
   const near=p.ev(`walkNow(${at+40})`), mid=p.ev(`walkNow(${at+700})`),
         end=p.ev(`walkNow(${at+1450})`), after=p.ev(`walkNow(${at+4000})`);
   assert.ok(near&&near.dx>50,'he started on his mark: '+JSON.stringify(near));
+  /* And before it: he is not standing on his mark waiting to start. That is
+   * what the entrance bug was, and no assertion above can see it - every
+   * offset here was already right while the screen showed him appear at his
+   * post, hold, and jump the width of the walk backwards to begin it. */
+  const pre=p.ev(`walkNow(${at-100})`);
+  assert.ok(pre&&pre.before,'before his walk he was somewhere rather than nowhere');
+  assert.equal(pre.dx,p.ev('WALK_FROM'),'he waits up the street, not on his mark');
+  p.painted.length=0;
+  p.ev(`visitor(who(G),"idle",${at-100});`);
+  assert.equal(p.painted.length,0,'a man who has not arrived was drawn anyway');
   assert.ok(mid&&mid.dx<near.dx,'he did not move');
   assert.ok(end&&end.dx<mid.dx,'he did not arrive');
   assert.equal(after,null,'he never stopped walking');
@@ -1050,6 +1063,16 @@ test('9v. every caller walks in rather than appearing',
   assert.ok(log.filter(c=>c==='step').length>=4,
     'he crossed the street in silence: '+log.join(','));
   assert.ok(log.indexOf('door')<log.indexOf('step'),'he walked before the door went');
+  /* And a walk still owed when he turns to go is cancelled by his going. The
+   * day's first caller waits on the dawn and the badge, so a player quick
+   * enough to resolve him inside those four seconds used to watch the entrance
+   * fire in the middle of the exit and carry him off at the sum of the two
+   * offsets. Left last: it sends the man away, which is the end of his scene. */
+  p.ev('newScene(); leaving=null; G.phase="resolve"; G.outcome="turns_away";');
+  const owed=p.ev('walkAt');
+  p.ev('advance();');
+  assert.ok(p.ev('!!leaving'),'he did not turn and go');
+  assert.equal(p.ev(`walkNow(${owed+50})`),null,'his exit was overrun by his own entrance');
   assert.deepEqual(p.errors,[]);
 });
 

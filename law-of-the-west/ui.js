@@ -392,6 +392,7 @@ function visitor(enc,pose,now){
     else rdx=Math.round(1.2*e)*GEST;
   }
   const walk=walkNow(now||0), leave=leaveNow(now||0);
+  if(walk&&walk.before)return;                      // the door has not gone yet
   // one number for "how far through a walk he is", whichever way he is going
   const gait=walk?walk.t:(leave?leave.t:null);
   const lean=mood.lean*GEST, rise=mood.rise*2;
@@ -1577,7 +1578,7 @@ const JOB_PROMPT={stage:"Ride for the ford",train:"Get down to the cut",
   bank:"Round the back of the bank"};
 function paint(){
   if(screen==="sound")return paintSound();
-  const b=beat(), live=build.rows>=10;
+  const b=beat(), live=build.rows>=10&&!notArrived();
   if(G.phase==="summary"){return paintSummary();}
   if(G.phase==="intro"){
     lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
@@ -1870,10 +1871,28 @@ function newScene(after){
   const theme=e&&e.theme;
   if(theme)cueAtMs(t0+WALK_MS*0.45,()=>{if(who(G)===e&&G.mode!=="gun")SND.theme(theme);});
 }
-/* Where he is on that walk. */
+/* Where he is on that walk - and, before it, whether he is on the street at
+ * all. Returning null for both "he has not set off" and "he has arrived" was
+ * the whole of the entrance bug: the drawing read null as "stand him at his
+ * post", so every caller was painted where he would end up, held there for the
+ * two hundred milliseconds before his walk began, and then jumped the eighty-six
+ * pixels back up the street to start it. On the first caller of the day, whose
+ * walk waits on the dawn and the badge, he was held there for four and a half
+ * seconds. A man who has not arrived is not standing anywhere: he is not drawn.
+ */
+/* Whether the caller is still up the street. The dialogue waits on this as
+ * well as on the picture: on the first caller of the day the walk waits behind
+ * the dawn and the badge, and until it did, a player could pick a reply, hear
+ * the answer and see the whole encounter resolve over an empty street, four
+ * seconds before the man it was with had arrived. */
+function notArrived(){
+  const w=walkNow(performance.now());
+  return !!(w&&w.before);
+}
 function walkNow(now){
   const t=(now-walkAt)/WALK_MS;
-  if(t<0||t>=1)return null;
+  if(t>=1)return null;                              // arrived, and standing
+  if(t<0)return {t:0, dx:WALK_FROM, before:true};   // not up the street yet
   const e=1-Math.pow(1-t,1.7);                      // slowing as he arrives
   return {t:t, dx:Math.round(WALK_FROM*(1-e))};
 }
@@ -1897,7 +1916,7 @@ function leaveNow(now){
 /* A navigation click marks a selection changing. Walking into a wall is not a
  * selection changing, and neither is a reply that is not there. */
 function moveCursor(d){
-  if(build.rows<10)return;
+  if(build.rows<10||notArrived())return;
   const b=beat(); const n=b&&b.replies?b.replies.length:0;
   if(n<1)return;
   const was=cursor;
@@ -1934,7 +1953,7 @@ function down(){
     if(G.aim.y>=0.995){putUp();return;}
     moveAim(G,0,1); return;                     // the sights make no sound
   }
-  if(G.phase==="dialogue"&&build.rows>=10)moveCursor(1);
+  if(G.phase==="dialogue"&&build.rows>=10&&!notArrived())moveCursor(1);
 }
 function left(){if(screen==="sound"){soundCmd("prev");return;}
   if(G.mode==="gun"){moveAim(G,-1,0);return;}
@@ -1975,7 +1994,7 @@ function fire(){
     afterShot(before);
     return;
   }
-  if(G.phase!=="dialogue"||build.rows<10)return;
+  if(G.phase!=="dialogue"||build.rows<10||notArrived())return;
   const b=beat(); if(!b){SND.deny();return;}
   const chosen=b.replies[cursor]; if(!chosen){SND.deny();return;}
   SND.select();
@@ -2032,7 +2051,7 @@ function advance(){
     // he walks off before the street is anyone else's. Pressing again while
     // he goes skips it, the way a player who has read enough should be able to.
     newSeq(); SND.cut();
-    leaving={at:performance.now(),dir:dir};
+    leaving={at:performance.now(),dir:dir}; walkAt=-1e9;
     for(let i=0;i<STRIDE;i++)
       cueAtMs(Math.round((i+0.5)*EXIT_MS/STRIDE),()=>SND.step());
     paint(); return;
