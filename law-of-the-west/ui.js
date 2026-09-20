@@ -397,15 +397,27 @@ function visitor(enc,pose,now){
   const gait=walk?walk.t:(leave?leave.t:null);
   const lean=mood.lean*GEST, rise=mood.rise*2;
   const cut=headOf(fig);
-  const head=expressOn(rows.map((r,i)=>i<cut.head?r:""),mood,blink,cut.eye);
-  /* A person is not a rectangle that slides. Everything above was one offset
-   * applied to the whole figure, so he moved the way a block moves - which is
-   * the complaint, and it is fair. A body shifting its weight turns about
-   * itself: the hips go one way and the shoulders come back the other to keep
-   * the head over the feet, and the head arrives last because a head always
-   * arrives last. Three bands with three different offsets is the whole trick
-   * at this size, and it costs three draws instead of two.
-   */
+  rows=expressOn(rows,mood,blink,cut.eye);
+  /* A person is not a rectangle that slides. A body shifting its weight turns
+   * about itself: the hips go one way and the shoulders come back the other to
+   * keep the head over the feet, and the head arrives last because a head
+   * always arrives last.
+   *
+   * That was done by cutting him into three bands and moving each one, and it
+   * came apart exactly as the sheriff's arm did, for the same reason. A cut is
+   * a straight line across him; offsetting what is above it from what is below
+   * it opens the line by the whole difference. Five pixels of it, on a man
+   * forty-eight pixels wide, is a head floating clear of its collar, a hand
+   * adrift of its cuff and a notch out of each shoulder - and each band was
+   * smoothed and lit as if it were a whole figure, so every cut grew a keyline
+   * of its own and he was outlined into pieces.
+   *
+   * A body does not step. It bends. So he is rastered once - one silhouette,
+   * one light over the whole of him - and then laid down a row at a time with
+   * an offset that runs smoothly from his feet to his head: rigid through the
+   * legs, bending up the spine, rigid again through the head, which is what a
+   * spine and a skull respectively are. Nothing can open, because no two
+   * neighbouring rows are ever more than a pixel apart. */
   /* In pixels, not GEST units: rounding a small number and then multiplying by
    * two quantises every band to 0, 2 or 4, which is how the articulation came
    * to be there in the arithmetic and absent on the screen - the head's share
@@ -433,30 +445,75 @@ function visitor(enc,pose,now){
   // gait cycle - left and right - is two of them.
   const sw=gait==null?0:Math.sin(gait*Math.PI*STRIDE);
   const stepX=Math.round(sw*4), lift=Math.round(Math.abs(sw)*2);
-  const torsoX=legX+lean+wlean+shoX;
-  const headDX=legX+lean+wlean+headX;
   const bdy=breath+rise+wbob+settle;
   ctx.fillStyle="rgba(0,0,0,.35)";                   // his shadow goes with him
   ctx.fillRect(SPRX+Math.round(SPR.w*0.24)+legX+Math.round(hipX*0.5),
                SPRY+(lowest+1)*FIGCH,Math.round(SPR.w*0.52),2*FIGCH);
-  const band=(a,b)=>rows.map((r,i)=>(i>=a&&i<b)?r:"");
-  // legs: they carry the weight and, walking, the stride - and walking, they
-  // are two legs, drawn apart and moved against each other
-  const legs=legsOf(fig), lx=SPRX+legX+hipX, ly=SPRY+(gait!=null?wbob:0);
-  if(gait!=null&&legs.skirt){
-    drawFigure(band(hips,rows.length),lx+Math.round(stepX*0.5),ly,look);
-  } else if(gait!=null&&legs.top>hips){
-    const col=(c0,c1)=>rows.map((r,i)=>(i>=legs.top)
-      ? r.replace(/./g,(ch,k)=>(k>=c0&&k<c1)?ch:".") : "");
-    drawFigure(band(hips,legs.top),lx,ly,look);                 // the pelvis
-    drawFigure(col(0,legs.mid),lx-stepX,ly-(sw<0?lift:0),look);
-    drawFigure(col(legs.mid,1e9),lx+stepX,ly-(sw>0?lift:0),look);
-  } else drawFigure(band(hips,rows.length),lx,ly,look);
-  // torso: comes back the other way, and breathes
-  drawFigure(band(cut.head,hips),SPRX+torsoX,SPRY+bdy,look);
-  // The shoulders come up, the head stays where it was: that is what hunching
-  // is. Letting the rise carry the head too only opens a gap at his neck.
-  drawFigure(head,SPRX+headDX+rdx,SPRY+bdy-rise+rdy+headY,look);
+  /* Where each part of him wants to be: the feet, the shoulders and the head.
+   * The shoulders come up and the head stays where it was - that is what
+   * hunching is - so the rise is in the one and not the other. */
+  const legs=legsOf(fig);
+  const FEET={x:legX+hipX,              y:(gait!=null?wbob:0)},
+        SHO ={x:legX+lean+wlean+shoX,   y:bdy},
+        HEAD={x:legX+lean+wlean+headX+rdx, y:bdy-rise+rdy+headY};
+  const neck=cut.head*FIGCH, hip=hips*FIGCH, spine=(neck+hip)/2;
+  const mix=(a,b,t)=>({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t});
+  function bend(y){                                  // y is a row of the raster
+    if(y<=neck)return HEAD;                          // a skull does not bend
+    if(y>=hip)return FEET;                           // nor does a shin
+    return y<=spine?mix(HEAD,SHO,(y-neck)/(spine-neck||1))
+                   :mix(SHO,FEET,(y-spine)/(hip-spine||1));
+  }
+  /* One raster of the whole man, and one pass down it. Walking, his legs are
+   * two legs: the runs below the knee are pushed apart about the line his
+   * boots part on, and a run that straddles that line is cut on it. That is
+   * the only place he is ever drawn in more than one piece, and there is
+   * daylight between his boots there anyway. */
+  const runs=figureRuns(rows,look,FIGCW,FIGCH);
+  const split=gait!=null&&!legs.skirt&&legs.top>hips;
+  const legTop=legs.top*FIGCH, m=legs.mid*FIGCW;
+  // the runs, gathered by the row they came off
+  const byRow=[];
+  let top=Infinity, bot=-Infinity;
+  for(let i=0;i<runs.length;i++){
+    const y=runs[i].y;
+    (byRow[y]||(byRow[y]=[])).push(runs[i]);
+    if(y<top)top=y; if(y>bot)bot=y;
+  }
+  if(!isFinite(top))return;
+  /* Down him a row at a time, and never off the end of the last one. Rounding
+   * the bend's rise separately on each row is enough to skip a row where it
+   * crosses a half pixel, and a skipped row is a hairline of daylight straight
+   * across his chest - which is the same hole in a smaller form. So the rows
+   * go down in order and a row that would leave a gap is stretched over it. */
+  const rowAt=y=>Math.round(y+bend(y).y);
+  let last=rowAt(top)-1;
+  ctx.save();
+  for(let y=top;y<=bot;y++){
+    const rs=byRow[y]; if(!rs)continue;
+    let dest=rowAt(y);
+    if(dest<=last)dest=last+1;                       // never backwards
+    const o=bend(y), ox=SPRX+Math.round(o.x);
+    for(let d=last+1;d<=dest;d++){                   // and never over a gap
+      for(let i=0;i<rs.length;i++){
+        const r=rs[i];
+        ctx.fillStyle=r.c;
+        if(gait!=null&&legs.skirt&&y>=hip){          // a skirt swings, it does not stride
+          ctx.fillRect(ox+r.x+Math.round(stepX*0.5),SPRY+d,r.w,1);
+        } else if(!split||y<legTop){
+          ctx.fillRect(ox+r.x,SPRY+d,r.w,1);
+        } else {                                     // two legs, about the line
+          const z=r.x+r.w;                           // his boots part on
+          if(r.x<m)ctx.fillRect(ox+r.x-stepX,SPRY+d-(sw<0?lift:0),
+            Math.min(z,m)-r.x,1);
+          if(z>m){const x0=Math.max(r.x,m);
+            ctx.fillRect(ox+x0+stepX,SPRY+d-(sw>0?lift:0),z-x0,1);}
+        }
+      }
+    }
+    last=dest;
+  }
+  ctx.restore();
 }
 
 /* ---- the sheriff ---- *

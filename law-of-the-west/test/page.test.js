@@ -1203,6 +1203,30 @@ test('9y. the caller moves the way a person does, not the way a block does',
     if(d.some(Boolean)&&!d.every(Boolean))apart++;
   }
   assert.ok(apart>=4,'his bands never moved independently ('+apart+' frames)');
+  /* And he must come apart in the moving, not in the drawing. Sliding three
+   * bands of him past each other is how this was done, and it tore him: a cut
+   * is a straight line across him, and offsetting what is above it from what
+   * is below opens the line by the whole difference - a head clear of its
+   * collar, a hand adrift of its cuff, a notch out of each shoulder. Each band
+   * was smoothed and lit as a figure in its own right too, so every cut grew a
+   * keyline and he was outlined into pieces.
+   *
+   * So he is rastered once and laid down a row at a time. One raster is the
+   * test: it is what makes the silhouette and the light continuous, and it is
+   * what makes an offset a bend rather than a step. */
+  p.ev('FIGRUNS.clear(); walkAt=-1e9; reactAt=-1e9; visitor(who(G),"idle",1234);');
+  assert.equal(p.ev('FIGRUNS.size'),1,
+    'he was rastered in '+p.ev('FIGRUNS.size')+' pieces, so each has an edge of its own');
+  /* and no row of him may be missed. The bend's rise is rounded per row, and
+   * rounding alone will skip one where it crosses a half pixel - which is a
+   * hairline of daylight straight across his chest. */
+  p.painted.length=0;
+  p.ev('walkAt=-1e9; reactAt=-1e9; visitor(who(G),"idle",1234);');
+  const body=p.painted.filter(r=>r.c&&r.c.indexOf('rgba')<0&&r.w<40);
+  const ys=[...new Set(body.map(r=>r.y))].sort((a,b)=>a-b);
+  assert.ok(ys.length>20,'he is only '+ys.length+' rows tall');
+  assert.equal(ys[ys.length-1]-ys[0]+1,ys.length,
+    'a row of him was skipped, which is daylight straight across him');
   assert.deepEqual(p.errors,[]);
 });
 
