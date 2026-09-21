@@ -10,6 +10,24 @@ const CHOPS=[chop(0),chop(1),chop(2),chop(3)];
 const rect=m=>m.every(r=>r.length===m[0].length);
 const ink=(m,f)=>m.reduce((n,r)=>n+[...r].filter(c=>f?f(c):c!=='.').length,0);
 const flip=m=>m.map(r=>[...r].reverse().join(''));
+// How many separate things a picture is made of, counting only the ones big
+// enough to be a part of her rather than a stray pixel of the baking.
+function pieces(m,least){
+  const R=m.length,C=m[0].length,seen=Array.from({length:R},()=>new Array(C).fill(false));
+  let n=0;
+  for(let y=0;y<R;y++)for(let x=0;x<C;x++){
+    if(m[y][x]==='.'||seen[y][x])continue;
+    const st=[[x,y]];let size=0;
+    while(st.length){
+      const [a,b]=st.pop();
+      if(a<0||b<0||a>=C||b>=R||seen[b][a]||m[b][a]==='.')continue;
+      seen[b][a]=true;size++;
+      st.push([a-1,b]);st.push([a+1,b]);st.push([a,b-1]);st.push([a,b+1]);
+    }
+    if(size>=(least||1))n++;
+  }
+  return n;
+}
 // The ground shut inside a figure: transparent cells that cannot be reached
 // from outside it. The skids are not inside her, so their rows are not looked at.
 function trapped(m,rows){
@@ -158,4 +176,51 @@ test('Everything else the Empire owns is a rectangle too',()=>{
   assert.equal(rows.length,2);
   assert.notEqual(rows[0],rows[1],'and the two are not the same row twice');
   assert.equal(rows[0].length,14);assert.equal(rows[1].length,14);
+});
+
+/* ---- the leaning pictures ---- *
+ * These are not drawn by hand, they are baked from the drawn ones when the
+ * page loads, so what is checked here is that the baking keeps a machine.
+ * None of it can see the screen: tools/playtest.js measures whether the
+ * painted picture actually has one end lower than the other.
+ */
+const {runtime}=require('./harness.cjs');
+
+test('Every leaning picture is still the machine, and still one piece',()=>{
+  const r=runtime(2,3);
+  const steps=r.run('LEAN_SHAPES.steps');
+  assert.ok(steps>=3,'she leans through enough pictures to be a lean: '+steps);
+  const shapes=JSON.parse(r.run('JSON.stringify(LEAN_SHAPES.out)'));
+  assert.equal(shapes.length,4,'one bank of them per drawn frame');
+  for(let f=0;f<shapes.length;f++){
+    const level=ink(CHOPS[f],c=>c!=='.'&&c!=='O');  // the rails are drawn, not baked
+    for(let n=0;n<shapes[f].length;n++){
+      const g=shapes[f][n];
+      if(n===steps){assert.equal(g,null,'level is the drawn machine itself');continue;}
+      assert.ok(Array.isArray(g)&&g.length,'a picture for every angle she leans to');
+      assert.ok(rect(g),'and it is a rectangle');
+      assert.equal(ink(g,c=>c==='O'),0,'with no rails baked into it');
+      assert.ok(ink(g,c=>c==='C')>0,'her glass is still in it');
+      // Turning her must not cost her: a machine that loses a fifth of itself
+      // on the way round is not leaning, it is dissolving.
+      const got=ink(g);
+      assert.ok(got>=level*0.88,'frame '+f+' at step '+(n-steps)+' kept '+got+' of '+level);
+      assert.ok(got<=level*1.3,'and did not swell: '+got+' of '+level);
+      // And it is one machine, not a shower of pieces. The tail boom of the
+      // profile frames is joined to the cabin by two rows, so six pixels is
+      // the smallest thing that counts as a piece of her.
+      assert.equal(pieces(g,6),1,'frame '+f+' at step '+(n-steps)+' is in pieces');
+    }
+  }
+});
+
+test('She leans further one way than the other, and least of all nose-on',()=>{
+  const r=runtime(2,4);
+  assert.ok(r.run('LEAN_DIVE')>r.run('LEAN_CLIMB'),'a dive is steeper than being dragged');
+  assert.ok(r.run('LEAN_CLIMB')>0);
+  assert.ok(r.run('LEAN_ROLL')<r.run('LEAN_DIVE'),'and a roll is the smallest of the three');
+  // Every angle she can reach has a picture baked for it, both ways.
+  const steps=r.run('LEAN_SHAPES.steps'), step=r.run('LEAN_STEP');
+  assert.ok(steps*step>=r.run('LEAN_DIVE')-1e-9,'the bank covers the whole of a dive');
+  assert.equal(r.run('LEAN_SHAPES.out[3].length'),steps*2+1,'and covers it either way');
 });

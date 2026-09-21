@@ -30,6 +30,11 @@ other. She can be going left with her nose pointed at you. So this has a stick.
   - **in profile the gun fires level** — this is how a jet is met and how a barrack door is
     taken off;
   - **nose-on she is in the tank attacking position and the gun fires straight down.**
+- **SEEK** (C/F) puts a heat seeker off the rail. She carries four, fires one at a time, and
+  the only way to get more is to set down at the post office and let the crew load them, one
+  every seven tenths of a second. It turns onto whatever is hottest — the jets and the air
+  mines first, a tank only when the air is clear — at a rate it cannot exceed, so it can be
+  out-turned and it can run out of fuel with nothing to show for it.
 - **HOVER** (Shift/H) holds whatever height you are at.
 - **SCAN** (R) switches the scanner in the strip along the top: the whole country at once —
   the post office, the fence, the four barracks with what is left in each, every hostage on
@@ -207,12 +212,53 @@ looking into it — on the screen that hung a lasso round her, and it was wrong 
 is a horizontal circle and your eye is at its height, so it projects to the same flat ellipse
 whichever way her nose is pointing. It is one shape now, and a test says so.
 
+## She goes where the disc points
+
+A helicopter has no throttle to shove. She hangs off her disc, and she goes where the disc
+leans — so standing still she sits level, and asked for everything she has she noses over into
+it, tail up, rails up with her. Let go and she comes back level, and she takes a moment over
+both, because a machine with that much spinning on top of it does not change its mind quickly.
+
+Because where she points and where she is going are two different questions in this game, the
+lean answers the second one:
+
+| what she is doing | what you see |
+|---|---|
+| hovering | level, exactly the machine that has always been drawn here |
+| flying the way she points | nosed over into it, up to about thirteen degrees |
+| flying backwards | nose up, tail down, dragging herself along, and less of it |
+| nose-on, sliding sideways | heeled over towards the side she is sliding to |
+
+**The gun is bolted to her**, so it points where her nose points: level in the hover, and down
+the slope when she is nosed over into a run. That is the one part of the lean you can use
+rather than only look at.
+
+The turn is seven drawn pictures because a turn is seven positions you can see one at a time.
+The lean is not like that — it is a continuous angle that answers the stick, and drawing a
+picture for every angle would mean drawing a hundred of them. So the machine is drawn once and
+the leaning pictures are **baked from it when the page loads**: every pixel of the leaned
+picture asks which pixel of her it was, nine samples of it, so nothing she is made of thins out
+on the way round. Her rails are left out of that and drawn as bars at the lean, for the same
+reason the rotor is drawn rather than stored — a rail one pixel thick, put through a turn,
+samples into a row of dashes, and a bar turned is still a bar. Where those rails are is read
+out of each drawn frame rather than written down twice, which is why she stands on one long
+rail in profile and two short ones nose-on.
+
+The disc goes over with her. A machine that leans under a level disc has not leaned: she is
+hanging off that disc and it is the thing doing the leaning.
+
+`tools/playtest.js` flies the run and then asks the picture, not the number: posed at the angle
+that flight actually reached, is the nose third of her ink lower than the tail third, and the
+other way round when she is dragged backwards, and mirrored when she is pointed the other way?
+With `--sabotage=levelflight` — she flies flat out with her nose level, which is what she did
+before any of this — the row goes red.
+
 ## Every scene, in a real browser
 
 `npm test` cannot see the screen. Everything that has ever been visibly wrong in this
 repository was wrong on the screen while the numbers were right, so there is a second tool
 that opens the committed page in a real browser, presses the keys a player presses, reads the
-pixels the page actually painted, and asks six questions of seven scenes:
+pixels the page actually painted, and asks eight questions of nine scenes:
 
 ```
 PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
@@ -229,6 +275,8 @@ node tools/playtest.js --sabotage=bands    # and prove a check can go red
 | `answers` | does the scene do anything about what the player pressed? |
 | `off` | does it leave the way it came — the people aboard, the machine away? |
 | `whole` | is the figure one figure: no shed ink, no sky shut inside it? |
+| `leans` | does she nose over into a run, come back level out of it, and lean the other way flown backwards — in the painted picture, not in the number? |
+| `seeks` | does a seeker turn onto what it was fired at, or fly on past it? |
 
 **Every one of those checks has been shown to fail.** `--sabotage=<name>` patches one defect
 into the page in memory and runs against that, because a check that passes on the broken build
@@ -243,6 +291,8 @@ and on the fixed one is not a check:
 | `teleport` | a hostage crosses the ground in one frame | `in`, `stride` |
 | `deaf` | the keyboard is not read | `answers` |
 | `bands` | the chopper drawn in three slid slices | `whole` |
+| `levelflight` | she flies flat out with her nose level | `leans` |
+| `dumbseeker` | the seeker flies straight on off the rail | `seeks` |
 
 `leanthrottle` is the fidelity defect this game shipped with in its first commit, kept as a
 sabotage so it cannot come back: the flight-home scene holds the stick east for four seconds
@@ -326,6 +376,24 @@ The brief was a modernisation, so these are deliberate and are not the original:
   bring different knees through, but nobody would call the arm swing readable.
 - **She has no separate landing picture.** The skids are part of every frame of the turn and
   do not flex or settle; touching down is a change of state, not a change of drawing.
+- **The lean is one axis and the original had none of it.** Nothing in the sources says the
+  1982 machine tilted at all, and it plainly did not; this is a modernisation, not a
+  reproduction, and it is the one place the picture departs from what that machine drew. She
+  also leans only fore and aft: a real one that is sliding sideways *and* going forwards is
+  doing both at once, and here the nose-on frames roll and the profile frames pitch, with a
+  blend between them as she comes round.
+- **The leaning pictures are baked, not drawn by hand.** Every angle she leans to is a
+  resampling of the one machine somebody drew, and at the steepest angles the baking leaves
+  her outline a little rougher than the drawn frame — the fin's corner and the join under the
+  cabin are where it shows. A test holds it to keeping seven eighths of her ink and staying in
+  one piece; it cannot hold it to being as clean as a drawn frame, because it is not.
+- **A seeker cannot be steered, dropped or aimed once it is away.** It picks the hottest thing
+  in the world at that instant, every instant, so two of them fired at the same moment will
+  chase the same jet, and there is no lock, no warning tone and nothing on the scanner to say
+  what it has chosen. It also cannot hit a barrack: it is a weapon against the things that are
+  hunting you, not a second way through a door.
+- **Nothing shoots seekers back at you.** They are yours alone, which is not how it would work
+  if the other side had them.
 - **The jets fly level and never dive**, and never turn round. They cross, they fire if you are
   in front of them and level with them, and they go.
 - **A tank cannot pass a barrack**, which is how it is stopped from parking in the doorway,

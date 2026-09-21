@@ -127,6 +127,26 @@ const ok=(c,m)=>{if(!c)fails.push(m);};
       if(++n<40)go();else r(+G.h.vx.toFixed(2));});go();});
   });
   rows.push('TURN, stick centred'.padEnd(24)+'vx '+drift);
+
+  // The seeker button, which is the third thing on the pad and the only one
+  // with a count on it: it has to fire one, say how many are left, and go out
+  // when there are none.
+  const seek0=await pg.evaluate(()=>{G.h.landed=false;G.h.y=60;G.h.seekCool=0;return G.h.seek;});
+  await pg.tap('#seekbtn');
+  await pg.waitForTimeout(260);
+  const s1=await pg.evaluate(()=>({left:G.h.seek,up:G.seekers.length,
+    label:(document.getElementById('seekbtn')||{}).textContent||''}));
+  rows.push('SEEK'.padEnd(24)+seek0+' -> '+s1.left+', '+s1.up+' in the air, button says "'+s1.label+'"');
+  ok(s1.left===seek0-1&&s1.up>0,'the seeker button does not fire one');
+  ok(s1.label.indexOf(String(s1.left))>=0,'the button does not say how many are left');
+  const spent=await pg.evaluate(async()=>{
+    G.h.seek=0;
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const b=document.getElementById('seekbtn');
+    return {dim:!!(b&&b.classList.contains('spent')),text:b?b.textContent:''};
+  });
+  rows.push('SEEK, empty rails'.padEnd(24)+'dimmed '+spent.dim+', says "'+spent.text+'"');
+  ok(spent.dim,'an empty rail looks the same as a full one');
   ok(Math.abs(drift)<2,'turning her flies her: the button is acting as a throttle ('+drift+')');
 
   console.log('--- the stick, driven with a thumb ---');
