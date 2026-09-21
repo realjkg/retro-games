@@ -37,6 +37,8 @@ other. She can be going left with her nose pointed at you. So this has a stick.
 - **MENU** (Esc/P) pauses; the pause card carries the controls, the music switch, the scanner
   switch, the endless-machines switch and the full-screen switch.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- **Out of the box there is no music — just the blades.** See below; the score is a switch on
+  the title card and in the pause menu.
 - **FULL SCREEN** hides the page around the game. Held sideways the stick and the buttons move
   to either side of the screen like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
 
@@ -97,21 +99,56 @@ still zooms on your phone, that is a bug and the guard is where to look.
 - **Your own gun and your own skids kill them** as surely as a tank does. So does going down
   with sixteen aboard.
 - The Empire has three things: **tanks**, which amble along, kill the hostages they drive
-  over, and shell you — they keep a stand-off of about a hundred and thirty pixels rather than
+  over, and shell you — they keep a stand-off of about a hundred and sixty pixels rather than
   driving onto you, lay worse the further off you are, and will not drive through a barrack,
-  so each patrols the stretch of sand it was sent to; **jets** from the second wave, level and
-  fast, which is why the level gun is the one that meets them; and **drone air mines** from
-  the fourth, which home in on you and, **from your fourth trip home, shoot as well**.
+  so each patrols the stretch of sand it was sent to; **jets**, level and fast, which is why
+  the level gun is the one that meets them; and **drone air mines**, which home in on you
+  and, **from your fourth trip home, shoot as well**.
 - **Nothing the Empire owns shoots across the border.** The original gives you a safe zone
   around the launch area; here, east of the fence no shell is fired at you, no jet lines you
   up, and an air mine turns back. The run home is a run home.
 - **The Empire's strength is topped up, not added to.** A wave brings it back to what this far
-  into the mission is worth — at most seven tanks, four jets and three mines alive at once. It
-  used to add, and three minutes in there were forty-six of them on a strip of country two
-  thousand pixels long, which is not a harder game, it is a wall.
+  into the mission is worth. It used to *add*, and three minutes in there were forty-six of
+  them on a strip of country two thousand pixels long, which is not a harder game, it is a
+  wall.
 - The mission is over when all sixty-four are **accounted for** — home or lost — or when the
   hangar is empty. What you are graded on is the count, and it signs off with **The End**
   rather than "Game Over", which was Gorlin's own choice and not ours to improve on.
+
+## How hard it gets, and how fast
+
+The first version of this had two tanks on you at **four seconds** and a jet by twenty,
+whatever setting you picked, escalating on a pure clock whether or not you had achieved
+anything. A player said so, in about those words, and they were right. What it does now:
+
+- **Eighteen seconds of quiet** before the Empire notices you, at every setting. One barrack
+  is already burning, so there is something to fly at and nothing shooting at you while you
+  learn the stick.
+- **The first thing it ever sends is one tank.** Not two, and not a tank and a jet.
+- **Pressure is the clock plus the trips you make**, and a trip counts for two waves. That is
+  the original's own axis — it is on the fourth trip home that the air mines learn to shoot —
+  and it is the fairer of the two, because a player who is struggling is not also being
+  escalated at, and one who is getting them home is.
+- **Each setting has its own ceiling and its own road to it.** The ceiling alone was not
+  enough: with one ramp for all four, the hard settings never reached their own ceiling and
+  the switch stopped meaning anything.
+
+| | first jet | first mine | most at once, in the end |
+| --- | --- | --- | --- |
+| **Quiet** | about 4½ minutes | never | 3 tanks, 1 jet |
+| **Busy** | about 1¾ minutes | about 4 minutes | 4 tanks, 2 jets, 1 mine |
+| **Crowded** | about 1¼ minutes | about 2 minutes | 5 tanks, 3 jets, 2 mines |
+| **Swarming** | about 50 seconds | about 1¼ minutes | 7 tanks, 4 jets, 3 mines |
+
+Those are with no trips made; every trip home brings all of it forward. **Quiet is a place to
+learn**: one tank for the first two and a half minutes, and no air mine, ever.
+
+And it **says** what is coming. "Everything is flying at me" is a fair complaint when nothing
+announced any of it, so the first jets and the first mine each get a line in the message bar,
+and so does armour arriving more than one at a time.
+
+The tanks were also simply too accurate at range and too quick on the reload; both are
+slacker now, and they stand a third further off.
 
 ## Machines
 
@@ -119,6 +156,33 @@ still zooms on your phone, that is a bug and the guard is where to look.
 - **Endless machines** is a switch on the title card and in the pause menu, remembered between
   visits. A crash still costs you the people you were carrying, and the barrack they came out
   of is still empty. What it does not cost is the mission.
+
+## No score, just blades
+
+The Apple II had **one bit of sound** — a speaker hung off a memory location — and Choplifter
+had **no music at all**. What Gorlin spent that bit on was the rotor, and the game took a
+Certificate of Merit for **Best Computer Audiovisual Effects** at the fourth Arkie Awards:
+for effects, not for a score. So that is how this runs out of the box, and the music is a
+switch rather than the default.
+
+**The blades** are two voices held open for as long as she is flying: a low saw for the
+engine, and a sine at the **blade-pass rate** opening and closing the gain over it, which is
+the chop. Both rise as you pull up — the engine leans on it and the blades come round faster
+— so the sound tells you what the collective is doing without your looking at her. It is the
+same rate the rotor is *drawn* at, `26/π` ≈ 8.3 chops a second at a hover, about 9 under a
+full climb, so the sound and the picture are the same machine. A machine that is down does
+not turn over.
+
+**The score**, when you switch it on, is four voices of sixteen steps: a tuned-percussion
+ostinato running underneath everything, brass stabs over it, a walking bass and a drum —
+the shape of a mid-eighties action picture done on synthesisers, which is what was asked for.
+It follows the situation rather than a level: open over your own ground, tighter over theirs,
+tighter again while something is shooting at you, a fanfare when a load gets home, and a
+slower figure on the title card. It speeds up as the waves come in.
+
+**All of the writing is original.** Nothing is transcribed from any film score or from any
+port of this game, and there is nothing of the original's to transcribe in the first place —
+it had no music. Both switches, and the master SOUND ON/OFF, are remembered between visits.
 
 ## The turn is the game, so the turn is drawn
 
@@ -279,7 +343,7 @@ The brief was a modernisation, so these are deliberate and are not the original:
 ## Running it
 
 ```
-node --test choplifter/tests/*.test.cjs          # 39 tests, no packages needed
+node --test choplifter/tests/*.test.cjs          # 47 tests, no packages needed
 node choplifter/tools/render-art.js --check      # the icons and the tile match the sprite
 node tools/sync-nozoom.js --check                # this page carries the current zoom guard
 ```

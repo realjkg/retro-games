@@ -50,11 +50,20 @@ const RULES={
     patient:{reflex:[3000,4400], flee:-1},
     coward: {reflex:[1100,1900], flee:-2}
   },
-  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
+  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:300,
   /* How far off the sights the ball goes, in pixels of the picture. A snap
    * shot throws it about; a shot he took his time over goes where he put it.
    * It used to be a lottery between the thing aimed at and the other thing,
-   * decided by the clock alone - the crosshair chose nothing. */
+   * decided by the clock alone - the crosshair chose nothing.
+   *
+   * The spread itself is left where it was. What moved is the ceiling: the
+   * accuracy took until half a second to arrive, and a person answering a
+   * drawn gun is pressing at 250-400ms, so a fast player was being charged
+   * the haste tax for being fast. Measured over three thousand seeds a caller,
+   * sights laid dead on the man: at 250ms it was 83% on him, and at 300ms
+   * 88%. With the ceiling at 300 those become 95% and 99%, and a shot laid
+   * off him still misses - which is the part that has to stay true, along
+   * with a snatched shot at a hat still sometimes finding the man under it. */
   SPREAD_SNAP:9, SPREAD_AIMED:2.2,
   WOUNDS:2,
   /* How many extra balls a doctor on good terms will pull out of you. He is

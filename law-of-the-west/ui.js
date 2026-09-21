@@ -10,7 +10,19 @@ const scoreEl=document.getElementById("score");
 const modeEl=document.getElementById("mode");
 const muteBtn=document.getElementById("mute");
 
-let G=newDay({}), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
+/* A seed in the address makes a day reproducible: ?seed=42 deals the same
+ * callers, the same tells and the same scatter on the ball, every time. It is
+ * what turns "he missed and he should not have" into something that can be
+ * looked at, and it is how the test that used to fail once in thirty runs is
+ * now a test rather than a coin. Without one the day is the day. */
+function dayOpts(){
+  try{
+    const m=/[?&]seed=(-?\d+)/.exec((location&&location.search)||"");
+    if(m)return {seed:(+m[1])>>>0};
+  }catch(e){}
+  return {};
+}
+let G=newDay(dayOpts()), cursor=0, started=false, lastFrame=0, drawnAt=0, firedLatency=null;
 let screen=null, cueAt=0;           // the sound test, which is not a game phase
 let build={at:0,rows:0};            // the block-load cadence
 let flash=0, bodyFall=0, said="", react="", wokeAt=0;
@@ -25,7 +37,7 @@ let flash=0, bodyFall=0, said="", react="", wokeAt=0;
  */
 let seq=0;
 const queue=[];
-function cueAtMs(ms,fn){queue.push({at:performance.now()+ms,seq:seq,fn:fn});}
+function cueAtMs(ms,fn){queue.push({at:clock()+ms,seq:seq,fn:fn});}
 function newSeq(){seq++; queue.length=0;}
 /* Cues waiting on the clock wait on the same terms as everything else: a door
  * and six footsteps queued before the phone was locked should still be a door
@@ -368,7 +380,7 @@ let reactAt=-1e9, reactKind="";
 function reactTo(nextNode){
   const m=MOOD_OF[nextNode]||"neutral";
   reactKind=(m==="hostile"||m==="scared")?"flinch":(m==="warm"?"nod":"take");
-  reactAt=performance.now();
+  reactAt=clock();
 }
 /* The eyes are the only cells named E on the face row, and the brow sits on the
  * row above them: to bring a brow down is to put its own shadow over the eyes. */
@@ -2066,8 +2078,8 @@ function firstGesture(){
 /* Back to the title from the sundown table: the music starts over with it. */
 function toTitle(){
   newSeq(); SND.stopAll(); themePlayed=false; leaving=null;
-  G=newDay({}); G.phase="intro"; cursor=0; said=""; react="";
-  build={at:performance.now(),rows:0};
+  G=newDay(dayOpts()); G.phase="intro"; cursor=0; said=""; react="";
+  build={at:clock(),rows:0};
   themePlayed=true; cueAtMs(0,titleLoop);
   paint();
 }
@@ -2077,7 +2089,7 @@ function startDay(){
   // over, and nothing it scheduled is still owed
   newSeq(); SND.stopAll(); leaving=null;
   SND.dawn();
-  G=newDay({}); cursor=0; said=""; react="";
+  G=newDay(dayOpts()); cursor=0; said=""; react="";
   beginEncounter(G); openDialogue(G);
   // the badge follows the dawn rather than landing on top of it, and the day's
   // first visitor follows the badge
@@ -2100,12 +2112,12 @@ function startDay(){
 const WALK_MS=2100, WALK_FROM=86, STRIDE=6;
 let walkAt=-1e9;
 function newScene(after){
-  build={at:performance.now(),rows:0};
+  build={at:clock(),rows:0};
   said=""; react=""; cursor=0;
   const t0=after||0, e=who(G);
   reloadAt=-1;
   cueAtMs(t0,()=>SND.door());                       // the door he comes through
-  walkAt=performance.now()+t0+200;                  // and then the walk itself
+  walkAt=clock()+t0+200;                  // and then the walk itself
   for(let i=0;i<STRIDE;i++)                         // a boot down on every stride
     cueAtMs(t0+200+Math.round((i+0.5)*WALK_MS/STRIDE),()=>SND.step());
   (e&&e.arrive||[]).forEach((cue,i)=>{
@@ -2130,7 +2142,7 @@ function newScene(after){
  * the answer and see the whole encounter resolve over an empty street, four
  * seconds before the man it was with had arrived. */
 function notArrived(){
-  const w=walkNow(performance.now());
+  const w=walkNow(clock());
   return !!(w&&w.before);
 }
 function walkNow(now){
@@ -2172,8 +2184,8 @@ function moveCursor(d){
  * HOL control, Escape, or walking the sights off the bottom of the street. */
 /* Clearing leather, wherever it is asked for. */
 function clearLeather(){
-  drawGun(G,performance.now()); drawnAt=performance.now();
-  beginSeq("draw",performance.now());
+  drawGun(G,clock()); drawnAt=clock();
+  beginSeq("draw",clock());
   SND.cut();                                  // the theme stops where the gun starts
   // leather at the first move, the hammer back as the spin comes round, the
   // sights settling as the arm stops: once each, on the draw's own clock
@@ -2190,7 +2202,7 @@ function clearLeather(){
  * refuse, and then it says so. */
 function putUp(){
   if(G.mode==="gun"){
-    holster(G); beginSeq("holster",performance.now()); SND.holster(); paint(); return;
+    holster(G); beginSeq("holster",clock()); SND.holster(); paint(); return;
   }
   if(G.phase==="dialogue"||G.phase==="tell"){clearLeather(); return;}
   SND.deny();
@@ -2228,7 +2240,7 @@ function fire(){
   if(G.phase==="interlude"){
     const warned=!!G.tips[G.interlude];
     enterJob(G);
-    if(warned){SND.cut();SND.alarm();G.tell.at=performance.now();SND.tell();SND.tension();}
+    if(warned){SND.cut();SND.alarm();G.tell.at=clock();SND.tell();SND.tension();}
     else settleSound();
     paint(); return;
   }
@@ -2240,15 +2252,15 @@ function fire(){
    * off, laid on the body, because that is what a snap shot is. Drawing first
    * with UP is still how he picks a shot, and now the only way to pick one. */
   if(G.mode!=="gun"&&(G.phase==="tell"||G.phase==="duel")){
-    drawGun(G,performance.now()); drawnAt=performance.now();
-    beginSeq("draw",performance.now());
+    drawGun(G,clock()); drawnAt=clock();
+    beginSeq("draw",clock());
     aimAt(G,"torso"); SND.leather();
   }
   if(G.mode==="gun"){
     if(G.duel&&G.duel.fired){SND.dryfire();return;}      // that chamber is spent
-    const lat=Math.round(performance.now()-(G.tell?G.tell.at:drawnAt));
-    SND.gunshot(); flash=0.10; kickAt=performance.now();
-    reloadAt=performance.now()+760;             // and then he reloads it
+    const lat=Math.round(clock()-(G.tell?G.tell.at:drawnAt));
+    SND.gunshot(); flash=0.10; kickAt=clock();
+    reloadAt=clock()+760;             // and then he reloads it
     const before=G.outcome;
     shoot(G,Math.max(60,lat));
     afterShot(before);
@@ -2260,7 +2272,7 @@ function fire(){
   SND.select();
   reactTo(chosen.next||chosen.end||chosen.action||"");
   say(G,cursor);
-  if(G.phase==="tell"){G.tell.at=performance.now();SND.cut();SND.tell();SND.tension();}
+  if(G.phase==="tell"){G.tell.at=clock();SND.cut();SND.tell();SND.tension();}
   if(G.phase==="resolve")settleSound();
   paint();
 }
@@ -2311,7 +2323,7 @@ function advance(){
     // he walks off before the street is anyone else's. Pressing again while
     // he goes skips it, the way a player who has read enough should be able to.
     newSeq(); SND.cut();
-    leaving={at:performance.now(),dir:dir}; walkAt=-1e9;
+    leaving={at:clock(),dir:dir}; walkAt=-1e9;
     for(let i=0;i<STRIDE;i++)
       cueAtMs(Math.round((i+0.5)*EXIT_MS/STRIDE),()=>SND.step());
     paint(); return;
@@ -2422,7 +2434,7 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
     runCmd(cmd,el);
     if(REPEATS.has(cmd)){
       pressed.add(cmd);
-      if(!aiming())held={cmd,el,next:performance.now()+REPEAT_DELAY};
+      if(!aiming())held={cmd,el,next:clock()+REPEAT_DELAY};
     }
   });
   // Capture is taken on the press, so a thumb that slides off the button still
@@ -2473,7 +2485,7 @@ addEventListener("keydown",e=>{
     CONTROL[cmd]();
     // with the gun out the loop runs the sights; in the dialogue it repeats
     // the menu, on the same clock and after the same wait as the pad
-    if(!aiming())held={cmd,el:null,next:performance.now()+REPEAT_DELAY};
+    if(!aiming())held={cmd,el:null,next:clock()+REPEAT_DELAY};
     paint(); return;
   }
   CONTROL[cmd]();
@@ -2532,7 +2544,56 @@ const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
  * would find its whole span elapsed on the single frame that comes back, and
  * the player would return to a scene that had already resolved itself. Nothing
  * that was waiting gets to count the time nobody was watching. */
-let lastNow=-1; const STALL=250;
+let lastNow=-1, skew=Infinity; const STALL=250;
+/* One clock for the whole page.
+ *
+ * The frame loop is handed a timestamp and the engine stamps the tell with it
+ * - G.tell.at=nowMs - while everything in here was reading performance.now().
+ * In a browser those two share a time origin, so they agreed by luck. They do
+ * not agree under test, where the harness steps frames on a clock of its own,
+ * and the arithmetic that came out of mixing them was not small: every shot
+ * fired in a test was handed the floor latency of 60ms, which is the widest
+ * scatter the rules allow, which is why a test that fires one ball and looks
+ * at where it went failed about one run in thirty and looked like weather.
+ *
+ * It is a real bug outside the harness too. The catch-up below already has to
+ * shove every one of these clocks forward by hand after a stall, precisely
+ * because rAF stops and the wall does not; reading the frame's own time means
+ * there is nothing to shove and nothing to disagree about. Before the first
+ * frame arrives there is no frame time, and nought will do - which is nearly
+ * true in a browser, where the first rAF timestamp is a few milliseconds after
+ * the origin anyway, and exactly true under test. Falling back to the wall
+ * there was the last place the two time bases could meet: a control pressed
+ * before the first frame stamped its animation with however long the machine
+ * had taken to build the page, and then the frames it was played against
+ * started from nought. On a slow build the animation had not finished by the
+ * time the test stopped stepping.
+ *
+ * lastNow keeps its own sentinel because the stall check below needs to know
+ * that no frame has arrived yet, which is a different question from what the
+ * time is.
+ *
+ * Between frames the clock still has to run. A keypress happens after the
+ * frame that preceded it, and handing it that frame's timestamp stamps his
+ * draw as having begun up to a frame-interval before it did - so the first
+ * picture of the draw a player sees is already that far up the curve, and the
+ * arm arrives rather than rises.
+ *
+ * So the frame's timestamp is not the time, it is what the time is measured
+ * against. Reading the wall at the top of the frame and subtracting gives how
+ * far the two are apart; in a browser they are not apart at all, since rAF's
+ * timestamp and performance.now() come off one origin, and all that is being
+ * measured is how long the callback took to be called. That is never negative
+ * and never smaller than the truth, so the smallest one ever seen is the
+ * answer, and the clock is the wall less that.
+ *
+ * Under test the harness pins performance.now() at the frame it last stepped,
+ * so the difference is nought on the first frame and the clock is exactly the
+ * frame clock ever after - which is the whole point of having one, and is what
+ * keeps the tell-to-shot latency positive instead of pinning every shot fired
+ * in a test to the 60ms floor. */
+const wall=()=>{try{return performance.now();}catch(e){return 0;}};
+const clock=()=>lastNow<0?0:wall()-skew;
 function frame(now){
   try{
     if(lastNow>=0&&now-lastNow>STALL){
@@ -2546,7 +2607,7 @@ function frame(now){
       if(held)held.next+=gap;
       shiftQueue(gap);
     }
-    lastNow=now;
+    lastNow=now; skew=Math.min(skew,wall()-now);
     if(build.rows<10&&now-build.at>ROW_MS*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
