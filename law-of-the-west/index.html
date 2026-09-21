@@ -5051,7 +5051,7 @@ const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
  * would find its whole span elapsed on the single frame that comes back, and
  * the player would return to a scene that had already resolved itself. Nothing
  * that was waiting gets to count the time nobody was watching. */
-let lastNow=-1; const STALL=250;
+let lastNow=-1, clockNow=0; const STALL=250;
 /* One clock for the whole page.
  *
  * The frame loop is handed a timestamp and the engine stamps the tell with it
@@ -5067,8 +5067,19 @@ let lastNow=-1; const STALL=250;
  * shove every one of these clocks forward by hand after a stall, precisely
  * because rAF stops and the wall does not; reading the frame's own time means
  * there is nothing to shove and nothing to disagree about. Before the first
- * frame arrives there is no frame time, and the wall will do. */
-const clock=()=>lastNow>=0?lastNow:performance.now();
+ * frame arrives there is no frame time, and nought will do - which is nearly
+ * true in a browser, where the first rAF timestamp is a few milliseconds after
+ * the origin anyway, and exactly true under test. Falling back to the wall
+ * there was the last place the two time bases could meet: a control pressed
+ * before the first frame stamped its animation with however long the machine
+ * had taken to build the page, and then the frames it was played against
+ * started from nought. On a slow build the animation had not finished by the
+ * time the test stopped stepping.
+ *
+ * lastNow keeps its own sentinel because the stall check below needs to know
+ * that no frame has arrived yet, which is a different question from what the
+ * time is. */
+const clock=()=>clockNow;
 function frame(now){
   try{
     if(lastNow>=0&&now-lastNow>STALL){
@@ -5082,7 +5093,7 @@ function frame(now){
       if(held)held.next+=gap;
       shiftQueue(gap);
     }
-    lastNow=now;
+    lastNow=now; clockNow=now;
     if(build.rows<10&&now-build.at>ROW_MS*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
