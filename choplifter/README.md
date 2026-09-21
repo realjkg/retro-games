@@ -60,9 +60,9 @@ and the post.
   far into the mission is worth — at most seven tanks, four jets and three mines alive at
   once. It used to add, and three minutes in there were forty-six of them on a strip of
   country two thousand pixels long, which is not a harder game, it is a wall.
-  **jets** from the second wave (level, fast, and only the upward gun reaches them) and
-  **air mines** from the fourth on the busier settings. Each wave comes in sooner than the
-  last.
+- **Jets** come from the second wave — level, fast, and only the upward gun reaches them —
+  and **air mines** from the fourth on the busier settings. Each wave comes in sooner than
+  the last.
 - The mission is over when all sixty-four are **accounted for** — home or lost — or when the
   hangar is empty. What you are graded on is the count.
 
