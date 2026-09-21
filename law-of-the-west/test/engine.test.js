@@ -1331,3 +1331,48 @@ test('35. nobody is immortal, however well the doctor thinks of him', ()=>{
   assert.ok(out.civil.balls<=6,'a civil doctor is worth '+out.civil.balls+' balls');
   report.wounds={civil:out.civil.balls,neutral:out.neutral.balls,hostile:out.hostile.balls};
 });
+
+test('9C. a one-press answer with the sights on him is a hit, and off him is not', ()=>{
+  // The test in page.test.js fires one ball on each of eight dealt days, which
+  // is enough to prove the press works and nothing like enough to prove the
+  // ball goes where it is pointed. This fires four hundred a caller, at the
+  // latencies a person actually presses at, and reads the rate.
+  //
+  // 250ms is about as fast as anybody answers a thing they saw on a screen;
+  // 400ms is ordinary play. The accuracy used to take until half a second to
+  // arrive, so a fast player was charged the haste tax for being fast: 83% on
+  // the man at 250ms, 88% at 300. The rules' own floor - 60ms - is left where
+  // it is and is not measured here, because since the page was put on one
+  // clock it is not a latency the page can produce.
+  const {run}=load();
+  const out=JSON.parse(run(`(()=>{
+    const N=400;
+    function go(lat,offHim){
+      let hit=0,n=0;
+      for(let enc=0;enc<CAST.length;enc++)
+        for(let s=0;s<N;s++){
+          const G=newDay({seed:s*7919+enc});
+          G.encounter=enc; G.phase="scene"; resetScene(G); beginEncounter(G);
+          if(!who(G))continue;
+          theyDraw(G,"draw"); G.duel.drawn=true;
+          if(offHim)G.aim={x:0.06,y:0.30}; else aimAt(G,"torso");
+          shoot(G,lat);
+          n++; if(G.duel.zone!=="off")hit++;
+        }
+      return {hit:hit,n:n};
+    }
+    return JSON.stringify({fast:go(250,false),normal:go(400,false),
+                           wideFast:go(250,true),wideNormal:go(400,true)});
+  })()`));
+  const pc=r=>100*r.hit/r.n;
+  assert.ok(pc(out.fast)>=90,
+    'a fast answer laid on the man lands '+pc(out.fast).toFixed(1)+'%; it needs 90');
+  assert.ok(pc(out.normal)>=98,
+    'an ordinary answer lands '+pc(out.normal).toFixed(1)+'%; it needs 98');
+  // The other half of it. A ball that finds a man the sights were never on is
+  // a worse lie than one that misses the man they were on.
+  assert.equal(out.wideFast.hit+out.wideNormal.hit,0,
+    'a shot laid at the boardwalk hit him '+(out.wideFast.hit+out.wideNormal.hit)+' times');
+  report['9C']='laid on him: '+pc(out.fast).toFixed(1)+'% at 250ms, '+
+    pc(out.normal).toFixed(1)+'% at 400ms; laid wide and hitting him: 0';
+});

@@ -92,6 +92,73 @@ way, landing as the gun reaches leather. Settled at either end the spin is
 nothing and the arm is the arm, which is what keeps the levelled pose exact to
 the pixel.
 
+## One clock, and the shot that was never really timed
+
+The frame loop is handed a timestamp, and the engine stamps the moment a man
+shows his hand with it — `G.tell.at=nowMs`. Everything in `ui.js` was reading
+`performance.now()` instead. In a browser those two share a time origin, so
+they agreed, and the game played correctly. They do not agree anywhere else.
+
+Under the test harness, which steps frames on a clock of its own, the
+subtraction came out negative and hit the floor: **every shot fired in a test
+was handed a latency of 60ms**, which is the fastest the rules admit and
+therefore the widest scatter they allow. So the test that fires one ball at a
+drawn gun and looks at where it went was, without anybody meaning it, sampling
+the worst case in the game — and it missed about a quarter of the time. It
+failed roughly one run in four, at random, in a test whose subject was
+something else entirely, and it was written off as weather.
+
+It is a real bug outside the harness too, and the catch-up code says so in its
+own comment: after a locked phone or a backgrounded tab, rAF stops and the wall
+does not, so every one of these clocks has to be shoved forward by hand. Read
+the frame's own time and there is nothing to shove.
+
+So the page has one clock now — `clock()`, the current frame's timestamp, or the
+wall's before the first frame has arrived — and the twenty-one reads that used
+to take the wall's take that instead.
+
+Two things follow. `?seed=42` in the address deals the same day every time: the
+same callers, the same tells, the same scatter on the ball. That is how a report
+of "he missed and he should not have" becomes something that can be looked at,
+and it is what lets the test above name the day it is talking about instead of
+rolling dice. And `tools/timing.js` is worth running after any change to the
+numbers below; it plays four thousand fights at each of five reaction speeds and
+says whether a person can answer them.
+
+## Being outdrawn, and being charged for being quick
+
+Two numbers moved, both measured rather than guessed.
+
+**The window.** A man's tell and the shot that follows it were 260–420ms apart,
+which put the tightest tell in the game — the ambush — at 580–920ms end to end.
+A person is about 250ms at the very best and 400–600ms in ordinary play, and
+`tools/timing.js` charges a further 120ms for the press itself: an unhurried
+answer to an ambush was outdrawn about one time in seven. It is 320–460 now,
+which puts the ambush at 640–960 and buys that back.
+
+It cannot go much further either way, and both ends are somebody else's test.
+`timing.js` insists that being slow still costs something, which needs the
+slowest draw window under about 970ms and so holds the low end under 350. Test 5
+insists a duel is still a gunfight, which caps the longest draw at 1500ms and so
+holds the high end at 500.
+
+**The haste tax.** A shot's accuracy ran from wide at 120ms to exact at 500ms.
+But nobody answers a drawn gun at 500ms — they answer at 250 to 400 — so the
+whole of ordinary play sat in the expensive part of that ramp. Measured over
+three thousand dealt days per caller with the sights laid dead on the man, a
+shot went home 83% of the time at 250ms and 88% at 300ms. The ceiling is 300 now
+and those are 95% and 99%.
+
+The spread itself is untouched, and so are the two things that had to stay true:
+a shot laid off the man still misses, every time, out of eight thousand tried;
+and a snatched shot at a man's hat still sometimes finds the man under it, which
+is what makes shooting a hat off a decision rather than a free move.
+
+`9C` in `test/engine.test.js` is the test that would have caught the old
+numbers. It fires four hundred balls per caller at each of the two latencies a
+person actually presses at, and reads the rate — which is what the one-ball test
+in `page.test.js` could never do.
+
 ## The callers, and what is still square about them
 
 Two things made them read as sticks leaned against a coat, and one thing still

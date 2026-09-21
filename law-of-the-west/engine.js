@@ -15,7 +15,19 @@ const RULES={
    * play, and the page's own cost sits on top of that. The old ambush gave
    * 380-680ms for the whole business, which no one alive could answer. */
   TELLS:{ambush:[320,500], delayed:[520,820], draw:[620,1000]},
-  FIRE_MIN:260, FIRE_MAX:420,
+  /* Measured, not guessed. With 260-420 here the tightest tell - the ambush -
+   * gave you 580-920ms from his hand moving to his ball leaving. A person is
+   * 250ms at the very best and 400-600ms in normal play, and tools/timing.js
+   * charges a further 120ms for the press itself, so an unhurried answer to an
+   * ambush was outdrawn about one time in seven.
+   *
+   * 320-460 puts the ambush at 640-960 and buys that back. It cannot go much
+   * further in either direction and both ends are somebody else's test:
+   * tools/timing.js insists that being slow still costs something, which needs
+   * the slowest draw window under about 970ms, so FIRE_MIN stays below 350;
+   * and test 5 insists a duel is still a gunfight, which caps the longest draw
+   * at 1500ms, so FIRE_MAX stays at or under 500. */
+  FIRE_MIN:320, FIRE_MAX:460,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
    * them, which made every caller the same man wearing a different hat. A
@@ -27,11 +39,20 @@ const RULES={
     patient:{reflex:[2200,3400], flee:-1},
     coward: {reflex:[700,1400],  flee:-2}
   },
-  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:500,
+  AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:300,
   /* How far off the sights the ball goes, in pixels of the picture. A snap
    * shot throws it about; a shot he took his time over goes where he put it.
    * It used to be a lottery between the thing aimed at and the other thing,
-   * decided by the clock alone - the crosshair chose nothing. */
+   * decided by the clock alone - the crosshair chose nothing.
+   *
+   * The spread itself is left where it was. What moved is the ceiling: the
+   * accuracy took until half a second to arrive, and a person answering a
+   * drawn gun is pressing at 250-400ms, so a fast player was being charged
+   * the haste tax for being fast. Measured over three thousand seeds a caller,
+   * sights laid dead on the man: at 250ms it was 83% on him, and at 300ms
+   * 88%. With the ceiling at 300 those become 95% and 99%, and a shot laid
+   * off him still misses - which is the part that has to stay true, along
+   * with a snatched shot at a hat still sometimes finding the man under it. */
   SPREAD_SNAP:9, SPREAD_AIMED:2.2,
   WOUNDS:2,
   /* How many extra balls a doctor on good terms will pull out of you. He is
