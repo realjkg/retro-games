@@ -37,6 +37,8 @@ other. She can be going left with her nose pointed at you. So this has a stick.
 - **MENU** (Esc/P) pauses; the pause card carries the controls, the music switch, the scanner
   switch, the endless-machines switch and the full-screen switch.
 - Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- **Out of the box there is no music — just the blades.** See below; the score is a switch on
+  the title card and in the pause menu.
 - **FULL SCREEN** hides the page around the game. Held sideways the stick and the buttons move
   to either side of the screen like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
 
@@ -154,6 +156,33 @@ slacker now, and they stand a third further off.
 - **Endless machines** is a switch on the title card and in the pause menu, remembered between
   visits. A crash still costs you the people you were carrying, and the barrack they came out
   of is still empty. What it does not cost is the mission.
+
+## No score, just blades
+
+The Apple II had **one bit of sound** — a speaker hung off a memory location — and Choplifter
+had **no music at all**. What Gorlin spent that bit on was the rotor, and the game took a
+Certificate of Merit for **Best Computer Audiovisual Effects** at the fourth Arkie Awards:
+for effects, not for a score. So that is how this runs out of the box, and the music is a
+switch rather than the default.
+
+**The blades** are two voices held open for as long as she is flying: a low saw for the
+engine, and a sine at the **blade-pass rate** opening and closing the gain over it, which is
+the chop. Both rise as you pull up — the engine leans on it and the blades come round faster
+— so the sound tells you what the collective is doing without your looking at her. It is the
+same rate the rotor is *drawn* at, `26/π` ≈ 8.3 chops a second at a hover, about 9 under a
+full climb, so the sound and the picture are the same machine. A machine that is down does
+not turn over.
+
+**The score**, when you switch it on, is four voices of sixteen steps: a tuned-percussion
+ostinato running underneath everything, brass stabs over it, a walking bass and a drum —
+the shape of a mid-eighties action picture done on synthesisers, which is what was asked for.
+It follows the situation rather than a level: open over your own ground, tighter over theirs,
+tighter again while something is shooting at you, a fanfare when a load gets home, and a
+slower figure on the title card. It speeds up as the waves come in.
+
+**All of the writing is original.** Nothing is transcribed from any film score or from any
+port of this game, and there is nothing of the original's to transcribe in the first place —
+it had no music. Both switches, and the master SOUND ON/OFF, are remembered between visits.
 
 ## The turn is the game, so the turn is drawn
 
@@ -314,7 +343,7 @@ The brief was a modernisation, so these are deliberate and are not the original:
 ## Running it
 
 ```
-node --test choplifter/tests/*.test.cjs          # 42 tests, no packages needed
+node --test choplifter/tests/*.test.cjs          # 47 tests, no packages needed
 node choplifter/tools/render-art.js --check      # the icons and the tile match the sprite
 node tools/sync-nozoom.js --check                # this page carries the current zoom guard
 ```
