@@ -501,8 +501,9 @@ you, where you are in the day and how it is going live in a strip above it.
 **Two modes, one pad.** Up draws: the gun hand comes up, a crosshair appears and
 the replies go dim. The pad moves the crosshair; down walks it back and, pulled
 past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
-a hidden reflex timer of 1.5 to 2.6 seconds runs while yours is out, and an
-armed man answers it.
+a hidden reflex timer runs while yours is out and an armed man answers it — a
+frightened man in about 1.1 to 1.9 seconds, a hostile one in 1.4 to 2.2, a
+patient one not for 3 to 4.4.
 
 **The shooting.** Weapon box and centre mass are separate and follow the drawn
 frames. Shooting the gun out of an armed man's hand disarms and arrests; centre
