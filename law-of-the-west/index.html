@@ -5051,7 +5051,7 @@ const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
  * would find its whole span elapsed on the single frame that comes back, and
  * the player would return to a scene that had already resolved itself. Nothing
  * that was waiting gets to count the time nobody was watching. */
-let lastNow=-1, clockNow=0; const STALL=250;
+let lastNow=-1, clockNow=0, frameAt=0; const STALL=250;
 /* One clock for the whole page.
  *
  * The frame loop is handed a timestamp and the engine stamps the tell with it
@@ -5078,8 +5078,21 @@ let lastNow=-1, clockNow=0; const STALL=250;
  *
  * lastNow keeps its own sentinel because the stall check below needs to know
  * that no frame has arrived yet, which is a different question from what the
- * time is. */
-const clock=()=>clockNow;
+ * time is.
+ *
+ * Between frames the clock still has to run. A keypress happens after the
+ * frame that preceded it, and handing it that frame's timestamp stamps his
+ * draw as having begun up to a frame-interval before it did - so the first
+ * picture of the draw a player sees is already that far up the curve, and the
+ * arm arrives rather than rises. So the frame time is an anchor, not the
+ * answer: what is read between frames is that anchor plus however long the
+ * wall says it has been since it was set. In a browser that is the true press
+ * time, because both come off the same origin. Under test the harness leaves
+ * performance.now() pinned at the frame it last stepped, so the difference is
+ * nought and the clock is exactly the frame clock, which is the whole point of
+ * having one. */
+const wall=()=>{try{return performance.now();}catch(e){return 0;}};
+const clock=()=>lastNow<0?0:clockNow+Math.max(0,wall()-frameAt);
 function frame(now){
   try{
     if(lastNow>=0&&now-lastNow>STALL){
@@ -5093,7 +5106,7 @@ function frame(now){
       if(held)held.next+=gap;
       shiftQueue(gap);
     }
-    lastNow=now; clockNow=now;
+    lastNow=now; clockNow=now; frameAt=wall();
     if(build.rows<10&&now-build.at>ROW_MS*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
