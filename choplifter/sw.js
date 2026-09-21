@@ -1,7 +1,8 @@
 // Offline shell for the installed game. Network first, so a deploy is picked up as
 // soon as the device can reach it; the cache is what makes it playable on a plane.
 const CACHE="choplifter-v1";
-const SHELL=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-180.png"];
+const SHELL=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png",
+  "./icon-180.png","./icon-maskable-512.png"];
 
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()).catch(()=>{}));

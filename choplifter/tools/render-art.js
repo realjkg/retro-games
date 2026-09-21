@@ -36,8 +36,17 @@ function readSprite(){
  const last=hubs.length?hubs[hubs.length-1]:null;
  if(!rad||!last)
    throw new Error("index.html no longer says where the rotor is (ROTOR_R/ROTOR)");
+ // And two of the people she came for, because a helicopter on its own is a
+ // helicopter and a helicopter over two men waving is Choplifter.
+ const wave=src.match(/const HOST_WAVE=\[([\s\S]*?)\];/);
+ const hpal=src.match(/const HOST_PAL=\{([\s\S]*?)\};/);
+ if(!wave||!hpal)throw new Error("index.html no longer defines HOST_WAVE/HOST_PAL");
+ const wrows=(wave[1].match(/"[^"]*"/g)||[]).map(x=>x.slice(1,-1)).slice(0,9);
+ const wcol={};
+ for(const m of hpal[1].matchAll(/([A-Za-z])\s*:\s*"(#[0-9a-fA-F]{6})"/g))wcol[m[1]]=m[2];
  return {rows,colours,w:rows[0].length,h:rows.length,
-   hub:{x:+last[1],y:+last[2],r:+rad[1]}};
+   hub:{x:+last[1],y:+last[2],r:+rad[1]},
+   man:{rows:wrows,colours:wcol,w:wrows[0].length,h:wrows.length}};
 }
 // The runs of one colour in a row, which both outputs draw as single rectangles.
 function* runs(sprite){
@@ -54,13 +63,6 @@ function* runs(sprite){
  }
 }
 
-// How wide she is with the rotor counted in, and where that puts her left edge.
-function frame(sprite){
- const left=Math.min(0,sprite.hub.x-sprite.hub.r);
- const right=Math.max(sprite.w,sprite.hub.x+sprite.hub.r);
- return {left,w:right-left};
-}
-
 /* ---- the icon: the chopper over the line, at three sizes ---- */
 let CRC=null;
 function crc32(b){
@@ -68,7 +70,11 @@ function crc32(b){
   for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;CRC[n]=c>>>0;}}
  let c=0xffffffff;for(const x of b)c=CRC[(c^x)&255]^(c>>>8);return (c^0xffffffff)>>>0;
 }
-function iconPNG(sprite,size){
+// Android crops a maskable icon to a circle or a squircle and may take a fifth
+// off every side, so the maskable one is the same picture drawn into the middle
+// sixty per cent of the square. Drawn full-bleed, as it was, the mask takes the
+// rotor tips and both of the people off it.
+function iconPNG(sprite,size,maskable){
  const W=size,H=size,buf=Buffer.alloc(W*H*3);
  const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
  const rect=(x,y,w,h,col)=>{const c=hex(col);
@@ -78,22 +84,27 @@ function iconPNG(sprite,size){
  // The dawn she flies into, banded rather than graded so it survives being
  // shrunk to a home-screen icon.
  rect(0,0,W,H,"#0b1436");
- rect(0,H*.46,W,H*.20,"#2a2a5c");
- rect(0,H*.66,W,H*.10,"#7c4a6a");
- rect(0,H*.76,W,H*.06,"#e0925a");
- rect(0,H*.82,W,H*.04,"#4f9d4a");
- rect(0,H*.86,W,H*.14,"#b9925c");
- // Her, in profile. The rotor reaches further than she does, so the scale is
- // taken from the whole machine rather than from the body, or the blade runs
- // off the edge of the icon and reads as a horizon.
- const span=frame(sprite);
- const u=Math.max(1,Math.floor(W*.90/span.w));
- const ox=Math.round((W-span.w*u)/2)-span.left*u, oy=Math.round(H*.38);
- rect(ox+(sprite.hub.x-sprite.hub.r)*u,oy+(sprite.hub.y+.4)*u,sprite.hub.r*2*u,
-      Math.max(1,u*.5),"#8fa4c8");
- rect(ox+(sprite.hub.x-sprite.hub.r)*u,oy+(sprite.hub.y-.5)*u,sprite.hub.r*2*u,
-      Math.max(2,u*.9),"#f2f7ff");
+ rect(0,H*.40,W,H*.22,"#2a2a5c");
+ rect(0,H*.62,W,H*.10,"#7c4a6a");
+ const GY=Math.round(maskable?H*.70:H*.80);
+ rect(0,H*.72,W,GY-H*.72,"#e0925a");
+ rect(0,GY,W,H*.03,"#4f9d4a");
+ rect(0,GY+H*.03,W,H,"#b9925c");
+ // Her, in profile, filling most of the width. The blades run off both edges,
+ // which is what a rotor does to a square picture of a helicopter.
+ const u=Math.max(1,Math.floor(W*(maskable?.54:.86)/sprite.w));
+ const ox=Math.round((W-sprite.w*u)/2), oy=Math.round(H*(maskable?.32:.24));
+ const bar=Math.max(1,Math.round(u*.9));
+ const bx=maskable?ox-u*3:0, bw=maskable?(sprite.w+6)*u:W;
+ rect(bx,oy+(sprite.hub.y+.4)*u,bw,Math.max(1,u*.5),"#8fa4c8");
+ rect(bx,oy+(sprite.hub.y-.5)*u,bw,bar,"#f2f7ff");
  for(const r of runs(sprite))rect(ox+r.x*u,oy+r.y*u,r.w*u,u,r.colour);
+ // And two of them on the ground, waving her down.
+ const m=sprite.man, mu=Math.max(1,Math.floor(u*(maskable?.75:.55)));
+ const men=maskable?[Math.round(W*.30),Math.round(W*.58)]
+                   :[Math.round(W*.16),Math.round(W*.68)];
+ for(const mx of men)
+  for(const r of runs(m))rect(mx+r.x*mu,GY-m.h*mu+r.y*mu,r.w*mu,mu,r.colour);
  const raw=Buffer.alloc((W*3+1)*H);
  for(let y=0;y<H;y++){raw[y*(W*3+1)]=0;buf.copy(raw,y*(W*3+1)+1,y*W*3,(y+1)*W*3);}
  const chunk=(type,data)=>{
@@ -109,23 +120,23 @@ function iconPNG(sprite,size){
 
 /* ---- the tile on the collection page: the same chopper, as inline SVG ---- */
 function tileSVG(sprite){
- const span=frame(sprite);
- const u=+(62/span.w).toFixed(3),
-       ox=+((64-span.w*u)/2-span.left*u).toFixed(2),
-       oy=+((64-sprite.h*u)/2+3).toFixed(2);
  const out=[START,'        <svg viewBox="0 0 64 64">'];
- out.push('          <rect x="0" y="52" width="64" height="3" fill="#4f9d4a"/>'+
-          '<rect x="0" y="55" width="64" height="9" fill="#b9925c"/>');
- const hx=(ox+sprite.hub.x*u).toFixed(2), hy=(oy+sprite.hub.y*u).toFixed(2);
- out.push(`          <rect x="${(ox+(sprite.hub.x-sprite.hub.r)*u).toFixed(2)}" y="${hy}" `+
-          `width="${(sprite.hub.r*2*u).toFixed(2)}" height="${Math.max(1.4,u*.9).toFixed(2)}" fill="#f2f7ff"/>`);
- for(const r of runs(sprite))
-  out.push(`          <rect x="${(ox+r.x*u).toFixed(2)}" y="${(oy+r.y*u).toFixed(2)}" `+
-           `width="${(r.w*u).toFixed(2)}" height="${u.toFixed(2)}" fill="${r.colour}"/>`);
- out.push(`          <rect x="${hx}" y="${(oy-1).toFixed(2)}" width="1.2" height="3" fill="#8f9ab4"/>`);
+ const R=(x,y,w,h,c)=>out.push(`          <rect x="${(+x).toFixed(2)}" y="${(+y).toFixed(2)}" `+
+   `width="${(+w).toFixed(2)}" height="${(+h).toFixed(2)}" fill="${c}"/>`);
+ const u=+(60/sprite.w).toFixed(3), ox=2, oy=7;
+ R(0,52,64,2,"#4f9d4a");R(0,54,64,10,"#b9925c");
+ // The disc, drawn to the width of the tile: a rotor in a square picture runs
+ // off both sides of it.
+ R(0,oy+(sprite.hub.y+.4)*u,64,Math.max(.8,u*.5),"#8fa4c8");
+ R(0,oy+(sprite.hub.y-.5)*u,64,Math.max(1.4,u*.9),"#f2f7ff");
+ for(const r of runs(sprite))R(ox+r.x*u,oy+r.y*u,r.w*u,u,r.colour);
+ const m=sprite.man, mu=+(u*.55).toFixed(3);
+ for(const mx of [7,45])
+  for(const r of runs(m))R(mx+r.x*mu,52-m.h*mu+r.y*mu,r.w*mu,mu,r.colour);
  out.push('        </svg>',"      "+END);
  return out.join("\n");
 }
+
 function patchTile(file,svg){
  const src=fs.readFileSync(file,"utf8");
  const a=src.indexOf(START), b=src.indexOf(END);
@@ -140,6 +151,7 @@ function main(argv){
  const jobs=[];
  for(const size of [180,192,512])
   jobs.push({file:path.join(HERE,`icon-${size}.png`),data:iconPNG(sprite,size)});
+ jobs.push({file:path.join(HERE,"icon-maskable-512.png"),data:iconPNG(sprite,512,true)});
  const svg=tileSVG(sprite);
  for(const f of TILES)jobs.push({file:f,data:Buffer.from(patchTile(f,svg),"utf8")});
  const stale=[];

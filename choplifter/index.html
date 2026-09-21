@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <title>Choplifter — Bungeling Rescue</title>
 <meta name="description" content="Choplifter: a browser remake of the 1982 Brøderbund original. Turn the chopper, cross the line, open the barracks and carry sixty-four hostages home — playable on phones.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%81%3C/text%3E%3C/svg%3E">
+<!-- The tab icon is the helicopter, twice: the emoji where an SVG data URI is
+     honoured, and the game's own app icon behind it, because Firefox does not
+     render an emoji favicon and a blank tab is not an icon. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%81%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <!-- Installed to the home screen the game runs with no browser chrome at all,
      which is the only way to stop iOS sliding its toolbars over a game in play. -->
 <link rel="manifest" href="manifest.webmanifest">

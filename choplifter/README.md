@@ -312,6 +312,40 @@ MobyGames entries; and a Codex Gamicus summary of the three Bungeling weapons. W
 them agreed, that is what was built. Where none of them said, it is written fresh and listed
 above as unverified.
 
+## Its home, and its icons
+
+The game lives at **`choplifter/`** and is served from
+<https://realjkg.github.io/retro-games/choplifter/>. The collection page and the 404 page
+both carry a card that launches it, `.github/workflows/pages.yml` runs its tests and its
+artwork check on every push and pull request, and the manifest claims
+`/retro-games/choplifter/` with `start_url` and `scope` of `./`, so installing it to a home
+screen launches the game and nothing else.
+
+Every picture of her outside the game is generated from the one inside it. `CHOP3`,
+`CHOP_PAL`, `ROTOR_R` and `HOST_WAVE` live once, in `index.html`, and
+`tools/render-art.js` reads them back out to write:
+
+| what | where it shows |
+| --- | --- |
+| `icon-180.png` | the iOS home-screen icon (`apple-touch-icon`) |
+| `icon-192.png` | the PWA icon, and the tab icon where an emoji favicon is not honoured |
+| `icon-512.png` | the PWA icon at size |
+| `icon-maskable-512.png` | Android's masked launcher icon — the same picture drawn into the middle sixty per cent, because a mask can take a fifth off every side and the full-bleed one loses its rotor tips and both of its people |
+| the inline SVG tile | the launch card on the collection page and on the 404 page |
+
+The tab icon is the helicopter twice over: **🚁** as an SVG data URI where that is honoured,
+and `icon-192.png` behind it, because Firefox does not render an emoji favicon and a blank
+tab is not an icon.
+
+Edit the sprite, run the tool, and the game, the title card, all four app icons and both
+collection tiles change together — they cannot disagree, and CI fails the build if what is
+committed is not what the current sprite produces:
+
+```
+node choplifter/tools/render-art.js          # rewrite the icons and the launch tiles
+node choplifter/tools/render-art.js --check  # what CI runs
+```
+
 ## Credits
 
 Choplifter was written by **Dan Gorlin** and published by **Brøderbund Software** in 1982.
