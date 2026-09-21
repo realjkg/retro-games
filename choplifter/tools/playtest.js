@@ -22,8 +22,9 @@
  * check that passes on the broken build and the fixed one is not a check:
  *
  *   snapturn     the turn is set rather than walked        -> turn
+ *   leanthrottle thrust taken off the lean, not the stick  -> off
  *   frozenrotor  the rotor is drawn at one angle for ever  -> alive
- *   slidwalk     one pose of the gait, slid along          -> in
+ *   slidwalk     one pose of the gait, slid along          -> stride
  *   teleport     a hostage crosses the ground in one frame -> in
  *   deaf         the keyboard is not read                  -> answers
  *   bands        the chopper drawn in three slid slices    -> whole
@@ -73,8 +74,12 @@ function browserPath(){
 
 /* ---- the defects, written back into the page one at a time ---- */
 const SABOTAGE={
-  snapturn:[' else if(want)h.tf=clamp(h.tf+want*TURN_RATE*dt,-3,3);',
-            ' else if(want)h.tf=want*3;'],
+  snapturn:['  h.tf=Math.abs(h.want-h.tf)<=Math.abs(step)?h.want:h.tf+step;',
+            '  h.tf=h.want;'],
+  // The defect the fidelity pass found: thrust taken off the lean, which makes
+  // the turn a throttle and the three positions a gear lever.
+  leanthrottle:[' const target=h.landed?0:MAXV*s.x;',
+                ' const target=h.landed?0:MAXV*(h.tf/3);'],
   frozenrotor:[' h.rotor=(h.rotor+dt*26)%(Math.PI*2);',' h.rotor=0;'],
   slidwalk:['  p.f=Math.floor(p.gait/6)%4;','  p.f=0;'],
   teleport:[' p.x=clamp(p.x+p.vx*dt,0,WORLD-HOST_W);',
@@ -248,56 +253,71 @@ const SCENES=[
  {name:'the pad at dawn',
   setup:'newGame(2,90210);',
   ask:'turn alive answers whole',
-  script:[{keys:['ArrowLeft'],n:26},{keys:[],n:3},{keys:['ArrowRight'],n:44},
-          {keys:[],n:3},{keys:['ArrowUp'],n:26}],
+  // Four presses of the button walk her all the way round the ring, and the
+  // page has to draw her through every picture on the way.
+  script:[{keys:[],taps:['x'],n:26},{keys:[],taps:['x'],n:26},
+          {keys:[],taps:['x'],n:26},{keys:[],taps:['x'],n:26},
+          {keys:['ArrowUp'],n:26}],
   answers:s=>Math.min.apply(null,s.map(f=>f.y))<at(s,0).y-8},
 
- {name:'crossing the line',
-  setup:'newGame(2,7);G.h.x=FRONTIER_X-120;G.h.y=68;G.h.landed=false;G.h.tf=3;'+
-        'G.cam.x=Math.max(0,G.h.x-90);',
+ {name:'over the fence',
+  setup:'newGame(2,7);G.h.x=FRONTIER_X+120;G.h.y=68;G.h.landed=false;'+
+        'G.cam.x=Math.max(0,G.h.x-200);',
   ask:'in alive answers off whole',
-  script:[{keys:['Shift','ArrowRight'],n:150}],
-  answers:s=>at(s,-1).x>at(s,0).x+40,
-  off:s=>at(s,-1).x>K.FRONTIER_X},
+  script:[{keys:['Shift','ArrowLeft'],n:160}],
+  answers:s=>at(s,-1).x<at(s,0).x-40,
+  off:s=>at(s,-1).x<K.FRONTIER_X},
 
  {name:'the first barracks',
-  setup:'newGame(2,11);G.foes=[];G.h.x=HUTS[0]-86;G.h.y=GROUND_Y-CHOP_H;'+
-        'G.h.landed=true;G.h.tf=3;G.cam.x=Math.max(0,HUTS[0]-190);',
+  setup:'newGame(2,11);G.foes=[];G.waveT=999;'+
+        'const H=G.huts.find(q=>!q.open);G.hutUnderFire=H;'+
+        'G.h.x=H.x+86;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.tf=-3;G.h.want=-3;'+
+        'G.h.seq=2;G.cam.x=Math.max(0,H.x-60);',
   ask:'in stride alive answers whole',
   script:[{keys:[],taps:['z'],n:12},{keys:[],taps:['z'],n:12},{keys:[],taps:['z'],n:12},
-          {keys:[],taps:['z'],n:12},{keys:[],n:120}],
-  answers:s=>at(s,-1).huts.length>0&&at(s,-1).huts[0].open},
+          {keys:[],taps:['z'],n:12},{keys:[],n:130}],
+  answers:s=>at(s,-1).huts.filter(h=>h.open).length>at(s,0).huts.filter(h=>h.open).length},
 
  {name:'loading',
-  setup:'newGame(2,12);G.foes=[];G.huts[0].hp=0;openHut(G.huts[0]);'+
-        'G.h.x=HUTS[0]+72;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.tf=-3;'+
-        'G.cam.x=Math.max(0,HUTS[0]-40);',
+  setup:'newGame(2,12);G.foes=[];G.waveT=999;'+
+        'const H=G.huts.find(q=>!q.open);H.hp=0;openHut(H);'+
+        'G.h.x=H.x+72;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.tf=-3;G.h.want=-3;'+
+        'G.h.seq=2;G.cam.x=Math.max(0,H.x-40);',
   ask:'in stride alive off whole',
   script:[{keys:[],n:200}],
   off:s=>at(s,-1).aboard>=3},
 
  {name:'under fire',
-  setup:'newGame(2,13);G.foes=[];G.waveT=999;G.h.x=1000;G.h.y=GROUND_Y-CHOP_H;'+
-        'G.h.landed=true;G.h.tf=3;G.cam.x=900;'+
-        'G.foes.push(tank(1150,-1));',
+  setup:'newGame(2,13);G.foes=[];G.waveT=999;G.people=[];'+
+        'G.h.x=FRONTIER_X-600;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;'+
+        'G.h.tf=-3;G.h.want=-3;G.h.seq=2;G.cam.x=G.h.x-150;'+
+        'G.foes.push(tank(G.h.x-150,1));',
   ask:'in alive answers whole',
   script:[{keys:[],taps:['z'],n:10},{keys:[],taps:['z'],n:10},{keys:[],taps:['z'],n:10},
           {keys:[],taps:['z'],n:10},{keys:[],taps:['z'],n:10},{keys:[],n:40}],
   answers:s=>at(s,-1).foes<at(s,0).foes||at(s,-1).score>at(s,0).score},
 
  {name:'the flight home',
-  setup:'newGame(2,14);G.foes=[];G.waveT=999;G.aboard=8;G.h.x=FRONTIER_X+240;G.h.y=60;'+
-        'G.h.landed=false;G.h.tf=3;G.cam.x=Math.max(0,G.h.x-160);',
+  setup:'newGame(2,14);G.foes=[];G.waveT=999;G.aboard=8;'+
+        'G.h.x=FRONTIER_X-240;G.h.y=60;G.h.landed=false;'+
+        'G.cam.x=Math.max(0,G.h.x-160);',
   ask:'in turn alive answers off whole',
-  script:[{keys:['Shift','ArrowLeft'],n:240}],
-  answers:s=>at(s,-1).x<at(s,0).x-60,
-  off:s=>at(s,-1).x<K.FRONTIER_X},
+  // The stick held east the whole way while the button is turning her round
+  // and round: where she is pointing has nothing to do with where she is going,
+  // so she must not lose a pixel of ground to any of it.
+  script:[{keys:['Shift','ArrowRight'],taps:['x'],n:52},
+          {keys:['Shift','ArrowRight'],taps:['x'],n:52},
+          {keys:['Shift','ArrowRight'],taps:['x'],n:52},
+          {keys:['Shift','ArrowRight'],taps:['x'],n:52},
+          {keys:['Shift','ArrowRight'],n:60}],
+  answers:s=>at(s,-1).x>at(s,0).x+60,
+  off:s=>at(s,-1).x>K.FRONTIER_X&&s.every((f,i)=>!i||f.x>=s[i-1].x-1)},
 
  {name:'the pad again',
   setup:'newGame(2,15);G.foes=[];G.waveT=999;G.aboard=8;G.h.x=POST_X;G.h.y=52;'+
-        'G.h.landed=false;G.h.tf=0;G.cam.x=0;',
+        'G.h.landed=false;G.h.tf=0;G.h.want=0;G.h.seq=1;G.cam.x=POST_X-200;',
   ask:'in alive answers off whole',
-  script:[{keys:['ArrowDown'],n:60},{keys:[],n:120}],
+  script:[{keys:['ArrowDown'],n:60},{keys:[],n:150}],
   answers:s=>at(s,-1).y>at(s,0).y+20,
   off:s=>at(s,-1).rescued>=8&&at(s,-1).aboard===0}
 ];

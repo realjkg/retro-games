@@ -41,6 +41,23 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* The Apple II wanted a joystick, so this is a joystick: a thumb pad you drag
+   rather than four buttons you press. How far you push it is how hard she goes,
+   which is the whole reason the original needed one. */
+.stick{position:relative;width:136px;height:136px;border-radius:50%;flex:0 0 auto;
+  background:var(--panel2);border:1px solid var(--line);touch-action:none;cursor:grab;
+  -webkit-user-select:none;user-select:none}
+.stick .ring{position:absolute;inset:13px;border-radius:50%;border:1px dashed var(--line);
+  opacity:.55;pointer-events:none}
+.stick .tick{position:absolute;background:var(--dim);opacity:.5;pointer-events:none}
+.stick .t-u,.stick .t-d{left:50%;width:2px;height:7px;margin-left:-1px}
+.stick .t-l,.stick .t-r{top:50%;height:2px;width:7px;margin-top:-1px}
+.stick .t-u{top:4px}.stick .t-d{bottom:4px}.stick .t-l{left:4px}.stick .t-r{right:4px}
+.stick .knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;
+  border-radius:50%;background:#46537a;border:2px solid var(--line);pointer-events:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.35) inset;transition:background .08s linear}
+.stick.on{cursor:grabbing}
+.stick.on .knob{background:var(--gold);border-color:var(--gold)}
 .dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
@@ -52,6 +69,7 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
 .abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
 .sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
+.sbtn.wide{grid-column:1 / -1;width:100%}
 #overlay{position:absolute;inset:0;background:rgba(6,9,20,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
@@ -102,6 +120,9 @@ body.fs #status{display:none}
 body.fs #stage{width:min(100%,calc(58svh * 7 / 4));max-width:100%;margin:0 auto;border-radius:0;
   aspect-ratio:7/4;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
+body.fs .stick{width:clamp(120px,34vw,168px);height:clamp(120px,34vw,168px)}
+body.fs .stick .knob{width:clamp(52px,15vw,72px);height:clamp(52px,15vw,72px);
+  margin:calc(clamp(52px,15vw,72px) / -2) 0 0 calc(clamp(52px,15vw,72px) / -2)}
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
   grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
 body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
@@ -114,6 +135,8 @@ body.fs #audio-status{display:none}
   body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .stick{order:1;width:124px;height:124px}
+  body.fs .stick .knob{width:54px;height:54px;margin:-27px 0 0 -27px}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
   body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 7 / 4));max-width:60vw;margin:0}
   body.fs .acts{order:3}
@@ -131,16 +154,18 @@ body.fs #audio-status{display:none}
   <div id="stage"><canvas id="cv" width="336" height="192"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow">
-      <div class="dpad">
-        <div></div><div class="btn" data-k="U">▲<small>lift</small></div><div></div>
-        <div class="btn" data-k="L">◀<small>turn</small></div><div class="btn" id="facebtn" data-k="FACE">FACE<small>front</small></div><div class="btn" data-k="R">▶<small>turn</small></div>
-        <div></div><div class="btn" data-k="D">▼<small>down</small></div><div></div>
+      <div class="stick" id="stick" role="application" aria-label="Flight stick">
+        <i class="ring" aria-hidden="true"></i>
+        <i class="knob" id="knob" aria-hidden="true"></i>
+        <i class="tick t-u" aria-hidden="true"></i><i class="tick t-d" aria-hidden="true"></i>
+        <i class="tick t-l" aria-hidden="true"></i><i class="tick t-r" aria-hidden="true"></i>
       </div>
       <div class="acts">
         <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
-        <div class="btn abtn" id="hovbtn" data-k="HOLD">HOVER</div>
+        <div class="btn abtn" id="turnbtn" data-k="TURN">TURN</div>
+        <div class="btn sbtn" id="hovbtn" data-k="HOLD">HOVER</div>
         <div class="btn sbtn" id="scanbtn" data-k="SCAN">SCAN</div>
-        <div class="btn sbtn" data-k="MENU">MENU</div>
+        <div class="btn sbtn wide" data-k="MENU">MENU</div>
       </div>
     </div>
   </div>
@@ -159,9 +184,13 @@ const SCAN_H=24;                         // the strip along the top: counts, and
 const GROUND_Y=150;                      // the line the skids rest on, below the strip
 const CEIL_Y=8;                          // as high as the rotor will take you
 const WORLD=2520;                        // how far the country runs
-const POST_X=150;                        // the landing pad, and home
-const FRONTIER_X=430;                    // the Bungeling line, marked by a post
-const HUTS=[820,1240,1660,2100];         // the four barracks
+// The post office is at the far right of the strip and the four barracks are
+// away to the left of it, with the border fence between: you fly out to the
+// left and you come home to the right. It was built the other way round first,
+// from memory, and two accounts of the original agree it is this way.
+const POST_X=2342;                       // the landing pad, and home
+const FRONTIER_X=2090;                   // the border, marked by a fence
+const HUTS=[374,814,1234,1654];          // the four barracks, deepest first
 const HUT_W=46, HUT_H=30;
 const PER_HUT=16, HOSTAGES=PER_HUT*HUTS.length;   // sixteen apiece, sixty-four in all
 const CAPACITY=16;                       // and sixteen is all the chopper will hold
@@ -233,11 +262,14 @@ const CHOP3=[                            // full profile, nose right, and away
  "..........OOOOOOOOOOOOOOOO.."];
 const CHOP_TURN=[CHOP0,CHOP1,CHOP2,CHOP3];
 const CHOP_PAL={W:"#e6ecf5",C:"#49d8ff",O:"#ffc24a"};
-// Where the hub of the main rotor sits over each frame, how far the disc reaches
-// from it, and how much of the disc you see. Nose-on the blades sweep towards
-// you and away; in profile the disc is edge on, which is longer and flatter.
-const ROTOR=[{hx:14,hy:2,r:15,tilt:.42},{hx:14,hy:2,r:16,tilt:.34},
-             {hx:17,hy:2,r:17,tilt:.24},{hx:18,hy:2,r:18,tilt:.17}];
+// Where the hub of the main rotor sits over each frame. Only the hub moves: the
+// disc is a horizontal circle and the eye is at its height, so it projects to
+// the same flat ellipse whichever way her nose is pointing. It was drawn
+// opening out as she came round to nose-on, on the theory that you would then
+// be looking into it - and on the screen that was a lasso hung round her.
+const ROTOR_R=17, ROTOR_TILT=.16;
+const ROTOR=[{hx:14,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},{hx:14,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},
+             {hx:17,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},{hx:18,hy:2,r:ROTOR_R,tilt:ROTOR_TILT}];
 const TAIL_ROTOR=[null,null,{x:3.5,y:2.5,r:4},{x:2.5,y:2.5,r:4.5}];
 
 /* ============ the people you came for ============ */
@@ -383,7 +415,7 @@ function musicWanted(){
  if(G.phase==="cheer")return "win";
  if(G.phase!=="play")return null;
  if(G.threat>0)return "hot";
- return G.h&&G.h.x>FRONTIER_X?"field":"home";
+ return G.h&&G.h.x<FRONTIER_X?"field":"home";
 }
 function musicForState(){
  const want=musicWanted();
@@ -434,35 +466,60 @@ const keys={};
 const START_CHOPS=3;
 const G={phase:"menu",diff:2,seed:1,rand:Math.random,
  score:0,best:0,scan:true,endless:false,
- h:null,huts:[],people:[],foes:[],shots:[],flak:[],puffs:[],
+ h:null,huts:[],people:[],foes:[],shots:[],flak:[],puffs:[],homeFolk:[],trips:0,
  rescued:0,lost:0,aboard:0,chops:START_CHOPS,
  wave:0,waveT:0,threat:0,downT:0,cheerT:0,
  cam:{x:0},msg:"",msgT:0,menu:null,menuTitle:"",t:0,uiT:0,ridge:null,best:0};
 const say=(t)=>{G.msg=t;G.msgT=2.6;};
 
 /* ---- how the chopper flies ----
- * The joystick had three positions and so does this: nose-on, and profile
- * either way. What is different is that the three are the ends of a turn the
- * page draws through rather than three pictures it switches between. tf runs
- * from -3 to +3 and the frame on the screen is the one at round(|tf|), so a
- * swing from one profile to the other is seven drawn pictures and a third of a
- * second, not a flicker. Thrust comes off the same number: upright you hover,
- * and the further over you are the harder you go. */
+ * The original wanted a joystick and two buttons, and the reason is this: the
+ * stick flies her and the button turns her, and the two have nothing to do with
+ * each other. She can be going left with her nose pointed at you, which is how
+ * you shoot a tank you are flying over. Thrust used to come off the lean here,
+ * which made the turn a throttle and made the three positions a gear lever -
+ * wrong, and wrong in the one place the game is about.
+ *
+ * What is kept is that the turn is drawn. tf runs from -3 to +3, the frame on
+ * the screen is the one at round(|tf|), and the button sets a target the page
+ * walks her round to: a swing from one profile to the other is seven drawn
+ * pictures and a third of a second, not a flicker. */
 const TURN_RATE=9;                 // turn units a second
 const MAXV=98, ACCEL=165, AIRDRAG=1.6;
 const GRAV=64, LIFT=-172, DESCENT=72, VMAX=124;
 const HARD_LANDING=86;             // any faster onto the ground and it hurts
+const FOOT_NOSE=6, FOOT_SIDE=15;   // half the sand she covers, nose-on and side-on
 const GUN_COOL=.17, MAX_SHOTS=4;
 const BOARD_REACH=17;              // her half-width plus his: he climbs in at her side
                                    // rather than walking into the middle of her
 const CALL_RANGE=280;              // and how far off he will see you set down
 
+// Right, at you, left, at you, and round again: the button walks that ring, as
+// button 1 did. She starts on the pad pointed at the border, which is west.
+const TURN_RING=[3,0,-3,0];
 function chopper(){
  return {x:POST_X,y:GROUND_Y-CHOP_H,vx:0,vy:0,w:CHOP_W,h:CHOP_H,
-  tf:0,landed:true,hp:3,cool:0,rotor:0,hold:false,bounce:0};
+  tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0};
+}
+function turnHer(){
+ const h=G.h;
+ if(!h)return;
+ h.seq=((h.seq|0)+1)%TURN_RING.length;
+ h.want=TURN_RING[h.seq];
+}
+// Where the stick is: the pad under your thumb, plus whatever the keyboard is
+// holding, because a keyboard is a stick with four positions.
+const stick={x:0,y:0,held:false};
+function stickNow(){
+ let x=stick.held?stick.x:0, y=stick.held?stick.y:0;
+ if(keys.L)x-=1;
+ if(keys.R)x+=1;
+ if(keys.U)y-=1;
+ if(keys.D)y+=1;
+ return {x:clamp(x,-1,1),y:clamp(y,-1,1)};
 }
 function hutAt(x){return {x,y:GROUND_Y-HUT_H,w:HUT_W,h:HUT_H,hp:3,open:false,
- left:PER_HUT,out:0,shake:0};}
+ left:PER_HUT,out:0,shake:0,fire:0};}
 
 function newGame(diff=2,seed){
  G.diff=diff;
@@ -474,10 +531,21 @@ function newGame(diff=2,seed){
  G.huts=HUTS.map(hutAt);
  G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
  G.h=chopper();
+ G.homeFolk=[];G.trips=0;
+ // One of them is already open and burning when you arrive, with its people out
+ // and running about in it. That is how the original starts you, and it is also
+ // the only part of the mission you did not cause.
+ const lit=G.huts[Math.floor(G.rand()*G.huts.length)];
+ lit.hp=0;lit.open=true;lit.fire=9;
+ for(let i=0;i<5;i++)emerge(lit);
+ for(const p of G.people){
+  p.panic=4+G.rand()*5;
+  p.x=clamp(lit.x+HUT_W/2-HOST_W/2+(G.rand()-.5)*80,8,WORLD-HOST_W-8);
+ }
  G.cam.x=clamp(G.h.x+CHOP_W/2-VW/2,0,WORLD-VW);
  G.phase="play";
  hideOverlay();
- say("Sixty-four of ours are out there. Bring them home.");
+ say("One barrack is alight already. Sixty-four of ours. Bring them home.");
  musicForState();
 }
 
@@ -485,7 +553,7 @@ function newGame(diff=2,seed){
 let personId=0;
 function person(hut,x){
  return {id:++personId,x,y:GROUND_Y-HOST_H,vx:0,st:"out",f:0,ft:0,face:1,
-  spot:x+HOST_W/2,wait:0,duck:0,hut,bob:0};
+  spot:x+HOST_W/2,rest:x+HOST_W/2,panic:0,wander:0,wait:0,duck:0,hut,bob:0};
 }
 function freePeople(){return G.people.filter(p=>p.st!=="dead"&&p.st!=="gone");}
 
@@ -506,6 +574,7 @@ function emerge(hut){
  const p=person(hut,hut.x+HUT_W/2-HOST_W/2);
  const side=hut.out%2?1:-1, rank=Math.floor((hut.out-1)/2);
  p.spot=clamp(hut.x+HUT_W/2+side*(13+rank*9),8,WORLD-HOST_W-8);
+ p.rest=p.spot;
  p.st="run";
  G.people.push(p);
 }
@@ -516,7 +585,7 @@ function tank(x,dir){return {k:"tank",x,y:GROUND_Y-TANK_H,w:TANK_W,h:TANK_H,
 function jet(x,dir,y){return {k:"jet",x,y,w:JET_W,h:JET_H,dir,
  sp:78+G.diff*12,cool:.6+G.rand(),hp:1};}
 function drone(x,y){return {k:"drone",x,y,w:DRONE_W,h:DRONE_H,
- sp:26+G.diff*5,hp:1,ph:G.rand()*6.28};}
+ sp:26+G.diff*5,hp:1,ph:G.rand()*6.28,cool:1.1+G.rand()*1.1};}
 
 // A wave tops the Empire's strength back up to what this far into the mission
 // is worth; it does not add to it. Adding to it is what it used to do, and
@@ -531,10 +600,10 @@ function sendWave(){
  for(let i=live("tank");i<wantTanks;i++){
   // They come up out of the Empire's half, never out of your own - and never
   // inside a barrack, which it could not then drive out of.
-  let x=FRONTIER_X+120+r()*(WORLD-FRONTIER_X-200);
+  let x=80+r()*(FRONTIER_X-300);
   for(const q of HUTS)
    if(x+TANK_W>q-10&&x<q+HUT_W+10)x=(x<q?q-TANK_W-14:q+HUT_W+14);
-  G.foes.push(tank(clamp(x,FRONTIER_X+24,WORLD-TANK_W-10),r()<.5?-1:1));
+  G.foes.push(tank(clamp(x,10,FRONTIER_X-TANK_W-24),r()<.5?-1:1));
  }
  if(G.wave>=2){
   const wantJets=Math.min(MOST_JETS,Math.floor((G.wave+d)/3));
@@ -546,7 +615,7 @@ function sendWave(){
  if(G.wave>=4&&d>=2){
   const wantMines=Math.min(MOST_MINES,Math.floor((G.wave-2)/2));
   for(let i=live("drone");i<wantMines;i++)
-   G.foes.push(drone(FRONTIER_X+200+r()*(WORLD-FRONTIER_X-300),30+r()*70));
+   G.foes.push(drone(160+r()*(FRONTIER_X-400),30+r()*70));
  }
  G.waveT=Math.max(7,20-G.wave-d*1.5);
 }
@@ -557,11 +626,14 @@ function shoot(){
  if(h.cool>0||G.shots.length>=MAX_SHOTS)return;
  h.cool=GUN_COOL;
  const a=Math.abs(h.tf), dir=h.tf<0?-1:1;
- if(a>=2){                                    // in profile the gun points the way he does
+ if(a>=2){                                    // in profile the gun fires level
   const nx=dir>0?h.x+CHOP_W-3:h.x+1;
   G.shots.push({x:nx,y:h.y+6,vx:dir*230,vy:0,w:3,h:2,mine:true});
- }else{                                       // nose-on it points up, which is what jets are for
-  G.shots.push({x:h.x+CHOP_W/2-1,y:h.y,vx:0,vy:-250,w:2,h:3,mine:true});
+ }else{
+  // Nose-on is the tank attacking position, and it fires straight down. This
+  // had been pointing up at the jets, which is not what the original does and
+  // not what the stance is for: a jet comes at you level and you meet it level.
+  G.shots.push({x:h.x+CHOP_W/2-1,y:h.y+CHOP_H,vx:0,vy:250,w:2,h:3,mine:true});
  }
  shotSound();
 }
@@ -571,6 +643,7 @@ function puff(x,y,n,hue){for(let i=0;i<n;i++)G.puffs.push({x,y,
 /* ============ one frame of the war ============ */
 const RUN_SPEED=46, SHELL_G=190;
 const TANK_STANDOFF=130;   // how close a tank will come before it backs off
+const MINE_GUNS_ON=4;      // the trip on which the air mines start shooting too
 function addScore(n){
  G.score+=n;
  if(G.score>G.best){G.best=G.score;savePrefs();}
@@ -643,29 +716,28 @@ function blast(x,y,big){
 }
 
 function chopperStep(dt){
- const h=G.h;
+ const h=G.h, s=stickNow();
  h.cool=Math.max(0,h.cool-dt);
  // The rotor never stops while she is alive, and that is what tells you so.
  h.rotor=(h.rotor+dt*26)%(Math.PI*2);
- // Turning. Left and right walk tf between the two profiles; FACE drives it
- // back to nose-on, which is the stance the gun fires upward from.
- let want=0;
- if(keys.L)want-=1;
- if(keys.R)want+=1;
- if(keys.FACE)h.tf+=clamp(-h.tf,-TURN_RATE*dt,TURN_RATE*dt);
- else if(want)h.tf=clamp(h.tf+want*TURN_RATE*dt,-3,3);
- const lean=h.landed?0:h.tf/3;            // skids on the ground do not lean anywhere
- const target=MAXV*lean;
+ // Turning. She walks round to whatever the button last asked for, and she does
+ // it whatever the stick is doing - which is the point of having both.
+ if(h.tf!==h.want){
+  const step=clamp(h.want-h.tf,-TURN_RATE*dt,TURN_RATE*dt);
+  h.tf=Math.abs(h.want-h.tf)<=Math.abs(step)?h.want:h.tf+step;
+ }
+ // Flying. How far the stick is pushed is how hard she goes.
+ const target=h.landed?0:MAXV*s.x;
  h.vx+=clamp(target-h.vx,-ACCEL*dt,ACCEL*dt);
- if(Math.abs(lean)<.05)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
+ if(Math.abs(s.x)<.06)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
  // Down is a rate, not a shove. Pushing her at the ground used to reach the
  // falling speed in half a second, so every landing made on the button was a
  // heavy one and the only safe way down was to let go and catch her - which is
  // exactly backwards. Held, the collective settles her at a rate she can be put
  // down at; let go of everything and she falls, and a fall still hurts.
  let ay=GRAV;
- if(keys.U)ay+=LIFT;
- else if(keys.D)ay=(DESCENT-h.vy)*6;
+ if(s.y<-.15)ay+=LIFT*Math.min(1,-s.y);
+ else if(s.y>.15)ay=(DESCENT*Math.min(1,s.y)-h.vy)*6;
  else if(keys.HOLD&&!h.landed)ay=-h.vy*7;
  h.vy=clamp(h.vy+ay*dt,-VMAX,VMAX);
  h.x=clamp(h.x+h.vx*dt,0,WORLD-CHOP_W);
@@ -677,10 +749,16 @@ function chopperStep(dt){
   h.y=floor;
   if(!h.landed){
    landSound();
-   // Anyone under the skids when she comes down is under the skids.
+   // Anyone under the skids when she comes down is under the skids - and how
+   // much of her is on the sand depends on which way she is pointing. Nose-on
+   // is the narrowest she gets, which is why the tank attacking position is
+   // also the one to land in when there are people about.
+   const foot=FOOT_NOSE+Math.abs(h.tf)/3*(FOOT_SIDE-FOOT_NOSE);
+   const mid=h.x+CHOP_W/2;
    for(const p of G.people){
     if(p.st==="dead"||p.st==="gone")continue;
-    if(p.x+HOST_W>h.x+8&&p.x<h.x+CHOP_W-8)killPerson(p,"You set her down on one of them.");
+    if(Math.abs(p.x+HOST_W/2-mid)<foot+HOST_W/2)
+     killPerson(p,"You set her down on one of them.");
    }
    if(down>HARD_LANDING)damageChopper("a heavy landing");
   }
@@ -693,7 +771,11 @@ function chopperStep(dt){
   h.unload=(h.unload||0)+dt;
   while(h.unload>=.18&&G.aboard>0){
    h.unload-=.18;G.aboard--;G.rescued++;addScore(100);boardSound();
-   if(G.aboard===0){homeSound();say(G.rescued+" home and dry.");}
+   // "As they exit, each hostage will wave and salute you." So they do, and
+   // then they walk off into the building under their own steam.
+   if(G.homeFolk.length<20)
+    G.homeFolk.push({x:h.x+CHOP_W/2-HOST_W/2,ph:"wave",t:.8,f:0,wf:0,ft:0,gait:0});
+   if(G.aboard===0){G.trips++;homeSound();say(G.rescued+" home and dry.");}
   }
  }else h.unload=0;
 }
@@ -706,6 +788,17 @@ function personStep(p,dt){
  if(p.duck>0){p.duck-=dt;p.vx=0;return;}
  const open=G.downT<=0&&h.landed&&G.aboard<CAPACITY;
  const mid=h.x+CHOP_W/2, me=p.x+HOST_W/2;
+ // Straight out of a burning barrack nobody walks to an allotted place. They
+ // run about until it wears off, and then they stand where they were going to.
+ if(p.panic>0){
+  p.panic-=dt;
+  p.wander=(p.wander||0)-dt;
+  if(p.wander<=0){
+   p.wander=.45+Math.random()*.55;
+   p.spot=clamp(p.rest+(Math.random()-.5)*96,8,WORLD-HOST_W-8);
+  }
+  if(p.panic<=0)p.spot=p.rest;
+ }
  const called=open&&Math.abs(mid-me)<CALL_RANGE;
  // Called, he runs for the chopper. Not called, he walks clear of the door to
  // the patch of sand that is his and stands on it - on it, not within a step or
@@ -731,7 +824,7 @@ function personStep(p,dt){
 // run home is a run home: a tank standing at the frontier used to be able to
 // shell the pad from three hundred pixels, and being destroyed on your own
 // concrete with sixteen aboard is not a difficulty, it is a tax.
-const overTheLine=x=>x>FRONTIER_X-12;
+const overTheLine=x=>x<FRONTIER_X+12;
 function foeStep(e,dt){
  const h=G.h, alive=G.downT<=0&&overTheLine(h.x+CHOP_W/2);
  if(e.k==="tank"){
@@ -749,9 +842,17 @@ function foeStep(e,dt){
   const nx=e.x+drive*e.sp*dt;
   // It will not drive through a barrack, and it will not cross the line.
   if(!G.huts.some(q=>nx+TANK_W>q.x-5&&nx<q.x+HUT_W+5))e.x=nx;
-  if(e.x<FRONTIER_X+20){e.x=FRONTIER_X+20;e.dir=1;}
-  if(e.x>WORLD-TANK_W-8){e.x=WORLD-TANK_W-8;e.dir=-1;}
-  if(drive){e.ft+=dt;e.f=Math.floor(e.ft*10)%2;}
+  if(e.x>FRONTIER_X-TANK_W-20){e.x=FRONTIER_X-TANK_W-20;e.dir=-1;}
+  if(e.x<8){e.x=8;e.dir=1;}
+  if(drive){
+   e.ft+=dt;e.f=Math.floor(e.ft*10)%2;
+   // "Tanks which amble along and kill hostages." They do it by driving over
+   // them, and nothing about a tank stops for a man.
+   for(const p of G.people){
+    if(p.st==="dead"||p.st==="gone")continue;
+    if(p.x+HOST_W>e.x+1&&p.x<e.x+TANK_W-1)killPerson(p,"A tank went over one of ours.");
+   }
+  }
   if(e.flash>0)e.flash-=dt;
   e.cool-=dt;
   if(alive&&ad<320&&e.cool<=0){
@@ -778,13 +879,24 @@ function foeStep(e,dt){
  }else{
   // An air mine: slow, patient, and it only has to touch you once. It will not
   // follow you over the line either.
-  const dx=(alive?h.x+CHOP_W/2:Math.max(h.x+CHOP_W/2,FRONTIER_X+40))-(e.x+DRONE_W/2),
+  const dx=(alive?h.x+CHOP_W/2:Math.min(h.x+CHOP_W/2,FRONTIER_X-40))-(e.x+DRONE_W/2),
         dy=(alive?h.y+CHOP_H/2:60)-(e.y+DRONE_H/2);
   const d=Math.hypot(dx,dy)||1;
   e.ph+=dt*4;
   e.x+=(dx/d)*e.sp*dt;e.y+=(dy/d)*e.sp*dt+Math.sin(e.ph)*8*dt;
   e.y=clamp(e.y,4,GROUND_Y-DRONE_H);
-  e.x=Math.max(e.x,FRONTIER_X+8);
+  e.x=Math.min(e.x,FRONTIER_X-8);
+  // On the fourth trip they stop being only a thing to avoid.
+  if(G.trips>=MINE_GUNS_ON){
+   e.cool-=dt;
+   const d3=Math.hypot(dx,dy)||1;
+   if(alive&&e.cool<=0&&d3<180){
+    e.cool=2.3+G.rand()*1.5;
+    G.flak.push({k:"mine",x:e.x+DRONE_W/2,y:e.y+DRONE_H/2,w:3,h:3,g:0,
+     vx:dx/d3*160,vy:dy/d3*160});
+    jetSound();G.threat=3.2;
+   }
+  }
   if(alive&&overlap({x:e.x,y:e.y,w:DRONE_W,h:DRONE_H},
      {x:h.x+3,y:h.y+2,w:CHOP_W-6,h:CHOP_H-4})){
    e.dead=true;damageChopper("an air mine");}
@@ -845,8 +957,19 @@ function stepGame(dt){
    else{G.phase="over";gameOverMenu();return;}
   }
  }else chopperStep(dt);
+ for(const f of G.homeFolk){
+  f.ft+=dt;
+  if(f.ph==="wave"){
+   f.t-=dt;f.wf=Math.floor(f.ft*4)%2;
+   if(f.t<=0)f.ph="walk";
+  }else{
+   f.x+=38*dt;f.gait+=38*dt;f.f=Math.floor(f.gait/6)%4;
+  }
+ }
+ G.homeFolk=G.homeFolk.filter(f=>f.x<POST_X+CHOP_W/2+66);
  for(const hut of G.huts){
   if(hut.shake>0)hut.shake-=dt;
+  if(hut.fire>0)hut.fire-=dt;
   if(hut.open&&hut.left>0){
    hut.t=(hut.t||0)+dt;
    if(hut.t>=.45){hut.t-=.45;emerge(hut);}
@@ -861,9 +984,10 @@ function stepGame(dt){
  G.puffs=G.puffs.filter(s=>s.t>0);
  G.waveT-=dt;
  if(G.waveT<=0)sendWave();
- // The camera looks the way the chopper is leaning, which is how you see what
- // you are flying into rather than what you have just left.
- const want=clamp(G.h.x+CHOP_W/2-VW/2+(G.h.tf/3)*56,0,WORLD-VW);
+ // The camera looks the way she is going. It used to look the way she was
+ // leaning, which was the same thing until the turn stopped being the throttle.
+ const lead=clamp(G.h.vx/MAXV,-1,1)*56;
+ const want=clamp(G.h.x+CHOP_W/2-VW/2+lead,0,WORLD-VW);
  G.cam.x+=(want-G.cam.x)*Math.min(1,dt*4.5);
  if(G.rescued+G.lost>=HOSTAGES)missionOver();
  musicForState();
@@ -876,20 +1000,21 @@ function press(k){
  if(G.menu){
   if(k==="U"||k==="L")moveMenu(-1);
   else if(k==="D"||k==="R")moveMenu(1);
-  else if(k==="FIRE"||k==="FACE")chooseMenu();
+  else if(k==="FIRE"||k==="TURN")chooseMenu();
   return;
  }
  if(k==="SCAN"){G.scan=!G.scan;savePrefs();
   say(G.scan?"Scanner on.":"Scanner off — more country on screen.");fit(true);return;}
  if(G.phase!=="play"||G.downT>0)return;
  if(k==="FIRE")shoot();
+ else if(k==="TURN")turnHer();
 }
 function toggleMenu(){
  if(G.menu&&G.phase==="paused"){G.phase="play";G.menu=null;hideOverlay();return;}
  if(G.phase==="play"){G.phase="paused";pauseMenu();}
 }
 const KMAP={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R",w:"U",s:"D",a:"L",d:"R",
- " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"FACE",e:"FACE",Shift:"HOLD",h:"HOLD",r:"SCAN",
+ " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"TURN",e:"TURN",Shift:"HOLD",h:"HOLD",r:"SCAN",
  Escape:"MENU",p:"MENU"};
 function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}
 addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
@@ -897,6 +1022,7 @@ addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
  keys[k]=true;});
 addEventListener("keyup",e=>{const k=keyOf(e);if(k)keys[k]=false;});
 function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+ releaseStick();
  document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
 addEventListener("blur",clearKeys);
 document.addEventListener("visibilitychange",()=>{
@@ -919,6 +1045,57 @@ function bindKey(el,k){
 for(const ev of ["pointerup","pointercancel"])
  document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
 document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
+
+/* ---- the stick ----
+ * A thumb pad you drag, not four buttons you press: how far out of the middle
+ * it is, is how hard she goes. It takes the pointer captive on the way down, so
+ * a thumb that slides off the pad in the middle of a dive keeps flying her
+ * instead of letting go; and it is touch-action none, so dragging it is never a
+ * scroll, a pull-to-refresh or the beginning of a pinch.
+ */
+const stickEl=document.getElementById("stick"), knobEl=document.getElementById("knob");
+let stickId=null;
+function stickRadius(){
+ const r=stickEl?stickEl.getBoundingClientRect():null;
+ return r&&r.width?r.width/2-14:52;
+}
+function moveStick(e){
+ if(!stickEl)return;
+ const r=stickEl.getBoundingClientRect();
+ const R=stickRadius();
+ let dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+ const d=Math.hypot(dx,dy);
+ if(d>R){dx=dx/d*R;dy=dy/d*R;}
+ stick.x=clamp(dx/R,-1,1);stick.y=clamp(dy/R,-1,1);
+ stick.held=true;
+ paintStick(dx,dy);
+}
+function paintStick(dx,dy){
+ if(knobEl)knobEl.style.transform="translate("+Math.round(dx)+"px,"+Math.round(dy)+"px)";
+}
+function releaseStick(){
+ stickId=null;stick.x=0;stick.y=0;stick.held=false;
+ if(stickEl)stickEl.classList.remove("on");
+ paintStick(0,0);
+}
+if(stickEl){
+ stickEl.addEventListener("pointerdown",e=>{
+  e.preventDefault();unlockAudio();
+  try{stickEl.setPointerCapture(e.pointerId);}catch(err){}
+  stickId=e.pointerId;stickEl.classList.add("on");
+  held.set(e.pointerId,releaseStick);
+  moveStick(e);
+ });
+ stickEl.addEventListener("pointermove",e=>{
+  if(stickId!==e.pointerId)return;
+  e.preventDefault();moveStick(e);
+ });
+ for(const ev of ["pointerup","pointercancel","lostpointercapture"])
+  stickEl.addEventListener(ev,e=>{
+   if(stickId!==e.pointerId)return;
+   held.delete(e.pointerId);releaseStick();
+  });
+}
 document.getElementById("sound").addEventListener("click",()=>{
  SOUND.enabled=!SOUND.enabled;unlockAudio();
  if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
@@ -981,27 +1158,35 @@ if(!isStandaloneApp()&&isIOS())showInstall(true);
 /* ============ what the buttons say ============ */
 // The pad is only as clear as its labels: the fire button says where the gun is
 // pointing, which is the whole of the three-position rule in two characters.
-const fireBtn=document.getElementById("firebtn"), faceBtn=document.getElementById("facebtn"),
+const fireBtn=document.getElementById("firebtn"), turnBtn=document.getElementById("turnbtn"),
       scanBtn=document.getElementById("scanbtn"), hovBtn=document.getElementById("hovbtn");
 function fireLabel(){
  if(!G.h||G.phase!=="play")return "FIRE";
  const a=Math.abs(G.h.tf);
- if(a<2)return "FIRE ▲";
+ if(a<2)return "FIRE ▼";                 // the tank attacking position
  return G.h.tf<0?"◀ FIRE":"FIRE ▶";
 }
+const STANCE={"-3":"◀ side","0":"at you","3":"side ▶"};
 function label(el,text,caption){
  if(!el||el.dataset.lbl===text)return;
  el.dataset.lbl=text;
  el.innerHTML=text+(caption?"<small>"+caption+"</small>":"");
 }
 function updatePads(){
- label(fireBtn,fireLabel(),"gun");
- label(faceBtn,"FACE","front");
+ label(fireBtn,fireLabel(),Math.abs(G.h?G.h.tf:3)<2?"tanks":"level");
+ label(turnBtn,"TURN",G.h?(STANCE[String(G.h.want)]||"position"):"position");
  label(scanBtn,"SCAN","");
  label(hovBtn,"HOVER","");
  if(scanBtn&&scanBtn.classList)scanBtn.classList.toggle("lit",!!G.scan);
  if(hovBtn&&hovBtn.classList)hovBtn.classList.toggle("lit",!!keys.HOLD);
- if(faceBtn&&faceBtn.classList)faceBtn.classList.toggle("lit",!!(G.h&&Math.abs(G.h.tf)<.4));
+ if(turnBtn&&turnBtn.classList)turnBtn.classList.toggle("lit",!!(G.h&&Math.abs(G.h.tf)<.4));
+ // On a keyboard the stick is the arrow keys, and the knob has to say so or
+ // nothing on the pad moves when the game does.
+ if(!stick.held&&knobEl){
+  const n=stickNow(), R=stickRadius();
+  paintStick(n.x*R,n.y*R);
+  if(stickEl)stickEl.classList.toggle("on",!!(n.x||n.y));
+ }
 }
 
 /* ============ menus ============ */
@@ -1036,7 +1221,8 @@ function mainMenu(){
     fn:()=>{G.endless=!G.endless;savePrefs();mainMenu();}},
    {label:"How to fly it",fn:()=>helpMenu(false)}],
   G.endless?"Endless machines: a crash costs you the people aboard, never the mission — and never a high score.":
-   "After Choplifter, Brøderbund, 1982. Rebuilt for touch screens.",false,true);
+   "After Choplifter, Brøderbund, 1982. The machine came into the country in crates marked as mail sorting equipment, which is why home is a post office.",
+  false,true);
 }
 function diffMenu(){
  const names=["Quiet","Busy","Crowded","Swarming"];
@@ -1049,17 +1235,19 @@ function diffMenu(){
   true,true);
 }
 function helpMenu(back){
- showMenu("The three positions",
-  "◀ and ▶ turn her. Held, they walk her round through nose-on to the profile either side, and "+
-  "once she is over she flies that way — the further over, the faster. FACE brings her back "+
-  "upright. ▲ lifts, ▼ puts her down, HOVER holds the height you are at.",
+ showMenu("A stick and two buttons",
+  "The stick flies her: push it and she goes, and how far you push it is how hard. Up lifts, "+
+  "down sets her down at a rate she can land at, HOVER holds the height you are at. On a "+
+  "keyboard the arrows are the stick.",
   [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
-  "FIRE points where she does: in profile the gun fires level, and nose-on it fires straight up, "+
-  "which is the only thing that will reach a jet. Shoot a barrack until the door goes, and they "+
-  "come out. Set down near them and they run for you — sixteen is all she holds. Fly them back "+
-  "to the pad at the post and put her down to let them out. Your own gun and your own skids will "+
-  "kill them as surely as a tank will. SCAN is the strip along the top: the whole country at once, "+
-  "with the post, the four barracks and everything moving on it.");
+  "TURN points her, and it has nothing to do with where she is going: side, at you, other side, "+
+  "at you, round again. In profile the gun fires level, which is how a jet is met and how a "+
+  "barrack door is taken off. Pointed at you she is in the tank attacking position and the gun "+
+  "fires straight down — and she is also at her narrowest, which is the way to set her down "+
+  "among people. Shoot a barrack until the door goes, land near them, and they run for you; "+
+  "sixteen is all she holds. Fly east over the fence and put her down on the pad at the post "+
+  "office to let them out. Your own gun and your own skids will kill them as surely as a tank "+
+  "will. SCAN is the strip along the top: the whole country at once.");
 }
 function pauseMenu(){
  showMenu("Paused","Home "+G.rescued+" · lost "+G.lost+" · aboard "+G.aboard+" · "+G.score+
@@ -1083,9 +1271,13 @@ function rating(){
  if(r>=8)return "A few. It was a long way to go for a few.";
  return "The Empire kept almost all of them.";
 }
+// The original signs off with "The End" rather than "Game Over" - Gorlin's own
+// choice, taken from the way a film ends rather than the way an arcade cabinet
+// does - and there is no reason to improve on it.
 function gameOverMenu(){
- showMenu(G.chops>0?"Mission over":"No machines left",
-  rating()+" Home "+G.rescued+" · lost "+G.lost+" · "+G.score+" points"+
+ showMenu("The End",
+  rating()+" "+(G.chops>0?"":"No machines left. ")+
+  "Home "+G.rescued+" · lost "+G.lost+" · "+G.score+" points"+
   (G.best>G.score?" · best "+G.best:""),
   [{label:"Again",fn:()=>newGame(G.diff)},{label:"Menu",fn:mainMenu}],"","menugrid");
 }
@@ -1158,29 +1350,49 @@ function drawGround(){
   rect(x,y+3+((i*7)%4),2,1,"#8d6f45");
  }
 }
-// The post: a slab of concrete, a hangar and a flag that is never still.
+// The post office. The backstory has the helicopter smuggled into the country
+// in crates marked as mail sorting equipment, which is why home is a post
+// office and not an airbase, and why the sign over the door says what it says.
 function drawPost(){
- const x=sx(POST_X-16), y=FIELD_TOP+GROUND_Y;
- rect(x,y-2,CHOP_W+34,3,"#9aa2b4");
- rect(x,y-3,CHOP_W+34,1,"#cfd6e4");
- rect(x-30,y-16,24,16,"#3c4560");                 // the hangar
- rect(x-30,y-17,24,2,"#59647f");
- rect(x-26,y-11,16,11,"#161c2e");
- const pole=x+CHOP_W+30;
+ const x=sx(POST_X-18), y=FIELD_TOP+GROUND_Y;
+ const PAD=CHOP_W+36;
+ rect(x,y-2,PAD,3,"#9aa2b4");                     // the pad
+ rect(x,y-3,PAD,1,"#cfd6e4");
+ for(let i=6;i<PAD-4;i+=10)rect(x+i,y-2,4,1,"#6f7891");
+ const bx=x+PAD+8;                                // the building, east of the pad
+ rect(bx,y-26,40,26,"#4a5470");
+ rect(bx,y-26,40,3,"#69748f");
+ rect(bx-3,y-29,46,4,"#39425c");                  // the roof
+ rect(bx+4,y-20,32,6,"#cfd6e4");                  // the sign band
+ rect(bx+7,y-18,4,2,"#39425c");rect(bx+13,y-18,4,2,"#39425c");
+ rect(bx+19,y-18,4,2,"#39425c");rect(bx+25,y-18,4,2,"#39425c");
+ rect(bx+15,y-11,10,11,"#161c2e");                // the door they file in through
+ rect(bx+14,y-12,12,1,"#ffc24a");
+ const pole=x-10;                                 // and the flag, west of the pad
  rect(pole,y-34,1,34,"#cfd6e4");
  for(let r=0;r<7;r++){
   const w=11+Math.round(Math.sin((G.uiT||0)*5.5+r*.5)*1.6);
   rect(pole+1,y-33+r,w,1,r<3?"#e8483c":"#f2efe4");
  }
 }
-// The line. Everything the Empire owns is east of it.
+// The border. A fence, which is what the original marks it with, and west of it
+// is the Empire's. Nothing it owns shoots across.
 function drawFrontier(){
  const x=sx(FRONTIER_X), y=FIELD_TOP+GROUND_Y;
- if(x<-20||x>VW+20)return;
- rect(x,y-26,2,26,"#e8eeff");
- for(let r=0;r<26;r+=4)rect(x,y-26+r,2,2,"#e8483c");
- rect(x+2,y-26,14,7,"#d8641e");
- rect(x+3,y-25,12,5,"#2a1810");
+ if(x<-90||x>VW+90)return;
+ for(let i=-64;i<=64;i+=16){
+  if(x+i<-4||x+i>VW+2)continue;
+  rect(x+i,y-16,2,16,"#8e9ab4");                  // posts
+ }
+ for(const r of [12,7]){
+  const lx=Math.max(-2,x-64), rx=Math.min(VW+2,x+66);
+  if(rx>lx)rect(lx,y-r,rx-lx,1,"#6f7b95");        // two rails
+ }
+ rect(x-9,y-30,20,11,"#d8641e");                  // the sign
+ rect(x-8,y-29,18,9,"#2a1810");
+ rect(x-6,y-26,14,1,"#ffc24a");
+ rect(x-6,y-24,9,1,"#ffc24a");
+ rect(x,y-30,1,14,"#8e9ab4");
 }
 function drawHut(hut){
  const jx=hut.shake>0?Math.round(Math.sin(hut.shake*90)*2):0;
@@ -1190,6 +1402,26 @@ function drawHut(hut){
  rect(x-3,y,HUT_W+6,7,"#4a3a2a");                 // the roof
  rect(x-3,y,HUT_W+6,2,"#5e4a35");
  for(let i=1;i<4;i++)rect(x+i*11,y+7,1,HUT_H-7,"#5f4830");
+ // The one that was already alight when you got there.
+ if(hut.fire>0){
+  const t=(G.uiT||0)*11;
+  // A tongue, not a candle: three pixels at the base, one at the tip, and the
+  // tip the brightest part of it.
+  for(let i=0;i<5;i++){
+   const fx=x+5+i*9+Math.round(Math.sin(t+i*1.7)*1.6);
+   const fh=5+Math.round(3+Math.sin(t*1.3+i*2.1)*3);
+   for(let r=0;r<fh;r++){
+    const w=r>fh-3?1:r>fh*.45?2:3;
+    rect(fx+((3-w)>>1),y-1-r,w,1,
+      r>fh-3?"#fff3a0":r>fh*.45?"#ffd27f":"#ff8c42");
+   }
+  }
+  for(let i=0;i<2;i++){
+   const sy=((G.uiT*20+i*9)|0)%22;
+   if(sy>3)rect(x+HUT_W/2-10+i*12+((sy/3)|0),y-10-sy,3,2,
+     "rgba(80,80,92,"+(.5-sy/60).toFixed(2)+")");
+  }
+ }
  const dx=x+HUT_W/2-6, dy=y+HUT_H-15;
  if(hut.open){
   rect(dx,dy,12,15,"#0c0c14");
@@ -1284,9 +1516,20 @@ function drawChopper(h){
   for(let i=0;i<n;i++)rect(x+(flip?6+i*2:CHOP_W-9-i*2),y+7,1,1,"#ffd27f");
  }
 }
+// The ones who are already home: out of the door, a wave and a salute, then
+// they walk off into the building on their own feet.
+function drawHomeFolk(){
+ for(const f of G.homeFolk){
+  const x=sx(f.x), y=FIELD_TOP+GROUND_Y-HOST_H;
+  if(x<-HOST_W-4||x>VW+4)continue;
+  if(f.ph==="wave")drawPix(HOST_WAVE[f.wf|0],HOST_PAL,x,y,1,false);
+  else drawPix(HOST_WALK[f.f|0],HOST_PAL,x,y+HOST_BOB[f.f|0],1,false);
+ }
+}
 function drawShots(){
  for(const b of G.shots)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,"#fff3a0");
- for(const b of G.flak)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,b.k==="jet"?"#ff8c42":"#ffd27f");
+ for(const b of G.flak)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,
+   b.k==="jet"?"#ff8c42":b.k==="mine"?"#e08aff":"#ffd27f");
  for(const s of G.puffs){
   ctx.globalAlpha=clamp(s.t*2.4,0,1);
   rect(sx(s.x),FIELD_TOP+s.y,2,2,s.hue);
@@ -1361,7 +1604,7 @@ function drawHUD(){
 /* ---- the attract screen ---- */
 // One machine crossing a country that is already moving: the flag, the rotor,
 // the tread of a tank on the far side of the line. If it is still, it is broken.
-const TITLE={x:POST_X+40,vx:52,tf:3,turn:0};
+const TITLE={x:POST_X-380,vx:-52,tf:-3,want:-3,turn:0};
 function titleStep(dt){
  TITLE.turn-=dt;
  if(TITLE.turn<=0){TITLE.turn=3.4;TITLE.want=-TITLE.tf;}
@@ -1380,16 +1623,16 @@ function drawTitle(){
  drawSky();drawRidge();drawGround();drawPost();drawFrontier();
  for(const hut of G.huts)drawHut(hut);
  // Below the line of type and above the card: she crosses the title, she
- // does not fly through the words.
- drawChopper({x:TITLE.x,y:60+Math.sin(t*1.3)*7,tf:TITLE.tf,rotor:(t*26)%(Math.PI*2),hp:3});
+ // does not fly through the words and she is not behind the buttons.
+ drawChopper({x:TITLE.x,y:44+Math.sin(t*1.3)*5,tf:TITLE.tf,rotor:(t*26)%(Math.PI*2),hp:3});
  c.fillStyle="#05070f";c.fillRect(0,0,VW,SCAN_H);
  c.fillStyle="#1d2745";c.fillRect(0,SCAN_H-1,VW,1);
  c.textAlign="center";c.textBaseline="top";
  c.font="bold 21px ui-rounded,Helvetica,Arial,sans-serif";
- c.fillStyle="#0b1020";c.fillText("CHOPLIFTER",VW/2+1,FIELD_TOP+15);
- c.fillStyle="#ffc24a";c.fillText("CHOPLIFTER",VW/2,FIELD_TOP+14);
+ c.fillStyle="#0b1020";c.fillText("CHOPLIFTER",VW/2+1,FIELD_TOP+7);
+ c.fillStyle="#ffc24a";c.fillText("CHOPLIFTER",VW/2,FIELD_TOP+6);
  c.font="8px monospace";
- c.fillStyle="#e8eeff";c.fillText("SIXTY-FOUR BEHIND THE BUNGELING LINE",VW/2,FIELD_TOP+40);
+ c.fillStyle="#e8eeff";c.fillText("SIXTY-FOUR BEHIND THE BUNGELING LINE",VW/2,FIELD_TOP+31);
  c.textAlign="left";
 }
 
@@ -1401,6 +1644,7 @@ function render(){
  drawPost();drawFrontier();
  for(const hut of G.huts)drawHut(hut);
  for(const p of G.people)drawPerson(p);
+ drawHomeFolk();
  for(const e of G.foes)drawFoe(e);
  if(G.downT<=0)drawChopper(G.h);
  drawShots();

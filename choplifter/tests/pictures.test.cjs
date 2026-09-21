@@ -99,10 +99,17 @@ test('The rotor has a hub over every picture, and a tail rotor where one shows',
   const tail=source.match(/const TAIL_ROTOR=\[([\s\S]*?)\];/)[1];
   assert.equal(tail.split(',')[0].trim(),'null','nose-on you cannot see the tail rotor');
   assert.ok(/\{x:/.test(tail),'and in profile you can');
-  // Edge on, the disc is flatter. That is the whole of why it looks like a turn.
-  const tilts=[...rotor.matchAll(/tilt:([.\d]+)/g)].map(m=>+m[1]);
-  assert.equal(tilts.length,4);
-  for(let i=1;i<4;i++)assert.ok(tilts[i]<tilts[i-1],'the disc flattens as she turns ('+tilts+')');
+  // The disc is a horizontal circle and the eye is at its height, so it is the
+  // same flat ellipse whichever way her nose is pointing. Drawing it opening
+  // out as she came round put a lasso round her on the screen.
+  const one=n=>{const v=[...rotor.matchAll(new RegExp(n+':([A-Za-z_.\\d]+)','g'))].map(m=>m[1]);
+    assert.equal(v.length,4,'one '+n+' per drawn picture');
+    return new Set(v);};
+  assert.equal(one('tilt').size,1,'the disc does not change shape when she yaws');
+  assert.equal(one('r').size,1,'nor size');
+  // The hub does move, because the cabin under it does.
+  const hx=[...rotor.matchAll(/hx:(\d+)/g)].map(m=>+m[1]);
+  assert.ok(hx[3]>hx[0],'the mast follows the cabin round ('+hx+')');
 });
 
 test('The walk is four pictures, and the passing frames are not the striding ones',()=>{

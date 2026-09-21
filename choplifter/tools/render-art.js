@@ -27,12 +27,17 @@ function readSprite(){
  if(!rows.length||rows.some(r=>r.length!==rows[0].length))
    throw new Error("the sprite is not a rectangle");
  // The rotor is drawn, not stored, so the artwork has to be told where the hub
- // is rather than guessing. It is read out of the same table the game uses.
+ // is rather than guessing. Both halves are read out of the page: the radius
+ // from the constant the game shares between its four frames, the hub from the
+ // last of them, which is the profile this icon shows.
  const rot=src.match(/const ROTOR=\[([\s\S]*?)\];/);
- const hubs=rot?[...rot[1].matchAll(/hx:(\d+),hy:(\d+),r:(\d+)/g)]:[];
+ const rad=src.match(/const ROTOR_R=(\d+)/);
+ const hubs=rot?[...rot[1].matchAll(/hx:(\d+),hy:(\d+)/g)]:[];
  const last=hubs.length?hubs[hubs.length-1]:null;
+ if(!rad||!last)
+   throw new Error("index.html no longer says where the rotor is (ROTOR_R/ROTOR)");
  return {rows,colours,w:rows[0].length,h:rows.length,
-   hub:last?{x:+last[1],y:+last[2],r:+last[3]}:{x:18,y:2,r:18}};
+   hub:{x:+last[1],y:+last[2],r:+rad[1]}};
 }
 // The runs of one colour in a row, which both outputs draw as single rectangles.
 function* runs(sprite){
