@@ -1,0 +1,161 @@
+// The pictures, read straight out of the page. These cannot see the screen
+// either - tools/playtest.js does that - but a picture that is not a rectangle,
+// or that is the same picture twice, is wrong before it is ever drawn.
+const assert=require('node:assert/strict');
+const {test}=require('node:test');
+const {maps,source}=require('./harness.cjs');
+
+const chop=n=>maps('CHOP'+n);
+const CHOPS=[chop(0),chop(1),chop(2),chop(3)];
+const rect=m=>m.every(r=>r.length===m[0].length);
+const ink=(m,f)=>m.reduce((n,r)=>n+[...r].filter(c=>f?f(c):c!=='.').length,0);
+const flip=m=>m.map(r=>[...r].reverse().join(''));
+// The ground shut inside a figure: transparent cells that cannot be reached
+// from outside it. The skids are not inside her, so their rows are not looked at.
+function trapped(m,rows){
+  const R=rows||m.length, C=m[0].length;
+  const seen=Array.from({length:R},()=>new Array(C).fill(false));
+  const st=[];
+  for(let x=0;x<C;x++){st.push([x,0]);st.push([x,R-1]);}
+  for(let y=0;y<R;y++){st.push([0,y]);st.push([C-1,y]);}
+  while(st.length){
+    const [x,y]=st.pop();
+    if(x<0||y<0||x>=C||y>=R||seen[y][x]||m[y][x]!=='.')continue;
+    seen[y][x]=true;
+    st.push([x-1,y]);st.push([x+1,y]);st.push([x,y-1]);st.push([x,y+1]);
+  }
+  let n=0;
+  for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(m[y][x]==='.'&&!seen[y][x])n++;
+  return n;
+}
+
+test('Every picture of the chopper is the same rectangle',()=>{
+  for(let i=0;i<4;i++){
+    assert.ok(rect(CHOPS[i]),'CHOP'+i+' is a rectangle');
+    assert.equal(CHOPS[i].length,12,'CHOP'+i+' is twelve rows');
+    assert.equal(CHOPS[i][0].length,28,'CHOP'+i+' is twenty-eight wide');
+  }
+  assert.equal(source.includes('const CHOP_W=28, CHOP_H=12;'),true,
+    'and the game is told the same size the pictures are');
+});
+
+test('The four are four pictures, not one picture four times',()=>{
+  const seen=new Set(CHOPS.map(m=>m.join('\n')));
+  assert.equal(seen.size,4,'no two frames of the turn are the same drawing');
+  // And they are a turn: the further round she is, the more tail there is.
+  const tail=m=>ink(m.map(r=>r.slice(0,9)));
+  const t=CHOPS.map(tail);
+  for(let i=1;i<4;i++)
+    assert.ok(t[i]>=t[i-1],'the boom comes out as she turns ('+t.join(' < ')+')');
+  assert.ok(t[3]>t[0]+10,'and by the profile there is a boom to see');
+  assert.ok(ink(CHOPS[3])>ink(CHOPS[0])*1.8,'and there is twice as much of her to see');
+});
+
+test('Nose-on is the only one that is its own mirror',()=>{
+  assert.equal(CHOPS[0].join('\n'),flip(CHOPS[0]).join('\n'),
+    'looking down the barrel, both sides are the same side');
+  for(let i=1;i<4;i++)
+    assert.notEqual(CHOPS[i].join('\n'),flip(CHOPS[i]).join('\n'),
+      'CHOP'+i+' has a nose and a tail, and they are not the same end');
+});
+
+test('Nothing in the turn loses the glass, the skids or its weight',()=>{
+  for(let i=0;i<4;i++){
+    assert.ok(ink(CHOPS[i],c=>c==='C')>=6,'CHOP'+i+' still has a canopy');
+    assert.ok(ink(CHOPS[i],c=>c==='O')>=8,'CHOP'+i+' still has skids under it');
+    // Nose-on weighs least - you are looking at the front of her and there is
+    // no boom in sight - so the floor is what a machine weighs, not what the
+    // profile does.
+    assert.ok(ink(CHOPS[i])>=70,'CHOP'+i+' is a machine, not a stump ('+ink(CHOPS[i])+')');
+    // Turning a picture over must not cost it a pixel.
+    assert.equal(ink(flip(CHOPS[i])),ink(CHOPS[i]));
+  }
+});
+
+test('No sky is shut inside her',()=>{
+  // The slot of daylight down the length of an arm is what made every caller in
+  // Law of the West read as sticks leaned against a coat. Between the skids is
+  // not inside her, so rows ten and eleven are not counted.
+  for(let i=0;i<4;i++)
+    assert.equal(trapped(CHOPS[i],10),0,'CHOP'+i+' has no trapped sky above the skids');
+});
+
+test('Every letter drawn has a colour, and every colour is drawn',()=>{
+  const pal=n=>{const m=source.match(new RegExp('const '+n+'=\\{([\\s\\S]*?)\\};'));
+    return new Set([...m[1].matchAll(/([A-Za-z])\s*:\s*"#/g)].map(x=>x[1]));};
+  const used=ms=>new Set(ms.flat().flatMap(r=>[...r]).filter(c=>c!=='.'));
+  const pairs=[['CHOP_PAL',CHOPS],['HOST_PAL',[maps('HOST_WALK'),maps('HOST_WAVE'),maps('HOST_DUCK')]],
+    ['TANK_PAL',[maps('TANK_PIX')]],['JET_PAL',[maps('JET_PIX')]],['DRONE_PAL',[maps('DRONE_PIX')]]];
+  for(const [name,ms] of pairs){
+    const p=pal(name), u=used(ms);
+    for(const c of u)assert.ok(p.has(c),name+' has no colour for "'+c+'"');
+    for(const c of p)assert.ok(u.has(c),name+' carries "'+c+'" that nothing draws');
+  }
+});
+
+test('The rotor has a hub over every picture, and a tail rotor where one shows',()=>{
+  const rotor=source.match(/const ROTOR=\[([\s\S]*?)\];/)[1];
+  assert.equal((rotor.match(/hx:/g)||[]).length,4,'one hub per drawn picture');
+  const tail=source.match(/const TAIL_ROTOR=\[([\s\S]*?)\];/)[1];
+  assert.equal(tail.split(',')[0].trim(),'null','nose-on you cannot see the tail rotor');
+  assert.ok(/\{x:/.test(tail),'and in profile you can');
+  // The disc is a horizontal circle and the eye is at its height, so it is the
+  // same flat ellipse whichever way her nose is pointing. Drawing it opening
+  // out as she came round put a lasso round her on the screen.
+  const one=n=>{const v=[...rotor.matchAll(new RegExp(n+':([A-Za-z_.\\d]+)','g'))].map(m=>m[1]);
+    assert.equal(v.length,4,'one '+n+' per drawn picture');
+    return new Set(v);};
+  assert.equal(one('tilt').size,1,'the disc does not change shape when she yaws');
+  assert.equal(one('r').size,1,'nor size');
+  // The hub does move, because the cabin under it does.
+  const hx=[...rotor.matchAll(/hx:(\d+)/g)].map(m=>+m[1]);
+  assert.ok(hx[3]>hx[0],'the mast follows the cabin round ('+hx+')');
+});
+
+test('The walk is four pictures, and the passing frames are not the striding ones',()=>{
+  const w=maps('HOST_WALK');
+  assert.equal(w.length,36,'four frames of nine rows');
+  assert.ok(rect(w),'and all of them seven wide');
+  const f=[0,1,2,3].map(i=>w.slice(i*9,i*9+9));
+  assert.equal(new Set(f.map(m=>m.join('\n'))).size,4,'four different drawings');
+  // The legs are the test of a gait: apart on the strides, together on the passes.
+  const legs=m=>m.slice(6).join('');
+  const spread=m=>{const rows=m.slice(6).map(r=>{const on=[...r].map((c,i)=>c!=='.'?i:-1)
+     .filter(i=>i>=0);return on.length?on[on.length-1]-on[0]:0;});
+   return Math.max(...rows);};
+  assert.ok(spread(f[0])>spread(f[1]),'frame one closes the legs frame nought had open');
+  assert.ok(spread(f[2])>spread(f[3]),'and frame three closes what frame two opened');
+  assert.notEqual(legs(f[1]),legs(f[3]),'the two passing frames bring different knees through');
+  // And the passing frames ride a pixel high, which is the bob in a walk.
+  const bob=source.match(/const HOST_BOB=\[([^\]]*)\]/)[1].split(',').map(Number);
+  assert.deepEqual(bob,[0,-1,0,-1]);
+});
+
+test('Waving is not standing, and ducking is not either',()=>{
+  const wv=maps('HOST_WAVE'), dk=maps('HOST_DUCK'), wk=maps('HOST_WALK');
+  assert.ok(rect(wv)&&rect(dk));
+  const a=wv.slice(0,9).join('\n'), b=wv.slice(9,18).join('\n');
+  assert.notEqual(a,b,'the two waves are two pictures');
+  assert.notEqual(a,wk.slice(0,9).join('\n'),'and neither is the walk standing still');
+  // Arms up: the wave puts ink in the outside columns of the top rows, the
+  // walk does not.
+  const shoulders=m=>m.slice(0,2).reduce((n,r)=>n+(r[0]!=='.'?1:0)+(r[6]!=='.'?1:0),0);
+  assert.ok(shoulders(wv.slice(0,9))>shoulders(wk.slice(0,9)),'a wave is arms up');
+  // Ducking is lower: his head is further down the picture than when he stands.
+  const head=m=>m.findIndex(r=>r.includes('H'));
+  assert.ok(head(dk.slice(0,9))>head(wk.slice(0,9)),'flat on the sand is lower than upright');
+});
+
+test('Everything else the Empire owns is a rectangle too',()=>{
+  for(const [n,w,h] of [['TANK_PIX',14,6],['JET_PIX',16,5],['DRONE_PIX',7,7]]){
+    const m=maps(n);
+    assert.ok(rect(m),n+' is a rectangle');
+    assert.equal(m[0].length,w);assert.equal(m.length,h);
+  }
+  // The tank has two treads so that a tank on the screen is a tank moving.
+  const t=source.match(/const TANK_TREADS=\[([\s\S]*?)\];/)[1];
+  const rows=(t.match(/"[^"]*"/g)||[]).map(x=>x.slice(1,-1));
+  assert.equal(rows.length,2);
+  assert.notEqual(rows[0],rows[1],'and the two are not the same row twice');
+  assert.equal(rows[0].length,14);assert.equal(rows[1].length,14);
+});

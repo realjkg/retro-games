@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Choplifter — Bungeling Rescue</title>
+<meta name="description" content="Choplifter: a browser remake of the 1982 Brøderbund original. Turn the chopper, cross the line, open the barracks and carry sixty-four hostages home — playable on phones.">
+<!-- The tab icon is the helicopter, twice: the emoji where an SVG data URI is
+     honoured, and the game's own app icon behind it, because Firefox does not
+     render an emoji favicon and a blank tab is not an icon. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%81%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Choplifter">
+<style>
+:root{--bg:#0b1020;--panel:#141c33;--panel2:#1d2745;--ink:#e8eeff;--dim:#94a3c8;--gold:#ffc24a;--line:#2a3550}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#e9edf8;--panel:#fff;--panel2:#f1f4fc;--ink:#151c2e;--dim:#54607d;--line:#cbd3e6}
+}
+:root[data-theme="dark"]{--bg:#0b1020;--panel:#141c33;--panel2:#1d2745;--ink:#e8eeff;--dim:#94a3c8;--line:#2a3550}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise the selection handles or the callout menu. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,#fs,.soundrow,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:7/4;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* The Apple II wanted a joystick, so this is a joystick: a thumb pad you drag
+   rather than four buttons you press. How far you push it is how hard she goes,
+   which is the whole reason the original needed one. */
+.stick{position:relative;width:136px;height:136px;border-radius:50%;flex:0 0 auto;
+  background:var(--panel2);border:1px solid var(--line);touch-action:none;cursor:grab;
+  -webkit-user-select:none;user-select:none}
+.stick .ring{position:absolute;inset:13px;border-radius:50%;border:1px dashed var(--line);
+  opacity:.55;pointer-events:none}
+.stick .tick{position:absolute;background:var(--dim);opacity:.5;pointer-events:none}
+.stick .t-u,.stick .t-d{left:50%;width:2px;height:7px;margin-left:-1px}
+.stick .t-l,.stick .t-r{top:50%;height:2px;width:7px;margin-top:-1px}
+.stick .t-u{top:4px}.stick .t-d{bottom:4px}.stick .t-l{left:4px}.stick .t-r{right:4px}
+.stick .knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;
+  border-radius:50%;background:#46537a;border:2px solid var(--line);pointer-events:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.35) inset;transition:background .08s linear}
+.stick.on{cursor:grabbing}
+.stick.on .knob{background:var(--gold);border-color:var(--gold)}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#101426;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.btn.lit{border-color:var(--gold);color:var(--gold)}
+.acts{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
+.abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
+.sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
+.sbtn.wide{grid-column:1 / -1;width:100%}
+#overlay{position:absolute;inset:0;background:rgba(6,9,20,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Over the title art the overlay is only a scrim, so the sunrise shows through. */
+#overlay.splash{background:linear-gradient(rgba(0,0,0,0) 0%,rgba(0,0,0,0) 52%,rgba(0,0,0,.55) 66%,rgba(0,0,0,.82) 100%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:15px;margin-bottom:2px;text-shadow:0 1px 3px #000}
+#overlay.splash .menuitem{width:min(260px,76%);padding:9px;background:rgba(18,24,44,.92);
+  border-color:#3b4a6e;color:#e8eeff}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#101426}
+#overlay.splash .menuitem.small{width:auto;padding:5px 14px;font-size:13px;letter-spacing:.04em}
+#overlay.splash .diffgrid .menuitem,#overlay.splash .menugrid .menuitem{width:auto}
+#overlay.splash .sub,#overlay.splash small.tip{color:#c7d2ec;text-shadow:0 1px 2px #000}
+#overlay.splash small.tip{font-size:10px}
+#overlay.splash.card{background:linear-gradient(rgba(5,8,18,.62),rgba(5,8,18,.9) 58%);
+  justify-content:center}
+h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:360px;line-height:1.45}
+.menuitem{width:min(300px,86%);padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#101426;font-weight:700}
+.diffgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(340px,94%)}
+.diffgrid .menuitem{width:auto;padding:10px 4px;font-size:14px}
+/* The pause card has to fit a stage that is wider than it is tall, so its
+   choices go two abreast rather than five deep. */
+.menugrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,96%)}
+.menugrid .menuitem{width:auto;padding:10px 6px;font-size:13px}
+small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
+button{font:inherit;cursor:pointer}
+.soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
+#sound,#fs,#install{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;min-height:40px}
+#install{border-color:var(--gold);color:var(--gold)}
+#install[hidden]{display:none}
+/* Full screen: the battlefield and the controls, nothing else. */
+/* svh is the viewport with the browser's toolbars showing. Sizing to it means a
+   toolbar sliding in or out no longer resizes the game mid-play. */
+body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow:hidden;
+  background:#05070f;color:#e8eeff}
+body.fs .btn{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs .btn:active,body.fs .btn.on{background:#ffc24a;color:#101426;border-color:#ffc24a}
+body.fs .btn.lit{border-color:#ffc24a;color:#ffc24a}
+body.fs #sound,body.fs #fs,body.fs #install{background:#141c33;border-color:#2a3550;color:#e8eeff}
+body.fs #fs{border-color:#ffc24a;color:#ffc24a}
+body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
+  padding:env(safe-area-inset-top) 6px calc(env(safe-area-inset-bottom) + 4px)}
+body.fs #status{display:none}
+body.fs #stage{width:min(100%,calc(58svh * 7 / 4));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:7/4;border-left:0;border-right:0}
+body.fs canvas{object-fit:contain;background:#000}
+body.fs .stick{width:clamp(120px,34vw,168px);height:clamp(120px,34vw,168px)}
+body.fs .stick .knob{width:clamp(52px,15vw,72px);height:clamp(52px,15vw,72px);
+  margin:calc(clamp(52px,15vw,72px) / -2) 0 0 calc(clamp(52px,15vw,72px) / -2)}
+body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
+  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
+body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
+body.fs .soundrow{margin:2px 0 0;gap:8px}
+body.fs #audio-status{display:none}
+@media (orientation:landscape) and (max-height:560px){
+  /* Held sideways there is no room below the screen, so the pads flank it
+     the way a handheld does: pad under the left thumb, buttons under the right. */
+  body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
+    gap:6px;padding:4px 8px}
+  body.fs #pads,body.fs .padrow{display:contents}
+  body.fs .stick{order:1;width:124px;height:124px}
+  body.fs .stick .knob{width:54px;height:54px;margin:-27px 0 0 -27px}
+  body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 7 / 4));max-width:60vw;margin:0}
+  body.fs .acts{order:3}
+  body.fs .abtn{width:66px;height:66px}
+  body.fs .sbtn{width:66px;height:38px}
+  body.fs .soundrow{position:fixed;left:50%;bottom:2px;transform:translateX(-50%);
+    margin:0;z-index:5;font-size:10px}
+  body.fs #sound,body.fs #fs,body.fs #install{padding:6px 10px;min-height:32px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status" role="status">Loading…</div>
+  <div id="stage"><canvas id="cv" width="336" height="192"></canvas><div id="overlay"></div></div>
+  <div id="pads">
+    <div class="padrow">
+      <div class="stick" id="stick" role="application" aria-label="Flight stick">
+        <i class="ring" aria-hidden="true"></i>
+        <i class="knob" id="knob" aria-hidden="true"></i>
+        <i class="tick t-u" aria-hidden="true"></i><i class="tick t-d" aria-hidden="true"></i>
+        <i class="tick t-l" aria-hidden="true"></i><i class="tick t-r" aria-hidden="true"></i>
+      </div>
+      <div class="acts">
+        <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
+        <div class="btn abtn" id="turnbtn" data-k="TURN">TURN</div>
+        <div class="btn sbtn" id="hovbtn" data-k="HOLD">HOVER</div>
+        <div class="btn sbtn" id="scanbtn" data-k="SCAN">SCAN</div>
+        <div class="btn sbtn wide" data-k="MENU">MENU</div>
+      </div>
+    </div>
+  </div>
+  <div class="soundrow"><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="fs" type="button" aria-pressed="false">FULL SCREEN</button><button id="install" type="button" hidden>INSTALL</button><span id="audio-status">Tap a control to enable audio</span></div>
+</div>
+<script>
+"use strict";
+/* ============ one strip of country, seen sideways ============ */
+// The 1982 original put the whole rescue on a single horizontal strip: the post
+// on the left, the Bungeling frontier a little way along it, and four barracks
+// spaced out beyond. Nothing scrolls but sideways, and the ground is the ground
+// all the way across. That is kept. What is not kept is the instant flip: the
+// chopper's three positions are drawn through, not switched.
+let VW=336, VH=192;                      // game pixels; fit() reshapes them to the box
+const SCAN_H=24;                         // the strip along the top: counts, and the scanner
+const GROUND_Y=150;                      // the line the skids rest on, below the strip
+const CEIL_Y=8;                          // as high as the rotor will take you
+const WORLD=2520;                        // how far the country runs
+// The post office is at the far right of the strip and the four barracks are
+// away to the left of it, with the border fence between: you fly out to the
+// left and you come home to the right. It was built the other way round first,
+// from memory, and two accounts of the original agree it is this way.
+const POST_X=2342;                       // the landing pad, and home
+const FRONTIER_X=2090;                   // the border, marked by a fence
+const HUTS=[374,814,1234,1654];          // the four barracks, deepest first
+const HUT_W=46, HUT_H=30;
+const PER_HUT=16, HOSTAGES=PER_HUT*HUTS.length;   // sixteen apiece, sixty-four in all
+const CAPACITY=16;                       // and sixteen is all the chopper will hold
+
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+// One seed, one battlefield. Every test that matters can be replayed.
+function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math.imul(s^s>>>15,1|s);
+ t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ============ the chopper, drawn four times through its turn ============ */
+// The joystick had three positions - left, at you, right - and the machine drew
+// a picture for each. A picture for each is also what makes a turn read as a
+// turn instead of a flicker, so there are four here from nose-on to full
+// profile, and the fifth, sixth and seventh are those four mirrored. Nothing is
+// squashed or interpolated: every frame on the screen is a frame somebody drew.
+const CHOP_W=28, CHOP_H=12;
+const CHOP0=[                            // nose-on: you are looking down the barrel
+ "............................",
+ "............................",
+ "...........WWWWWW...........",
+ "..........WCCCCCCW..........",
+ ".........WCCCCCCCCW.........",
+ ".........WCCCCCCCCW.........",
+ ".........WWCCCCCCWW.........",
+ "..........WWWWWWWW..........",
+ "..........WWWWWWWW..........",
+ "...........WWWWWW...........",
+ "...........O....O...........",
+ "........OOOO....OOOO........"];
+const CHOP1=[                            // a quarter round: the canopy swings off centre
+ "............................",
+ "............................",
+ "..........WWWWWWWW..........",
+ ".........WWWCCCCCCC.........",
+ "......WWWWWWCCCCCCCW........",
+ "......WWWWWWCCCCCCCWW.......",
+ ".........WWWWCCCCCCW........",
+ ".........WWWWWWWWWWW........",
+ "..........WWWWWWWWW.........",
+ "..........WWWWWWWW..........",
+ "..........OO....OO..........",
+ ".......OOOOOOOOOOOOO........"];
+const CHOP2=[                            // most of the way: the boom is out behind him
+ "............................",
+ "..WWW.......................",
+ "..WWW.........WWWWWWW.......",
+ "..WWW........WWWWWCCCCC.....",
+ "..WWWWWWWWWWWWWWWCCCCCCC....",
+ "..WWWWWWWWWWWWWWWCCCCCCCC...",
+ "..WWW........WWWWWCCCCCC....",
+ "............WWWWWWWWWCCC....",
+ "............WWWWWWWWWWW.....",
+ ".............WWWWWWWWW......",
+ "..............OO....OO......",
+ "..........OOOOOOOOOOOO......"];
+const CHOP3=[                            // full profile, nose right, and away
+ "............................",
+ ".WWW........................",
+ ".WWW.........WWWWWWWW.......",
+ ".WWW........WWWWWWWWWCCCC...",
+ ".WWWWWWWWWWWWWWWWWWWCCCCCCC.",
+ ".WWWWWWWWWWWWWWWWWWCCCCCCCCC",
+ ".WWW.......WWWWWWWWWCCCCCCC.",
+ "...........WWWWWWWWWWWCCCC..",
+ "...........WWWWWWWWWWWWWW...",
+ "............WWWWWWWWWWWW....",
+ "..............OO....OO......",
+ "..........OOOOOOOOOOOOOOOO.."];
+const CHOP_TURN=[CHOP0,CHOP1,CHOP2,CHOP3];
+const CHOP_PAL={W:"#e6ecf5",C:"#49d8ff",O:"#ffc24a"};
+// Where the hub of the main rotor sits over each frame. Only the hub moves: the
+// disc is a horizontal circle and the eye is at its height, so it projects to
+// the same flat ellipse whichever way her nose is pointing. It was drawn
+// opening out as she came round to nose-on, on the theory that you would then
+// be looking into it - and on the screen that was a lasso hung round her.
+const ROTOR_R=17, ROTOR_TILT=.16;
+const ROTOR=[{hx:14,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},{hx:14,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},
+             {hx:17,hy:2,r:ROTOR_R,tilt:ROTOR_TILT},{hx:18,hy:2,r:ROTOR_R,tilt:ROTOR_TILT}];
+const TAIL_ROTOR=[null,null,{x:3.5,y:2.5,r:4},{x:2.5,y:2.5,r:4.5}];
+
+/* ============ the people you came for ============ */
+// Four frames of gait, not one pose slid along the ground: on the two passing
+// frames the legs close, one knee comes through, and the whole figure lifts a
+// pixel. A walk you can read is the difference between a man running for the
+// chopper and a decal being dragged towards it.
+const HOST_W=7, HOST_H=9;
+const HOST_WALK=[
+ ["..HHH..","..HHH..","SSSSSS.",".SSSSSS",".SSSSS.","..TTT..",".TT.TT.",".T...T.","TT...TT"],
+ ["..HHH..","..HHH..",".SSSSS.","SSSSSSS",".SSSSS.","..TTT..","..TTT..",".TT.T..","TT..T.."],
+ ["..HHH..","..HHH..",".SSSSSS","SSSSSS.",".SSSSS.","..TTT..",".TT.TT.",".T...T.","TT...TT"],
+ ["..HHH..","..HHH..",".SSSSS.","SSSSSSS",".SSSSS.","..TTT..","..TTT..","..T.TT.","..T..TT"]];
+const HOST_BOB=[0,-1,0,-1];              // the two passing frames ride a pixel high
+const HOST_WAVE=[                        // both arms up, then both arms out
+ ["S.HHH.S","S.HHH.S",".SSSSS.",".SSSSS.",".SSSSS.","..TTT..","..TTT..","..T.T..",".TT.TT."],
+ ["..HHH..","..HHH..","SSSSSSS","SSSSSSS",".SSSSS.","..TTT..","..TTT..","..T.T..",".TT.TT."]];
+const HOST_DUCK=[                        // flat on the sand while a shell goes over
+ [".......",".......","..HHH..","..HHH..","SSSSSSS",".SSSSS.",".TTTTT.","TT...TT","TT...TT"]];
+const HOST_PAL={H:"#e8b88a",S:"#f2efe4",T:"#3f4d73"};
+
+/* ============ what the Empire sent ============ */
+const TANK_W=14, TANK_H=6;
+const TANK_PIX=[
+ "..GGGGGG......",
+ ".GGGGGGGKKKKKK",
+ "GGGGGGGGGGGGG.",
+ "GGGGGGGGGGGGG.",
+ "KGKKGKKGKKGKK.",
+ ".KKKKKKKKKKK.."];
+const TANK_PAL={G:"#d8641e",K:"#3a2a1a"};
+const JET_W=16, JET_H=5;
+const JET_PIX=[
+ "...JJJ..........",
+ "....JJJJJJcJJ...",
+ "JJJJJJJJJJJJJJJJ",
+ ".JJJJJJJJJJJJJ..",
+ "....JJJJ........"];
+const JET_PAL={J:"#a8b2c8",c:"#49d8ff"};
+const DRONE_W=7, DRONE_H=7;
+const DRONE_PIX=[
+ "...M...",
+ ".MMMMM.",
+ "MMmMMmM",
+ "MMMMMMM",
+ "MMmMMmM",
+ ".MMMMM.",
+ "...M..."];
+const DRONE_PAL={M:"#c85adc",m:"#2a1030"};
+
+// Draws one of those pictures at any size, facing either way. Runs of the same
+// colour go out as one rectangle, which is what keeps this cheap at title size.
+function drawPix(map,pal,x,y,scale,flip){
+ const c=ctx, w=map[0].length;
+ for(let r=0;r<map.length;r++){
+  const row=map[r];
+  let i=0;
+  while(i<w){
+   const ch=row[i];
+   if(ch==="."||!pal[ch]){i++;continue;}
+   let j=i;while(j<w&&row[j]===ch)j++;
+   c.fillStyle=pal[ch];
+   c.fillRect(x+(flip?w-j:i)*scale,y+r*scale,(j-i)*scale,scale);
+   i=j;
+  }
+ }
+}
+
+/* ============ audio ============ */
+const SOUND={ctx:null,master:null,music:null,enabled:true};
+function audioLabel(){
+ const s=document.getElementById("audio-status");
+ if(s)s.textContent=!SOUND.enabled?"Muted":SOUND.ctx?"Audio on":"Tap a control to enable audio";
+}
+function unlockAudio(){
+ if(!SOUND.ctx){const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+  SOUND.ctx=new AC(); SOUND.master=SOUND.ctx.createGain();
+  SOUND.master.gain.value=SOUND.enabled?.18:0; SOUND.master.connect(SOUND.ctx.destination);
+  SOUND.music=SOUND.ctx.createGain();            // the score sits under the effects
+  SOUND.music.gain.value=.5; SOUND.music.connect(SOUND.master);}
+ if(SOUND.ctx.state==="suspended")SOUND.ctx.resume();
+ audioLabel();
+}
+function tone(hz,endHz,seconds,type="square",level=.3){
+ if(!SOUND.enabled||!SOUND.ctx)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain();
+ o.type=type;o.frequency.setValueAtTime(hz,c.currentTime);
+ if(endHz&&endHz!==hz)o.frequency.exponentialRampToValueAtTime(Math.max(20,endHz),c.currentTime+seconds);
+ g.gain.setValueAtTime(level,c.currentTime);
+ g.gain.exponentialRampToValueAtTime(.0008,c.currentTime+seconds);
+ o.connect(g);g.connect(SOUND.master);o.start();o.stop(c.currentTime+seconds);
+}
+const shotSound   =()=>tone(760,190,.09,"square",.30);
+const tankSound   =()=>tone(200,90,.16,"sawtooth",.30);
+const hitSound    =()=>tone(300,70,.18,"sawtooth",.38);
+const boomSound   =()=>tone(160,40,.34,"sawtooth",.45);
+const doorSound   =()=>tone(120,320,.26,"square",.34);
+const boardSound  =()=>tone(620,930,.10,"triangle",.32);
+const homeSound   =()=>{[659,784,988,1319].forEach((f,i)=>setTimeout(()=>tone(f,f,.18,"triangle",.42),i*110));};
+const landSound   =()=>tone(90,60,.09,"square",.20);
+const lostSound   =()=>tone(330,60,.55,"sawtooth",.40);
+const dieSound    =()=>tone(420,40,.9,"sawtooth",.5);
+const jetSound    =()=>tone(1400,600,.20,"sawtooth",.12);
+
+/* ============ music ============ */
+// The Apple II original had no score at all - the machine had one bit of sound
+// and Gorlin spent it on the rotor. Nothing here is transcribed from any port.
+// This is new writing in the idiom of the machines: a pulse lead, a triangle
+// bass and a noise drum, sequenced sixteenth by sixteenth and scheduled ahead of
+// the audio clock so a busy frame cannot make it stumble.
+const nf=m=>440*Math.pow(2,(m-69)/12);
+const PATTERNS={
+ // The attract screen: a slow rotor turning over, in D minor.
+ title:{tempo:.16,lead:[62,0,65,0,69,0,65,0,67,0,65,0,62,0,0,0],
+        bass:[38,0,45,0,38,0,45,0,43,0,50,0,43,0,41,0],drum:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0]},
+ // West of the line, on your own ground: open, unhurried.
+ home:{tempo:.135,lead:[74,0,77,0,81,0,77,74,72,0,74,0,0,0,0,0],
+       bass:[50,0,50,0,57,0,57,0,48,0,48,0,55,0,55,0],drum:[1,0,0,1,1,0,0,0,1,0,0,1,1,0,1,0]},
+ // Over the line: the same figure, tighter and a step lower.
+ field:{tempo:.115,lead:[69,71,72,0,76,0,72,71,69,0,67,0,69,0,0,0],
+        bass:[45,0,45,52,45,0,45,0,43,0,43,50,43,0,43,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1]},
+ // Something is shooting at you.
+ hot:{tempo:.098,lead:[64,65,64,0,60,0,64,0,67,66,64,0,60,0,59,0],
+      bass:[36,36,0,36,43,0,36,0,35,35,0,35,42,0,35,0],drum:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,1]},
+ // Skids on the pad at the post, with people getting out.
+ win:{tempo:.12,lead:[76,79,83,88,0,86,83,0,79,83,86,91,0,0,0,0],
+      bass:[52,0,52,0,57,0,57,0,59,0,59,0,52,0,0,0],drum:[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1]}
+};
+const MUSIC={on:true,cur:null,next:0,step:0,pat:null};
+function setMusic(on){MUSIC.on=on;if(!on){MUSIC.cur=null;MUSIC.pat=null;}
+ if(typeof savePrefs==="function")savePrefs();}
+function musicNote(hz,dur,type,level,when){
+ if(!SOUND.enabled||!SOUND.ctx||!SOUND.music||!MUSIC.on)return;
+ const c=SOUND.ctx,o=c.createOscillator(),g=c.createGain(),t=Math.max(when,c.currentTime);
+ o.type=type;o.frequency.setValueAtTime(hz,t);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(level,t+.01);
+ g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+ o.connect(g);g.connect(SOUND.music);o.start(t);o.stop(t+dur+.02);
+}
+function musicWanted(){
+ if(!MUSIC.on)return null;
+ if(G.phase==="menu")return "title";
+ if(G.phase==="cheer")return "win";
+ if(G.phase!=="play")return null;
+ if(G.threat>0)return "hot";
+ return G.h&&G.h.x<FRONTIER_X?"field":"home";
+}
+function musicForState(){
+ const want=musicWanted();
+ if(want===MUSIC.cur)return;
+ MUSIC.cur=want;MUSIC.pat=want?PATTERNS[want]:null;MUSIC.step=0;MUSIC.next=0;
+}
+function musicTick(){
+ if(!MUSIC.on||!SOUND.ctx||!SOUND.enabled||!MUSIC.pat)return;
+ const c=SOUND.ctx, p=MUSIC.pat;
+ // Each wave the Empire sends comes in a little faster than the last.
+ const step=Math.max(.06,p.tempo*(MUSIC.cur==="title"||MUSIC.cur==="win"?1:1-Math.min(.3,G.wave*.06)));
+ if(!MUSIC.next)MUSIC.next=c.currentTime+.06;
+ let guard=0;
+ while(MUSIC.next<c.currentTime+.3&&guard++<64){
+  const i=MUSIC.step%16, t=MUSIC.next;
+  if(p.lead[i])musicNote(nf(p.lead[i]),step*1.7,"square",.16,t);
+  if(p.bass[i])musicNote(nf(p.bass[i]),step*1.9,"triangle",.24,t);
+  if(p.drum[i])musicNote(120,step*.5,"sawtooth",.09,t);
+  MUSIC.next+=step;MUSIC.step++;
+ }
+}
+
+/* ============ what the browser remembers ============ */
+// Sound, music, the scanner and the best rescue survive a reload. Every call is
+// wrapped: private windows and blocked site data throw here rather than return
+// nothing, and a game that will not start because of a storage setting is worse
+// than a game that forgets.
+const PREF_KEY="choplifter.prefs";
+function loadPrefs(){
+ try{
+  const raw=localStorage.getItem(PREF_KEY);
+  if(!raw)return {};
+  const v=JSON.parse(raw);
+  return v&&typeof v==="object"?v:{};
+ }catch(e){return {};}
+}
+function savePrefs(){
+ try{
+  localStorage.setItem(PREF_KEY,JSON.stringify({sound:SOUND.enabled,music:MUSIC.on,
+   scan:G.scan,best:G.best,diff:G.diff}));
+ }catch(e){}
+}
+
+/* ============ the game ============ */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
+      ov=document.getElementById("overlay");
+const keys={};
+const START_CHOPS=3;
+const G={phase:"menu",diff:2,seed:1,rand:Math.random,
+ score:0,best:0,scan:true,endless:false,
+ h:null,huts:[],people:[],foes:[],shots:[],flak:[],puffs:[],homeFolk:[],trips:0,
+ rescued:0,lost:0,aboard:0,chops:START_CHOPS,
+ wave:0,waveT:0,threat:0,downT:0,cheerT:0,
+ cam:{x:0},msg:"",msgT:0,menu:null,menuTitle:"",t:0,uiT:0,ridge:null,best:0};
+const say=(t)=>{G.msg=t;G.msgT=2.6;};
+
+/* ---- how the chopper flies ----
+ * The original wanted a joystick and two buttons, and the reason is this: the
+ * stick flies her and the button turns her, and the two have nothing to do with
+ * each other. She can be going left with her nose pointed at you, which is how
+ * you shoot a tank you are flying over. Thrust used to come off the lean here,
+ * which made the turn a throttle and made the three positions a gear lever -
+ * wrong, and wrong in the one place the game is about.
+ *
+ * What is kept is that the turn is drawn. tf runs from -3 to +3, the frame on
+ * the screen is the one at round(|tf|), and the button sets a target the page
+ * walks her round to: a swing from one profile to the other is seven drawn
+ * pictures and a third of a second, not a flicker. */
+const TURN_RATE=9;                 // turn units a second
+const MAXV=98, ACCEL=165, AIRDRAG=1.6;
+const GRAV=64, LIFT=-172, DESCENT=72, VMAX=124;
+const HARD_LANDING=86;             // any faster onto the ground and it hurts
+const FOOT_NOSE=6, FOOT_SIDE=15;   // half the sand she covers, nose-on and side-on
+const GUN_COOL=.17, MAX_SHOTS=4;
+const BOARD_REACH=17;              // her half-width plus his: he climbs in at her side
+                                   // rather than walking into the middle of her
+const CALL_RANGE=280;              // and how far off he will see you set down
+
+// Right, at you, left, at you, and round again: the button walks that ring, as
+// button 1 did. She starts on the pad pointed at the border, which is west.
+const TURN_RING=[3,0,-3,0];
+function chopper(){
+ return {x:POST_X,y:GROUND_Y-CHOP_H,vx:0,vy:0,w:CHOP_W,h:CHOP_H,
+  tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0};
+}
+function turnHer(){
+ const h=G.h;
+ if(!h)return;
+ h.seq=((h.seq|0)+1)%TURN_RING.length;
+ h.want=TURN_RING[h.seq];
+}
+// Where the stick is: the pad under your thumb, plus whatever the keyboard is
+// holding, because a keyboard is a stick with four positions.
+const stick={x:0,y:0,held:false};
+function stickNow(){
+ let x=stick.held?stick.x:0, y=stick.held?stick.y:0;
+ if(keys.L)x-=1;
+ if(keys.R)x+=1;
+ if(keys.U)y-=1;
+ if(keys.D)y+=1;
+ return {x:clamp(x,-1,1),y:clamp(y,-1,1)};
+}
+function hutAt(x){return {x,y:GROUND_Y-HUT_H,w:HUT_W,h:HUT_H,hp:3,open:false,
+ left:PER_HUT,out:0,shake:0,fire:0};}
+
+function newGame(diff=2,seed){
+ G.diff=diff;
+ G.seed=(seed===undefined?(Math.random()*1e9)|0:seed)>>>0;
+ G.rand=rngFrom(G.seed);
+ G.ridge=makeRidge(rngFrom(G.seed^0x9e3779b9));
+ G.score=0;G.rescued=0;G.lost=0;G.aboard=0;G.chops=START_CHOPS;
+ G.wave=0;G.waveT=4;G.threat=0;G.downT=0;G.cheerT=0;G.t=0;
+ G.huts=HUTS.map(hutAt);
+ G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
+ G.h=chopper();
+ G.homeFolk=[];G.trips=0;
+ // One of them is already open and burning when you arrive, with its people out
+ // and running about in it. That is how the original starts you, and it is also
+ // the only part of the mission you did not cause.
+ const lit=G.huts[Math.floor(G.rand()*G.huts.length)];
+ lit.hp=0;lit.open=true;lit.fire=9;
+ for(let i=0;i<5;i++)emerge(lit);
+ for(const p of G.people){
+  p.panic=4+G.rand()*5;
+  p.x=clamp(lit.x+HUT_W/2-HOST_W/2+(G.rand()-.5)*80,8,WORLD-HOST_W-8);
+ }
+ G.cam.x=clamp(G.h.x+CHOP_W/2-VW/2,0,WORLD-VW);
+ G.phase="play";
+ hideOverlay();
+ say("One barrack is alight already. Sixty-four of ours. Bring them home.");
+ musicForState();
+}
+
+/* ---- the people ---- */
+let personId=0;
+function person(hut,x){
+ return {id:++personId,x,y:GROUND_Y-HOST_H,vx:0,st:"out",f:0,ft:0,face:1,
+  spot:x+HOST_W/2,rest:x+HOST_W/2,panic:0,wander:0,wait:0,duck:0,hut,bob:0};
+}
+function freePeople(){return G.people.filter(p=>p.st!=="dead"&&p.st!=="gone");}
+
+function openHut(hut){
+ if(hut.open)return;
+ hut.open=true;hut.shake=.5;doorSound();
+ say("A door is open. They are coming out.");
+}
+
+// A man leaves the hut, and from then on he is somebody's to lose. Each one
+// gets his own patch of sand to wait on, either side of the door and further
+// out each time: four men standing on the same pixel are one man, and a shell
+// that finds that pixel finds all four.
+function emerge(hut){
+ if(!hut.open||hut.left<=0)return;
+ if(freePeople().length>=24)return;          // only so many on their feet at once
+ hut.left--;hut.out++;
+ const p=person(hut,hut.x+HUT_W/2-HOST_W/2);
+ const side=hut.out%2?1:-1, rank=Math.floor((hut.out-1)/2);
+ p.spot=clamp(hut.x+HUT_W/2+side*(13+rank*9),8,WORLD-HOST_W-8);
+ p.rest=p.spot;
+ p.st="run";
+ G.people.push(p);
+}
+
+/* ---- what the Empire sends ---- */
+function tank(x,dir){return {k:"tank",x,y:GROUND_Y-TANK_H,w:TANK_W,h:TANK_H,
+ dir,sp:16+G.diff*4,cool:1.2+G.rand()*1.4,hp:1,f:0,ft:0};}
+function jet(x,dir,y){return {k:"jet",x,y,w:JET_W,h:JET_H,dir,
+ sp:78+G.diff*12,cool:.6+G.rand(),hp:1};}
+function drone(x,y){return {k:"drone",x,y,w:DRONE_W,h:DRONE_H,
+ sp:26+G.diff*5,hp:1,ph:G.rand()*6.28,cool:1.1+G.rand()*1.1};}
+
+// A wave tops the Empire's strength back up to what this far into the mission
+// is worth; it does not add to it. Adding to it is what it used to do, and
+// three minutes in there were forty-six of them alive on a strip of country
+// two thousand pixels long, which is not a harder game, it is a wall.
+const MOST_TANKS=7, MOST_JETS=4, MOST_MINES=3;
+function sendWave(){
+ G.wave++;
+ const d=G.diff, r=G.rand;
+ const live=k=>G.foes.filter(e=>e.k===k&&!e.dead).length;
+ const wantTanks=Math.min(MOST_TANKS,1+Math.floor((G.wave+d)/2));
+ for(let i=live("tank");i<wantTanks;i++){
+  // They come up out of the Empire's half, never out of your own - and never
+  // inside a barrack, which it could not then drive out of.
+  let x=80+r()*(FRONTIER_X-300);
+  for(const q of HUTS)
+   if(x+TANK_W>q-10&&x<q+HUT_W+10)x=(x<q?q-TANK_W-14:q+HUT_W+14);
+  G.foes.push(tank(clamp(x,10,FRONTIER_X-TANK_W-24),r()<.5?-1:1));
+ }
+ if(G.wave>=2){
+  const wantJets=Math.min(MOST_JETS,Math.floor((G.wave+d)/3));
+  for(let i=live("jet");i<wantJets;i++){
+   const fromRight=r()<.6;
+   G.foes.push(jet(fromRight?WORLD+20:-40,fromRight?-1:1,24+r()*70));
+  }
+ }
+ if(G.wave>=4&&d>=2){
+  const wantMines=Math.min(MOST_MINES,Math.floor((G.wave-2)/2));
+  for(let i=live("drone");i<wantMines;i++)
+   G.foes.push(drone(160+r()*(FRONTIER_X-400),30+r()*70));
+ }
+ G.waveT=Math.max(7,20-G.wave-d*1.5);
+}
+
+/* ---- bullets, shells and smoke ---- */
+function shoot(){
+ const h=G.h;
+ if(h.cool>0||G.shots.length>=MAX_SHOTS)return;
+ h.cool=GUN_COOL;
+ const a=Math.abs(h.tf), dir=h.tf<0?-1:1;
+ if(a>=2){                                    // in profile the gun fires level
+  const nx=dir>0?h.x+CHOP_W-3:h.x+1;
+  G.shots.push({x:nx,y:h.y+6,vx:dir*230,vy:0,w:3,h:2,mine:true});
+ }else{
+  // Nose-on is the tank attacking position, and it fires straight down. This
+  // had been pointing up at the jets, which is not what the original does and
+  // not what the stance is for: a jet comes at you level and you meet it level.
+  G.shots.push({x:h.x+CHOP_W/2-1,y:h.y+CHOP_H,vx:0,vy:250,w:2,h:3,mine:true});
+ }
+ shotSound();
+}
+function puff(x,y,n,hue){for(let i=0;i<n;i++)G.puffs.push({x,y,
+ vx:(G.rand()-.5)*70,vy:-G.rand()*60,t:.28+G.rand()*.35,hue:hue||"#ffc24a"});}
+
+/* ============ one frame of the war ============ */
+const RUN_SPEED=46, SHELL_G=190;
+const TANK_STANDOFF=130;   // how close a tank will come before it backs off
+const MINE_GUNS_ON=4;      // the trip on which the air mines start shooting too
+function addScore(n){
+ G.score+=n;
+ if(G.score>G.best){G.best=G.score;savePrefs();}
+}
+function board(p){
+ p.st="gone";G.aboard++;boardSound();
+ if(G.aboard>=CAPACITY)say("She is full. Sixteen aboard — get them home.");
+}
+function killPerson(p,why){
+ if(p.st==="dead"||p.st==="gone")return;
+ p.st="dead";p.dt=1.2;G.lost++;lostSound();
+ puff(p.x+HOST_W/2,p.y+HOST_H/2,5,"#e8b88a");
+ if(why)say(why);
+}
+function damageChopper(why){
+ const h=G.h;
+ if(G.downT>0)return;
+ h.hp--;boomSound();G.threat=3;
+ puff(h.x+CHOP_W/2,h.y+CHOP_H/2,8,"#ff8c42");
+ if(h.hp<=0)crash();
+ else say(why?("Hit — "+why+". "+h.hp+" left in her."):("Hit. "+h.hp+" left in her."));
+}
+function crash(){
+ const h=G.h;
+ dieSound();
+ puff(h.x+CHOP_W/2,h.y+CHOP_H/2,22,"#ff6a3c");
+ G.lost+=G.aboard;                          // everyone aboard goes down with her
+ const carried=G.aboard;G.aboard=0;
+ G.chops--;G.downT=2.4;
+ say(carried?("She is down, and "+carried+" with her."):"She is down.");
+}
+function respawn(){
+ const keep=G.chops;
+ G.h=chopper();G.h.hp=3;
+ G.chops=keep;
+ G.flak=[];G.shots=[];
+ say("A fresh machine on the pad. "+G.chops+" left in the hangar.");
+}
+
+// Everything the tanks and the jets throw at you, and what it lands on.
+function flakStep(dt){
+ for(const b of G.flak){
+  b.vy+=(b.g||0)*dt;
+  b.x+=b.vx*dt;b.y+=b.vy*dt;
+  if(b.y>=GROUND_Y-2){blast(b.x,GROUND_Y-2,b.big);b.dead=true;continue;}
+  if(b.x<-40||b.x>WORLD+40||b.y<-40){b.dead=true;continue;}
+  const h=G.h;
+  if(G.downT<=0&&overlap(b,{x:h.x+3,y:h.y+2,w:CHOP_W-6,h:CHOP_H-4})){
+   b.dead=true;damageChopper(b.k==="jet"?"a cannon round":"a tank shell");continue;}
+  for(const p of G.people){
+   if(p.st==="dead"||p.st==="gone")continue;
+   if(overlap(b,{x:p.x,y:p.y,w:HOST_W,h:HOST_H})){b.dead=true;killPerson(p,"They shot one of ours.");break;}
+  }
+ }
+ G.flak=G.flak.filter(b=>!b.dead);
+}
+// A shell into the sand throws everybody near it flat, and kills whoever it found.
+function blast(x,y,big){
+ puff(x,y,big?10:6,"#ffd27f");hitSound();
+ // They wait nine pixels apart, so a kill radius wider than that turns one
+ // shell into three funerals and a barrack empties faster than you can fly.
+ // A shell kills the man it lands on and frightens the row.
+ const kill=big?7:5, hear=big?68:46;
+ for(const p of G.people){
+  if(p.st==="dead"||p.st==="gone")continue;
+  const d=Math.abs(p.x+HOST_W/2-x);
+  if(d<kill)killPerson(p,"They shot one of ours.");
+  else if(d<hear)p.duck=Math.max(p.duck,.7);
+ }
+}
+
+function chopperStep(dt){
+ const h=G.h, s=stickNow();
+ h.cool=Math.max(0,h.cool-dt);
+ // The rotor never stops while she is alive, and that is what tells you so.
+ h.rotor=(h.rotor+dt*26)%(Math.PI*2);
+ // Turning. She walks round to whatever the button last asked for, and she does
+ // it whatever the stick is doing - which is the point of having both.
+ if(h.tf!==h.want){
+  const step=clamp(h.want-h.tf,-TURN_RATE*dt,TURN_RATE*dt);
+  h.tf=Math.abs(h.want-h.tf)<=Math.abs(step)?h.want:h.tf+step;
+ }
+ // Flying. How far the stick is pushed is how hard she goes.
+ const target=h.landed?0:MAXV*s.x;
+ h.vx+=clamp(target-h.vx,-ACCEL*dt,ACCEL*dt);
+ if(Math.abs(s.x)<.06)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
+ // Down is a rate, not a shove. Pushing her at the ground used to reach the
+ // falling speed in half a second, so every landing made on the button was a
+ // heavy one and the only safe way down was to let go and catch her - which is
+ // exactly backwards. Held, the collective settles her at a rate she can be put
+ // down at; let go of everything and she falls, and a fall still hurts.
+ let ay=GRAV;
+ if(s.y<-.15)ay+=LIFT*Math.min(1,-s.y);
+ else if(s.y>.15)ay=(DESCENT*Math.min(1,s.y)-h.vy)*6;
+ else if(keys.HOLD&&!h.landed)ay=-h.vy*7;
+ h.vy=clamp(h.vy+ay*dt,-VMAX,VMAX);
+ h.x=clamp(h.x+h.vx*dt,0,WORLD-CHOP_W);
+ h.y+=h.vy*dt;
+ if(h.y<CEIL_Y){h.y=CEIL_Y;h.vy=0;}
+ const floor=GROUND_Y-CHOP_H;
+ if(h.y>=floor){
+  const down=h.vy;
+  h.y=floor;
+  if(!h.landed){
+   landSound();
+   // Anyone under the skids when she comes down is under the skids - and how
+   // much of her is on the sand depends on which way she is pointing. Nose-on
+   // is the narrowest she gets, which is why the tank attacking position is
+   // also the one to land in when there are people about.
+   const foot=FOOT_NOSE+Math.abs(h.tf)/3*(FOOT_SIDE-FOOT_NOSE);
+   const mid=h.x+CHOP_W/2;
+   for(const p of G.people){
+    if(p.st==="dead"||p.st==="gone")continue;
+    if(Math.abs(p.x+HOST_W/2-mid)<foot+HOST_W/2)
+     killPerson(p,"You set her down on one of them.");
+   }
+   if(down>HARD_LANDING)damageChopper("a heavy landing");
+  }
+  h.vy=0;h.landed=true;
+  h.vx-=h.vx*Math.min(1,7*dt);
+  if(Math.abs(h.vx)<4)h.vx=0;
+ }else h.landed=false;
+ // Home. Skids on the pad and they file out, one every fifth of a second.
+ if(h.landed&&Math.abs(h.x+CHOP_W/2-(POST_X+CHOP_W/2))<44&&G.aboard>0){
+  h.unload=(h.unload||0)+dt;
+  while(h.unload>=.18&&G.aboard>0){
+   h.unload-=.18;G.aboard--;G.rescued++;addScore(100);boardSound();
+   // "As they exit, each hostage will wave and salute you." So they do, and
+   // then they walk off into the building under their own steam.
+   if(G.homeFolk.length<20)
+    G.homeFolk.push({x:h.x+CHOP_W/2-HOST_W/2,ph:"wave",t:.8,f:0,wf:0,ft:0,gait:0});
+   if(G.aboard===0){G.trips++;homeSound();say(G.rescued+" home and dry.");}
+  }
+ }else h.unload=0;
+}
+
+function personStep(p,dt){
+ if(p.st==="dead"){p.dt-=dt;if(p.dt<=0)p.st="gone";return;}
+ if(p.st==="gone")return;
+ const h=G.h;
+ p.ft+=dt;
+ if(p.duck>0){p.duck-=dt;p.vx=0;return;}
+ const open=G.downT<=0&&h.landed&&G.aboard<CAPACITY;
+ const mid=h.x+CHOP_W/2, me=p.x+HOST_W/2;
+ // Straight out of a burning barrack nobody walks to an allotted place. They
+ // run about until it wears off, and then they stand where they were going to.
+ if(p.panic>0){
+  p.panic-=dt;
+  p.wander=(p.wander||0)-dt;
+  if(p.wander<=0){
+   p.wander=.45+Math.random()*.55;
+   p.spot=clamp(p.rest+(Math.random()-.5)*96,8,WORLD-HOST_W-8);
+  }
+  if(p.panic<=0)p.spot=p.rest;
+ }
+ const called=open&&Math.abs(mid-me)<CALL_RANGE;
+ // Called, he runs for the chopper. Not called, he walks clear of the door to
+ // the patch of sand that is his and stands on it - on it, not within a step or
+ // two of it, because two men a step apart are one man with four legs.
+ if(!called&&Math.abs(p.spot-me)<=2){p.x=p.spot-HOST_W/2;p.vx=0;p.st="wait";}
+ else{
+  const d=(called?mid:p.spot)-me;
+  if(called&&Math.abs(d)<=BOARD_REACH){board(p);return;}
+  p.face=d<0?-1:1;p.vx=p.face*RUN_SPEED*(called?1:.5);p.st="run";
+ }
+ p.x=clamp(p.x+p.vx*dt,0,WORLD-HOST_W);
+ if(p.vx){
+  // A frame of the gait per six pixels travelled, so the legs are tied to the
+  // ground rather than to the clock: slowed down he does not moonwalk.
+  p.gait=(p.gait||0)+Math.abs(p.vx)*dt;
+  p.f=Math.floor(p.gait/6)%4;
+ }else{
+  p.f=0;p.wf=Math.floor(p.ft*3)%2;         // standing about, he waves at you
+ }
+}
+
+// The line is what it is for. Nothing the Empire owns shoots across it, so the
+// run home is a run home: a tank standing at the frontier used to be able to
+// shell the pad from three hundred pixels, and being destroyed on your own
+// concrete with sixteen aboard is not a difficulty, it is a tax.
+const overTheLine=x=>x<FRONTIER_X+12;
+function foeStep(e,dt){
+ const h=G.h, alive=G.downT<=0&&overTheLine(h.x+CHOP_W/2);
+ if(e.k==="tank"){
+  const dx=h.x+CHOP_W/2-(e.x+TANK_W/2), ad=Math.abs(dx);
+  const towards=Math.sign(dx)||1;
+  // It is artillery, not a battering ram. Inside its stand-off it backs away
+  // and keeps shelling; a tank that drives onto the pad and fires at point
+  // blank ends a loaded chopper in five seconds and there is nothing to do
+  // about it.
+  let drive=e.dir;
+  if(alive&&ad<420){
+   e.dir=towards;                                  // the barrel follows her
+   drive=ad>TANK_STANDOFF+80?towards:(ad<TANK_STANDOFF?-towards:0);
+  }
+  const nx=e.x+drive*e.sp*dt;
+  // It will not drive through a barrack, and it will not cross the line.
+  if(!G.huts.some(q=>nx+TANK_W>q.x-5&&nx<q.x+HUT_W+5))e.x=nx;
+  if(e.x>FRONTIER_X-TANK_W-20){e.x=FRONTIER_X-TANK_W-20;e.dir=-1;}
+  if(e.x<8){e.x=8;e.dir=1;}
+  if(drive){
+   e.ft+=dt;e.f=Math.floor(e.ft*10)%2;
+   // "Tanks which amble along and kill hostages." They do it by driving over
+   // them, and nothing about a tank stops for a man.
+   for(const p of G.people){
+    if(p.st==="dead"||p.st==="gone")continue;
+    if(p.x+HOST_W>e.x+1&&p.x<e.x+TANK_W-1)killPerson(p,"A tank went over one of ours.");
+   }
+  }
+  if(e.flash>0)e.flash-=dt;
+  e.cool-=dt;
+  if(alive&&ad<320&&e.cool<=0){
+   e.cool=2.9+G.rand()*2.1-G.diff*.26;
+   // Not a marksman: the further off you are the worse it lays, which is what
+   // makes standing off from a barrack a decision rather than a formality.
+   const spread=(G.rand()-.5)*(12+ad*(.16-G.diff*.02));
+   const T=1.05, fx=e.x+TANK_W/2+e.dir*7, fy=e.y;
+   G.flak.push({k:"tank",x:fx,y:fy,w:3,h:3,g:SHELL_G,big:true,
+    vx:(h.x+CHOP_W/2+spread-fx)/T,vy:(h.y+CHOP_H/2-fy)/T-.5*SHELL_G*T});
+   e.flash=.13;                                    // so you can see where it came from
+   tankSound();G.threat=3.2;
+  }
+ }else if(e.k==="jet"){
+  e.x+=e.dir*e.sp*dt;
+  if(e.x<-120||e.x>WORLD+120){e.dead=true;return;}
+  e.cool-=dt;
+  const dx=(h.x+CHOP_W/2)-(e.x+JET_W/2);
+  if(alive&&e.cool<=0&&Math.sign(dx)===e.dir&&Math.abs(dx)<220&&Math.abs(h.y-e.y)<26){
+   e.cool=.85;
+   G.flak.push({k:"jet",x:e.x+(e.dir>0?JET_W:0),y:e.y+2,w:4,h:2,g:0,vx:e.dir*210,vy:0});
+   jetSound();G.threat=3.2;
+  }
+ }else{
+  // An air mine: slow, patient, and it only has to touch you once. It will not
+  // follow you over the line either.
+  const dx=(alive?h.x+CHOP_W/2:Math.min(h.x+CHOP_W/2,FRONTIER_X-40))-(e.x+DRONE_W/2),
+        dy=(alive?h.y+CHOP_H/2:60)-(e.y+DRONE_H/2);
+  const d=Math.hypot(dx,dy)||1;
+  e.ph+=dt*4;
+  e.x+=(dx/d)*e.sp*dt;e.y+=(dy/d)*e.sp*dt+Math.sin(e.ph)*8*dt;
+  e.y=clamp(e.y,4,GROUND_Y-DRONE_H);
+  e.x=Math.min(e.x,FRONTIER_X-8);
+  // On the fourth trip they stop being only a thing to avoid.
+  if(G.trips>=MINE_GUNS_ON){
+   e.cool-=dt;
+   const d3=Math.hypot(dx,dy)||1;
+   if(alive&&e.cool<=0&&d3<180){
+    e.cool=2.3+G.rand()*1.5;
+    G.flak.push({k:"mine",x:e.x+DRONE_W/2,y:e.y+DRONE_H/2,w:3,h:3,g:0,
+     vx:dx/d3*160,vy:dy/d3*160});
+    jetSound();G.threat=3.2;
+   }
+  }
+  if(alive&&overlap({x:e.x,y:e.y,w:DRONE_W,h:DRONE_H},
+     {x:h.x+3,y:h.y+2,w:CHOP_W-6,h:CHOP_H-4})){
+   e.dead=true;damageChopper("an air mine");}
+ }
+}
+
+function shotsStep(dt){
+ for(const b of G.shots){
+  b.x+=b.vx*dt;b.y+=b.vy*dt;
+  if(b.x<G.cam.x-30||b.x>G.cam.x+VW+30||b.y<-10||b.y>GROUND_Y){b.dead=true;continue;}
+  for(const hut of G.huts){
+   if(hut.open)continue;
+   if(overlap(b,hut)){
+    b.dead=true;hut.hp--;hut.shake=.28;hitSound();
+    puff(b.x,b.y,4,"#ffd27f");
+    if(hut.hp<=0)openHut(hut);
+    break;}
+  }
+  if(b.dead)continue;
+  for(const e of G.foes){
+   if(e.dead)continue;
+   const box={x:e.x,y:e.y,w:e.k==="tank"?TANK_W:e.k==="jet"?JET_W:DRONE_W,
+              h:e.k==="tank"?TANK_H:e.k==="jet"?JET_H:DRONE_H};
+   if(overlap(b,box)){
+    b.dead=true;e.dead=true;boomSound();
+    puff(e.x+box.w/2,e.y+box.h/2,8,"#ff8c42");
+    addScore(e.k==="tank"?50:e.k==="jet"?80:120);
+    break;}
+  }
+  if(b.dead)continue;
+  // Your own gun does not know the difference between them and us.
+  for(const p of G.people){
+   if(p.st==="dead"||p.st==="gone")continue;
+   if(overlap(b,{x:p.x,y:p.y,w:HOST_W,h:HOST_H})){
+    b.dead=true;killPerson(p,"That one was ours.");break;}
+  }
+ }
+ G.shots=G.shots.filter(b=>!b.dead);
+}
+
+function missionOver(){
+ G.phase="over";
+ // What the post signals back when the last of them is accounted for.
+ const bonus=G.rescued*25+(G.rescued===HOSTAGES?2000:0);
+ addScore(bonus);
+ gameOverMenu();
+}
+function stepGame(dt){
+ G.t+=dt;
+ if(G.msgT>0)G.msgT-=dt;
+ if(G.threat>0)G.threat-=dt;
+ if(G.phase!=="play")return;
+ if(G.downT>0){
+  G.downT-=dt;
+  if(G.downT<=0){
+   if(G.endless&&G.chops<1)G.chops=1;
+   if(G.chops>0)respawn();
+   else{G.phase="over";gameOverMenu();return;}
+  }
+ }else chopperStep(dt);
+ for(const f of G.homeFolk){
+  f.ft+=dt;
+  if(f.ph==="wave"){
+   f.t-=dt;f.wf=Math.floor(f.ft*4)%2;
+   if(f.t<=0)f.ph="walk";
+  }else{
+   f.x+=38*dt;f.gait+=38*dt;f.f=Math.floor(f.gait/6)%4;
+  }
+ }
+ G.homeFolk=G.homeFolk.filter(f=>f.x<POST_X+CHOP_W/2+66);
+ for(const hut of G.huts){
+  if(hut.shake>0)hut.shake-=dt;
+  if(hut.fire>0)hut.fire-=dt;
+  if(hut.open&&hut.left>0){
+   hut.t=(hut.t||0)+dt;
+   if(hut.t>=.45){hut.t-=.45;emerge(hut);}
+  }
+ }
+ for(const p of G.people)personStep(p,dt);
+ G.people=G.people.filter(p=>p.st!=="gone");
+ for(const e of G.foes)foeStep(e,dt);
+ G.foes=G.foes.filter(e=>!e.dead);
+ shotsStep(dt);flakStep(dt);
+ for(const s of G.puffs){s.t-=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=120*dt;}
+ G.puffs=G.puffs.filter(s=>s.t>0);
+ G.waveT-=dt;
+ if(G.waveT<=0)sendWave();
+ // The camera looks the way she is going. It used to look the way she was
+ // leaning, which was the same thing until the turn stopped being the throttle.
+ const lead=clamp(G.h.vx/MAXV,-1,1)*56;
+ const want=clamp(G.h.x+CHOP_W/2-VW/2+lead,0,WORLD-VW);
+ G.cam.x+=(want-G.cam.x)*Math.min(1,dt*4.5);
+ if(G.rescued+G.lost>=HOSTAGES)missionOver();
+ musicForState();
+}
+
+/* ============ input ============ */
+function press(k){
+ unlockAudio();
+ if(k==="MENU"){toggleMenu();return;}
+ if(G.menu){
+  if(k==="U"||k==="L")moveMenu(-1);
+  else if(k==="D"||k==="R")moveMenu(1);
+  else if(k==="FIRE"||k==="TURN")chooseMenu();
+  return;
+ }
+ if(k==="SCAN"){G.scan=!G.scan;savePrefs();
+  say(G.scan?"Scanner on.":"Scanner off — more country on screen.");fit(true);return;}
+ if(G.phase!=="play"||G.downT>0)return;
+ if(k==="FIRE")shoot();
+ else if(k==="TURN")turnHer();
+}
+function toggleMenu(){
+ if(G.menu&&G.phase==="paused"){G.phase="play";G.menu=null;hideOverlay();return;}
+ if(G.phase==="play"){G.phase="paused";pauseMenu();}
+}
+const KMAP={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R",w:"U",s:"D",a:"L",d:"R",
+ " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"TURN",e:"TURN",Shift:"HOLD",h:"HOLD",r:"SCAN",
+ Escape:"MENU",p:"MENU"};
+function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}
+addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
+ if(!keys[k])press(k);
+ keys[k]=true;});
+addEventListener("keyup",e=>{const k=keyOf(e);if(k)keys[k]=false;});
+function clearKeys(){for(const k of Object.keys(keys))delete keys[k];
+ releaseStick();
+ document.querySelectorAll(".btn.on").forEach(el=>el.classList.remove("on"));}
+addEventListener("blur",clearKeys);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){clearKeys();if(G.phase==="play"){G.phase="paused";pauseMenu();}
+  if(SOUND.master)SOUND.master.gain.value=0;}
+ else if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;});
+const held=new Map();                       // pointer id -> the release for that button
+function bindKey(el,k){
+ const dn=e=>{e.preventDefault();
+  try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}
+  el.classList.add("on");keys[k]=true;held.set(e.pointerId,up);press(k);};
+ const up=e=>{if(e&&e.preventDefault)e.preventDefault();
+  if(e&&e.pointerId!==undefined)held.delete(e.pointerId);
+  el.classList.remove("on");keys[k]=false;};
+ el.addEventListener("pointerdown",dn);el.addEventListener("pointerup",up);
+ el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+}
+// A finger that slides off a button, or a gesture the browser swallows, must still
+// let go of it - otherwise the chopper keeps flying after you have stopped.
+for(const ev of ["pointerup","pointercancel"])
+ document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
+document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
+
+/* ---- the stick ----
+ * A thumb pad you drag, not four buttons you press: how far out of the middle
+ * it is, is how hard she goes. It takes the pointer captive on the way down, so
+ * a thumb that slides off the pad in the middle of a dive keeps flying her
+ * instead of letting go; and it is touch-action none, so dragging it is never a
+ * scroll, a pull-to-refresh or the beginning of a pinch.
+ */
+const stickEl=document.getElementById("stick"), knobEl=document.getElementById("knob");
+let stickId=null;
+function stickRadius(){
+ const r=stickEl?stickEl.getBoundingClientRect():null;
+ return r&&r.width?r.width/2-14:52;
+}
+function moveStick(e){
+ if(!stickEl)return;
+ const r=stickEl.getBoundingClientRect();
+ const R=stickRadius();
+ let dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+ const d=Math.hypot(dx,dy);
+ if(d>R){dx=dx/d*R;dy=dy/d*R;}
+ stick.x=clamp(dx/R,-1,1);stick.y=clamp(dy/R,-1,1);
+ stick.held=true;
+ paintStick(dx,dy);
+}
+function paintStick(dx,dy){
+ if(knobEl)knobEl.style.transform="translate("+Math.round(dx)+"px,"+Math.round(dy)+"px)";
+}
+function releaseStick(){
+ stickId=null;stick.x=0;stick.y=0;stick.held=false;
+ if(stickEl)stickEl.classList.remove("on");
+ paintStick(0,0);
+}
+if(stickEl){
+ stickEl.addEventListener("pointerdown",e=>{
+  e.preventDefault();unlockAudio();
+  try{stickEl.setPointerCapture(e.pointerId);}catch(err){}
+  stickId=e.pointerId;stickEl.classList.add("on");
+  held.set(e.pointerId,releaseStick);
+  moveStick(e);
+ });
+ stickEl.addEventListener("pointermove",e=>{
+  if(stickId!==e.pointerId)return;
+  e.preventDefault();moveStick(e);
+ });
+ for(const ev of ["pointerup","pointercancel","lostpointercapture"])
+  stickEl.addEventListener(ev,e=>{
+   if(stickId!==e.pointerId)return;
+   held.delete(e.pointerId);releaseStick();
+  });
+}
+document.getElementById("sound").addEventListener("click",()=>{
+ SOUND.enabled=!SOUND.enabled;unlockAudio();
+ if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
+ const b=document.getElementById("sound");
+ b.textContent=SOUND.enabled?"SOUND ON":"SOUND OFF";b.setAttribute("aria-pressed",String(SOUND.enabled));
+ audioLabel();savePrefs();});
+document.addEventListener("pointerdown",unlockAudio,{capture:true});
+// A held button is an input, not a text selection - refuse both gestures outright.
+const inUI=e=>!!(e.target&&e.target.closest&&e.target.closest("#wrap"));
+document.addEventListener("contextmenu",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("selectstart",e=>{if(inUI(e))e.preventDefault();});
+document.addEventListener("dragstart",e=>{if(inUI(e))e.preventDefault();});
+
+/* ============ full screen ============ */
+// iPhone Safari has no element fullscreen, so the layout class does the isolating
+// work on its own and the API call is a best-effort extra where it is supported.
+const fsBtn=document.getElementById("fs");
+const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function setFocus(on){
+ document.body.classList.toggle("fs",on);
+ fsBtn.textContent=on?"✕ EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.setAttribute("aria-pressed",String(on));
+}
+function toggleFullscreen(){
+ const on=!document.body.classList.contains("fs"), el=document.documentElement;
+ if(on){const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req)try{Promise.resolve(req.call(el)).catch(()=>{});}catch(e){}}
+ else{const ex=document.exitFullscreen||document.webkitExitFullscreen;
+  if(ex&&nativeFS())try{Promise.resolve(ex.call(document)).catch(()=>{});}catch(e){}}
+ setFocus(on);clearKeys();fit(true);
+ say(on?"Full screen. EXIT FULL SCREEN puts the page back.":"Back to the page.");
+}
+fsBtn.addEventListener("click",toggleFullscreen);
+for(const ev of ["fullscreenchange","webkitfullscreenchange"])
+ document.addEventListener(ev,()=>{if(!nativeFS())setFocus(false);});
+
+/* ============ installing it ============ */
+const installBtn=document.getElementById("install");
+let installPrompt=null;
+function showInstall(on){if(installBtn)installBtn.hidden=!on;}
+function isIOS(){
+ try{const ua=navigator.userAgent||"";
+  return /iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);}
+ catch(e){return false;}
+}
+addEventListener("beforeinstallprompt",e=>{
+ if(e&&e.preventDefault)e.preventDefault();
+ installPrompt=e;showInstall(true);
+});
+addEventListener("appinstalled",()=>{installPrompt=null;showInstall(false);savePrefs();});
+if(installBtn)installBtn.addEventListener("click",()=>{
+ if(installPrompt){installPrompt.prompt();installPrompt=null;showInstall(false);return;}
+ showMenu("Play without the browser",
+  "iOS has no full-screen switch for a web page, so the browser's bars stay over the sky. "+
+  "Installing the game removes them: Share ▸ Add to Home Screen, then open Choplifter from the icon.",
+  [{label:"Back",fn:()=>{if(G.phase==="menu")mainMenu();else{G.phase==="paused"?pauseMenu():hideOverlay();}}}]);
+});
+if(!isStandaloneApp()&&isIOS())showInstall(true);
+
+/* ============ what the buttons say ============ */
+// The pad is only as clear as its labels: the fire button says where the gun is
+// pointing, which is the whole of the three-position rule in two characters.
+const fireBtn=document.getElementById("firebtn"), turnBtn=document.getElementById("turnbtn"),
+      scanBtn=document.getElementById("scanbtn"), hovBtn=document.getElementById("hovbtn");
+function fireLabel(){
+ if(!G.h||G.phase!=="play")return "FIRE";
+ const a=Math.abs(G.h.tf);
+ if(a<2)return "FIRE ▼";                 // the tank attacking position
+ return G.h.tf<0?"◀ FIRE":"FIRE ▶";
+}
+const STANCE={"-3":"◀ side","0":"at you","3":"side ▶"};
+function label(el,text,caption){
+ if(!el||el.dataset.lbl===text)return;
+ el.dataset.lbl=text;
+ el.innerHTML=text+(caption?"<small>"+caption+"</small>":"");
+}
+function updatePads(){
+ label(fireBtn,fireLabel(),Math.abs(G.h?G.h.tf:3)<2?"tanks":"level");
+ label(turnBtn,"TURN",G.h?(STANCE[String(G.h.want)]||"position"):"position");
+ label(scanBtn,"SCAN","");
+ label(hovBtn,"HOVER","");
+ if(scanBtn&&scanBtn.classList)scanBtn.classList.toggle("lit",!!G.scan);
+ if(hovBtn&&hovBtn.classList)hovBtn.classList.toggle("lit",!!keys.HOLD);
+ if(turnBtn&&turnBtn.classList)turnBtn.classList.toggle("lit",!!(G.h&&Math.abs(G.h.tf)<.4));
+ // On a keyboard the stick is the arrow keys, and the knob has to say so or
+ // nothing on the pad moves when the game does.
+ if(!stick.held&&knobEl){
+  const n=stickNow(), R=stickRadius();
+  paintStick(n.x*R,n.y*R);
+  if(stickEl)stickEl.classList.toggle("on",!!(n.x||n.y));
+ }
+}
+
+/* ============ menus ============ */
+function showMenu(title,sub,items,tip,grid,splash){
+ G.menu={items,sel:0};
+ ov.classList.toggle("splash",!!splash);
+ ov.classList.toggle("card",!!(splash&&title));
+ G.menuTitle=title||"";
+ const gcls=grid===true?"diffgrid":grid?String(grid):"";
+ ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
+  (gcls?`<div class="${gcls}">`:"")+
+  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`).join("")+
+  (gcls?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
+ ov.classList.remove("hidden");
+}
+function hideOverlay(){ov.classList.add("hidden");G.menu=null;G.menuTitle="";}
+function moveMenu(d){
+ const m=G.menu;m.sel=(m.sel+d+m.items.length)%m.items.length;
+ ov.querySelectorAll(".menuitem").forEach((el,i)=>el.classList.toggle("sel",i===m.sel));
+}
+function chooseMenu(){const m=G.menu;if(m&&m.items[m.sel])m.items[m.sel].fn();}
+ov.addEventListener("click",e=>{
+ const b=e.target.closest?e.target.closest(".menuitem"):null;
+ if(!b||!G.menu)return;
+ G.menu.sel=+b.dataset.i;chooseMenu();});
+function mainMenu(){
+ G.phase="menu";G.h=null;G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
+ G.huts=HUTS.map(hutAt);G.aboard=0;G.downT=0;
+ showMenu("","",
+  [{label:"Fly the rescue",fn:diffMenu},
+   {label:"Endless machines: "+(G.endless?"ON":"off"),small:true,
+    fn:()=>{G.endless=!G.endless;savePrefs();mainMenu();}},
+   {label:"How to fly it",fn:()=>helpMenu(false)}],
+  G.endless?"Endless machines: a crash costs you the people aboard, never the mission — and never a high score.":
+   "After Choplifter, Brøderbund, 1982. The machine came into the country in crates marked as mail sorting equipment, which is why home is a post office.",
+  false,true);
+}
+function diffMenu(){
+ const names=["Quiet","Busy","Crowded","Swarming"];
+ showMenu("How hard are they looking?",
+  "The original had no difficulty switch — the Empire simply kept sending more. This picks "+
+  "how much it sends to begin with; it builds either way.",
+  names.map((n,i)=>({label:n,fn:()=>{G.diff=i+1;savePrefs();newGame(i+1);}})),
+  "Sixty-four hostages in four barracks, sixteen to a machine. Every one you leave out there "+
+  "is one the Empire keeps.",
+  true,true);
+}
+function helpMenu(back){
+ showMenu("A stick and two buttons",
+  "The stick flies her: push it and she goes, and how far you push it is how hard. Up lifts, "+
+  "down sets her down at a rate she can land at, HOVER holds the height you are at. On a "+
+  "keyboard the arrows are the stick.",
+  [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
+  "TURN points her, and it has nothing to do with where she is going: side, at you, other side, "+
+  "at you, round again. In profile the gun fires level, which is how a jet is met and how a "+
+  "barrack door is taken off. Pointed at you she is in the tank attacking position and the gun "+
+  "fires straight down — and she is also at her narrowest, which is the way to set her down "+
+  "among people. Shoot a barrack until the door goes, land near them, and they run for you; "+
+  "sixteen is all she holds. Fly east over the fence and put her down on the pad at the post "+
+  "office to let them out. Your own gun and your own skids will kill them as surely as a tank "+
+  "will. SCAN is the strip along the top: the whole country at once.");
+}
+function pauseMenu(){
+ showMenu("Paused","Home "+G.rescued+" · lost "+G.lost+" · aboard "+G.aboard+" · "+G.score+
+  " points · "+(G.endless?"endless":G.chops+" left")+" machines · music "+(MUSIC.on?"on":"off"),
+  [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
+   {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
+   {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
+   {label:"Controls",fn:()=>helpMenu(true)},
+   {label:"Scanner on/off",fn:()=>{G.scan=!G.scan;savePrefs();fit(true);pauseMenu();}},
+   {label:"Endless machines: "+(G.endless?"ON":"off"),
+    fn:()=>{G.endless=!G.endless;savePrefs();pauseMenu();}},
+   {label:"Give up",fn:mainMenu}],"","menugrid");
+}
+// What the post signals back. The original graded you on the count and so does this.
+function rating(){
+ const r=G.rescued;
+ if(r>=HOSTAGES)return "Every one of them. Nobody left out there.";
+ if(r>=56)return "All but a handful. They will take that.";
+ if(r>=40)return "More than half of them home.";
+ if(r>=24)return "Some of them home. Some of them not.";
+ if(r>=8)return "A few. It was a long way to go for a few.";
+ return "The Empire kept almost all of them.";
+}
+// The original signs off with "The End" rather than "Game Over" - Gorlin's own
+// choice, taken from the way a film ends rather than the way an arcade cabinet
+// does - and there is no reason to improve on it.
+function gameOverMenu(){
+ showMenu("The End",
+  rating()+" "+(G.chops>0?"":"No machines left. ")+
+  "Home "+G.rescued+" · lost "+G.lost+" · "+G.score+" points"+
+  (G.best>G.score?" · best "+G.best:""),
+  [{label:"Again",fn:()=>newGame(G.diff)},{label:"Menu",fn:mainMenu}],"","menugrid");
+}
+
+/* ============ drawing ============ */
+// The strip along the top is a fixed twenty-four rows whether the scanner is on
+// or off, so the country below it is the same country either way: toggling a
+// panel must never move the ground the chopper is flying at.
+const px=v=>Math.round(v);
+const FIELD_TOP=SCAN_H;
+const sx=x=>px(x-G.cam.x), sy=y=>px(y)+FIELD_TOP;
+function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(px(x),px(y),Math.max(1,px(w)),Math.max(1,px(h)));}
+function line(x0,y0,x1,y1,c){
+ const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))|0;
+ ctx.fillStyle=c;
+ for(let i=0;i<=n;i++){const t=n?i/n:0;
+  ctx.fillRect(Math.round(x0+(x1-x0)*t),Math.round(y0+(y1-y0)*t),1,1);}
+}
+// The ridge behind everything, cut once from the seed so it is the same country
+// every time you fly the same battlefield.
+function makeRidge(rand){
+ const pts=[];let h=20;
+ for(let i=0;i<=64;i++){h=clamp(h+(rand()-.5)*11,9,31);pts.push(h);}
+ return pts;
+}
+function ridgeAt(pts,wx){
+ const u=clamp(wx/WORLD,0,.9999)*(pts.length-1);
+ const i=Math.floor(u), f=u-i;
+ return pts[i]*(1-f)+pts[Math.min(pts.length-1,i+1)]*f;
+}
+
+function drawSky(){
+ const c=ctx, g=c.createLinearGradient(0,FIELD_TOP,0,FIELD_TOP+GROUND_Y);
+ // Dawn over the Bungeling coast: the original's sky was black because the
+ // machine had no colour to spare for it. This one has.
+ g.addColorStop(0,"#0b1436");g.addColorStop(.55,"#2a2a5c");
+ g.addColorStop(.82,"#7c4a6a");g.addColorStop(1,"#e0925a");
+ c.fillStyle=g;c.fillRect(0,FIELD_TOP,VW,GROUND_Y);
+ // A handful of stars, still up, thinning towards the light.
+ for(let i=0;i<26;i++){
+  const wx=(i*977)%WORLD, x=sx(wx*.25+((i*37)%140));
+  if(x<-2||x>VW+2)continue;
+  const y=FIELD_TOP+4+((i*53)%54);
+  rect(x,y,1,1,i%3?"rgba(255,255,255,.45)":"rgba(255,255,255,.8)");
+ }
+}
+function drawRidge(){
+ if(!G.ridge)return;
+ const base=GROUND_Y;
+ // Far first and lighter, near over it and darker: at this hour the hills
+ // behind take the sky's colour and the ones in front do not.
+ for(let x=0;x<VW;x++){
+  const h=ridgeAt(G.ridge,G.cam.x*.30+x);
+  rect(x,FIELD_TOP+base-h,1,h,"#3b3560");
+ }
+ for(let x=0;x<VW;x++){
+  const h=ridgeAt(G.ridge,G.cam.x*.58+x+400)*.58;
+  rect(x,FIELD_TOP+base-h,1,h,"#231e3e");
+ }
+}
+function drawGround(){
+ const y=FIELD_TOP+GROUND_Y, hgt=VH-y;
+ rect(0,y,VW,hgt,"#b9925c");
+ rect(0,y,VW,2,"#4f9d4a");
+ rect(0,y+2,VW,1,"#356e34");
+ // Scrub, tied to the world so it scrolls with the ground rather than with you.
+ for(let i=0;i<70;i++){
+  const wx=(i*163)%WORLD, x=sx(wx);
+  if(x<-4||x>VW+4)continue;
+  rect(x,y+3+((i*7)%4),2,1,"#8d6f45");
+ }
+}
+// The post office. The backstory has the helicopter smuggled into the country
+// in crates marked as mail sorting equipment, which is why home is a post
+// office and not an airbase, and why the sign over the door says what it says.
+function drawPost(){
+ const x=sx(POST_X-18), y=FIELD_TOP+GROUND_Y;
+ const PAD=CHOP_W+36;
+ rect(x,y-2,PAD,3,"#9aa2b4");                     // the pad
+ rect(x,y-3,PAD,1,"#cfd6e4");
+ for(let i=6;i<PAD-4;i+=10)rect(x+i,y-2,4,1,"#6f7891");
+ const bx=x+PAD+8;                                // the building, east of the pad
+ rect(bx,y-26,40,26,"#4a5470");
+ rect(bx,y-26,40,3,"#69748f");
+ rect(bx-3,y-29,46,4,"#39425c");                  // the roof
+ rect(bx+4,y-20,32,6,"#cfd6e4");                  // the sign band
+ rect(bx+7,y-18,4,2,"#39425c");rect(bx+13,y-18,4,2,"#39425c");
+ rect(bx+19,y-18,4,2,"#39425c");rect(bx+25,y-18,4,2,"#39425c");
+ rect(bx+15,y-11,10,11,"#161c2e");                // the door they file in through
+ rect(bx+14,y-12,12,1,"#ffc24a");
+ const pole=x-10;                                 // and the flag, west of the pad
+ rect(pole,y-34,1,34,"#cfd6e4");
+ for(let r=0;r<7;r++){
+  const w=11+Math.round(Math.sin((G.uiT||0)*5.5+r*.5)*1.6);
+  rect(pole+1,y-33+r,w,1,r<3?"#e8483c":"#f2efe4");
+ }
+}
+// The border. A fence, which is what the original marks it with, and west of it
+// is the Empire's. Nothing it owns shoots across.
+function drawFrontier(){
+ const x=sx(FRONTIER_X), y=FIELD_TOP+GROUND_Y;
+ if(x<-90||x>VW+90)return;
+ for(let i=-64;i<=64;i+=16){
+  if(x+i<-4||x+i>VW+2)continue;
+  rect(x+i,y-16,2,16,"#8e9ab4");                  // posts
+ }
+ for(const r of [12,7]){
+  const lx=Math.max(-2,x-64), rx=Math.min(VW+2,x+66);
+  if(rx>lx)rect(lx,y-r,rx-lx,1,"#6f7b95");        // two rails
+ }
+ rect(x-9,y-30,20,11,"#d8641e");                  // the sign
+ rect(x-8,y-29,18,9,"#2a1810");
+ rect(x-6,y-26,14,1,"#ffc24a");
+ rect(x-6,y-24,9,1,"#ffc24a");
+ rect(x,y-30,1,14,"#8e9ab4");
+}
+function drawHut(hut){
+ const jx=hut.shake>0?Math.round(Math.sin(hut.shake*90)*2):0;
+ const x=sx(hut.x)+jx, y=FIELD_TOP+hut.y;
+ if(x<-HUT_W-8||x>VW+8)return;
+ rect(x,y+6,HUT_W,HUT_H-6,hut.open?"#6d5236":"#7d5f3f");
+ rect(x-3,y,HUT_W+6,7,"#4a3a2a");                 // the roof
+ rect(x-3,y,HUT_W+6,2,"#5e4a35");
+ for(let i=1;i<4;i++)rect(x+i*11,y+7,1,HUT_H-7,"#5f4830");
+ // The one that was already alight when you got there.
+ if(hut.fire>0){
+  const t=(G.uiT||0)*11;
+  // A tongue, not a candle: three pixels at the base, one at the tip, and the
+  // tip the brightest part of it.
+  for(let i=0;i<5;i++){
+   const fx=x+5+i*9+Math.round(Math.sin(t+i*1.7)*1.6);
+   const fh=5+Math.round(3+Math.sin(t*1.3+i*2.1)*3);
+   for(let r=0;r<fh;r++){
+    const w=r>fh-3?1:r>fh*.45?2:3;
+    rect(fx+((3-w)>>1),y-1-r,w,1,
+      r>fh-3?"#fff3a0":r>fh*.45?"#ffd27f":"#ff8c42");
+   }
+  }
+  for(let i=0;i<2;i++){
+   const sy=((G.uiT*20+i*9)|0)%22;
+   if(sy>3)rect(x+HUT_W/2-10+i*12+((sy/3)|0),y-10-sy,3,2,
+     "rgba(80,80,92,"+(.5-sy/60).toFixed(2)+")");
+  }
+ }
+ const dx=x+HUT_W/2-6, dy=y+HUT_H-15;
+ if(hut.open){
+  rect(dx,dy,12,15,"#0c0c14");
+  rect(dx-2,dy-1,16,1,"#d8641e");
+ }else{
+  rect(dx,dy,12,15,"#3a2d1e");
+  rect(dx,dy,12,1,"#9a7a52");
+  rect(dx+5,dy+7,2,2,"#c8a066");
+  // Three shots and the door goes; the damage shows before it does.
+  if(hut.hp<3)line(dx,dy+3,dx+11,dy+12,"#1a1208");
+  if(hut.hp<2)line(dx+11,dy+2,dx,dy+13,"#1a1208");
+ }
+}
+function drawPerson(p){
+ const x=sx(p.x), y=FIELD_TOP+p.y;
+ if(x<-HOST_W-4||x>VW+4)return;
+ if(p.st==="dead"){
+  const a=clamp(p.dt/1.2,0,1);
+  ctx.globalAlpha=a;
+  rect(x,y+HOST_H-3,HOST_W,3,"#6b4a3a");
+  ctx.globalAlpha=1;return;
+ }
+ let map,bob=0;
+ if(p.duck>0)map=HOST_DUCK[0];
+ else if(p.st==="run"){map=HOST_WALK[p.f|0];bob=HOST_BOB[p.f|0];}
+ else map=HOST_WAVE[p.wf|0];
+ drawPix(map,HOST_PAL,x,y+bob,1,p.face<0);
+}
+const TANK_TREADS=["KGKKGKKGKKGKK.","GKKGKKGKKGKKK."];
+function drawFoe(e){
+ if(e.k==="tank"){
+  const x=sx(e.x), y=FIELD_TOP+e.y;
+  if(x<-TANK_W-4||x>VW+4)return;
+  const map=TANK_PIX.slice();map[4]=TANK_TREADS[e.f|0];
+  drawPix(map,TANK_PAL,x,y,1,e.dir<0);
+  // Standing off, it does not move at all, and a tank that never moves is a
+  // rock. The muzzle is the only thing on it that has to be seen.
+  if(e.flash>0)rect(e.dir>0?x+TANK_W:x-3,y+1,3,2,"#ffd27f");
+ }else if(e.k==="jet"){
+  const x=sx(e.x), y=FIELD_TOP+e.y;
+  if(x<-JET_W-6||x>VW+6)return;
+  drawPix(JET_PIX,JET_PAL,x,y,1,e.dir<0);
+  // The burner, which is what makes a jet on the screen read as moving.
+  const bx=e.dir>0?x-2:x+JET_W+1;
+  rect(bx,y+2,2,1,(G.uiT*30|0)%2?"#ffd27f":"#ff8c42");
+ }else{
+  const x=sx(e.x), y=FIELD_TOP+e.y;
+  if(x<-12||x>VW+12)return;
+  drawPix(DRONE_PIX,DRONE_PAL,x,y,1,false);
+  if(Math.sin(e.ph*2)>0)rect(x+3,y+3,1,1,"#fff3a0");
+ }
+}
+// The chopper, and the two discs that make it one. The body is a drawn frame;
+// the rotor is not, because a rotor that is a drawn frame stops between frames.
+function drawChopper(h){
+ const idx=clamp(Math.round(Math.abs(h.tf)),0,3), flip=h.tf<0;
+ const x=sx(h.x), y=FIELD_TOP+px(h.y);
+ const R=ROTOR[idx];
+ const hubx=x+(flip?CHOP_W-1-R.hx:R.hx), huby=y+R.hy;
+ // Disc first, blades over it: a rotor reads as a rotor because you can see
+ // both the sweep and where the blades are in it.
+ // The disc as an ellipse, not a bar: edge on it is nearly a bar and never
+ // quite one, and that difference is what stops a rotor reading as a stick.
+ for(let a=0;a<6.28;a+=.22)
+  rect(hubx+Math.cos(a)*R.r,huby+Math.sin(a)*R.r*R.tilt,1,1,"rgba(200,220,255,.32)");
+ for(let b=0;b<2;b++){
+  const a=h.rotor+b*Math.PI;
+  const dx=Math.cos(a)*R.r, dy=Math.sin(a)*R.r*R.tilt;
+  line(hubx,huby,hubx+dx,huby+dy,"#f2f7ff");
+  // The near half of the disc reads brighter, which is the only cue that says
+  // which way round it is going.
+  if(Math.sin(a)>0)line(hubx+dx*.5,huby+dy*.5,hubx+dx,huby+dy,"#ffffff");
+ }
+ rect(hubx-1,huby-1,2,2,"#8f9ab4");
+ rect(hubx,huby,1,2,"#8f9ab4");
+ drawPix(CHOP_TURN[idx],CHOP_PAL,x,y,1,flip);
+ const T=TAIL_ROTOR[idx];
+ if(T){
+  const tx=x+(flip?CHOP_W-1-T.x:T.x), ty=y+T.y;
+  for(let b=0;b<2;b++){
+   const a=-h.rotor*1.7+b*Math.PI;
+   line(tx,ty,tx+Math.cos(a)*T.r*.35,ty+Math.sin(a)*T.r,"#cfd9ea");
+  }
+ }
+ // She smokes when she is hurt, and the smoke is where you look for it.
+ if(h.hp<3&&((G.uiT*14|0)%2)){
+  rect(x+(flip?CHOP_W-8:5),y+8,2,2,h.hp<2?"#3a3a44":"#6a6a78");
+ }
+ // Sixteen seats, and the ones that are full show through the glass.
+ if(G.aboard>0){
+  const n=Math.min(4,Math.ceil(G.aboard/4));
+  for(let i=0;i<n;i++)rect(x+(flip?6+i*2:CHOP_W-9-i*2),y+7,1,1,"#ffd27f");
+ }
+}
+// The ones who are already home: out of the door, a wave and a salute, then
+// they walk off into the building on their own feet.
+function drawHomeFolk(){
+ for(const f of G.homeFolk){
+  const x=sx(f.x), y=FIELD_TOP+GROUND_Y-HOST_H;
+  if(x<-HOST_W-4||x>VW+4)continue;
+  if(f.ph==="wave")drawPix(HOST_WAVE[f.wf|0],HOST_PAL,x,y,1,false);
+  else drawPix(HOST_WALK[f.f|0],HOST_PAL,x,y+HOST_BOB[f.f|0],1,false);
+ }
+}
+function drawShots(){
+ for(const b of G.shots)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,"#fff3a0");
+ for(const b of G.flak)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,
+   b.k==="jet"?"#ff8c42":b.k==="mine"?"#e08aff":"#ffd27f");
+ for(const s of G.puffs){
+  ctx.globalAlpha=clamp(s.t*2.4,0,1);
+  rect(sx(s.x),FIELD_TOP+s.y,2,2,s.hue);
+ }
+ ctx.globalAlpha=1;
+}
+
+/* ---- the strip along the top ---- */
+function drawScan(){
+ const c=ctx, W=VW, H=SCAN_H;
+ c.fillStyle="#05070f";c.fillRect(0,0,W,H);
+ c.fillStyle="#1d2745";c.fillRect(0,H-1,W,1);
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ c.fillStyle="#e8eeff";
+ c.fillText("HOME "+String(G.rescued).padStart(2,"0")+"/"+HOSTAGES,3,2);
+ c.textAlign="center";
+ c.fillStyle=G.aboard>=CAPACITY?"#ffc24a":"#e8eeff";
+ c.fillText("ABOARD "+String(G.aboard).padStart(2,"0")+"/"+CAPACITY,Math.round(W*.42),2);
+ c.textAlign="right";
+ c.fillStyle="#e8eeff";
+ c.fillText(String(G.endless?G.best:Math.max(G.best,G.score)).padStart(6," "),W-3,2);
+ c.textAlign="left";
+ c.fillStyle="#94a3c8";
+ c.fillText("LOST "+String(G.lost).padStart(2,"0"),3,12);
+ c.textAlign="right";
+ c.fillStyle="#49d8ff";
+ c.fillText(G.endless?"∞":"▲".repeat(Math.max(0,Math.min(5,G.chops))),W-3,12);
+ c.textAlign="left";
+ if(!G.scan)return;
+ // The whole country in one line: the post, the line, the four barracks and
+ // everything moving between them.
+ const x0=Math.round(W*.16), x1=W-Math.round(W*.16), bw=x1-x0, by=14;
+ const at=wx=>x0+Math.round(clamp(wx/WORLD,0,1)*(bw-1));
+ c.fillStyle="#141c33";c.fillRect(x0-2,by-2,bw+4,9);
+ c.fillStyle="#2a3550";c.fillRect(x0,by+6,bw,1);
+ c.fillStyle="#3b4a6e";c.fillRect(at(FRONTIER_X),by,1,7);
+ c.fillStyle="#9aa2b4";c.fillRect(at(POST_X)-1,by+4,4,2);
+ for(const hut of G.huts){
+  const hx=at(hut.x+HUT_W/2);
+  c.fillStyle=hut.open?"#d8641e":"#7d5f3f";
+  const bar=1+Math.round((hut.left/PER_HUT)*5);
+  c.fillRect(hx,by+6-bar,2,bar);
+ }
+ for(const p of G.people){
+  if(p.st==="dead"||p.st==="gone")continue;
+  c.fillStyle="#ffd27f";c.fillRect(at(p.x),by+4,1,2);
+ }
+ for(const e of G.foes){
+  c.fillStyle=e.k==="tank"?"#d8641e":e.k==="jet"?"#a8b2c8":"#c85adc";
+  c.fillRect(at(e.x),e.k==="tank"?by+4:by+1,1,2);
+ }
+ // Where you are, and how much of it you can see from there.
+ c.fillStyle="#3b4a6e";
+ c.fillRect(at(G.cam.x),by-1,Math.max(2,Math.round(VW/WORLD*bw)),1);
+ if(G.h){c.fillStyle="#ffffff";c.fillRect(at(G.h.x)-1,by+1,3,5);}
+}
+function drawHUD(){
+ const c=ctx;
+ c.font="8px monospace";c.textBaseline="top";c.textAlign="left";
+ if(G.msgT>0){
+  c.fillStyle="rgba(0,0,0,.8)";c.fillRect(0,VH-12,VW,12);
+  c.fillStyle="#ffd27f";c.fillText(G.msg,3,VH-10);
+ }
+ if(G.downT>0){
+  c.fillStyle="rgba(6,9,20,.55)";c.fillRect(0,FIELD_TOP+40,VW,26);
+  c.textAlign="center";c.font="bold 14px ui-rounded,Helvetica,Arial,sans-serif";
+  c.fillStyle="#ff8c42";c.fillText("DOWN",VW/2,FIELD_TOP+46);
+  c.font="8px monospace";c.textAlign="left";
+ }
+}
+
+/* ---- the attract screen ---- */
+// One machine crossing a country that is already moving: the flag, the rotor,
+// the tread of a tank on the far side of the line. If it is still, it is broken.
+const TITLE={x:POST_X-380,vx:-52,tf:-3,want:-3,turn:0};
+function titleStep(dt){
+ TITLE.turn-=dt;
+ if(TITLE.turn<=0){TITLE.turn=3.4;TITLE.want=-TITLE.tf;}
+ if(TITLE.want!==undefined&&TITLE.tf!==TITLE.want){
+  const d=clamp(TITLE.want-TITLE.tf,-TURN_RATE*dt,TURN_RATE*dt);
+  TITLE.tf+=d;
+ }
+ TITLE.vx=MAXV*(TITLE.tf/3);
+ TITLE.x+=TITLE.vx*dt;
+ if(TITLE.x<60){TITLE.x=60;TITLE.want=3;}
+ if(TITLE.x>WORLD-200){TITLE.x=WORLD-200;TITLE.want=-3;}
+}
+function drawTitle(){
+ const c=ctx, t=G.uiT;
+ G.cam.x=clamp(TITLE.x-VW/2,0,WORLD-VW);
+ drawSky();drawRidge();drawGround();drawPost();drawFrontier();
+ for(const hut of G.huts)drawHut(hut);
+ // Below the line of type and above the card: she crosses the title, she
+ // does not fly through the words and she is not behind the buttons.
+ drawChopper({x:TITLE.x,y:44+Math.sin(t*1.3)*5,tf:TITLE.tf,rotor:(t*26)%(Math.PI*2),hp:3});
+ c.fillStyle="#05070f";c.fillRect(0,0,VW,SCAN_H);
+ c.fillStyle="#1d2745";c.fillRect(0,SCAN_H-1,VW,1);
+ c.textAlign="center";c.textBaseline="top";
+ c.font="bold 21px ui-rounded,Helvetica,Arial,sans-serif";
+ c.fillStyle="#0b1020";c.fillText("CHOPLIFTER",VW/2+1,FIELD_TOP+7);
+ c.fillStyle="#ffc24a";c.fillText("CHOPLIFTER",VW/2,FIELD_TOP+6);
+ c.font="8px monospace";
+ c.fillStyle="#e8eeff";c.fillText("SIXTY-FOUR BEHIND THE BUNGELING LINE",VW/2,FIELD_TOP+31);
+ c.textAlign="left";
+}
+
+function render(){
+ const c=ctx;
+ c.fillStyle="#000";c.fillRect(0,0,VW,VH);
+ if(G.phase==="menu"||!G.h){drawTitle();return;}
+ drawSky();drawRidge();drawGround();
+ drawPost();drawFrontier();
+ for(const hut of G.huts)drawHut(hut);
+ for(const p of G.people)drawPerson(p);
+ drawHomeFolk();
+ for(const e of G.foes)drawFoe(e);
+ if(G.downT<=0)drawChopper(G.h);
+ drawShots();
+ drawScan();drawHUD();
+}
+
+const statusEl=document.getElementById("status");
+function updateStatus(){
+ if(!statusEl)return;
+ if(G.phase==="menu"||!G.h){
+  statusEl.innerHTML="<b>CHOPLIFTER</b> — sixty-four of ours are in four barracks behind the "+
+   "Bungeling line. Fly the rescue."+(G.best>0?" Best so far <b>"+G.best+"</b>.":"");
+  return;
+ }
+ statusEl.innerHTML="<b>"+G.rescued+" home · "+G.aboard+" aboard</b> — "+G.lost+" lost · "+
+  G.score+" points · "+(G.endless?"endless":G.chops+" machines")+
+  (G.msgT>0?" — "+G.msg:"");
+}
+
+/* ============ loop ============ */
+// The flight column is a fixed height so that the scanner, full screen and a
+// rotated phone cannot move the ground out from under the chopper. Only the
+// width follows the box: a wider screen sees more country, never a lower sky.
+function fit(force){
+ const r=cv.getBoundingClientRect(), w=r.width||336, hh=r.height||192;
+ if(!w||!hh)return;
+ const s=clamp(hh/192,1,6);
+ const nw=clamp(Math.round(w/s),280,620);
+ if(nw===VW&&VH===192&&!force)return;
+ VW=nw;VH=192;cv.width=VW;cv.height=VH;
+}
+addEventListener("resize",()=>fit());
+addEventListener("orientationchange",()=>fit());
+let last=0,frame=0;
+function loop(now){
+ const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+ if(!(frame++%20))fit();
+ G.uiT+=dt;
+ if(G.phase==="menu")titleStep(dt);
+ else if(G.phase==="play")stepGame(dt);
+ render();updateStatus();updatePads();musicForState();musicTick();
+ requestAnimationFrame(loop);
+}
+
+/* ---- what the tools are allowed to read ----
+ * tools/playtest.js opens the committed page in a real browser and asks how it
+ * moved. It reads this and nothing else, because anything it reaches into is
+ * something that cannot be changed without breaking the ability to run the tool
+ * against the build being replaced. Everything here is a number or a string.
+ */
+function report(){
+ const h=G.h;
+ return {phase:G.phase,
+  turn:h?+h.tf.toFixed(3):0,
+  frame:h?clamp(Math.round(Math.abs(h.tf)),0,3):0,
+  flip:!!(h&&h.tf<0),
+  rotor:h?+h.rotor.toFixed(3):0,
+  x:h?Math.round(h.x):0,y:h?Math.round(h.y):0,
+  landed:!!(h&&h.landed),hp:h?h.hp:0,
+  aboard:G.aboard,rescued:G.rescued,lost:G.lost,chops:G.chops,score:G.score,
+  cam:Math.round(G.cam.x),
+  huts:G.huts.map(x=>({x:x.x,open:!!x.open,left:x.left})),
+  people:G.people.filter(p=>p.st!=="gone").map(p=>({id:p.id,x:Math.round(p.x),st:p.st,
+   f:p.f|0,duck:p.duck>0,face:p.face})),
+  foes:G.foes.map(e=>({k:e.k,x:Math.round(e.x),y:Math.round(e.y)}))};
+}
+if(typeof window==="object"&&window)window.__chop=report;
+
+/* ---- installed as an app ----
+   A home-screen launch has no address bar and no toolbar, so nothing slides in
+   and out over the game. When that is how we were opened, go straight to the
+   full-screen layout; the worker keeps the game playable without a signal. */
+function isStandaloneApp(){
+ try{
+  if(typeof navigator==="object"&&navigator&&navigator.standalone===true)return true;
+  if(typeof matchMedia!=="function")return false;
+  return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches;
+ }catch(e){return false;}
+}
+if(typeof navigator==="object"&&navigator&&navigator.serviceWorker&&
+   typeof isSecureContext!=="undefined"&&isSecureContext)
+  addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+if(isStandaloneApp())setFocus(true);
+
+// Settings from last time, applied before the first frame is drawn.
+(function restorePrefs(){
+ const p=loadPrefs();
+ if(p.sound===false){SOUND.enabled=false;
+  const b=document.getElementById("sound");
+  if(b){b.textContent="SOUND OFF";b.setAttribute("aria-pressed","false");}}
+ if(p.music===false)MUSIC.on=false;
+ if(p.scan===false)G.scan=false;
+ if(typeof p.best==="number"&&isFinite(p.best)&&p.best>0)G.best=Math.floor(p.best);
+ if(typeof p.diff==="number"&&p.diff>=1&&p.diff<=4)G.diff=p.diff|0;
+})();
+// The attract screen flies over the same country the game does, so it needs one.
+G.ridge=makeRidge(rngFrom(20481982));
+G.huts=HUTS.map(hutAt);
+
+fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
+</script>
+<!-- no-zoom:start -->
+<script>
+/* ---- the pinch and the double tap ---- *
+ *
+ * iOS Safari has ignored `user-scalable=no` and `maximum-scale` in the viewport
+ * meta tag since iOS 10. Every one of these pages carried both and neither did
+ * anything, so a double tap anywhere - on the glass, on a control, on the black
+ * - zoomed the page, and a zoomed page puts the controls off the edge of the
+ * screen. In a game with a clock running that is not an inconvenience, it is a
+ * death, and full screen does not help because the zoom is applied to the
+ * visual viewport on top of whatever the layout is doing.
+ *
+ * Three things are needed and the meta tag is none of them:
+ *
+ *   1. gesturestart / gesturechange / gestureend. This is how WebKit offers a
+ *      pinch, and it exists on no other engine.
+ *   2. A non-passive touchend that eats the second tap of a double tap. It has
+ *      to be non-passive or preventDefault is ignored outright, and it has to
+ *      be touchend rather than dblclick, because the zoom is committed before
+ *      a dblclick is ever dispatched.
+ *   3. A way back for a player who is zoomed already, because neither of the
+ *      above can un-zoom a page that is. Rewriting the viewport meta is the
+ *      only lever a page has over WebKit's zoom, and it only fires on a real
+ *      change, so the content is toggled rather than re-set.
+ *
+ * This file is the one copy. tools/sync-nozoom.js writes it into each game
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  var D=document, W=window;
+  if(!D.addEventListener)return;
+  for(var i=0,g=["gesturestart","gesturechange","gestureend"];i<g.length;i++)
+    D.addEventListener(g[i],function(e){e.preventDefault();},{passive:false});
+  /* Eating the second tap of a double tap eats the click the browser makes
+   * out of it, and every game here has controls that listen for one - so on a
+   * control this would cost the player every second press of a fast mash,
+   * which in a game about pressing fire quickly is worse than the zoom. The
+   * controls do not need it: a button carrying touch-action none or
+   * manipulation is already exempt from double-tap zoom on every engine that
+   * honours it. So the guard leaves anything pressable alone and covers the
+   * rest of the page, which is where the zoom was coming from. */
+  var PRESSABLE="button,a,input,select,textarea,label,[data-cmd],[role=button]";
+  function pressable(t){
+    return !!(t&&t.closest&&t.closest(PRESSABLE));
+  }
+  var lastTap=0;
+  D.addEventListener("touchend",function(e){
+    var now=Date.now();
+    if(now-lastTap<=350&&e.cancelable&&!pressable(e.target))e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+  /* A second finger is a pinch wherever it lands, and no game here wants one. */
+  D.addEventListener("touchstart",function(e){
+    if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+  },{passive:false});
+
+  var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
+  if(!vv||!meta)return;
+  var base=meta.getAttribute("content"), fixing=false;
+  function unzoom(){
+    if(fixing||vv.scale<=1.01)return;
+    fixing=true;
+    meta.setAttribute("content",base+", minimum-scale=1");
+    W.setTimeout(function(){
+      meta.setAttribute("content",base);
+      fixing=false;
+      if(W.scrollTo)W.scrollTo(0,0);
+    },50);
+  }
+  vv.addEventListener("resize",unzoom);
+  vv.addEventListener("scroll",unzoom);
+  W.__unzoom=unzoom;                 // so a harness can ask for it directly
+})();
+</script>
+<!-- no-zoom:end -->
+</body>
+</html>

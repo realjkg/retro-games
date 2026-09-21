@@ -1,0 +1,454 @@
+// Run with node --test tests/rules.test.cjs. No packages required.
+// These read what the page computes. They cannot see what it shows, and the
+// difference between the two is what tools/playtest.js is for.
+const assert=require('node:assert/strict');
+const {test}=require('node:test');
+const {runtime,step,clear}=require('./harness.cjs');
+
+test('One strip of country: a post, a line, four barracks, sixty-four of ours',()=>{
+  const r=runtime(2,5);
+  assert.equal(r.run('HUTS.length'),4);
+  assert.equal(r.run('PER_HUT'),16);
+  assert.equal(r.run('HOSTAGES'),64);
+  assert.equal(r.run('CAPACITY'),16);
+  // One barrack is already open and burning when you arrive, with some of its
+  // people out, so the sixty-four are spread between the huts and the sand.
+  assert.equal(r.run('G.huts.filter(h=>h.open).length'),1,'exactly one is open');
+  assert.ok(r.run('G.huts.find(h=>h.open).fire')>0,'and it is alight');
+  assert.ok(r.run('G.people.length')>0,'with people already out of it');
+  assert.equal(r.run('G.people.every(p=>p.panic>0)'),true,'and running about');
+  assert.equal(
+   r.run('G.huts.reduce((n,h)=>n+h.left,0)+G.people.length+G.aboard+G.rescued+G.lost'),64,
+   'and all sixty-four are accounted for between them');
+  // The post office is at the far right of the strip, the fence is west of it,
+  // and every barrack is west of the fence: you fly out left and come home right.
+  assert.ok(r.run('POST_X>FRONTIER_X'),'the post office is behind the fence');
+  assert.equal(r.run('HUTS.every(x=>x+HUT_W<FRONTIER_X)'),true);
+  assert.equal(r.run('HUTS.every(x=>x>0)'),true);
+  assert.ok(r.run('POST_X+CHOP_W<WORLD'),'and the pad is on the map');
+});
+
+test('A seed reproduces a battlefield, and a different seed does not',()=>{
+  const dump=r=>{step(r,300);return r.run(
+    'G.ridge.map(v=>v.toFixed(2)).join(",")+"|"+G.foes.map(e=>e.k+Math.round(e.x)).join(",")');};
+  assert.equal(dump(runtime(2,21)),dump(runtime(2,21)));
+  assert.notEqual(dump(runtime(2,21)),dump(runtime(2,22)));
+});
+
+test('The button walks the ring: side, at you, the other side, at you',()=>{
+  const r=runtime(2,9);clear(r);
+  r.run('G.h.tf=3;G.h.want=3;G.h.seq=0;G.h.landed=false;G.h.y=60;');
+  const settle=()=>r.run('for(let i=0;i<40;i++)stepGame(1/60);');
+  const wants=[];
+  for(let i=0;i<4;i++){r.run('turnHer();');settle();wants.push(r.run('Math.round(G.h.tf)'));}
+  assert.deepEqual(wants,[0,-3,0,3],'right, at you, left, at you, right again');
+});
+
+test('The turn is walked, not set: she passes through every picture on the way',()=>{
+  const r=runtime(2,9);clear(r);
+  r.run('G.h.tf=0;G.h.want=0;G.h.seq=1;G.h.landed=false;G.h.y=60;turnHer();');
+  // A third of a second from nose-on to profile, and a picture for each step.
+  const seen=r.run(`(()=>{const s=new Set();
+   for(let i=0;i<24;i++){stepGame(1/60);s.add(clamp(Math.round(Math.abs(G.h.tf)),0,3));}
+   return [...s].sort().join(",");})()`);
+  assert.equal(seen,'0,1,2,3','every drawn picture of the turn is used');
+  assert.equal(Math.abs(r.run('G.h.tf')),3,'and it ends at the profile');
+  // Nothing ever moves more than a fraction of a step in one frame.
+  r.run('turnHer();turnHer();');
+  const worst=r.run(`(()=>{let m=0,p=G.h.tf;
+   for(let i=0;i<60;i++){stepGame(1/60);m=Math.max(m,Math.abs(G.h.tf-p));p=G.h.tf;}return m;})()`);
+  assert.ok(worst<=r.run('TURN_RATE/60')+1e-9,'a turn is walked ('+worst.toFixed(3)+' per frame)');
+  assert.equal(Math.abs(r.run('G.h.tf')),3,'and round to the other profile');
+});
+
+test('The stick flies her, and where she is pointing has nothing to do with it',()=>{
+  // Thrust used to come off the lean, which made the turn a throttle and the
+  // three positions a gear lever. On the machine it was written for, the stick
+  // flew her and the button turned her, and the two were independent.
+  const fly=(tf,sx)=>{const q=runtime(2,9);clear(q);
+    q.run(`G.h.landed=false;G.h.y=60;G.h.tf=${tf};G.h.want=${tf};G.h.vx=0;
+     keys.HOLD=true;stick.held=true;stick.x=${sx};stick.y=0;`);
+    step(q,90);return q.run('G.h.vx');};
+  assert.ok(fly(0,1)>60,'nose-on with the stick right, she goes right');
+  assert.ok(fly(3,-1)<-60,'facing right with the stick left, she goes left');
+  assert.ok(Math.abs(fly(3,0))<2,'facing right with the stick centred, she stays');
+  assert.ok(Math.abs(fly(-3,0))<2,'and facing left with it centred, likewise');
+  // And how far you push it is how hard she goes.
+  const half=fly(0,.5), full=fly(0,1);
+  assert.ok(full>half+20,'half a push is half a speed ('+half.toFixed(0)+' < '+full.toFixed(0)+')');
+});
+
+test('HOVER holds the height; nothing held at all does not',()=>{
+  const hold=runtime(2,9);clear(hold);
+  hold.run('G.h.landed=false;G.h.y=60;G.h.vy=0;keys.HOLD=true;');
+  step(hold,90);
+  assert.ok(Math.abs(hold.run('G.h.y')-60)<4,'HOVER keeps her where she was');
+  const drop=runtime(2,9);clear(drop);
+  drop.run('G.h.landed=false;G.h.y=60;G.h.vy=0;');
+  step(drop,90);
+  assert.ok(drop.run('G.h.y')>70,'and gravity is still gravity without it');
+});
+
+test('The gun points where she does, and nose-on that is down',()=>{
+  const r=runtime(2,9);clear(r);
+  r.run('G.h.landed=false;G.h.y=60;G.h.tf=3;G.h.want=3;G.h.cool=0;shoot();');
+  assert.ok(r.run('G.shots[0].vx')>0&&r.run('G.shots[0].vy')===0,'profile fires level, forwards');
+  r.run('G.shots=[];G.h.tf=-3;G.h.want=-3;G.h.cool=0;shoot();');
+  assert.ok(r.run('G.shots[0].vx')<0,'and the other profile the other way');
+  r.run('G.shots=[];G.h.tf=0;G.h.want=0;G.h.cool=0;shoot();');
+  assert.equal(r.run('G.shots[0].vx'),0);
+  // Pointed at you she is in the tank attacking position, and that fires down.
+  assert.ok(r.run('G.shots[0].vy')>0,'nose-on it fires straight down, at the tanks');
+  assert.ok(r.run('G.shots[0].y')>=r.run('G.h.y+CHOP_H-1'),'out of the belly, not the roof');
+  // Four in the air and no more, and not faster than the gun cycles.
+  r.run('G.shots=[];G.h.tf=3;G.h.want=3;for(let i=0;i<12;i++){G.h.cool=0;shoot();}');
+  assert.equal(r.run('G.shots.length'),4);
+});
+
+test('Three into a barrack and the door goes; then they come out, one at a time',()=>{
+  const r=runtime(2,11);
+  // One of the four is alight before you get there; this is about the others.
+  const shut=r.run('G.huts.findIndex(h=>!h.open)');
+  clear(r);
+  // The camera is what decides a bullet is off the screen, so it has to be
+  // looking at the barrack before anything is fired at it.
+  r.run(`const H=G.huts[${shut}];
+   G.h.landed=false;G.h.y=GROUND_Y-CHOP_H;G.h.x=H.x-80;G.h.tf=3;G.h.want=3;
+   G.cam.x=H.x-200;`);
+  assert.equal(r.run(`G.huts[${shut}].open`),false);
+  // Only this barrack's people are counted: the one that was alight when you
+  // arrived is still letting its own out the whole time.
+  const mine=()=>r.run(`G.people.filter(p=>p.hut===G.huts[${shut}]).length`);
+  for(let i=0;i<2;i++){r.run('G.h.cool=0;shoot();');step(r,30);
+    assert.equal(mine(),0,'nobody is out of it before the door goes');}
+  r.run('G.h.cool=0;shoot();');step(r,30);
+  assert.equal(r.run(`G.huts[${shut}].open`),true,'the door goes on the third');
+  // Nobody is standing outside before he has walked out of the door.
+  r.run('G.h.x=WORLD-CHOP_W;G.h.landed=false;');   // too far off to call anyone
+  step(r,30);
+  const out=mine();
+  assert.ok(out>0&&out<6,'they file out rather than pour out ('+out+')');
+  assert.equal(r.run(`G.people.filter(p=>p.hut===G.huts[${shut}])
+    .every(p=>Math.abs(p.x-(G.huts[${shut}].x+HUT_W/2-HOST_W/2))<40)`),
+    true,'and they start at the door they came out of');
+});
+
+test('Set her down near them and they run for her, sixteen and no more',()=>{
+  const r=runtime(2,12);clear(r);
+  r.run(`G.huts[0].hp=0;openHut(G.huts[0]);
+   G.h.x=HUTS[0]+70;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;`);
+  step(r,40);
+  assert.equal(r.run('G.people.some(p=>p.st==="run")'),true,'they set off');
+  assert.equal(r.run('G.people.every(p=>p.st!=="run"||p.face===Math.sign(G.h.x+CHOP_W/2-(p.x+HOST_W/2)))'),
+    true,'and they face the way they are going');
+  step(r,800);
+  assert.ok(r.run('G.aboard')>0,'and they get in');
+  assert.ok(r.run('G.aboard')<=16,'never more than sixteen ('+r.run('G.aboard')+')');
+  // In the air she is not a bus.
+  const q=runtime(2,12);clear(q);
+  q.run(`G.huts[0].hp=0;openHut(G.huts[0]);
+   G.h.x=HUTS[0]+70;G.h.y=40;G.h.landed=false;keys.HOLD=true;`);
+  step(q,300);
+  assert.equal(q.run('G.aboard'),0,'nobody climbs into a chopper that is forty pixels up');
+});
+
+test('Sixteen home is sixteen scored, and only at the post',()=>{
+  const r=runtime(2,13);clear(r);
+  r.run('G.aboard=6;G.h.x=HUTS[0];G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;');
+  step(r,100);
+  assert.equal(r.run('G.rescued'),0,'the middle of the desert is not home');
+  r.run('G.h.x=POST_X;');
+  step(r,120);
+  assert.equal(r.run('G.rescued'),6);
+  assert.equal(r.run('G.aboard'),0);
+  assert.equal(r.run('G.score'),600);
+});
+
+test('Your own gun, and your own skids, kill them as surely as a tank does',()=>{
+  const r=runtime(2,14);clear(r);
+  // Hovering over them: high enough that nobody climbs in, close enough that
+  // the camera - which is what decides a bullet has left the screen - is there.
+  r.run(`G.huts[0].hp=0;openHut(G.huts[0]);G.h.x=HUTS[0]+40;G.h.y=20;
+   G.h.landed=false;keys.HOLD=true;`);
+  step(r,60);
+  assert.ok(r.run('G.people.length')>0);
+  assert.equal(r.run('G.aboard'),0,'nobody boards a chopper in the air');
+  r.run(`const p=G.people[0];
+   G.shots.push({x:p.x+1,y:p.y+2,vx:1,vy:0,w:3,h:2,mine:true});`);
+  step(r,2);
+  assert.equal(r.run('G.lost'),1,'a bullet of yours is a bullet');
+  const q=runtime(2,14);clear(q);
+  q.run(`G.huts[0].hp=0;openHut(G.huts[0]);G.h.x=HUTS[0]+40;G.h.y=20;
+   G.h.landed=false;keys.HOLD=true;`);
+  step(q,60);
+  q.run(`const p=G.people[0];delete keys.HOLD;
+   G.h.x=p.x-10;G.h.y=GROUND_Y-CHOP_H-1;G.h.vy=20;G.h.landed=false;`);
+  step(q,6);
+  assert.ok(q.run('G.lost')>=1,'and so is setting her down on top of one');
+});
+
+test('Three hits and she is down, and everyone aboard goes down with her',()=>{
+  const r=runtime(2,15);clear(r);
+  r.run('G.aboard=9;G.h.landed=false;G.h.y=60;');
+  assert.equal(r.run('G.h.hp'),3);
+  r.run('damageChopper();');assert.equal(r.run('G.h.hp'),2);
+  r.run('damageChopper();');assert.equal(r.run('G.h.hp'),1);
+  r.run('damageChopper();');
+  assert.equal(r.run('G.lost'),9,'the nine she was carrying are lost');
+  assert.equal(r.run('G.aboard'),0);
+  assert.equal(r.run('G.chops'),2,'and one machine of three is gone');
+  step(r,200);
+  assert.equal(r.run('G.h.hp'),3,'a fresh one comes out of the hangar');
+  assert.equal(r.run('Math.round(G.h.x)'),r.run('POST_X'),'on the pad, where they start');
+});
+
+test('Held, down is a rate you can land at; let go, it is a fall',()=>{
+  // Pushing her at the ground used to reach the falling speed in half a second,
+  // so every landing made on the button was a heavy one and the only safe way
+  // down was to let go and catch her, which is exactly backwards.
+  const r=runtime(2,28);clear(r);
+  r.run('G.h.landed=false;G.h.y=20;G.h.vy=0;keys.D=true;');
+  step(r,30);
+  const rate=r.run('G.h.vy');
+  assert.ok(rate>20,'she does come down ('+rate.toFixed(0)+')');
+  assert.ok(rate<r.run('HARD_LANDING'),
+    'at a rate she can be put down at ('+rate.toFixed(0)+')');
+  r.run('G.h.y=GROUND_Y-CHOP_H-60;');
+  step(r,200);
+  assert.equal(r.run('G.h.landed'),true);
+  assert.equal(r.run('G.h.hp'),3,'holding it all the way down costs nothing');
+  // And a free fall is still a free fall.
+  const q=runtime(2,28);clear(q);
+  q.run('G.h.landed=false;G.h.y=20;G.h.vy=0;');
+  step(q,400);
+  assert.equal(q.run('G.h.landed'),true);
+  assert.ok(q.run('G.h.hp')<3,'letting go of everything and dropping does not');
+});
+
+test('Nothing the Empire owns shoots across the line',()=>{
+  // Being destroyed on your own concrete with sixteen aboard is not a
+  // difficulty, it is a tax.
+  const r=runtime(2,29);clear(r);
+  r.run(`G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.aboard=12;
+   G.foes=[tank(FRONTIER_X-60,1),jet(FRONTIER_X-140,1,GROUND_Y-CHOP_H),
+           drone(FRONTIER_X-100,60)];`);
+  step(r,1200);
+  assert.equal(r.run('G.flak.length'),0,'not a shell was fired at the pad');
+  assert.equal(r.run('G.h.hp'),3,'and she is untouched');
+  assert.equal(r.run('G.aboard'),0,'the twelve she carried are out and home');
+  assert.equal(r.run('G.rescued'),12);
+  // An air mine will not follow her over it either.
+  assert.ok(r.run('G.foes.filter(e=>e.k==="drone").every(e=>e.x<=FRONTIER_X)'),true);
+  // Over the line, the same tank does fire.
+  const q=runtime(2,29);clear(q);
+  q.run(`G.h.x=FRONTIER_X-260;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;
+   G.foes=[tank(FRONTIER_X-420,1)];`);
+  let fired=false;
+  for(let i=0;i<900&&!fired;i++){q.run('stepGame(0.02);');fired=q.run('G.flak.length>0');}
+  assert.equal(fired,true,'east of it, the same tank shoots');
+});
+
+test('A heavy landing hurts; a gentle one does not',()=>{
+  const soft=runtime(2,16);clear(soft);
+  soft.run('G.h.landed=false;G.h.y=GROUND_Y-CHOP_H-3;G.h.vy=20;');
+  step(soft,20);
+  assert.equal(soft.run('G.h.landed'),true);
+  assert.equal(soft.run('G.h.hp'),3,'a gentle one is free');
+  const hard=runtime(2,16);clear(hard);
+  hard.run('G.h.landed=false;G.h.y=GROUND_Y-CHOP_H-3;G.h.vy=HARD_LANDING+20;');
+  step(hard,20);
+  assert.equal(hard.run('G.h.hp'),2,'a heavy one costs you');
+});
+
+test('The Empire keeps its armour on its own side of the line',()=>{
+  const r=runtime(2,17);clear(r);
+  r.run('for(let i=0;i<8;i++)sendWave();');
+  assert.equal(r.run('G.foes.filter(e=>e.k==="tank").every(e=>e.x+TANK_W<FRONTIER_X)'),true);
+  r.run('G.foes=[tank(FRONTIER_X-60,1)];G.h.x=WORLD-CHOP_W;G.h.y=20;G.h.landed=false;');
+  step(r,600);
+  assert.ok(r.run('G.foes[0].x+TANK_W')<=r.run('FRONTIER_X'),'and it turns round at the fence');
+});
+
+test('A tank is artillery, not a battering ram',()=>{
+  const r=runtime(2,25);clear(r);
+  // Sitting on the ground loading, with a tank rolling at her: it has to stop
+  // short. One that drives onto the pad and fires at point blank ends a loaded
+  // chopper in five seconds and there is nothing the player can do about it.
+  // On a stretch of sand with no barrack between them, because a barrack stops
+  // a tank dead and that is a different rule.
+  r.run('G.h.x=1300;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.foes=[tank(1600,-1)];');
+  let closest=1e9;
+  for(let i=0;i<900;i++){
+    r.run('stepGame(1/60);');
+    closest=Math.min(closest,r.run('Math.abs(G.foes[0].x+TANK_W/2-(G.h.x+CHOP_W/2))'));
+  }
+  const standoff=r.run('TANK_STANDOFF');
+  assert.ok(closest>standoff-20,'it kept its distance ('+closest.toFixed(0)+' of '+standoff+')');
+  assert.ok(closest<standoff+100,'but it did come and look for her ('+closest.toFixed(0)+')');
+});
+
+test('No tank is ever parked inside a barrack it could not drive out of',()=>{
+  const r=runtime(3,27);clear(r);
+  r.run('for(let i=0;i<10;i++)sendWave();');
+  assert.equal(r.run(`G.foes.filter(e=>e.k==="tank")
+    .every(e=>HUTS.every(q=>e.x+TANK_W<=q-5||e.x>=q+HUT_W+5))`),true);
+});
+
+test('And it will not drive through a barrack',()=>{
+  const r=runtime(2,26);clear(r);
+  r.run(`G.h.x=HUTS[0]-200;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;
+   G.foes=[tank(HUTS[0]+90,-1)];`);
+  for(let i=0;i<900;i++)r.run('stepGame(1/60);');
+  assert.equal(r.run('G.foes[0].x+TANK_W>HUTS[0]-5&&G.foes[0].x<HUTS[0]+HUT_W+5'),false,
+    'it stopped at the wall rather than parking in the doorway');
+});
+
+test('A busier setting sends more, and each wave is fuller than the last',()=>{
+  const count=(d,n)=>{const r=runtime(d,4);clear(r);
+    r.run(`for(let i=0;i<${n};i++)sendWave();`);return r.run('G.foes.length');};
+  assert.ok(count(4,1)>count(1,1),'crowded is crowded from the start');
+  assert.ok(count(2,4)>count(2,1),'and it builds either way');
+  const r=runtime(2,4);clear(r);r.run('sendWave();');
+  assert.equal(r.run('G.foes.some(e=>e.k==="jet")'),false,'no jets in the first wave');
+  r.run('sendWave();');
+  assert.equal(r.run('G.foes.some(e=>e.k==="jet")'),true,'they come in the second');
+});
+
+test('A shell that lands near them throws them flat, and one that lands on them does not',()=>{
+  const r=runtime(2,18);clear(r);
+  r.run(`G.huts[0].hp=0;openHut(G.huts[0]);G.h.x=0;G.h.landed=false;G.h.y=20;`);
+  step(r,400);
+  assert.ok(r.run('G.people.length')>3,'several of them are out and spread along the sand');
+  // Everyone who has got where he is going stands on his own patch, so a shell
+  // can find one of them without finding four.
+  assert.equal(r.run(`(()=>{const xs=G.people.filter(p=>p.st==="wait")
+    .map(p=>Math.round(p.x)).sort((a,b)=>a-b);
+   return xs.length>3&&xs.every((x,i)=>!i||x-xs[i-1]>=6);})()`),true,
+   'nobody is standing on anybody');
+  const edge=r.run('Math.max(...G.people.map(p=>p.x))');
+  r.run(`blast(${edge}+24,GROUND_Y-2,true);`);
+  assert.equal(r.run(`G.people.filter(p=>p.duck>0).length>0`),true,
+    'near enough to hear it is near enough to duck');
+  assert.equal(r.run('G.lost'),0,'and near is not a hit');
+  r.run(`blast(${edge}+HOST_W/2,GROUND_Y-2,true);`);
+  assert.equal(r.run('G.lost'),1,'one shell, one man');
+});
+
+test('The mission is over when all sixty-four are accounted for',()=>{
+  const r=runtime(2,19);clear(r);
+  r.run('G.rescued=60;G.lost=3;');
+  step(r,2);
+  assert.equal(r.run('G.phase'),'play','sixty-three is not sixty-four');
+  r.run('G.lost=4;');
+  step(r,2);
+  assert.equal(r.run('G.phase'),'over');
+  assert.ok(r.run('G.score')>=60*25,'and the count is what you are graded on');
+});
+
+test('Endless machines never runs out; three machines does',()=>{
+  const r=runtime(2,20);clear(r);
+  r.run('G.endless=true;G.chops=1;G.h.landed=false;G.h.y=60;damageChopper();damageChopper();damageChopper();');
+  step(r,200);
+  assert.equal(r.run('G.phase'),'play');
+  assert.ok(r.run('G.chops')>=1);
+  const q=runtime(2,20);clear(q);
+  q.run('G.chops=1;G.h.landed=false;G.h.y=60;damageChopper();damageChopper();damageChopper();');
+  step(q,200);
+  assert.equal(q.run('G.phase'),'over');
+});
+
+test('The scanner is a panel, not a change of ground',()=>{
+  // Toggling it used to be allowed to give rows back to the field, and a field
+  // that changes height under a chopper in flight is a field that drops her.
+  const r=runtime(2,23);clear(r);
+  const before=r.run('[SCAN_H,GROUND_Y,CEIL_Y,FIELD_TOP,VH]').join(',');
+  r.run('press("SCAN");');
+  assert.equal(r.run('G.scan'),false);
+  assert.equal(r.run('[SCAN_H,GROUND_Y,CEIL_Y,FIELD_TOP,VH]').join(','),before);
+});
+
+test('What the browser remembers, and what it does when it refuses to',()=>{
+  const store=new Map();
+  const r=runtime(2,24,true,store);
+  r.run('G.score=0;addScore(4200);setMusic(false);G.scan=false;savePrefs();');
+  const back=runtime(2,24,false,store);
+  assert.equal(back.run('G.best'),4200);
+  assert.equal(back.run('MUSIC.on'),false);
+  assert.equal(back.run('G.scan'),false);
+  store.broken=true;                         // a private window, or blocked site data
+  assert.doesNotThrow(()=>runtime(2,24,true,store));
+});
+
+test('Nose-on is the narrowest she gets, which is the way to land among people',()=>{
+  // The walkthroughs make a point of it: head for the ground in tank attack
+  // position, because it is the smallest amount of helicopter that touches it.
+  const crushed=tf=>{
+    const r=runtime(2,31);clear(r);
+    const shut=r.run('G.huts.findIndex(h=>!h.open)');
+    r.run(`const H=G.huts[${shut}];H.hp=0;openHut(H);
+     G.h.x=H.x+40;G.h.y=20;G.h.landed=false;keys.HOLD=true;G.cam.x=H.x-60;`);
+    step(r,600);                                   // let a crowd gather outside
+    // Line them up under her, then put her down on them.
+    r.run(`const mid=G.h.x+CHOP_W/2;
+     G.people.filter(p=>p.st!=="dead"&&p.st!=="gone").forEach((p,i)=>{
+      p.x=mid-HOST_W/2+(i-3)*5;p.panic=0;});
+     delete keys.HOLD;G.h.tf=${tf};G.h.want=${tf};G.h.y=GROUND_Y-CHOP_H-2;
+     G.h.vy=10;G.h.landed=false;`);
+    const before=r.run('G.lost');
+    step(r,20);
+    assert.equal(r.run('G.h.landed'),true);
+    return r.run('G.lost')-before;
+  };
+  const side=crushed(3), nose=crushed(0);
+  assert.ok(nose<side,'she flattens fewer nose-on ('+nose+' against '+side+')');
+  assert.ok(side>0,'and side-on she really does flatten them');
+});
+
+test('A tank kills the hostages it drives over',()=>{
+  const r=runtime(2,32);clear(r);
+  const shut=r.run('G.huts.findIndex(h=>!h.open)');
+  r.run(`const H=G.huts[${shut}];H.hp=0;openHut(H);
+   G.h.x=H.x+40;G.h.y=20;G.h.landed=false;keys.HOLD=true;`);
+  step(r,400);
+  assert.ok(r.run('G.people.length')>2);
+  // Park one on top of a man and let it drive.
+  r.run(`const p=G.people.find(q=>q.st!=="dead");p.panic=0;
+   G.foes=[tank(p.x-TANK_W-2,1)];G.foes[0].sp=30;`);
+  const before=r.run('G.lost');
+  step(r,120);
+  assert.ok(r.run('G.lost')>before,'it went over him');
+});
+
+test('The air mines learn to shoot on the fourth trip, and not before',()=>{
+  const shots=trips=>{
+    const r=runtime(3,33);clear(r);
+    r.run(`G.trips=${trips};G.h.x=200;G.h.y=70;G.h.landed=false;keys.HOLD=true;
+     G.foes=[drone(580,70)];`);
+    let seen=0;
+    for(let i=0;i<600;i++){r.run('stepGame(1/60);');
+      seen=Math.max(seen,r.run('G.flak.filter(b=>b.k==="mine").length'));}
+    return seen;
+  };
+  assert.equal(shots(3),0,'on the third trip they are only something to avoid');
+  assert.ok(shots(4)>0,'on the fourth they shoot as well');
+});
+
+test('They get out, they wave, and they walk off on their own feet',()=>{
+  const r=runtime(2,34);clear(r);
+  r.run('G.aboard=4;G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;');
+  step(r,20);
+  assert.ok(r.run('G.homeFolk.length')>0,'somebody is out on the pad');
+  assert.equal(r.run('G.homeFolk.every(f=>f.ph==="wave")'),true,'waving, to start with');
+  step(r,60);
+  const where=r.run('G.homeFolk.map(f=>Math.round(f.x))');
+  step(r,200);
+  assert.equal(r.run('G.homeFolk.some(f=>f.ph==="walk")')||r.run('G.homeFolk.length')===0,
+    true,'and then walking');
+  // A frame of the gait per six pixels, the same as everyone else's walk.
+  step(r,120);
+  const gone=r.run('G.homeFolk.length');
+  assert.ok(gone<4,'they go inside and are not drawn for ever ('+gone+' left)');
+  assert.equal(r.run('G.rescued'),4);
+  assert.equal(r.run('G.trips'),1,'and that is one trip made');
+  void where;
+});

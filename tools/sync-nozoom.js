@@ -16,7 +16,8 @@ const ROOT=path.join(__dirname,'..');
 const SRC=path.join(ROOT,'shared','no-zoom.js');
 /* law-of-the-west is assembled, so its copy goes into the source page; its
  * built index.html is refreshed by that game's own assemble step. */
-const PAGES=['archon/index.html','aztec/index.html','drol/index.html',
+const PAGES=['archon/index.html','aztec/index.html','choplifter/index.html',
+  'drol/index.html',
   'lode-runner/index.html','law-of-the-west/page.html',
   'law-of-the-west/index.html'];
 const START='<!-- no-zoom:start -->', END='<!-- no-zoom:end -->';
