@@ -506,3 +506,156 @@ test('They get out, they wave, and they walk off on their own feet',()=>{
   assert.equal(r.run('G.trips'),1,'and that is one trip made');
   void where;
 });
+
+/* ---- how she carries herself, and what she carries ---- */
+
+test('She noses over into a run and comes back level out of it',()=>{
+  const r=runtime(2,31); clear(r);
+  r.run('G.h.x=FRONTIER_X-700;G.h.y=56;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;');
+  assert.equal(r.run('G.h.lean'),0,'level to begin with');
+  r.run('stick.held=true;stick.x=1;stick.y=0;');
+  step(r,60);
+  const dive=r.run('G.h.lean');
+  assert.ok(dive>0.15,'nosed over into the run, and not by a token amount: '+dive);
+  assert.ok(dive<=r.run('LEAN_DIVE')+1e-9,'and no further than she is allowed');
+  // Hands off. She is still moving, so she is still leaning - but she comes
+  // back as the speed comes off, rather than snapping level the moment the
+  // stick is centred.
+  r.run('stick.held=false;stick.x=0;');
+  step(r,10);
+  const easing=r.run('G.h.lean');
+  assert.ok(easing<dive&&easing>0.02,'she eases out of it: '+easing);
+  step(r,200);
+  assert.ok(Math.abs(r.run('G.h.lean'))<0.02,'and ends level: '+r.run('G.h.lean'));
+});
+
+test('Flown backwards she leans the other way, and nose-on she rolls',()=>{
+  const r=runtime(2,32); clear(r);
+  // Nose east, stick west: she is being dragged along backwards, so her nose
+  // comes up rather than going down.
+  r.run('G.h.x=FRONTIER_X-500;G.h.y=56;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'stick.held=true;stick.x=-1;');
+  step(r,60);
+  const back=r.run('G.h.lean');
+  assert.ok(back<-0.05,'nose up, dragging her tail: '+back);
+  assert.ok(Math.abs(back)<r.run('LEAN_DIVE'),'and less of it than a dive is');
+  // The same, mirrored: nose west and flying west is a dive, not a climb.
+  const m=runtime(2,33); clear(m);
+  m.run('G.h.x=FRONTIER_X-500;G.h.y=56;G.h.landed=false;G.h.tf=-3;G.h.want=-3;G.h.seq=2;'+
+        'stick.held=true;stick.x=-1;');
+  step(m,60);
+  assert.ok(m.run('G.h.lean')<-0.15,'she dives to the west as she dives to the east');
+  // Nose-on there is no nose to drop, so the same lean is a roll and a smaller
+  // one - and it still goes the way she is sliding.
+  const n=runtime(2,34); clear(n);
+  n.run('G.h.x=FRONTIER_X-500;G.h.y=56;G.h.landed=false;G.h.tf=0;G.h.want=0;G.h.seq=1;'+
+        'stick.held=true;stick.x=1;');
+  step(n,60);
+  const roll=n.run('G.h.lean');
+  assert.ok(roll>0.05&&roll<r.run('LEAN_DIVE'),'she heels over rather than noses over: '+roll);
+  assert.equal(n.run('report().attitude'),'roll');
+});
+
+test('On the ground she sits level, whatever she was doing a moment ago',()=>{
+  const r=runtime(2,35); clear(r);
+  r.run('G.h.x=FRONTIER_X-400;G.h.y=40;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'stick.held=true;stick.x=1;');
+  step(r,50);
+  assert.ok(r.run('G.h.lean')>0.1);
+  r.run('stick.held=true;stick.x=0;stick.y=1;');   // put her down
+  step(r,200);
+  assert.equal(r.run('G.h.landed'),true,'she is down');
+  assert.ok(Math.abs(r.run('G.h.lean'))<0.02,'and sitting level on her rails');
+});
+
+test('The gun points where her nose points',()=>{
+  const r=runtime(2,36); clear(r);
+  r.run('G.h.x=FRONTIER_X-600;G.h.y=56;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;');
+  r.run('shoot();');
+  assert.equal(r.run('G.shots[0].vy'),0,'level in the hover');
+  r.run('G.shots=[];stick.held=true;stick.x=1;');
+  step(r,60);
+  r.run('G.h.cool=0;shoot();');
+  const s=r.run('JSON.stringify({vx:G.shots[0].vx,vy:G.shots[0].vy})');
+  const {vx,vy}=JSON.parse(s);
+  assert.ok(vy>10,'and down the slope when she is nosed over into a run: '+vy);
+  assert.ok(vx>200,'still mostly forwards');
+  // Nose-on is the tank position and fires straight down whatever she is doing.
+  r.run('G.shots=[];G.h.tf=0;G.h.cool=0;shoot();');
+  assert.equal(r.run('G.shots[0].vx'),0);
+  assert.ok(r.run('G.shots[0].vy')>0);
+});
+
+test('Four seekers, one at a time, and the only refill is at home',()=>{
+  const r=runtime(2,37); clear(r);
+  assert.equal(r.run('G.h.seek'),r.run('SEEK_MAX'),'she leaves the pad with full rails');
+  r.run('G.h.x=FRONTIER_X-500;G.h.y=60;G.h.landed=false;');
+  r.run('fireSeeker();');
+  assert.equal(r.run('G.h.seek'),r.run('SEEK_MAX')-1,'one off the rail');
+  assert.equal(r.run('G.seekers.length'),1);
+  r.run('fireSeeker();');
+  assert.equal(r.run('G.seekers.length'),1,'and not two in the same instant');
+  step(r,40);
+  for(let i=0;i<6;i++){r.run('G.h.seekCool=0;fireSeeker();');}
+  assert.equal(r.run('G.h.seek'),0,'four is four');
+  const inAir=r.run('G.seekers.length');
+  r.run('G.h.seekCool=0;fireSeeker();');
+  assert.equal(r.run('G.seekers.length'),inAir,'an empty rail fires nothing');
+  // Home, and the crew put them back on one at a time rather than all at once.
+  r.run('G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.vx=0;');
+  step(r,20);
+  assert.equal(r.run('G.h.seek'),0,'not in the first fifth of a second');
+  step(r,30);
+  const part=r.run('G.h.seek');
+  assert.ok(part>0&&part<r.run('SEEK_MAX'),'they come back one at a time: '+part);
+  step(r,200);
+  assert.equal(r.run('G.h.seek'),r.run('SEEK_MAX'),'and then she is full again');
+});
+
+test('A seeker turns onto what is hottest, and can be out-turned',()=>{
+  const r=runtime(2,38); clear(r);
+  r.run('G.h.x=FRONTIER_X-520;G.h.y=86;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'G.foes=[jet(G.h.x+150,-1,20)];G.foes[0].sp=26;');
+  r.run('fireSeeker();');
+  // It leaves along her nose - level, because she is - and only then turns.
+  assert.equal(r.run('G.seekers[0].ang'),0);
+  step(r,8);
+  assert.equal(r.run('G.seekers[0].ang'),0,'it does not turn while it is still on top of her');
+  step(r,60);
+  assert.equal(r.run('G.foes.length'),0,'the jet is down');
+  assert.equal(r.run('G.score'),80,'and scored as a jet');
+  // Air before armour: a tank right under it does not distract it from a jet.
+  const t=runtime(2,39); clear(t);
+  t.run('G.h.x=FRONTIER_X-520;G.h.y=60;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'G.foes=[tank(G.h.x+60,1),jet(G.h.x+220,-1,18)];t=0;');
+  t.run('fireSeeker();');
+  step(t,90);
+  assert.equal(t.run('G.foes.filter(e=>e.k==="jet").length'),0,'it went for the jet');
+  assert.equal(t.run('G.foes.filter(e=>e.k==="tank").length'),1,'and left the tank alone');
+  // But it is not a guarantee: it turns at a rate, so a target that is behind
+  // it when it arms is one it has to come round for, and it can run out first.
+  const m=runtime(2,40); clear(m);
+  m.run('G.h.x=FRONTIER_X-300;G.h.y=40;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'G.foes=[jet(G.h.x-260,1,150)];');
+  m.run('fireSeeker();');
+  step(m,40);
+  const a=m.run('G.seekers.length?G.seekers[0].ang:null');
+  assert.ok(a===null||Math.abs(a)>0.3,'it has to come round for one behind it');
+});
+
+test('A seeker does not fly out of the world, or live for ever',()=>{
+  const r=runtime(2,41); clear(r);
+  r.run('G.h.x=FRONTIER_X-400;G.h.y=60;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;');
+  r.run('fireSeeker();');
+  step(r,Math.ceil(r.run('SEEK_LIFE')/0.02)+20);
+  assert.equal(r.run('G.seekers.length'),0,'nothing is still in the air from four seconds ago');
+});
+
+test('She cannot fire one sitting on the pad',()=>{
+  const r=runtime(2,42); clear(r);
+  r.run('G.h.landed=true;G.h.seekCool=0;');
+  const had=r.run('G.h.seek');
+  r.run('fireSeeker();');
+  assert.equal(r.run('G.seekers.length'),0);
+  assert.equal(r.run('G.h.seek'),had,'and it does not cost her one');
+});

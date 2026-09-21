@@ -74,6 +74,9 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .abtn{width:66px;height:66px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.02em}
 .sbtn{width:66px;height:40px;border-radius:10px;font-size:12px;font-weight:700}
 .sbtn.wide{grid-column:1 / -1;width:100%}
+/* Spent rails still read as rails: the button stays where it was and says it
+   is empty, rather than going away and moving everything under your thumb. */
+.abtn.spent{opacity:.45}
 #overlay{position:absolute;inset:0;background:rgba(6,9,20,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
@@ -167,6 +170,7 @@ body.fs #audio-status{display:none}
       <div class="acts">
         <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
         <div class="btn abtn" id="turnbtn" data-k="TURN">TURN</div>
+        <div class="btn abtn" id="seekbtn" data-k="SEEK">SEEK</div>
         <div class="btn sbtn" id="hovbtn" data-k="HOLD">HOVER</div>
         <div class="btn sbtn" id="scanbtn" data-k="SCAN">SCAN</div>
         <div class="btn sbtn wide" data-k="MENU">MENU</div>
@@ -377,6 +381,10 @@ const landSound   =()=>tone(90,60,.09,"square",.20);
 const lostSound   =()=>tone(330,60,.55,"sawtooth",.40);
 const dieSound    =()=>tone(420,40,.9,"sawtooth",.5);
 const jetSound    =()=>tone(1400,600,.20,"sawtooth",.12);
+// A seeker goes off the rail with a hiss rather than a bang, and the crew
+// clunk the next one onto it.
+const seekSound   =()=>tone(240,1800,.26,"sawtooth",.26);
+const rearmSound  =()=>tone(170,120,.07,"square",.22);
 
 /* ============ the blades ============ */
 /* The Apple II had one bit of sound - a speaker hung off a memory location -
@@ -547,7 +555,7 @@ const keys={};
 const START_CHOPS=3;
 const G={phase:"menu",diff:2,seed:1,rand:Math.random,
  score:0,best:0,scan:true,endless:false,
- h:null,huts:[],people:[],foes:[],shots:[],flak:[],puffs:[],homeFolk:[],trips:0,
+ h:null,huts:[],people:[],foes:[],shots:[],seekers:[],flak:[],puffs:[],homeFolk:[],trips:0,
  rescued:0,lost:0,aboard:0,chops:START_CHOPS,
  wave:0,waveT:0,threat:0,downT:0,cheerT:0,
  cam:{x:0},msg:"",msgT:0,menu:null,menuTitle:"",t:0,uiT:0,ridge:null,best:0};
@@ -571,6 +579,31 @@ const GRAV=64, LIFT=-172, DESCENT=72, VMAX=124;
 const HARD_LANDING=86;             // any faster onto the ground and it hurts
 const FOOT_NOSE=6, FOOT_SIDE=15;   // half the sand she covers, nose-on and side-on
 const GUN_COOL=.17, MAX_SHOTS=4;
+/* ---- what she does with her nose ----
+ *
+ * A helicopter has no throttle to shove: she goes where her disc points, and
+ * the disc points where she leans. So standing still she sits level, and asked
+ * for everything she has she noses over into it - tail up, rails up with her,
+ * disc tipped the way she is going. Let go and she comes back level, and she
+ * takes a moment over both, because a machine with that much spinning on top
+ * of it does not change its mind quickly.
+ *
+ * Fly her backwards and she leans the other way, nose up and tail down,
+ * dragging herself along. That is worth having here rather than anywhere else:
+ * where she points and where she is going are two different questions in this
+ * game, and this is the picture that answers the second one.
+ *
+ * Nose-on there is no nose to drop, so the same lean reads as a roll and she
+ * heels over towards the side she is sliding to, which is what a machine does
+ * when it slides sideways. One number covers both: how far she is rolled on
+ * the screen. Which of the three she is doing is a matter of which frame she
+ * is in and whether she is going the way she is pointing. */
+const LEAN_DIVE=.22, LEAN_CLIMB=.14, LEAN_ROLL=.13;
+const LEAN_RATE=3.4;               // radians a second, so the nose drops rather than snaps
+const LEAN_STEP=.04;               // one baked picture every two and a third degrees
+const LEAN_PAD=3;                  // leaning puts her corners outside her own box
+const SEEK_MAX=4;                  // how many she carries
+const SEEK_RESUPPLY=.7;            // and how long the ground crew take over each one
 const BOARD_REACH=17;              // her half-width plus his: he climbs in at her side
                                    // rather than walking into the middle of her
 const CALL_RANGE=280;              // and how far off he will see you set down
@@ -580,7 +613,22 @@ const CALL_RANGE=280;              // and how far off he will see you set down
 const TURN_RING=[3,0,-3,0];
 function chopper(){
  return {x:POST_X,y:GROUND_Y-CHOP_H,vx:0,vy:0,w:CHOP_W,h:CHOP_H,
-  tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0};
+  tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0,
+  lean:0,seek:SEEK_MAX,seekCool:0};
+}
+/* How far over she is, on the screen, for what she is doing. Her lean is one
+ * angle whichever frame she is in: a dive when she is going the way she points,
+ * a nose-up drag when she is going the other way, and a roll when she is
+ * nose-on and there is no nose to drop. */
+function leanWanted(h){
+ if(h.landed)return 0;
+ const drift=clamp(h.vx/MAXV,-1,1);
+ if(!drift)return 0;
+ const prof=Math.min(1,Math.abs(h.tf)/3);        // how much of her length you can see
+ const nose=h.tf<0?-1:1;                          // and which way it is pointing
+ const forward=drift*nose>0;                      // going the way she points, or backwards
+ const pitch=(forward?LEAN_DIVE:LEAN_CLIMB)*drift;
+ return prof*pitch+(1-prof)*LEAN_ROLL*drift;
 }
 function turnHer(){
  const h=G.h;
@@ -611,7 +659,7 @@ function newGame(diff=2,seed){
  G.wave=0;G.waveT=OPENING;G.threat=0;G.downT=0;G.cheerT=0;G.t=0;
  G.sawJets=false;G.sawMines=false;
  G.huts=HUTS.map(hutAt);
- G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
+ G.people=[];G.foes=[];G.shots=[];G.seekers=[];G.flak=[];G.puffs=[];
  G.h=chopper();
  G.homeFolk=[];G.trips=0;
  // One of them is already open and burning when you arrive, with its people out
@@ -741,9 +789,13 @@ function shoot(){
  if(h.cool>0||G.shots.length>=MAX_SHOTS)return;
  h.cool=GUN_COOL;
  const a=Math.abs(h.tf), dir=h.tf<0?-1:1;
- if(a>=2){                                    // in profile the gun fires level
+ if(a>=2){
+  // The gun is bolted to her, so it points where her nose points. Level in the
+  // hover, and down the slope when she is nosed over into a run - which is the
+  // one thing about the lean a player can use rather than only look at.
   const nx=dir>0?h.x+CHOP_W-3:h.x+1;
-  G.shots.push({x:nx,y:h.y+6,vx:dir*230,vy:0,w:3,h:2,mine:true});
+  const cs=Math.cos(h.lean), sn=Math.sin(h.lean);
+  G.shots.push({x:nx,y:h.y+6,vx:dir*230*cs,vy:dir*230*sn,w:3,h:2,mine:true});
  }else{
   // Nose-on is the tank attacking position, and it fires straight down. This
   // had been pointing up at the jets, which is not what the original does and
@@ -751,6 +803,78 @@ function shoot(){
   G.shots.push({x:h.x+CHOP_W/2-1,y:h.y+CHOP_H,vx:0,vy:250,w:2,h:3,mine:true});
  }
  shotSound();
+}
+/* ---- the seekers ----
+ *
+ * Her gun is a straight line and everything worth shooting moves, so a trip
+ * over the line is four seconds of leading a jet that is already past you. The
+ * seekers are the answer to that and they are meant to be scarce: four on the
+ * rails, one at a time, and the only way to get more is to go home - which is
+ * where you were going anyway with a full cabin.
+ *
+ * It flies itself, but not perfectly. It leaves along her nose at a speed of
+ * its own and then turns towards whatever is hottest, at a rate it cannot
+ * exceed - so it can be out-turned, it can overshoot a jet crossing in front
+ * of it, and it runs out of fuel. Hot means running engines: the jets and the
+ * mines first, because those are the things her gun cannot reach, and a tank
+ * only if there is nothing in the air.
+ */
+const SEEK_SPEED=210, SEEK_TURN=3.1, SEEK_LIFE=3.4, SEEK_ARM=.18;
+function seekerTarget(k){
+ // What it would go for now: air first, then armour, nearest of its kind.
+ let best=null,bd=1e9;
+ for(const e of G.foes){
+  if(e.dead)continue;
+  const air=e.k!=="tank";
+  const box=foeBox(e);
+  const d=Math.hypot(box.x+box.w/2-k.x,box.y+box.h/2-k.y);
+  const rank=(air?0:1e5)+d;                  // armour only once the air is clear
+  if(rank<bd){bd=rank;best=e;}
+ }
+ return best;
+}
+function fireSeeker(){
+ const h=G.h;
+ if(!h||h.seek<=0||h.seekCool>0||h.landed)return;
+ h.seek--;h.seekCool=.45;
+ const dir=h.tf<0?-1:1, a=Math.abs(h.tf);
+ // Off her nose in profile; straight down off her belly nose-on, which is the
+ // stance she takes over armour.
+ const ang=a>=2?(dir>0?h.lean:Math.PI-h.lean):Math.PI/2;
+ G.seekers.push({x:h.x+CHOP_W/2+(a>=2?dir*10:0),y:h.y+(a>=2?7:CHOP_H),
+  ang,t:0,w:4,h:2,mine:true});
+ seekSound();
+}
+function seekersStep(dt){
+ for(const k of G.seekers){
+  k.t+=dt;
+  if(k.t>SEEK_LIFE){k.dead=true;puff(k.x,k.y,4,"#8f9ab4");continue;}
+  // It will not turn until it is clear of her, so a launch cannot curl back
+  // into the machine that made it.
+  const e=k.t>=SEEK_ARM?seekerTarget(k):null;
+  if(e){
+   const box=foeBox(e);
+   const want=Math.atan2(box.y+box.h/2-k.y,box.x+box.w/2-k.x);
+   // The short way round, and only as fast as it can turn.
+   let d=want-k.ang;
+   while(d>Math.PI)d-=Math.PI*2;
+   while(d<-Math.PI)d+=Math.PI*2;
+   k.ang+=clamp(d,-SEEK_TURN*dt,SEEK_TURN*dt);
+  }
+  k.x+=Math.cos(k.ang)*SEEK_SPEED*dt;
+  k.y+=Math.sin(k.ang)*SEEK_SPEED*dt;
+  if(k.x<-40||k.x>WORLD+40||k.y<-20||k.y>GROUND_Y){k.dead=true;continue;}
+  if((k.t*60|0)%2===0)G.puffs.push({x:k.x,y:k.y,vx:0,vy:-6,t:.32,hue:"#6a6a78"});
+  for(const f of G.foes){
+   if(f.dead)continue;
+   if(overlap({x:k.x-2,y:k.y-1,w:4,h:3},foeBox(f))){
+    k.dead=true;f.dead=true;boomSound();
+    const b=foeBox(f);puff(b.x+b.w/2,b.y+b.h/2,10,"#ff8c42");
+    addScore(f.k==="tank"?50:f.k==="jet"?80:120);
+    break;}
+  }
+ }
+ G.seekers=G.seekers.filter(k=>!k.dead);
 }
 function puff(x,y,n,hue){for(let i=0;i<n;i++)G.puffs.push({x,y,
  vx:(G.rand()-.5)*70,vy:-G.rand()*60,t:.28+G.rand()*.35,hue:hue||"#ffc24a"});}
@@ -794,7 +918,7 @@ function respawn(){
  const keep=G.chops;
  G.h=chopper();G.h.hp=3;
  G.chops=keep;
- G.flak=[];G.shots=[];
+ G.flak=[];G.shots=[];G.seekers=[];
  say("A fresh machine on the pad. "+G.chops+" left in the hangar.");
 }
 
@@ -845,6 +969,11 @@ function chopperStep(dt){
  const target=h.landed?0:MAXV*s.x;
  h.vx+=clamp(target-h.vx,-ACCEL*dt,ACCEL*dt);
  if(Math.abs(s.x)<.06)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
+ // And she leans to what she is actually doing rather than to what the stick
+ // is asking for, so she is still nosed over for a moment after you centre it.
+ const lean=leanWanted(h);
+ h.lean+=clamp(lean-h.lean,-LEAN_RATE*dt,LEAN_RATE*dt);
+ h.seekCool=Math.max(0,h.seekCool-dt);
  // Down is a rate, not a shove. Pushing her at the ground used to reach the
  // falling speed in half a second, so every landing made on the button was a
  // heavy one and the only safe way down was to let go and catch her - which is
@@ -893,6 +1022,12 @@ function chopperStep(dt){
    if(G.aboard===0){G.trips++;homeSound();say(G.rescued+" home and dry.");}
   }
  }else h.unload=0;
+ // The ground crew reload her while she is home, one at a time and not
+ // instantly: going back for more is a trip, not a keypress.
+ if(h.landed&&Math.abs(h.x+CHOP_W/2-(POST_X+CHOP_W/2))<44&&h.seek<SEEK_MAX){
+  h.rearm=(h.rearm||0)+dt;
+  while(h.rearm>=SEEK_RESUPPLY&&h.seek<SEEK_MAX){h.rearm-=SEEK_RESUPPLY;h.seek++;rearmSound();}
+ }else h.rearm=0;
 }
 
 function personStep(p,dt){
@@ -1018,6 +1153,12 @@ function foeStep(e,dt){
  }
 }
 
+// One answer to "how big is that one", so the gun and the seekers cannot
+// disagree about what they are aiming at.
+function foeBox(e){
+ return {x:e.x,y:e.y,w:e.k==="tank"?TANK_W:e.k==="jet"?JET_W:DRONE_W,
+         h:e.k==="tank"?TANK_H:e.k==="jet"?JET_H:DRONE_H};
+}
 function shotsStep(dt){
  for(const b of G.shots){
   b.x+=b.vx*dt;b.y+=b.vy*dt;
@@ -1033,8 +1174,7 @@ function shotsStep(dt){
   if(b.dead)continue;
   for(const e of G.foes){
    if(e.dead)continue;
-   const box={x:e.x,y:e.y,w:e.k==="tank"?TANK_W:e.k==="jet"?JET_W:DRONE_W,
-              h:e.k==="tank"?TANK_H:e.k==="jet"?JET_H:DRONE_H};
+   const box=foeBox(e);
    if(overlap(b,box)){
     b.dead=true;e.dead=true;boomSound();
     puff(e.x+box.w/2,e.y+box.h/2,8,"#ff8c42");
@@ -1094,7 +1234,7 @@ function stepGame(dt){
  G.people=G.people.filter(p=>p.st!=="gone");
  for(const e of G.foes)foeStep(e,dt);
  G.foes=G.foes.filter(e=>!e.dead);
- shotsStep(dt);flakStep(dt);
+ shotsStep(dt);seekersStep(dt);flakStep(dt);
  for(const s of G.puffs){s.t-=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=120*dt;}
  G.puffs=G.puffs.filter(s=>s.t>0);
  G.waveT-=dt;
@@ -1122,6 +1262,7 @@ function press(k){
   say(G.scan?"Scanner on.":"Scanner off — more country on screen.");fit(true);return;}
  if(G.phase!=="play"||G.downT>0)return;
  if(k==="FIRE")shoot();
+ else if(k==="SEEK")fireSeeker();
  else if(k==="TURN")turnHer();
 }
 function toggleMenu(){
@@ -1129,7 +1270,7 @@ function toggleMenu(){
  if(G.phase==="play"){G.phase="paused";pauseMenu();}
 }
 const KMAP={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R",w:"U",s:"D",a:"L",d:"R",
- " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"TURN",e:"TURN",Shift:"HOLD",h:"HOLD",r:"SCAN",
+ " ":"FIRE",z:"FIRE",Enter:"FIRE",x:"TURN",e:"TURN",c:"SEEK",f:"SEEK",Shift:"HOLD",h:"HOLD",r:"SCAN",
  Escape:"MENU",p:"MENU"};
 function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}
 addEventListener("keydown",e=>{const k=keyOf(e);if(!k)return;e.preventDefault();
@@ -1274,7 +1415,8 @@ if(!isStandaloneApp()&&isIOS())showInstall(true);
 // The pad is only as clear as its labels: the fire button says where the gun is
 // pointing, which is the whole of the three-position rule in two characters.
 const fireBtn=document.getElementById("firebtn"), turnBtn=document.getElementById("turnbtn"),
-      scanBtn=document.getElementById("scanbtn"), hovBtn=document.getElementById("hovbtn");
+      scanBtn=document.getElementById("scanbtn"), hovBtn=document.getElementById("hovbtn"),
+      seekBtn=document.getElementById("seekbtn");
 function fireLabel(){
  if(!G.h||G.phase!=="play")return "FIRE";
  const a=Math.abs(G.h.tf);
@@ -1290,6 +1432,14 @@ function label(el,text,caption){
 function updatePads(){
  label(fireBtn,fireLabel(),Math.abs(G.h?G.h.tf:3)<2?"tanks":"level");
  label(turnBtn,"TURN",G.h?(STANCE[String(G.h.want)]||"position"):"position");
+ // The seeker button carries its own count, because four of them is the whole
+ // of that decision and a player should not have to look anywhere else for it.
+ // The count goes in the button's own text rather than under it, because a
+ // label that only changes underneath does not change at all: the caption is
+ // only rewritten when the word above it has.
+ const left=G.h?G.h.seek:0;
+ label(seekBtn,left?("SEEK ×"+left):"SEEK",left?"homing":"none left");
+ if(seekBtn&&seekBtn.classList)seekBtn.classList.toggle("spent",!left);
  label(scanBtn,"SCAN","");
  label(hovBtn,"HOVER","");
  if(scanBtn&&scanBtn.classList)scanBtn.classList.toggle("lit",!!G.scan);
@@ -1328,7 +1478,7 @@ ov.addEventListener("click",e=>{
  if(!b||!G.menu)return;
  G.menu.sel=+b.dataset.i;chooseMenu();});
 function mainMenu(){
- G.phase="menu";G.h=null;G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
+ G.phase="menu";G.h=null;G.people=[];G.foes=[];G.shots=[];G.seekers=[];G.flak=[];G.puffs=[];
  G.huts=HUTS.map(hutAt);G.aboard=0;G.downT=0;
  showMenu("","",
   [{label:"Fly the rescue",fn:diffMenu},
@@ -1353,10 +1503,11 @@ function diffMenu(){
   true,true);
 }
 function helpMenu(back){
- showMenu("A stick and two buttons",
+ showMenu("A stick, two buttons and four seekers",
   "The stick flies her: push it and she goes, and how far you push it is how hard. Up lifts, "+
   "down sets her down at a rate she can land at, HOVER holds the height you are at. On a "+
-  "keyboard the arrows are the stick.",
+  "keyboard the arrows are the stick. She hangs off her disc, so she noses over into a run "+
+  "and comes back level out of it, and her gun points where her nose points.",
   [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
   "TURN points her, and it has nothing to do with where she is going: side, at you, other side, "+
   "at you, round again. In profile the gun fires level, which is how a jet is met and how a "+
@@ -1365,7 +1516,9 @@ function helpMenu(back){
   "among people. Shoot a barrack until the door goes, land near them, and they run for you; "+
   "sixteen is all she holds. Fly east over the fence and put her down on the pad at the post "+
   "office to let them out. Your own gun and your own skids will kill them as surely as a tank "+
-  "will. SCAN is the strip along the top: the whole country at once. The sound out of the "+
+  "will. SEEK puts a heat seeker off the rail: she carries four, they turn onto the jets and "+
+  "the mines before anything on the ground, and the only place to get more is the pad at the "+
+  "post office. SCAN is the strip along the top: the whole country at once. The sound out of the "+
   "box is the one the machine of 1982 made: no score, just the blades, beating faster as you "+
   "pull up. MENU has the switch for a synth score if you would rather have one.");
 }
@@ -1595,6 +1748,79 @@ function drawFoe(e){
   if(Math.sin(e.ph*2)>0)rect(x+3,y+3,1,1,"#fff3a0");
  }
 }
+/* Her leaning pictures, baked once at the sizes she leans to.
+ *
+ * The turn is seven drawn frames because a turn is seven positions a player
+ * can see one at a time. The lean is not like that: it is a continuous angle
+ * that answers the stick, so drawing a picture for every angle would mean
+ * drawing a hundred of them. What is drawn instead is the machine, once, and
+ * every pixel of the leaned picture asks which pixel of her it was - nine
+ * samples of it, so that nothing she is made of thins out on the way round.
+ *
+ * The rails are left out of that and drawn as bars at the lean, for the same
+ * reason the rotor is drawn rather than stored: a rail one pixel thick, put
+ * through a turn, samples into a row of dashes, and a bar turned is still a
+ * bar. */
+const LEAN_SHAPES=(()=>{
+ const steps=Math.ceil(Math.max(LEAN_DIVE,LEAN_CLIMB,LEAN_ROLL)/LEAN_STEP);
+ const out=[];
+ for(let i=0;i<CHOP_TURN.length;i++){
+  const rows=CHOP_TURN[i], hub=ROTOR[i], H=rows.length, W=rows[0].length;
+  const OW=W+LEAN_PAD*2, OH=H+LEAN_PAD*2, bank=[];
+  for(let n=-steps;n<=steps;n++){
+   if(n===0){bank[n+steps]=null;continue;}      // level is the drawn machine itself
+   const ang=n*LEAN_STEP, cs=Math.cos(-ang), sn=Math.sin(-ang), g=[];
+   for(let y=0;y<OH;y++){
+    let row="";
+    for(let x=0;x<OW;x++){
+     const votes={};
+     for(let j=-1;j<=1;j++)for(let i2=-1;i2<=1;i2++){
+      const dx=x-LEAN_PAD+i2/3-hub.hx, dy=y-LEAN_PAD+j/3-hub.hy;
+      const sxp=Math.round(hub.hx+dx*cs-dy*sn), syp=Math.round(hub.hy+dx*sn+dy*cs);
+      if(syp<0||syp>=H||sxp<0||sxp>=W)continue;
+      const c=rows[syp][sxp];
+      if(c==="."||c==="O")continue;             // the rails are drawn, not baked
+      votes[c]=(votes[c]||0)+1;
+     }
+     let best=".",n2=0;
+     for(const k in votes)if(votes[k]>n2){n2=votes[k];best=k;}
+     row+=n2>=3?best:".";
+    }
+    g.push(row);
+   }
+   bank[n+steps]=g;
+  }
+  out.push(bank);
+ }
+ return {steps,out};
+})();
+/* Where her rails are, read off each drawn frame rather than written down
+ * twice: every run of rail-coloured pixels in a picture is a part of her
+ * undercarriage, and nose-on she stands on two short rails where in profile
+ * she stands on one long one. Reading them means the drawn machine and the
+ * leaning one cannot disagree about where she stands.
+ *
+ * A run long enough to be a rail is drawn two pixels thick through the lean,
+ * because a line one pixel thick laid at an angle is a row of steps with
+ * daylight between them - on the level frame it reads solid only because it
+ * is horizontal. The short runs are her legs and are left as they are. */
+const SKID_RUNS=CHOP_TURN.map(m=>{
+ const runs=[];
+ for(let y=0;y<m.length;y++){
+  let x=0;
+  while(x<m[y].length){
+   if(m[y][x]!=="O"){x++;continue;}
+   let j=x;while(j<m[y].length&&m[y][j]==="O")j++;
+   runs.push({x0:x,x1:j,y:y,rail:j-x>=4});
+   x=j;
+  }
+ }
+ return runs;
+});
+function leanStep(h){
+ const n=Math.round((h.lean||0)/LEAN_STEP);
+ return clamp(n,-LEAN_SHAPES.steps,LEAN_SHAPES.steps);
+}
 // The chopper, and the two discs that make it one. The body is a drawn frame;
 // the rotor is not, because a rotor that is a drawn frame stops between frames.
 function drawChopper(h){
@@ -1602,15 +1828,33 @@ function drawChopper(h){
  const x=sx(h.x), y=FIELD_TOP+px(h.y);
  const R=ROTOR[idx];
  const hubx=x+(flip?CHOP_W-1-R.hx:R.hx), huby=y+R.hy;
+ // How far over she is on the screen, and the same angle in her own terms -
+ // which is the one the baked pictures are in, because mirroring her mirrors
+ // her lean along with her.
+ const step=leanStep(h), ang=step*LEAN_STEP, own=flip?-ang:ang;
+ const lcs=Math.cos(ang), lsn=Math.sin(ang);
+ const onHer=(ux,uy)=>{                       // a point on the drawn machine, leaned
+  const bx=flip?CHOP_W-1-ux:ux, dx=bx-(flip?CHOP_W-1-R.hx:R.hx), dy=uy-R.hy;
+  return [hubx+dx*lcs-dy*lsn, huby+dx*lsn+dy*lcs];
+ };
  // Disc first, blades over it: a rotor reads as a rotor because you can see
  // both the sweep and where the blades are in it.
  // The disc as an ellipse, not a bar: edge on it is nearly a bar and never
  // quite one, and that difference is what stops a rotor reading as a stick.
- for(let a=0;a<6.28;a+=.22)
-  rect(hubx+Math.cos(a)*R.r,huby+Math.sin(a)*R.r*R.tilt,1,1,"rgba(200,220,255,.32)");
+ // And the disc goes over with her, because a machine that leans under a level
+ // disc has not leaned: she is hanging off that disc and it is the thing doing
+ // the leaning.
+ const spin=(a)=>{
+  const ex=Math.cos(a)*R.r, ey=Math.sin(a)*R.r*R.tilt;
+  return [ex*lcs-ey*lsn, ex*lsn+ey*lcs];
+ };
+ for(let a=0;a<6.28;a+=.22){
+  const [dx,dy]=spin(a);
+  rect(hubx+dx,huby+dy,1,1,"rgba(200,220,255,.32)");
+ }
  for(let b=0;b<2;b++){
   const a=h.rotor+b*Math.PI;
-  const dx=Math.cos(a)*R.r, dy=Math.sin(a)*R.r*R.tilt;
+  const [dx,dy]=spin(a);
   line(hubx,huby,hubx+dx,huby+dy,"#f2f7ff");
   // The near half of the disc reads brighter, which is the only cue that says
   // which way round it is going.
@@ -1618,10 +1862,28 @@ function drawChopper(h){
  }
  rect(hubx-1,huby-1,2,2,"#8f9ab4");
  rect(hubx,huby,1,2,"#8f9ab4");
- drawPix(CHOP_TURN[idx],CHOP_PAL,x,y,1,flip);
+ const leaned=step?LEAN_SHAPES.out[idx][(flip?-step:step)+LEAN_SHAPES.steps]:null;
+ if(leaned){
+  // The picture is baked in her own terms and mirrored here with her, which is
+  // why the angle it was baked at is her angle and not the screen's. The pad
+  // mirrors with it and lands her back where she was.
+  drawPix(leaned,CHOP_PAL,x-LEAN_PAD,y-LEAN_PAD,1,flip);
+  // Her rails, at the lean: the bar first, then the legs down onto it.
+  for(const r of SKID_RUNS[idx]){
+   const p0=onHer(r.x0,r.y), p1=onHer(r.x1-.05,r.y);
+   // Stepped along its length a pixel at a time, and two deep where it is a
+   // rail: two lines side by side saw against each other, one bar does not.
+   const n=Math.max(Math.abs(p1[0]-p0[0]),Math.abs(p1[1]-p0[1]))|0;
+   for(let i=0;i<=n;i++){
+    const t=n?i/n:0;
+    rect(p0[0]+(p1[0]-p0[0])*t,p0[1]+(p1[1]-p0[1])*t,1,r.rail?2:1,CHOP_PAL.O);
+   }
+  }
+ }else drawPix(CHOP_TURN[idx],CHOP_PAL,x,y,1,flip);
  const T=TAIL_ROTOR[idx];
  if(T){
-  const tx=x+(flip?CHOP_W-1-T.x:T.x), ty=y+T.y;
+  const tp=onHer(T.x,T.y);
+  const tx=tp[0], ty=tp[1];
   for(let b=0;b<2;b++){
    const a=-h.rotor*1.7+b*Math.PI;
    line(tx,ty,tx+Math.cos(a)*T.r*.35,ty+Math.sin(a)*T.r,"#cfd9ea");
@@ -1649,6 +1911,14 @@ function drawHomeFolk(){
 }
 function drawShots(){
  for(const b of G.shots)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,"#fff3a0");
+ // A seeker is a short body pointed where it is going, with the motor lit at
+ // the back of it: you can see what it has decided to chase.
+ for(const k of G.seekers){
+  const x=sx(k.x), y=FIELD_TOP+px(k.y);
+  const cs=Math.cos(k.ang), sn=Math.sin(k.ang);
+  for(let i=-2;i<=2;i++)rect(x+cs*i,y+sn*i,1,1,i>1?"#ffd27f":"#e6ecf5");
+  rect(x-cs*3,y-sn*3,1,1,(G.uiT*30|0)%2?"#ff8c42":"#fff3a0");
+ }
  for(const b of G.flak)rect(sx(b.x),FIELD_TOP+b.y,b.w,b.h,
    b.k==="jet"?"#ff8c42":b.k==="mine"?"#e08aff":"#ffd27f");
  for(const s of G.puffs){
@@ -1825,6 +2095,15 @@ function report(){
   rotor:h?+h.rotor.toFixed(3):0,
   x:h?Math.round(h.x):0,y:h?Math.round(h.y):0,
   landed:!!(h&&h.landed),hp:h?h.hp:0,
+  // How far over she is, and which of the three things that lean is: a tool
+  // that only sees the number cannot tell a dive from a roll.
+  lean:h?+(h.lean||0).toFixed(3):0,
+  leanStep:h?leanStep(h):0,
+  attitude:h?(h.landed||Math.abs(h.lean)<LEAN_STEP/2?"level":
+   Math.abs(h.tf)<1.5?"roll":(h.vx*(h.tf<0?-1:1)>0?"dive":"climb")):"level",
+  vx:h?Math.round(h.vx):0,
+  seek:h?h.seek:0,
+  seekers:G.seekers.map(k=>({x:Math.round(k.x),y:Math.round(k.y),ang:+k.ang.toFixed(3)})),
   aboard:G.aboard,rescued:G.rescued,lost:G.lost,chops:G.chops,score:G.score,
   cam:Math.round(G.cam.x),
   huts:G.huts.map(x=>({x:x.x,open:!!x.open,left:x.left})),

@@ -13,6 +13,8 @@
  *   alive   is the picture a twentieth of a second later a different picture?
  *   answers does the scene do anything about what the player pressed?
  *   off     does it leave the way it came - the people aboard, the chopper away?
+ *   leans   does she nose over into a run, and come back level out of it?
+ *   seeks   does a seeker turn onto what it was fired at?
  *   whole   is the figure one figure: no shed ink, no sky shut inside it?
  *
  * Read the rows. The summary line at the bottom is for a machine.
@@ -28,6 +30,8 @@
  *   teleport     a hostage crosses the ground in one frame -> in
  *   deaf         the keyboard is not read                  -> answers
  *   bands        the chopper drawn in three slid slices    -> whole
+ *   levelflight  she flies flat out with her nose level     -> leans
+ *   dumbseeker   the seeker flies straight on off the rail  -> seeks
  *
  *   PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
  *   node tools/playtest.js --keep             and write the frames to .playtest
@@ -42,6 +46,8 @@ const KEEP=process.argv.includes('--keep');
 const SAB=(process.argv.find(a=>a.startsWith('--sabotage='))||'').split('=')[1]||'';
 
 const JUMP=9;             // px a man may cross in one frame before it is a teleport
+const LEANMIN=.10;        // radians before a lean is a lean and not a wobble
+const TILTMIN=1.2;        // px between her ends before the picture has leaned
 const STRIDES=3;          // drawn gait frames that must show while he crosses
 const TURNPICS=5;         // drawn pictures a full left-to-right turn must show
 const SNAP=1.4;           // turn units in one frame before it is a flip, not a turn
@@ -86,10 +92,16 @@ const SABOTAGE={
             ' p.x=clamp(p.x+p.vx*dt*16,0,WORLD-HOST_W);'],
   deaf:['function keyOf(e){return KMAP[e.key]||KMAP[(e.key||"").toLowerCase()];}',
         'function keyOf(e){return null;}'],
-  bands:[' drawPix(CHOP_TURN[idx],CHOP_PAL,x,y,1,flip);',
+  bands:[' }else drawPix(CHOP_TURN[idx],CHOP_PAL,x,y,1,flip);',
          ' {const m=CHOP_TURN[idx];drawPix(m.slice(0,4),CHOP_PAL,x-2,y,1,flip);'+
          'drawPix(m.slice(4,8),CHOP_PAL,x+2,y+4,1,flip);'+
          'drawPix(m.slice(8),CHOP_PAL,x,y+8,1,flip);}']
+       .map((t,i)=>i?' }else '+t.trim():t),
+  // She flies flat out with her nose level, which is what she did before any
+  // of this and what the lean checks exist to notice.
+  levelflight:[' h.lean+=clamp(lean-h.lean,-LEAN_RATE*dt,LEAN_RATE*dt);',' h.lean=0;'],
+  // The seeker leaves the rail and flies straight on, which is a rocket.
+  dumbseeker:['   k.ang+=clamp(d,-SEEK_TURN*dt,SEEK_TURN*dt);','   k.ang+=0;']
 };
 function pageURL(){
   let html=fs.readFileSync(PAGE,'utf8');
@@ -132,8 +144,15 @@ const SAMPLER=function(n){
     function take(){
       let r=null; try{r=(typeof window.__chop==='function')?window.__chop():null;}catch(e){}
       const p=(r&&Array.isArray(r.people))?r.people:[];
+      const sk=(r&&Array.isArray(r.seekers))?r.seekers:[];
       out.push({x:r?Math.round(+r.x||0):0,y:r?Math.round(+r.y||0):0,
         turn:r?(+r.turn||0):0,pic:r?(r.frame|0):0,
+        lean:r?(+r.lean||0):0,
+        attitude:(r&&typeof r.attitude==='string')?r.attitude:'',
+        vx:r?(+r.vx||0):0,seek:r?(r.seek|0):0,
+        seekers:sk.map(k=>({x:Math.round(+k.x||0),y:Math.round(+k.y||0)})),
+        foePos:(r&&Array.isArray(r.foes))?r.foes.map(e=>({k:typeof e.k==='string'?e.k:'',
+          x:Math.round(+e.x||0),y:Math.round(+e.y||0)})):[],
         landed:!!(r&&r.landed),aboard:r?(r.aboard|0):0,rescued:r?(r.rescued|0):0,
         lost:r?(r.lost|0):0,score:r?(r.score|0):0,
         huts:(r&&Array.isArray(r.huts))?r.huts.map(h=>({open:!!h.open,left:h.left|0})):[],
@@ -170,7 +189,13 @@ const WHOLE=function(){
     const c=document.getElementById('cv'), g=c.getContext('2d');
     const h=G.h, W=52, H=10;                    // rows 0..9: everything but the skids
     const Y=Math.max(0,Math.min(c.height-H-1,24+Math.round(h.y)));
-    const oldcam=G.cam.x, oldtf=h.tf;
+    const oldcam=G.cam.x, oldtf=h.tf, oldlean=h.lean;
+    // She is posed level for this one. Whether she is one machine and whether
+    // she leans are two questions, and the picture she is compared against
+    // here is the drawn frame, which is level by definition. The lean has
+    // checks of its own below, on pixels, so nothing is lost by holding her
+    // still for this one.
+    if(typeof h.lean==='number')h.lean=0;
     function read(draw){
       g.save();g.setTransform(1,0,0,1,0,0);
       g.fillStyle='#d6c39a';g.fillRect(0,Y,W,H);
@@ -215,6 +240,7 @@ const WHOLE=function(){
       for(let i=0;i<W*H;i++)if(want.on[i]&&!a.on[i])missing++;
     }
     G.cam.x=oldcam;h.tf=oldtf;
+    if(typeof oldlean==='number')h.lean=oldlean;
     let bodies=0, main=0, seen=new Uint8Array(W*H);
     for(let i=0;i<W*H;i++){
       if(a.on[i]&&!seen[i]){
@@ -243,6 +269,56 @@ const WHOLE=function(){
       }
     }
     return {ink:a.ink,main,missing,sprite,shed,bodies,holes,pics};
+  }catch(e){return null;}
+};
+
+/* Does she actually lean, on the screen?
+ *
+ * The report says how far over she is. That number being right is exactly the
+ * thing this repository has been caught by before, so it is not what is
+ * measured here. She is posed at an angle and painted on a blank ground, and
+ * the picture is asked whether one end of her is lower than the other: the
+ * mean height of her ink down the nose third against the mean height down the
+ * tail third. Level that difference is nothing; nosed over it is pixels, and
+ * its sign says which end went down.
+ *
+ * It is also asked whether the leaned machine is still a machine - that she
+ * did not shed her rails or come apart on the way round - because a lean that
+ * breaks her is worse than no lean at all.
+ */
+const LEANS=function(ang){
+  try{
+    if(typeof drawChopper!=='function'||typeof G!=='object'||!G.h)return null;
+    if(typeof G.h.lean!=='number')return null;       // an older build does not lean
+    const c=document.getElementById('cv'), g=c.getContext('2d');
+    const h=G.h, W=54, H=20;
+    const Y=Math.max(0,Math.min(c.height-H-1,24+Math.round(h.y)-4));
+    const keep={cam:G.cam.x,lean:h.lean,tf:h.tf,x:h.x,y:h.y};
+    function look(tf,lean){
+      h.tf=tf;h.lean=lean;G.cam.x=h.x-10;
+      g.save();g.setTransform(1,0,0,1,0,0);
+      g.fillStyle='#d6c39a';g.fillRect(0,Y,W,H);
+      drawChopper(h);
+      const d=g.getImageData(0,Y,W,H).data;
+      g.restore();
+      let ls=0,ln=0,rs=0,rn=0,ink=0,lo=1e9,hi=-1e9;
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+        const o=(y*W+x)*4;
+        if(Math.abs(d[o]-0xd6)+Math.abs(d[o+1]-0xc3)+Math.abs(d[o+2]-0x9a)<=24)continue;
+        ink++;lo=Math.min(lo,x);hi=Math.max(hi,x);
+        if(x<W*0.28){ls+=y;ln++;}else if(x>W*0.62){rs+=y;rn++;}
+      }
+      return {tilt:(ln&&rn)?+((rs/rn)-(ls/ln)).toFixed(2):0,ink:ink};
+    }
+    const out={
+      level:look(3,0),
+      dive:look(3,ang),
+      climb:look(3,-ang),
+      mirrored:look(-3,-ang),                       // nose left, going left: the same dive
+      roll:look(0,ang)
+    };
+    G.cam.x=keep.cam;h.lean=keep.lean;h.tf=keep.tf;
+    return out;
   }catch(e){return null;}
 };
 
@@ -313,6 +389,52 @@ const SCENES=[
   answers:s=>at(s,-1).x>at(s,0).x+60,
   off:s=>at(s,-1).x>K.FRONTIER_X&&s.every((f,i)=>!i||f.x>=s[i-1].x-1)},
 
+ {name:'the run in',
+  // Flat out east in profile, then let go of everything and hover. She has to
+  // nose over into the run, come back level when she stops asking for it, and
+  // lean the other way when she is flown backwards - which she can be, because
+  // where she points and where she is going are two questions here.
+  setup:'newGame(2,4242);G.foes=[];G.waveT=999;G.people=[];'+
+        'G.h.x=FRONTIER_X-700;G.h.y=56;G.h.landed=false;'+
+        'G.h.tf=3;G.h.want=3;G.h.seq=0;G.cam.x=Math.max(0,G.h.x-160);',
+  ask:'alive answers whole leans',
+  script:[{keys:['Shift','ArrowRight'],n:70},   // the run
+          {keys:['Shift'],n:90},                 // hands off: the speed comes off, and so does the lean
+          {keys:['Shift','ArrowLeft'],n:80}],    // and backwards, nose still east
+  answers:s=>at(s,-1).x<at(s,-70).x-20,
+  // in her own terms: nosed over in the run, level in the hover, tail down
+  // when she is dragged backwards
+  leans:s=>{
+   const run=s.slice(30,70), hover=s.slice(140,160), back=s.slice(200);
+   const mx=a=>a.reduce((m,f)=>Math.max(m,f.lean),-9);
+   const mn=a=>a.reduce((m,f)=>Math.min(m,f.lean),9);
+   return {dive:mx(run),level:Math.max(Math.abs(mx(hover)),Math.abs(mn(hover))),
+           back:mn(back),
+           dived:run.some(f=>f.attitude==='dive'),
+           climbed:back.some(f=>f.attitude==='climb')};
+  }},
+
+ {name:'seekers away',
+  // One jet, crossing above her, and one seeker off the rail. The gun cannot
+  // answer that shot: it fires level and the jet is not level with her.
+  setup:'newGame(2,99);G.foes=[];G.waveT=999;G.people=[];'+
+        'G.h.x=FRONTIER_X-520;G.h.y=86;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+        'G.h.seek=4;G.foes=[jet(G.h.x+150,-1,20)];G.foes[0].sp=26;'+
+        'G.cam.x=Math.max(0,G.h.x-140);',
+  ask:'alive answers seeks',
+  script:[{keys:['Shift'],taps:['c'],n:8},{keys:['Shift'],n:120}],
+  answers:s=>s.some(f=>f.seekers.length>0)&&at(s,-1).seek<4,
+  seeks:s=>{
+   const gone=at(s,-1).foePos.length===0&&at(s,0).foePos.length===1;
+   // and it got there by turning towards it, not by luck: the gap closes
+   let near=1e9;
+   for(const f of s){
+    for(const k of f.seekers)for(const e of f.foePos)
+     near=Math.min(near,Math.hypot(k.x-e.x,k.y-e.y));
+   }
+   return {killed:gone,closed:near};
+  }},
+
  {name:'the pad again',
   setup:'newGame(2,15);G.foes=[];G.waveT=999;G.aboard=8;G.h.x=POST_X;G.h.y=52;'+
         'G.h.landed=false;G.h.tf=0;G.h.want=0;G.h.seq=1;G.cam.x=POST_X-200;',
@@ -381,13 +503,18 @@ async function runScene(pg,def,i){
   const still=await sample(pg,16);
   await pg.keyboard.up('Shift');
   const whole=await pg.evaluate(WHOLE);
+  // How far over she goes, asked of the machine at the angle she actually
+  // reached in this scene rather than at one picked here.
+  let reached=0;
+  for(const f of s)reached=Math.max(reached,Math.abs(f.lean||0));
+  const leans=reached>0.02?await pg.evaluate(LEANS,reached):null;
   if(KEEP){
     fs.mkdirSync(OUT,{recursive:true});
     const st=await pg.$('#stage');
     if(st)await st.screenshot({path:path.join(OUT,String(i+1).padStart(2,'0')+'-'+
       def.name.replace(/[^a-z]+/g,'-')+'.png')});
   }
-  return {s,still,whole};
+  return {s,still,whole,leans};
 }
 
 function judge(def,r){
@@ -395,7 +522,28 @@ function judge(def,r){
   const has=k=>ask.includes(k);
   const j=jumps(r.s), st=strides(r.s), t=turning(r.s);
   const alive=new Set(r.still.map(f=>f.ink)).size;
-  const w=r.whole;
+  const w=r.whole, L=r.leans, lf=has('leans')&&def.leans?def.leans(r.s):null;
+  const sk=has('seeks')&&def.seeks?def.seeks(r.s):null;
+  /* She leans if all four hold:
+   *   she nosed over in the run and came back level in the hover,
+   *   she leaned the other way when she was flown backwards,
+   *   the picture painted at that angle really is lower at one end than the
+   *   other, and the other way round for the other sign, and
+   *   nose left going left paints the mirror of nose right going right.
+   * The picture is where this is decided - the first two only say the angle
+   * was asked for. */
+  const leansOK=!!(lf&&L&&
+    lf.dive>=LEANMIN&&lf.level<=LEANMIN/3&&lf.back<=-LEANMIN*0.5&&
+    lf.dived&&lf.climbed&&
+    L.dive.tilt-L.level.tilt>=TILTMIN&&L.climb.tilt-L.level.tilt<=-TILTMIN&&
+    L.mirrored.tilt+L.level.tilt<=-TILTMIN&&Math.abs(L.roll.tilt-L.level.tilt)>=TILTMIN/3&&
+    L.dive.ink>=L.level.ink*0.85);
+  /* A seeker works if the jet is down and it was on it when it went: the gap
+   * measured here is between the seeker and the jet's top corner, sampled a
+   * frame at a time while the seeker is crossing three pixels a frame, so
+   * twenty is a hit on a jet sixteen pixels long. A seeker that does not turn
+   * goes by a hundred pixels away, which is the distance this is measuring. */
+  const seeksOK=!!(sk&&sk.killed&&sk.closed<=20);
   return {
     in:   has('in')?(j.chopper<=14&&(j.man<0||j.man<=JUMP)):null,
     stride: has('stride')?(st>=STRIDES):null,
@@ -404,10 +552,17 @@ function judge(def,r){
     answers: has('answers')?!!(def.answers&&def.answers(r.s)):null,
     off:  has('off')?!!(def.off&&def.off(r.s)):null,
     whole:has('whole')?!!(w&&w.ink>60&&w.missing===0&&w.shed===0&&w.holes===0):null,
+    leans:has('leans')?leansOK:null,
+    seeks:has('seeks')?seeksOK:null,
     note:'pic '+t.pics+'/'+t.snap.toFixed(2)+' jump '+j.chopper.toFixed(0)+'/'+
       (j.man<0?'-':j.man.toFixed(0))+' gait '+(st<0?'-':st)+' live '+alive+
       (w?' lost '+w.missing+' one-piece '+Math.round(100*w.main/Math.max(1,w.ink))+
-         '% shed '+w.shed+'/'+w.pics+' hole '+w.holes:' whole -')
+         '% shed '+w.shed+'/'+w.pics+' hole '+w.holes:' whole -')+
+      (lf?' lean '+lf.dive.toFixed(2)+'/'+lf.level.toFixed(2)+'/'+lf.back.toFixed(2):'')+
+      (L?' tilt '+L.dive.tilt+'/'+L.level.tilt+'/'+L.climb.tilt+
+         ' mirror '+L.mirrored.tilt+' roll '+L.roll.tilt:'')+
+      (sk?' seeker '+(sk.killed?'hit':'missed')+' by '+
+         (sk.closed>1e8?'-':sk.closed.toFixed(1))+'px':'')
   };
 }
 
@@ -425,7 +580,7 @@ function judge(def,r){
   K=Object.assign(K,await pg.evaluate(function(){
     try{return {FRONTIER_X:FRONTIER_X,POST_X:POST_X,WORLD:WORLD};}catch(e){return {};}
   }));
-  const cols=['in','stride','turn','alive','answers','off','whole'];
+  const cols=['in','stride','turn','alive','answers','off','whole','leans','seeks'];
   console.log((SAB?'SABOTAGED: '+SAB+'\n\n':'')+
     'scene'.padEnd(22)+cols.map(c=>c.padStart(5)).join(' ')+'   what was measured');
   console.log('-'.repeat(22+cols.length*6+40));
