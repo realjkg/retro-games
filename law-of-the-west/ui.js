@@ -2544,7 +2544,7 @@ const RAF=typeof requestAnimationFrame==="function"?requestAnimationFrame:null;
  * would find its whole span elapsed on the single frame that comes back, and
  * the player would return to a scene that had already resolved itself. Nothing
  * that was waiting gets to count the time nobody was watching. */
-let lastNow=-1, clockNow=0, frameAt=0; const STALL=250;
+let lastNow=-1, skew=Infinity; const STALL=250;
 /* One clock for the whole page.
  *
  * The frame loop is handed a timestamp and the engine stamps the tell with it
@@ -2577,15 +2577,23 @@ let lastNow=-1, clockNow=0, frameAt=0; const STALL=250;
  * frame that preceded it, and handing it that frame's timestamp stamps his
  * draw as having begun up to a frame-interval before it did - so the first
  * picture of the draw a player sees is already that far up the curve, and the
- * arm arrives rather than rises. So the frame time is an anchor, not the
- * answer: what is read between frames is that anchor plus however long the
- * wall says it has been since it was set. In a browser that is the true press
- * time, because both come off the same origin. Under test the harness leaves
- * performance.now() pinned at the frame it last stepped, so the difference is
- * nought and the clock is exactly the frame clock, which is the whole point of
- * having one. */
+ * arm arrives rather than rises.
+ *
+ * So the frame's timestamp is not the time, it is what the time is measured
+ * against. Reading the wall at the top of the frame and subtracting gives how
+ * far the two are apart; in a browser they are not apart at all, since rAF's
+ * timestamp and performance.now() come off one origin, and all that is being
+ * measured is how long the callback took to be called. That is never negative
+ * and never smaller than the truth, so the smallest one ever seen is the
+ * answer, and the clock is the wall less that.
+ *
+ * Under test the harness pins performance.now() at the frame it last stepped,
+ * so the difference is nought on the first frame and the clock is exactly the
+ * frame clock ever after - which is the whole point of having one, and is what
+ * keeps the tell-to-shot latency positive instead of pinning every shot fired
+ * in a test to the 60ms floor. */
 const wall=()=>{try{return performance.now();}catch(e){return 0;}};
-const clock=()=>lastNow<0?0:clockNow+Math.max(0,wall()-frameAt);
+const clock=()=>lastNow<0?0:wall()-skew;
 function frame(now){
   try{
     if(lastNow>=0&&now-lastNow>STALL){
@@ -2599,7 +2607,7 @@ function frame(now){
       if(held)held.next+=gap;
       shiftQueue(gap);
     }
-    lastNow=now; clockNow=now; frameAt=wall();
+    lastNow=now; skew=Math.min(skew,wall()-now);
     if(build.rows<10&&now-build.at>ROW_MS*build.rows){
       build.rows++;
       if(build.rows===10){if(G.phase!=="intro")SND.creak();paint();}
