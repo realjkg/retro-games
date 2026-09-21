@@ -303,15 +303,69 @@ test('And it will not drive through a barrack',()=>{
     'it stopped at the wall rather than parking in the doorway');
 });
 
-test('A busier setting sends more, and each wave is fuller than the last',()=>{
-  const count=(d,n)=>{const r=runtime(d,4);clear(r);
-    r.run(`for(let i=0;i<${n};i++)sendWave();`);return r.run('G.foes.length');};
-  assert.ok(count(4,1)>count(1,1),'crowded is crowded from the start');
-  assert.ok(count(2,4)>count(2,1),'and it builds either way');
-  const r=runtime(2,4);clear(r);r.run('sendWave();');
-  assert.equal(r.run('G.foes.some(e=>e.k==="jet")'),false,'no jets in the first wave');
-  r.run('sendWave();');
-  assert.equal(r.run('G.foes.some(e=>e.k==="jet")'),true,'they come in the second');
+test('The opening is quiet at every setting',()=>{
+  // Two tanks at four seconds, and a jet by twenty, was the first minute of
+  // this game whatever you picked, which is not a difficulty switch.
+  for(const d of [1,2,3,4]){
+    const r=runtime(d,40+d);
+    assert.equal(r.run('G.foes.length'),0,'nothing is out there at the start (diff '+d+')');
+    assert.ok(r.run('G.waveT')>=r.run('OPENING')-.01,'and nothing is due for a while');
+    step(r,Math.round((r.run('OPENING')-2)*60),1/60);
+    assert.equal(r.run('G.foes.length'),0,
+      'the Empire has not noticed you yet at '+(r.run('OPENING')-2)+'s (diff '+d+')');
+    assert.equal(r.run('G.wave'),0);
+  }
+});
+
+test('The first thing it ever sends is one tank',()=>{
+  for(const d of [1,2,3,4]){
+    const r=runtime(d,50+d);clear(r);
+    r.run('sendWave();');
+    assert.equal(r.run('G.foes.length'),1,'one, at diff '+d);
+    assert.equal(r.run('G.foes[0].k'),'tank','and it is armour, not aircraft');
+  }
+});
+
+test('Each setting has its own ceiling, and its own road to it',()=>{
+  // Run every setting out to a standstill and see what it settles on.
+  const settle=d=>{const r=runtime(d,61);clear(r);
+    for(let i=0;i<40;i++)r.run('sendWave();');
+    return {t:r.run('G.foes.filter(e=>e.k==="tank").length'),
+            j:r.run('G.foes.filter(e=>e.k==="jet").length'),
+            m:r.run('G.foes.filter(e=>e.k==="drone").length')};};
+  const top=[1,2,3,4].map(settle);
+  for(let i=1;i<4;i++){
+    assert.ok(top[i].t>=top[i-1].t,'tanks: '+JSON.stringify(top.map(x=>x.t)));
+    assert.ok(top[i].j>=top[i-1].j,'jets: '+JSON.stringify(top.map(x=>x.j)));
+    assert.ok(top[i].m>=top[i-1].m,'mines: '+JSON.stringify(top.map(x=>x.m)));
+  }
+  assert.ok(top[3].t>top[0].t&&top[3].j>top[0].j,'Swarming is not Quiet');
+  assert.equal(top[0].m,0,'Quiet never sends an air mine at all');
+  // And it gets there sooner. Count the waves each needs to field three tanks.
+  const wavesTo3=d=>{const r=runtime(d,62);clear(r);
+    for(let w=1;w<=60;w++){r.run('sendWave();');
+      if(r.run('G.foes.filter(e=>e.k==="tank").length')>=3)return w;}
+    return 99;};
+  const w=[1,2,3,4].map(wavesTo3);
+  assert.ok(w[3]<w[0],'Swarming reaches three tanks sooner than Quiet ('+w+')');
+  for(let i=1;i<4;i++)assert.ok(w[i]<=w[i-1],'and the road shortens each step ('+w+')');
+});
+
+test('The trips you make push it harder than the clock does',()=>{
+  // A player who is struggling should not also be escalated at; a player who is
+  // getting them home should be. It is the original's own axis.
+  const after=(trips,waves)=>{const r=runtime(2,63);clear(r);
+    r.run('G.trips='+trips+';');
+    for(let i=0;i<waves;i++)r.run('sendWave();');
+    return r.run('G.foes.length');};
+  assert.ok(after(4,3)>after(0,3),'four trips in is a busier sky than none');
+  assert.ok(after(0,3)>0,'and the clock still moves on its own');
+  // Two trips is worth about two waves.
+  const r=runtime(2,64);clear(r);
+  r.run('G.wave=5;G.trips=0;');
+  const clockOnly=r.run('pressure()');
+  r.run('G.wave=3;G.trips=1;');
+  assert.equal(r.run('pressure()'),clockOnly,'a trip counts for two waves');
 });
 
 test('A shell that lands near them throws them flat, and one that lands on them does not',()=>{

@@ -531,7 +531,8 @@ function newGame(diff=2,seed){
  G.rand=rngFrom(G.seed);
  G.ridge=makeRidge(rngFrom(G.seed^0x9e3779b9));
  G.score=0;G.rescued=0;G.lost=0;G.aboard=0;G.chops=START_CHOPS;
- G.wave=0;G.waveT=4;G.threat=0;G.downT=0;G.cheerT=0;G.t=0;
+ G.wave=0;G.waveT=OPENING;G.threat=0;G.downT=0;G.cheerT=0;G.t=0;
+ G.sawJets=false;G.sawMines=false;
  G.huts=HUTS.map(hutAt);
  G.people=[];G.foes=[];G.shots=[];G.flak=[];G.puffs=[];
  G.h=chopper();
@@ -595,12 +596,32 @@ function drone(x,y){return {k:"drone",x,y,w:DRONE_W,h:DRONE_H,
 // is worth; it does not add to it. Adding to it is what it used to do, and
 // three minutes in there were forty-six of them alive on a strip of country
 // two thousand pixels long, which is not a harder game, it is a wall.
-const MOST_TANKS=7, MOST_JETS=4, MOST_MINES=3;
+// How much the Empire will have out at once, by how hard you asked for it.
+// These were flat - seven, four and three whatever you picked - so "Quiet" was
+// only a slower road to the same wall, and the wall arrived about two minutes
+// in whatever you did.
+const MOST_TANKS=[0,3,4,5,7], MOST_JETS=[0,1,2,3,4], MOST_MINES=[0,0,1,2,3];
+// How fast it gets there, and how far in before jets and mines are sent at all.
+// The ceiling on its own was not enough: with one ramp for all four settings
+// the hard ones never reached their own ceiling and the switch stopped meaning
+// anything.
+const RAMP=[0,6,3,2,1.5], JET_AT=[0,9,5,4,3], MINE_AT=[0,99,10,7,5];
+const OPENING=18;                        // seconds before the Empire notices you
+
+/* ---- how the pressure builds ----
+ * Two things push it up: the clock, slowly, and the trips you actually make.
+ * Trips are the original's own axis - it is on the fourth trip home that the
+ * air mines learn to shoot - and they are the fairer of the two, because a
+ * player who is struggling is not also being escalated at. The clock is only
+ * there so that sitting still is not a strategy.
+ */
+function pressure(){return G.wave+G.trips*2;}
 function sendWave(){
  G.wave++;
- const d=G.diff, r=G.rand;
+ const d=G.diff, r=G.rand, push=pressure();
  const live=k=>G.foes.filter(e=>e.k===k&&!e.dead).length;
- const wantTanks=Math.min(MOST_TANKS,1+Math.floor((G.wave+d)/2));
+ const added={tank:0,jet:0,drone:0};
+ const wantTanks=Math.min(MOST_TANKS[d],1+Math.floor(push/RAMP[d]));
  for(let i=live("tank");i<wantTanks;i++){
   // They come up out of the Empire's half, never out of your own - and never
   // inside a barrack, which it could not then drive out of.
@@ -608,20 +629,33 @@ function sendWave(){
   for(const q of HUTS)
    if(x+TANK_W>q-10&&x<q+HUT_W+10)x=(x<q?q-TANK_W-14:q+HUT_W+14);
   G.foes.push(tank(clamp(x,10,FRONTIER_X-TANK_W-24),r()<.5?-1:1));
+  added.tank++;
  }
- if(G.wave>=2){
-  const wantJets=Math.min(MOST_JETS,Math.floor((G.wave+d)/3));
+ if(push>=JET_AT[d]){
+  const wantJets=Math.min(MOST_JETS[d],1+Math.floor((push-JET_AT[d])/4));
   for(let i=live("jet");i<wantJets;i++){
    const fromRight=r()<.6;
-   G.foes.push(jet(fromRight?WORLD+20:-40,fromRight?-1:1,24+r()*70));
+   // Spread over the whole sky rather than the band you happen to fly in.
+   G.foes.push(jet(fromRight?WORLD+20:-40,fromRight?-1:1,18+r()*96));
+   added.jet++;
   }
  }
- if(G.wave>=4&&d>=2){
-  const wantMines=Math.min(MOST_MINES,Math.floor((G.wave-2)/2));
-  for(let i=live("drone");i<wantMines;i++)
+ if(push>=MINE_AT[d]){
+  const wantMines=Math.min(MOST_MINES[d],1+Math.floor((push-MINE_AT[d])/5));
+  for(let i=live("drone");i<wantMines;i++){
    G.foes.push(drone(160+r()*(FRONTIER_X-400),30+r()*70));
+   added.drone++;
+  }
  }
- G.waveT=Math.max(7,20-G.wave-d*1.5);
+ // Say what is coming. "Everything is flying at me" is a fair complaint when
+ // nothing announced any of it.
+ if(added.jet&&!G.sawJets){G.sawJets=true;say("Jets. Only the level gun reaches them.");}
+ else if(added.drone&&!G.sawMines){G.sawMines=true;say("Air mines. One touch is all they need.");}
+ else if(added.jet)say("More jets.");
+ else if(added.drone)say("Another air mine.");
+ else if(added.tank>1)say("Armour on the move.");
+ else if(added.tank&&G.wave===1)say("They have noticed you. Armour coming up.");
+ G.waveT=Math.max(9,30-d*3-push*(.4+d*.2));
 }
 
 /* ---- bullets, shells and smoke ---- */
@@ -646,7 +680,7 @@ function puff(x,y,n,hue){for(let i=0;i<n;i++)G.puffs.push({x,y,
 
 /* ============ one frame of the war ============ */
 const RUN_SPEED=46, SHELL_G=190;
-const TANK_STANDOFF=130;   // how close a tank will come before it backs off
+const TANK_STANDOFF=165;   // how close a tank will come before it backs off
 const MINE_GUNS_ON=4;      // the trip on which the air mines start shooting too
 function addScore(n){
  G.score+=n;
@@ -860,10 +894,10 @@ function foeStep(e,dt){
   if(e.flash>0)e.flash-=dt;
   e.cool-=dt;
   if(alive&&ad<320&&e.cool<=0){
-   e.cool=2.9+G.rand()*2.1-G.diff*.26;
+   e.cool=3.4+G.rand()*2.2-G.diff*.3;
    // Not a marksman: the further off you are the worse it lays, which is what
    // makes standing off from a barrack a decision rather than a formality.
-   const spread=(G.rand()-.5)*(12+ad*(.16-G.diff*.02));
+   const spread=(G.rand()-.5)*(14+ad*(.22-G.diff*.025));
    const T=1.05, fx=e.x+TANK_W/2+e.dir*7, fy=e.y;
    G.flak.push({k:"tank",x:fx,y:fy,w:3,h:3,g:SHELL_G,big:true,
     vx:(h.x+CHOP_W/2+spread-fx)/T,vy:(h.y+CHOP_H/2-fy)/T-.5*SHELL_G*T});
@@ -875,7 +909,7 @@ function foeStep(e,dt){
   if(e.x<-120||e.x>WORLD+120){e.dead=true;return;}
   e.cool-=dt;
   const dx=(h.x+CHOP_W/2)-(e.x+JET_W/2);
-  if(alive&&e.cool<=0&&Math.sign(dx)===e.dir&&Math.abs(dx)<220&&Math.abs(h.y-e.y)<26){
+  if(alive&&e.cool<=0&&Math.sign(dx)===e.dir&&Math.abs(dx)<220&&Math.abs(h.y-e.y)<20){
    e.cool=.85;
    G.flak.push({k:"jet",x:e.x+(e.dir>0?JET_W:0),y:e.y+2,w:4,h:2,g:0,vx:e.dir*210,vy:0});
    jetSound();G.threat=3.2;
