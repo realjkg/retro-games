@@ -168,6 +168,52 @@ test('Three hits and she is down, and everyone aboard goes down with her',()=>{
   assert.equal(r.run('Math.round(G.h.x)'),r.run('POST_X'),'on the pad, where they start');
 });
 
+test('Held, down is a rate you can land at; let go, it is a fall',()=>{
+  // Pushing her at the ground used to reach the falling speed in half a second,
+  // so every landing made on the button was a heavy one and the only safe way
+  // down was to let go and catch her, which is exactly backwards.
+  const r=runtime(2,28);clear(r);
+  r.run('G.h.landed=false;G.h.y=20;G.h.vy=0;keys.D=true;');
+  step(r,30);
+  const rate=r.run('G.h.vy');
+  assert.ok(rate>20,'she does come down ('+rate.toFixed(0)+')');
+  assert.ok(rate<r.run('HARD_LANDING'),
+    'at a rate she can be put down at ('+rate.toFixed(0)+')');
+  r.run('G.h.y=GROUND_Y-CHOP_H-60;');
+  step(r,200);
+  assert.equal(r.run('G.h.landed'),true);
+  assert.equal(r.run('G.h.hp'),3,'holding it all the way down costs nothing');
+  // And a free fall is still a free fall.
+  const q=runtime(2,28);clear(q);
+  q.run('G.h.landed=false;G.h.y=20;G.h.vy=0;');
+  step(q,400);
+  assert.equal(q.run('G.h.landed'),true);
+  assert.ok(q.run('G.h.hp')<3,'letting go of everything and dropping does not');
+});
+
+test('Nothing the Empire owns shoots across the line',()=>{
+  // Being destroyed on your own concrete with sixteen aboard is not a
+  // difficulty, it is a tax.
+  const r=runtime(2,29);clear(r);
+  r.run(`G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.aboard=12;
+   G.foes=[tank(FRONTIER_X+30,-1),jet(FRONTIER_X+120,-1,GROUND_Y-CHOP_H),
+           drone(FRONTIER_X+80,60)];`);
+  step(r,1200);
+  assert.equal(r.run('G.flak.length'),0,'not a shell was fired at the pad');
+  assert.equal(r.run('G.h.hp'),3,'and she is untouched');
+  assert.equal(r.run('G.aboard'),0,'the twelve she carried are out and home');
+  assert.equal(r.run('G.rescued'),12);
+  // An air mine will not follow her over it either.
+  assert.ok(r.run('G.foes.filter(e=>e.k==="drone").every(e=>e.x>=FRONTIER_X)'),true);
+  // Over the line, the same tank does fire.
+  const q=runtime(2,29);clear(q);
+  q.run(`G.h.x=FRONTIER_X+200;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;
+   G.foes=[tank(FRONTIER_X+340,-1)];`);
+  let fired=false;
+  for(let i=0;i<900&&!fired;i++){q.run('stepGame(0.02);');fired=q.run('G.flak.length>0');}
+  assert.equal(fired,true,'east of it, the same tank shoots');
+});
+
 test('A heavy landing hurts; a gentle one does not',()=>{
   const soft=runtime(2,16);clear(soft);
   soft.run('G.h.landed=false;G.h.y=GROUND_Y-CHOP_H-3;G.h.vy=20;');

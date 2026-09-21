@@ -20,7 +20,8 @@ and the post.
   hovers; once she is over she flies that way, and the further over she is the faster she
   goes. Let go and she stays where you left her.
 - **▲ lifts, ▼ puts her down**, and **HOVER** (Shift/H) holds whatever height you are at.
-  Come down too fast and it costs you a hit.
+  ▼ is a rate, not a shove: hold it all the way to the sand and she settles at a speed she
+  can be landed at. **Let go of everything and she falls**, and a fall still costs you a hit.
 - **FACE** (X/E) brings her back upright without waiting for the turn, because upright is the
   firing stance for anything in the air.
 - **FIRE** (Space/Z/Enter) points where she does: **in profile the gun fires level**, and
@@ -47,7 +48,18 @@ and the post.
   points apiece.
 - **Your own gun and your own skids kill them** as surely as a tank shell does. So does going
   down with sixteen aboard.
-- The Empire sends **tanks** (which lob shells and stay on their own side of the line),
+- The Empire sends **tanks**, which stay on their own side of the line, keep a stand-off of
+  about a hundred and thirty pixels rather than driving onto the pad, and lay worse the
+  further off you are — so standing away from a barrack is a decision rather than a
+  formality. A tank will not drive through a barrack either, which means each one patrols
+  the stretch of sand it was sent to and no further.
+- **Nothing the Empire owns shoots across the line.** Get west of the frontier post and you
+  are out of it: no shell is fired at you, no jet lines you up, and an air mine turns back.
+  The run home is a run home.
+- **The Empire's strength is topped up, not added to.** A wave brings it back to what this
+  far into the mission is worth — at most seven tanks, four jets and three mines alive at
+  once. It used to add, and three minutes in there were forty-six of them on a strip of
+  country two thousand pixels long, which is not a harder game, it is a wall.
   **jets** from the second wave (level, fast, and only the upward gun reaches them) and
   **air mines** from the fourth on the busier settings. Each wave comes in sooner than the
   last.
@@ -174,11 +186,20 @@ The brief was a modernisation, so these are deliberate and are not the original:
   in front of them and level with them, and they go.
 - **The ground is a line.** There is no terrain, no cover, and nothing to fly around.
 - **One high score, in this browser.** No table, no names, no two-player.
+- **The balance was measured against a very poor player.** `tools/` has no autopilot in it,
+  but the mission was run repeatedly through the node harness with a crude one — fly out,
+  open a barrack, sit down, load, fly home — and tuned until that bot could get four to nine
+  of them home on the easier settings across several seeds. That is a floor, not a
+  calibration: nobody has played this with their hands.
+- **No extra machines for points.** Three is three. The original handed them out; this does
+  not, and the endless-machines switch is the only relief on offer.
+- **A tank cannot pass a barrack**, which is how it is stopped from parking in the doorway,
+  and the side effect is that no tank ever chases you the length of the map.
 
 ## Running it
 
 ```
-node --test choplifter/tests/*.test.cjs          # 29 tests, no packages needed
+node --test choplifter/tests/*.test.cjs          # 34 tests, no packages needed
 node choplifter/tools/render-art.js --check      # the icons and the tile match the sprite
 node tools/sync-nozoom.js --check                # this page carries the current zoom guard
 ```
