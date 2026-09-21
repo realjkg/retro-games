@@ -8,36 +8,47 @@
 
 const RULES={
   ROUNDS:3,
-  TELL_MIN:400, TELL_MAX:900,
-  /* How long a man takes between showing his hand and using it. Measured
-   * against a person rather than guessed at: seeing a thing on a phone and
-   * pressing a button is about 250ms at the very best and 400-600ms in normal
-   * play, and the page's own cost sits on top of that. The old ambush gave
-   * 380-680ms for the whole business, which no one alive could answer. */
-  TELLS:{ambush:[320,500], delayed:[520,820], draw:[620,1000]},
-  /* Measured, not guessed. With 260-420 here the tightest tell - the ambush -
-   * gave you 580-920ms from his hand moving to his ball leaving. A person is
-   * 250ms at the very best and 400-600ms in normal play, and tools/timing.js
-   * charges a further 120ms for the press itself, so an unhurried answer to an
-   * ambush was outdrawn about one time in seven.
+  TELL_MIN:340, TELL_MAX:830,
+  /* How long a man takes between showing his hand and using it, and then how
+   * long he takes over it. Measured against a person rather than guessed at,
+   * twice now.
    *
-   * 320-460 puts the ambush at 640-960 and buys that back. It cannot go much
-   * further in either direction and both ends are somebody else's test:
-   * tools/timing.js insists that being slow still costs something, which needs
-   * the slowest draw window under about 970ms, so FIRE_MIN stays below 350;
-   * and test 5 insists a duel is still a gunfight, which caps the longest draw
-   * at 1500ms, so FIRE_MAX stays at or under 500. */
-  FIRE_MIN:320, FIRE_MAX:460,
+   * The first measurement took reaction time on its own - about 250ms at the
+   * very best, 400-600ms in normal play - and set the windows just clear of
+   * it. Driving the whole fight through the real FIRE control on the page's
+   * own clock says that was still too tight. A player reacting in 600ms won
+   * the ambush ninety-five times in a hundred; at 800ms he won thirty; at a
+   * second he never won at all, and neither did he win a man squaring up in
+   * front of him.
+   *
+   * Eight hundred milliseconds is not a slow player. It is a thumb on glass,
+   * and it lands on top of the press he has just made to say the line that
+   * started the fight - he is reacting to the consequence of his own last
+   * press, which is the hardest reaction there is. So the windows are set
+   * against that press. Now 800ms wins the ambush four times in five and
+   * everything else outright; a full second wins the squared-up draw nine
+   * times in ten, the man who turns back on you two in three, and the ambush
+   * one in five - because an ambush is supposed to cost something.
+   *
+   * The ceiling has not moved: the longest fight any of them can give is
+   * still under a second and a half. tools/timing.js holds the other end. */
+  TELLS:{ambush:[340,600], delayed:[500,760], draw:[570,830]},
+  FIRE_MIN:380, FIRE_MAX:520,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
    * them, which made every caller the same man wearing a different hat. A
    * hostile one is quick and answers it; a patient one gives you a long moment
    * to think better of it; a frightened one is quicker than either and runs,
-   * and the street remembers that the badge did that to him. */
+   * and the street remembers that the badge did that to him.
+   *
+   * These were about two thirds of what they are. A drawn gun gave a hostile
+   * man under a second to answer it, which is less time than it takes to move
+   * a crosshair onto him with a thumb - the draw was a trap rather than a
+   * threat. The gradient between the three is what matters and it is intact. */
   TEMPERS:{
-    hostile:{reflex:[900,1600],  flee:0},
-    patient:{reflex:[2200,3400], flee:-1},
-    coward: {reflex:[700,1400],  flee:-2}
+    hostile:{reflex:[1400,2200], flee:0},
+    patient:{reflex:[3000,4400], flee:-1},
+    coward: {reflex:[1100,1900], flee:-2}
   },
   AIM_STEP:0.02, AIM_FLOOR:120, AIM_CEIL:300,
   /* How far off the sights the ball goes, in pixels of the picture. A snap
