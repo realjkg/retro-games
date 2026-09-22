@@ -58,6 +58,15 @@ second — roughly twice the arcade's, which is a deliberate departure: with the
 original's slower bullet the two-shot limit bites on every other press and a
 held button stutters.
 
+**Endless fighters.** `FIGHTERS` on the title card cycles 3, 5, 2, ENDLESS, and
+the setting is remembered between visits; the same switch is in the pause menu,
+along with a way to end a run and see the tally. On endless a death still costs
+you the fighter and whatever the boss was carrying — what it does not cost is
+the game. The panel shows **∞** where the count goes. No extra fighters are
+handed out, because there is nothing to hand them to, and **an endless run never
+becomes a high score**. Turning the switch off part way through does not launder
+the run: once it has been endless, it is not a score.
+
 **Scoring**
 
 | | in the formation | in flight |
@@ -75,7 +84,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 28 tests, no browser
+    node --test tests/*.test.cjs                          # 35 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
@@ -146,6 +155,9 @@ four of those checks fail on the build they replaced.
   a few frames.
 * **No enemy ever fires from the formation**, which is right, but no enemy fires
   a *pair* of shots on a spread either, which the arcade does at higher stages.
+* **Endless is not a practice mode.** It removes the cost of dying and nothing
+  else: there is no way to start at stage 12, no slow motion, and no way to
+  summon a capture so you can practise getting the fighter back.
 * **The stage never gets harder in the ways the arcade's does** beyond entry and
   dive speed and how often somebody dives. There is no second beam, no faster
   formation, no tighter dive.

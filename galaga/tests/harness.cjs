@@ -22,8 +22,16 @@ function runtime(file){
       className:'',width:224,height:288,
       classList:{add(){},remove(){},toggle(){},contains(){return false}},
       setAttribute(){},addEventListener(){},removeEventListener(){},
-      setPointerCapture(){},closest(){return null},
-      querySelectorAll(){return[]},
+      setPointerCapture(){},hasPointerCapture(){return false},
+      releasePointerCapture(){},closest(){return null},
+      /* Menus are built by writing innerHTML and then wiring up whatever
+         querySelectorAll hands back. Returning nothing made every screen that
+         has buttons on it throw the moment a test reached one — game over
+         among them. Counting the buttons in the markup is enough of a DOM. */
+      querySelectorAll(sel){
+        const n=String(this.innerHTML||'').split('class="menuitem').length-1;
+        return /menuitem/.test(String(sel))?Array.from({length:n},()=>mkEl('item')):[];
+      },
       getBoundingClientRect(){return{left:0,top:0,width:224,height:288}},
       getContext(){return drawing},toDataURL(){return'data:,'}};
   }

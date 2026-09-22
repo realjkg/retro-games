@@ -494,6 +494,8 @@ function slotPos(s){
 const G={
   state:'splash',          // splash | play | dying | stagecard | over | paused
   stage:1,score:0,high:+load('galaga.high',0)||0,lives:3,startLives:3,
+  endless:load('galaga.endless','0')==='1',  /* the count never moves */
+  noScore:false,                             /* and the run cannot be a high one */
   enemies:[],bullets:[],ebullets:[],booms:[],freed:null,
   ship:{x:W/2,y:262,alive:true,dual:false,captured:false,t:0},
   waves:[],waveT:0,waveI:0,spawnI:0,spawnT:0,
@@ -748,10 +750,10 @@ function valueOf(e){
 function addScore(n){
   G.score+=n;
   if(G.score>=G.nextExtra){
-    G.lives++;G.nextExtra+=G.extraStep;Snd.extra();
-    flash('EXTRA FIGHTER');
+    G.nextExtra+=G.extraStep;
+    if(!G.endless){G.lives++;Snd.extra();flash('EXTRA FIGHTER');}
   }
-  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  if(!G.noScore&&G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
   el('score').textContent=G.score;
   el('high').textContent=G.high;
 }
@@ -855,7 +857,7 @@ function playerDies(){
   G.ship.alive=false;
   boom(G.ship.x,G.ship.y,true);
   Snd.die();
-  G.lives--;
+  if(!G.endless)G.lives--;
   G.state='dying';G.dieT=1.5;
 }
 function respawn(){
@@ -865,7 +867,7 @@ function respawn(){
 }
 function gameOver(){
   G.state='over';G.over=true;
-  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  if(!G.noScore&&G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
   showOver();
 }
 
@@ -879,7 +881,7 @@ function beamStep(boss,dt){
     G.ship.alive=false;
     G.pull={x:G.ship.x,y:G.ship.y,t:0,boss};
     G.ship.captured=true;
-    G.lives--;
+    if(!G.endless)G.lives--;
     Snd.capture();
     flash('FIGHTER CAPTURED');
   }
@@ -1143,6 +1145,21 @@ function drawBoomInto(g,b){
   }
 }
 
+/* The count, where there is no count. Nine pixels by five, because two loops
+ * meeting at a waist do not fit in the five-wide font: at five by three it came
+ * out as a filled block with two holes in it and read as a domino. */
+const INF=[
+".##...##.",
+"#..#.#..#",
+"#...#...#",
+"#..#.#..#",
+".##...##."];
+function drawInf(x,y,col){
+  g.fillStyle=col;
+  for(let r=0;r<INF.length;r++)for(let c=0;c<INF[r].length;c++)
+    if(INF[r][c]==='#')g.fillRect(x+c,y+r,1,1);
+}
+
 const FLAGS=[[50,'#38c840'],[30,'#2f7be8'],[20,'#ee3322'],[10,'#f8d000'],[5,'#ff8a10'],[1,'#ffffff']];
 function drawFlag(x,y,col,big){
   g.fillStyle='#c8c8e0';g.fillRect(x,y,1,big?10:8);
@@ -1152,7 +1169,10 @@ function drawHud(){
   g.fillStyle='#000000';g.fillRect(0,HUDY,W,H-HUDY);
   g.fillStyle='#1a1a2a';g.fillRect(0,HUDY,W,1);
   if(G.state==='splash')return;   /* no stale count under the title screen */
-  for(let i=0;i<Math.min(6,Math.max(0,G.lives-1));i++)
+  if(G.endless){
+    g.drawImage(SPR.ship,2,HUDY);
+    drawInf(19,HUDY+5,'#e8e6f2');
+  }else for(let i=0;i<Math.min(6,Math.max(0,G.lives-1));i++)
     g.drawImage(SPR.ship,2+i*15,HUDY);
   /* the stages you have cleared, as the flags the cabinet flies */
   let n=Math.max(0,G.stage-1),x=W-3;
@@ -1226,15 +1246,23 @@ function showSplash(){
     '<h1>GALAGA</h1>'+
     '<p class="sub">Forty of them fly in. The green ones want your fighter.</p>'+
     '<button class="menuitem sel" type="button">START</button>'+
-    '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+G.startLives+'</button>'+
+    '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+
+      (G.endless?'ENDLESS':G.startLives)+'</button>'+
     '<button class="menuitem" type="button">HOW TO PLAY</button>'+
     '<small class="tip">← → move · SPACE fire · P pause · hold to autofire</small>',
     [{go:newGame},{go:cycleLives},{go:showHelp}]);
 }
+/* Two, three, five, endless, and back to three. Endless is the fourth stop on
+ * the same switch rather than a mode of its own, because it is the same
+ * question: how many of these do I get. */
 function cycleLives(){
-  G.startLives=G.startLives===3?5:G.startLives===5?2:3;
+  if(G.endless){setEndless(false);G.startLives=3;}
+  else if(G.startLives===3)G.startLives=5;
+  else if(G.startLives===5)G.startLives=2;
+  else setEndless(true);
   save('galaga.lives',G.startLives);
-  const b=el('mfight');if(b)b.textContent='FIGHTERS: '+G.startLives;
+  const b=el('mfight');
+  if(b)b.textContent='FIGHTERS: '+(G.endless?'ENDLESS':G.startLives);
 }
 function showHelp(){
   ov.className='card';
@@ -1248,7 +1276,10 @@ function showHelp(){
     '<div class="r"><span>Boss diving, one escort left</span><span>800</span></div>'+
     '<div class="r"><span>Boss diving, both escorts left</span><span>1600</span></div>'+
     '</div>'+
-    '<small class="tip">A boss takes two hits. If its beam catches you it keeps your '+
+    '<small class="tip"><b>FIGHTERS: ENDLESS</b> is the fourth stop on the switch '+
+    'above. A death still costs you the fighter and whatever it was carrying; what '+
+    'it does not cost is the game. No extra fighters are handed out, and an endless '+
+    'run never becomes a high score.<br><br>A boss takes two hits. If its beam catches you it keeps your '+
     'fighter and you lose a life. Shoot that boss <b>while it is diving</b> and the '+
     'fighter flies home and docks: two ships, two shots at once. Shoot it while it '+
     'sits in the formation and your fighter dies with it — and never shoot the '+
@@ -1280,7 +1311,19 @@ function showOver(){
 }
 function showPause(){
   ov.className='card';
-  ov.innerHTML='<h1>PAUSED</h1><p class="sub">P, or the button, to go back in.</p>';
+  buildMenu(
+    '<h1>PAUSED</h1>'+
+    '<p class="sub">'+(G.endless
+      ? 'Endless fighters. A death costs you the wave, never the game — and this run '+
+        'will not become a high score.'
+      : 'P, or the button, to go back in.')+'</p>'+
+    '<button class="menuitem sel" type="button">BACK IN</button>'+
+    '<button class="menuitem" type="button">FIGHTERS: '+
+      (G.endless?'ENDLESS':G.lives)+'</button>'+
+    '<button class="menuitem" type="button">END THIS RUN</button>',
+    [{go:togglePause},
+     {go:()=>{setEndless(!G.endless);showPause();}},
+     {go:()=>{G.state='play';gameOver();}}]);
 }
 
 /* The title screen flies the formation behind the menu rather than a picture of
@@ -1294,8 +1337,16 @@ function attract(){
     G.enemies.push(e);
   });
 }
+function setEndless(on){
+  G.endless=on;
+  save('galaga.endless',on?'1':'0');
+  /* Once a run has been endless it can never be a high score, and turning the
+   * switch back off does not launder it. */
+  if(on)G.noScore=true;
+}
 function newGame(){
   G.score=0;G.lives=G.startLives;G.shots=0;G.hits=0;G.over=false;
+  G.noScore=G.endless;
   G.nextExtra=20000;
   G.ship.alive=true;G.ship.dual=false;G.ship.captured=false;G.ship.x=W/2;G.ship.inv=1.2;
   G.pull=null;G.freed=null;
