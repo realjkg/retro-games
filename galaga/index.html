@@ -78,6 +78,12 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
 .tally .r span:last-child{color:var(--gold);font-weight:700}
 #sound{position:absolute;right:8px;top:8px;z-index:3}
 @media (pointer:fine){#pads{display:none}}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -174,6 +180,98 @@ const Snd={ctx:null,on:load('galaga.sound','1')==='1',
   stage(){[392,523,659,784].forEach((f,i)=>this.tone('square',f,f,0.12,0.05,i*0.11));},
   perfect(){[523,659,784,1046,1318].forEach((f,i)=>this.tone('square',f,f,0.13,0.06,i*0.1));},
   extra(){[659,880,1174].forEach((f,i)=>this.tone('triangle',f,f,0.16,0.06,i*0.12));}
+};
+
+/* ---------- music ---------- */
+/* The arcade plays a fanfare over the first flight and nothing at all while
+ * you are shooting, which is how this works too.
+ *
+ * The tunes are written as note names against the equal-tempered scale and
+ * scheduled against the audio clock rather than the frame clock, so they do not
+ * drag when the page is busy. They are reconstructions by ear, not
+ * transcriptions, and the README says so. */
+const SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function hz(name){
+  if(name==='-')return 0;                       /* a rest */
+  const m=/^([A-G])([#b]?)(-?\d)$/.exec(name);
+  if(!m)return 0;
+  const n=SEMI[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)+(+m[3]+1)*12;
+  return 440*Math.pow(2,(n-69)/12);
+}
+/* A voice is a waveform, a gain and how long a note rings past its length. */
+const VOICES={
+  lead:{type:'square',  gain:0.070,ring:0.035},
+  harm:{type:'square',  gain:0.030,ring:0.030},
+  bass:{type:'triangle',gain:0.075,ring:0.050}
+};
+const Music={
+  playing:null,
+  stop(){this.playing=null;},
+  /* Each part is [voice, "note:beats note:beats ..."] over one tempo. */
+  play(tune){
+    if(!Snd.on)return;
+    Snd.boot();
+    const c=Snd.ctx;
+    if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const beat=60/tune.bpm;
+    const t0=c.currentTime+0.06;
+    let last=0;
+    for(const[v,line]of tune.parts){
+      const V=VOICES[v]||VOICES.lead;
+      let t=t0;
+      for(const tok of line.trim().split(/\s+/)){
+        const[n,b]=tok.split(':');
+        const dur=(+b||1)*beat;
+        const f=hz(n);
+        if(f){
+          const o=c.createOscillator(),g=c.createGain();
+          o.type=V.type;o.frequency.setValueAtTime(f,t);
+          g.gain.setValueAtTime(0.0001,t);
+          g.gain.linearRampToValueAtTime(V.gain,t+0.012);
+          g.gain.setValueAtTime(V.gain,t+dur*0.7);
+          g.gain.exponentialRampToValueAtTime(0.0001,t+dur+V.ring);
+          o.connect(g);g.connect(c.destination);
+          o.start(t);o.stop(t+dur+V.ring+0.02);
+        }
+        t+=dur;
+      }
+      last=Math.max(last,t-t0);
+    }
+    this.playing=tune;
+    return last;
+  }
+};
+/* The fanfare the cabinet plays as the first flight comes down. Four bars: a
+ * rising run answered a step higher, then a turn and a landing. */
+const TUNES={
+  start:{bpm:150,parts:[
+    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 G5:.5 E5:.5 G5:1 -:.5'+
+            ' D5:.5 F5:.5 A5:.5 D6:.5 A5:.5 F5:.5 A5:1 -:.5'+
+            ' E5:.5 G5:.5 C6:.5 E6:.5 C6:.5 G5:.5 E5:.5 C5:.5'+
+            ' G5:1.5 C6:1.5'],
+    ['harm','E4:.5 G4:.5 C5:.5 E5:.5 C5:.5 G4:.5 E5:1 -:.5'+
+            ' F4:.5 A4:.5 D5:.5 F5:.5 D5:.5 A4:.5 F5:1 -:.5'+
+            ' G4:.5 C5:.5 E5:.5 G5:.5 E5:.5 C5:.5 G4:.5 E4:.5'+
+            ' E5:1.5 E5:1.5'],
+    ['bass','C3:1 G2:1 C3:1 G2:1 -:.5'+
+            ' D3:1 A2:1 D3:1 A2:1 -:.5'+
+            ' C3:1 G2:1 C3:1 E3:1'+
+            ' G2:1.5 C3:1.5']]},
+  /* A challenging stage announces itself: nothing shoots back for the next
+   * forty, and the tune is the only warning you get. */
+  challenge:{bpm:168,parts:[
+    ['lead','G5:.5 A5:.5 B5:.5 D6:1 B5:.5 D6:1.5 -:.5'+
+            ' G5:.5 B5:.5 D6:.5 G6:1 D6:.5 G6:1.5'],
+    ['bass','G3:1 D3:1 G3:1.5 D3:1 -:.5'+
+            ' G3:1 D3:1 G3:1 D3:.5 G3:1']]},
+  perfect:{bpm:160,parts:[
+    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 E6:.5 G6:.5 C7:2'],
+    ['harm','E4:.5 G4:.5 C5:.5 E5:.5 G5:.5 C6:.5 E6:2'],
+    ['bass','C3:1 C3:1 G3:1 C4:2']]},
+  over:{bpm:104,parts:[
+    ['lead','C5:1 B4:.5 A4:.5 G4:1 E4:1 C4:2'],
+    ['bass','C3:1 G2:1 E2:1 C2:3']]}
 };
 
 /* ---------- sprite art ---------- */
@@ -867,6 +965,7 @@ function respawn(){
 }
 function gameOver(){
   G.state='over';G.over=true;
+  Music.play(TUNES.over);
   if(!G.noScore&&G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
   showOver();
 }
@@ -999,6 +1098,7 @@ function shipStep(dt){
 }
 function nextStage(){
   Snd.stage();
+  if(stageIsChallenge(G.stage+1))Music.play(TUNES.challenge);
   startStage(G.stage+1);
   G.state='stagecard';G.cardT=1.7;
   showCard('STAGE '+G.stage,stageIsChallenge(G.stage)?'CHALLENGING STAGE':'');
@@ -1007,7 +1107,7 @@ function endChallenge(){
   const perfect=G.chalHit>=G.chalTotal;
   const bonus=perfect?10000:G.chalHit*100;
   addScore(bonus);
-  if(perfect)Snd.perfect();else Snd.stage();
+  if(perfect)Music.play(TUNES.perfect);else Snd.stage();
   showCard(perfect?'PERFECT!':'NUMBER OF HITS '+G.chalHit,
            (perfect?'SPECIAL BONUS 10000':'BONUS '+bonus)+' PTS');
   G.state='stagecard';G.cardT=2.6;
@@ -1354,7 +1454,8 @@ function newGame(){
   startStage(1);
   G.state='stagecard';G.cardT=1.5;
   showCard('STAGE 1','');
-  Snd.boot();Snd.stage();
+  Snd.boot();
+  Music.play(TUNES.start);
 }
 
 /* ---------- input ---------- */
@@ -1435,6 +1536,7 @@ st.addEventListener('pointercancel',drop);
 
 el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('galaga.sound',Snd.on?'1':'0');
+  if(!Snd.on)Music.stop();
   el('soundstate').textContent=Snd.on?'on':'off';
   if(Snd.on){Snd.boot();Snd.shot();}
 });

@@ -128,6 +128,12 @@ body.gamemode #audio-status{display:none}
 body.gamemode #sound,body.gamemode #full,body.gamemode #install{padding:2px 7px;min-height:0;
   font-size:10px;opacity:.85;border-radius:7px}
 body.gamemode #install{display:none}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>

@@ -153,6 +153,12 @@ body.fs #audio-status{display:none}
     margin:0;z-index:5;font-size:10px}
   body.fs #sound,body.fs #fs,body.fs #install{padding:6px 10px;min-height:32px;font-size:11px}
 }
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>

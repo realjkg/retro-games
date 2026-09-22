@@ -67,6 +67,18 @@ handed out, because there is nothing to hand them to, and **an endless run never
 becomes a high score**. Turning the switch off part way through does not launder
 the run: once it has been endless, it is not a score.
 
+**Music.** A fanfare plays over the first flight of every game, a second one
+announces a challenging stage, a third lands a perfect bonus and a fourth closes
+a game out. Nothing plays while you are shooting, which is the arcade's
+arrangement. The tunes are two and three voices of square and triangle wave,
+scheduled against the audio clock rather than the frame clock so they do not
+drag when the page is busy.
+
+They are **reconstructions by ear and not transcriptions.** Nobody working on
+this could hear the result, so `tools/music.js` draws each tune as a piano roll
+and the shapes were checked by looking: a rising figure answered a step higher,
+a turn, a landing, and every voice ending on the same beat.
+
 **Scoring**
 
 | | in the formation | in flight |
@@ -84,7 +96,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 35 tests, no browser
+    node --test tests/*.test.cjs                          # 40 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
@@ -111,6 +123,7 @@ first one, because CI has no browser and the game has to stay playable from
 Two more tools exist only so a person can look at the pixels, which is the one
 thing no check does:
 
+    PW=... node tools/music.js out.png       the tunes, as piano rolls
     PW=... node tools/sprites.js out.png     every sprite and frame at 8×
     PW=... node tools/shots.js out/          thirteen moments of the game
     PW=... node tools/render-icons.js        the home-screen icons, from the art
@@ -161,7 +174,16 @@ four of those checks fail on the build they replaced.
 * **The stage never gets harder in the ways the arcade's does** beyond entry and
   dive speed and how often somebody dives. There is no second beam, no faster
   formation, no tighter dive.
+* **The double-tap zoom fix is unverified on the device it is for.** The
+  controls now carry their own `touch-action`, which is what the shared guard
+  always assumed they did, and `tools/zoomguard.js` proves it in Chromium.
+  The behaviour being defended against is WebKit's and there is no WebKit here.
 * **There is no attract-mode demo.** The title screen flies the formation and
   that is all; the arcade plays itself.
-* **Sound is six oscillator voices.** It is a reasonable set of blips and it is
-  not the arcade's music.
+* **The music is not the arcade's music.** It is a fanfare written to sit where
+  the arcade's sits and to have its shape; it is not a transcription and it is
+  not off by a note, it is a different tune. Anyone with the original to hand
+  could replace the note rows in `TUNES` and nothing else would need to change.
+* **There is no music during play**, which is faithful, and no enemy-entry
+  sound worth the name, which is not: the arcade's swarm has a voice and this
+  one has a single blip.

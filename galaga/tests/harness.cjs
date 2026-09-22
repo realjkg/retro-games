@@ -66,11 +66,13 @@ function runtime(file){
   vm.createContext(box);
   vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
+  /* the same thing, brought back as data rather than as a string */
+  const j=c=>JSON.parse(run('JSON.stringify('+c+')'));
   // Start every test from a running stage 1 with no overlay in the way and
   // nothing diving: a parked fighter is shot down inside twenty seconds
   // otherwise, and then the test is measuring the respawn instead.
   run(`newGame();hideOverlay();G.state='play';G.diveT=1e9;`);
-  return {run,notes,el,store,box,docEvents};
+  return {run,j,notes,el,store,box,docEvents};
 }
 // Advance the game the way the frame loop does: fixed sixtieths.
 const step=(r,seconds,dt=1/60)=>
