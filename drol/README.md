@@ -50,6 +50,64 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
   high score rather than pretending the current run counts towards it. Switch it off and the
   next points you score count again.
 
+## The maze has room in it
+
+The storeys used to be a letterbox, and the arithmetic that said otherwise was
+reading the wrong numbers. A storey was four rows of ten pixels: three of air and
+the slab at the bottom. But **the roof was the top storey's own first row**, so
+that one had two rows of air where the others had three — and only six pixels of
+each ten-pixel slab were painted, so four pixels of every floor were solid and
+black.
+
+Fly the robot up and hold the jetpack, which is the only measurement that counts:
+
+| | shipped | now |
+|---|---|---|
+| climb in each storey | **2** / 12 / 12 / 12 px | 22 / 22 / 22 / 22 px |
+| air in a storey | 20 px (top), 30 px | 40 px |
+| floor painted black | 4 px | 0 |
+| maze on the screen | 159 px of a 160 px world | 210 px of a 210 px world |
+
+Two pixels. The robot is eighteen pixels tall and the top storey — where every
+scene starts — gave him two pixels of lift. What changed:
+
+- **A storey is five rows now, and the roof is a row of its own** above the first
+  one instead of being borrowed from it. All four storeys are the same height and
+  every one of them holds forty pixels of air.
+- **All of a slab is painted, because all of it is solid.** The bright band and
+  its white rail are unchanged — that is what the photographs show — and the four
+  pixels under them that used to be black are now the slab's thickness in the
+  scene's darker blue. You stop where the floor can be seen to end.
+- **The view is the whole maze again, top to bottom.** It was a pixel short of
+  the world, so the camera scrolled a world that fits and the bottom storey's
+  floor sat off the bottom of the screen.
+- **And much more of it side to side.** The view used to scale off its own width
+  — the scale was `w/346` and the view was `w/s`, which is 346 pixels for every
+  screen there is — so a bigger display only ever magnified the same narrow slice
+  of a thousand-pixel maze. The scale now comes off a target, `VIEW_WANT`, of how
+  much maze we would like to see: below it a screen shows what it has at 1:1,
+  above it the view holds at the target and the surplus goes into bigger pixels.
+
+  | screen | shipped | now |
+  |---|---|---|
+  | phone, portrait | 346px (35%) | 372px (37%) |
+  | phone, landscape | 346px (35%) | **700px (70%)** |
+  | tablet or laptop | 346px (35%) | **700px (70%)** |
+
+  Portrait is at its physical limit, not at a policy: 372 CSS pixels is all the
+  width there is, and one game pixel never goes below one CSS pixel because the
+  panel's lettering is eight pixels tall and stops being readable the moment it
+  does. Turn the phone sideways, or use full screen, and you see twice the maze.
+  The stage takes whatever shape the view turned out to be — `fit()` publishes it
+  as the element's `aspect-ratio` and as a `--ar` custom property for the
+  full-screen rules — so the pixels stay square at every size.
+- **The line the game talks in has its own strip** under the maze. It used to be
+  painted across the bottom storey's floor.
+
+This is a departure from the original, which is a 40-pixel storey and a robot
+that fills nearly half of it. On a phone that reads as a letterbox, and the whole
+point of the jetpack is somewhere to fly.
+
 ## A ball reaches what is on your floor
 
 A storey is forty pixels: ten of those are the slab, so there are **twenty pixels of air in
@@ -372,6 +430,27 @@ and down the same hole because the goal kept changing floors, dithering between 
 or parking in the one-pixel band between "close enough not to steer" and "close enough to
 drop". Those are recorded in the agent, not in the game.
 
+## Drawing defects fixed at the same time
+
+Found by looking at each scene at magnification, which is the only way any of
+these were ever going to be found:
+
+- **The pillars were painted after the floors they stand behind.** Every pillar
+  cut a white notch through the bright band and the rail of every floor it met.
+  The comment above the loop had said "they stand behind everything" all along;
+  the loop was in the wrong half of `drawTiles`.
+- **A pillar could stand on a hole**, base fanned out across the gap, holding up
+  a floor that was not there. Nothing stands on a hole now.
+- **The top storey had no pillars at all**, because the loop ran over the gaps
+  between storeys rather than the storeys. All four have them, as the photograph
+  does.
+- **An urn was a pixel taller than the air it stood in**, so its lip was inside
+  the floor above. Forty pixels of air fits a thirty-one pixel urn.
+- **Arriving in a scene said nothing**, so the line under the maze still named
+  the scene you had just left for the whole of the next one.
+- **Things that fly were kept a tile below the ceiling** by an inset left over
+  from when only half a slab was painted. They use the whole storey now.
+
 ## What remains approximate
 
 This is **not an emulator or an exact reproduction** of the 1983 release. Floor layouts,
@@ -391,6 +470,27 @@ Two details the sources disagree on, and how they are resolved here:
   and the alligator with the girl.
 - **The trapdoors.** These are described as being in "some versions" of the third level, not
   all. They are always present here.
+
+What is **not** fixed, and is left written down here rather than for a player to find:
+
+- **A storey is fifty pixels, not the original's forty.** Measured off the photographs the
+  pitch is forty, and that is what this had; it plays as a letterbox on a phone. The extra
+  row is a deliberate departure, and it is the one place the geometry knowingly disagrees
+  with the screen it was read from.
+- **The zombie, the witch doctor, the vacuum cleaner, the magnet, the children, their mother
+  and the toys are still hand-drawn.** No photograph here shows any of them, so there is
+  nothing to transcribe. In a maze with forty pixels of air they now have more room to look
+  wrong in, and next to the transcribed sprites they read as the guesses they are.
+- **The bot still stalls about once in six games**, usually with a child on the far side of a
+  magnet. `tools/play-agent.js` reports it; nothing in the game stops it happening.
+- **Portrait still shows a third of the maze.** The only ways past it are pixels
+  below 1:1, which makes the panel unreadable, or a panel drawn at a different
+  scale from the maze, which is a bigger change than this. The scope along the
+  top holds the whole maze at once, which is the original's own answer to a
+  narrow window.
+- **The pads sit a long way below the stage in portrait**, because the screen takes the shape
+  the world has and the page gives the rest to the pads. Full screen is the answer to that,
+  not a layout change.
 
 ## Sources
 
@@ -431,6 +531,35 @@ Two details the sources disagree on, and how they are resolved here:
   version, which is why the score here is original work.
 
 ## Verification
+
+### Looking at it
+
+`tools/playtest.js` is the one that reads the screen. It drives the real page in
+a real browser and prints a row per check, and it is the reason the numbers in
+**The maze has room in it** are climbs and canvas pixels rather than tile
+arithmetic — the first two versions of those rows read `slabRow` and
+`storeyTop`, passed on the build they were meant to condemn, and had to be
+thrown away.
+
+```
+PW=<playwright dir> node drol/tools/playtest.js --url http://localhost:8000/drol/
+```
+
+It asks, of every scene a player can reach: does it move — is a frame a third of
+a second later a different picture; does it answer the pad — held jetpack climbs,
+held direction walks; and is nothing drawn inside a floor — urns, pillars, pets,
+the child and the whole menagerie tested against the game's own collision, so a
+zombie falling through a hole is not mistaken for one embedded in a slab.
+
+It reads what the page exposes defensively (`typeof MSG_H==='number'`) so that it
+still runs against older builds, which is what makes it possible to say:
+
+```
+14/14 pass on this build   ·   4/14 on the one it replaces
+```
+
+It is not part of CI, which has no browser.
+
 
 Run `node --test drol/tests/*.test.cjs` from the repository root (or
 `node --test tests/*.test.cjs` from `drol/`) with Node.js. The tests execute the game's
