@@ -147,6 +147,25 @@ const ok=(c,m)=>{if(!c)fails.push(m);};
   });
   rows.push('SEEK, empty rails'.padEnd(24)+'dimmed '+spent.dim+', says "'+spent.text+'"');
   ok(spent.dim,'an empty rail looks the same as a full one');
+
+  // The same button, standing on the pad, is the loadout. One button with two
+  // jobs has to say which one it is doing, or it is a trap.
+  const pad=await pg.evaluate(async()=>{
+    G.h=chopper();G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.vx=0;
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    return {label:(document.getElementById('seekbtn')||{}).textContent||'',
+            was:(typeof loadout==='function')?loadout().id:''};
+  });
+  await pg.tap('#seekbtn');
+  await pg.waitForTimeout(220);
+  const swapped=await pg.evaluate(()=>({now:loadout().id,seek:G.h.seek,
+    up:G.seekers.length,label:(document.getElementById('seekbtn')||{}).textContent||''}));
+  rows.push('LOAD, on the pad'.padEnd(24)+pad.was+' -> '+swapped.now+
+    ', button says "'+swapped.label+'"');
+  ok(/STD/.test(pad.label),'the button does not say what she is loaded with on the pad');
+  ok(swapped.now!==pad.was,'tapping it on the pad does not change what she carries');
+  ok(swapped.label.indexOf('LIGHT')>=0,'the button does not say what she was just loaded with');
+  ok(swapped.up===0,'it fired a seeker off the pad instead of loading her');
   ok(Math.abs(drift)<2,'turning her flies her: the button is acting as a throttle ('+drift+')');
 
   console.log('--- the stick, driven with a thumb ---');

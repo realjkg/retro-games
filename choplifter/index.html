@@ -546,7 +546,7 @@ function loadPrefs(){
 function savePrefs(){
  try{
   localStorage.setItem(PREF_KEY,JSON.stringify({sound:SOUND.enabled,music:MUSIC.on,
-   rotor:AUDIO.rotor,scan:G.scan,best:G.best,diff:G.diff}));
+   rotor:AUDIO.rotor,scan:G.scan,best:G.best,diff:G.diff,load:G.load}));
  }catch(e){}
 }
 
@@ -556,7 +556,7 @@ const cv=document.getElementById("cv"), ctx=cv.getContext("2d"),
 const keys={};
 const START_CHOPS=3;
 const G={phase:"menu",diff:2,seed:1,rand:Math.random,
- score:0,best:0,scan:true,endless:false,
+ score:0,best:0,scan:true,endless:false,load:0,
  h:null,huts:[],people:[],foes:[],shots:[],seekers:[],flak:[],puffs:[],homeFolk:[],trips:0,
  rescued:0,lost:0,aboard:0,chops:START_CHOPS,
  wave:0,waveT:0,threat:0,downT:0,cheerT:0,
@@ -625,8 +625,35 @@ const LEAN_DIVE=.22, LEAN_CLIMB=.14, LEAN_ROLL=.13;
 const LEAN_RATE=3.4;               // radians a second, so the nose drops rather than snaps
 const LEAN_STEP=.04;               // one baked picture every two and a third degrees
 const LEAN_PAD=3;                  // leaning puts her corners outside her own box
-const SEEK_MAX=4;                  // how many she carries
+const SEEK_MAX=4;                  // how many the standard machine carries
 const SEEK_RESUPPLY=.7;            // and how long the ground crew take over each one
+/* ---- what you load her with ----
+ *
+ * Not an upgrade tree. There is nothing to accumulate and nothing to unlock:
+ * every sortie starts from the same four choices and every one of them gives
+ * something up. What you are deciding, standing on the pad, is what the next
+ * trip is for - shooting your way out, surviving a mistake, or getting there.
+ *
+ * One number does the work. Weight is what she is carrying, and a heavier
+ * machine takes longer to get up on the step, does not run as fast when she is
+ * there, is slower to answer the stick, and climbs worse. It is the same
+ * arithmetic in all four places, which is why the choice reads as one decision
+ * rather than as four sliders - and the climb is where it is felt oftenest,
+ * because every barrack is something to get over.
+ *
+ * Standard is the machine as she was before any of this, so the choice can be
+ * ignored entirely and nothing has changed. */
+const LOADOUTS=[
+ {id:"standard",name:"STANDARD",tag:"STD",seek:4,hp:3,weight:1,
+  says:"Four seekers, three hits. Her as she comes."},
+ {id:"light",name:"LIGHT",tag:"LIGHT",seek:2,hp:3,weight:.84,
+  says:"Two seekers. Quicker onto the step, and quicker on it."},
+ {id:"gunship",name:"GUNSHIP",tag:"GUN",seek:6,hp:3,weight:1.2,
+  says:"Six seekers, and the weight of them in every yard of the run."},
+ {id:"armoured",name:"ARMOURED",tag:"ARMOUR",seek:2,hp:4,weight:1.3,
+  says:"A fourth hit in her, two seekers, and slow with it."}
+];
+function loadout(){return LOADOUTS[clamp(G.load|0,0,LOADOUTS.length-1)];}
 const BOARD_REACH=17;              // her half-width plus his: he climbs in at her side
                                    // rather than walking into the middle of her
 const CALL_RANGE=280;              // and how far off he will see you set down
@@ -635,9 +662,33 @@ const CALL_RANGE=280;              // and how far off he will see you set down
 // button 1 did. She starts on the pad pointed at the border, which is west.
 const TURN_RING=[3,0,-3,0];
 function chopper(){
+ const L=loadout();
  return {x:POST_X,y:GROUND_Y-CHOP_H,vx:0,vy:0,w:CHOP_W,h:CHOP_H,
-  tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0,
-  lean:0,seek:SEEK_MAX,seekCool:0,cruise:0,runT:0};
+  tf:-3,want:-3,seq:2,landed:true,hp:L.hp,cool:0,rotor:0,bounce:0,
+  lean:0,seek:L.seek,seekMax:L.seek,weight:L.weight,loadHp:L.hp,
+  seekCool:0,cruise:0,runT:0};
+}
+// Is she standing where the crew are? Everything they do - the seekers back on
+// the rails, the loadout swapped, the people out - happens here and nowhere
+// else, which is what makes the trip home the trip that matters.
+function atHome(h){
+ return !!h&&h.landed&&Math.abs(h.x+CHOP_W/2-(POST_X+CHOP_W/2))<44;
+}
+// The pad is the only place the choice can be made, and it is made with her
+// skids down: what she is carrying is not something to think about in the air.
+function cycleLoad(){
+ const h=G.h;
+ if(!h||!atHome(h)||G.phase!=="play")return false;
+ G.load=((G.load|0)+1)%LOADOUTS.length;
+ savePrefs();
+ const L=loadout();
+ h.seekMax=L.seek;h.seek=L.seek;h.weight=L.weight;
+ // A fourth hit is loaded onto her, not healed into her: she keeps the damage
+ // she has taken, and what changes is how much more she can take.
+ const hurt=Math.max(0,(h.loadHp||LOADOUTS[0].hp)-h.hp);
+ h.loadHp=L.hp;h.hp=Math.max(1,L.hp-hurt);
+ rearmSound();say(L.name+". "+L.says);
+ return true;
 }
 /* How far over she is, on the screen, for what she is doing. Her lean is one
  * angle whichever frame she is in: a dive when she is going the way she points,
@@ -939,7 +990,7 @@ function crash(){
 }
 function respawn(){
  const keep=G.chops;
- G.h=chopper();G.h.hp=3;
+ G.h=chopper();
  G.chops=keep;
  G.flak=[];G.shots=[];G.seekers=[];
  say("A fresh machine on the pad. "+G.chops+" left in the hangar.");
@@ -994,11 +1045,15 @@ function chopperStep(dt){
  const nose=h.tf<0?-1:1;
  const running=!h.landed&&Math.abs(s.x)>.9&&Math.abs(h.tf)>=2&&s.x*nose>0;
  h.runT=running?(h.runT||0)+dt:0;
- h.cruise=clamp(h.cruise+clamp((running&&h.runT>=CRUISE_AT?1:0)-h.cruise,
+ // What she is carrying is felt in all three of these and nowhere else: how
+ // long the run takes to come in, how much of it there is, and how quickly she
+ // answers the stick at all.
+ const w=h.weight||1;
+ h.cruise=clamp(h.cruise+clamp((running&&h.runT>=CRUISE_AT*w?1:0)-h.cruise,
    -CRUISE_OUT*dt,CRUISE_IN*dt),0,1);
- const top=MAXV+(CRUISE-MAXV)*h.cruise;
+ const top=MAXV+((CRUISE-MAXV)/w)*h.cruise;
  const target=h.landed?0:top*s.x;
- h.vx+=clamp(target-h.vx,-ACCEL*dt,ACCEL*dt);
+ h.vx+=clamp(target-h.vx,-(ACCEL/w)*dt,(ACCEL/w)*dt);
  if(Math.abs(s.x)<.06)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
  // And she leans to what she is actually doing rather than to what the stick
  // is asking for, so she is still nosed over for a moment after you centre it.
@@ -1011,7 +1066,9 @@ function chopperStep(dt){
  // exactly backwards. Held, the collective settles her at a rate she can be put
  // down at; let go of everything and she falls, and a fall still hurts.
  let ay=GRAV;
- if(s.y<-.15)ay+=LIFT*Math.min(1,-s.y);
+ // And in the collective, which is where weight is felt oftenest: every
+ // barrack is something to climb over, and a full gunship climbs like one.
+ if(s.y<-.15)ay+=(LIFT/w)*Math.min(1,-s.y);
  else if(s.y>.15)ay=(DESCENT*Math.min(1,s.y)-h.vy)*6;
  else if(keys.HOLD&&!h.landed)ay=-h.vy*7;
  h.vy=clamp(h.vy+ay*dt,-VMAX,VMAX);
@@ -1055,9 +1112,10 @@ function chopperStep(dt){
  }else h.unload=0;
  // The ground crew reload her while she is home, one at a time and not
  // instantly: going back for more is a trip, not a keypress.
- if(h.landed&&Math.abs(h.x+CHOP_W/2-(POST_X+CHOP_W/2))<44&&h.seek<SEEK_MAX){
+ const rails=h.seekMax===undefined?SEEK_MAX:h.seekMax;
+ if(atHome(h)&&h.seek<rails){
   h.rearm=(h.rearm||0)+dt;
-  while(h.rearm>=SEEK_RESUPPLY&&h.seek<SEEK_MAX){h.rearm-=SEEK_RESUPPLY;h.seek++;rearmSound();}
+  while(h.rearm>=SEEK_RESUPPLY&&h.seek<rails){h.rearm-=SEEK_RESUPPLY;h.seek++;rearmSound();}
  }else h.rearm=0;
 }
 
@@ -1293,7 +1351,10 @@ function press(k){
   say(G.scan?"Scanner on.":"Scanner off — more country on screen.");fit(true);return;}
  if(G.phase!=="play"||G.downT>0)return;
  if(k==="FIRE")shoot();
- else if(k==="SEEK")fireSeeker();
+ // One button, and which of the two it is depends on where she is standing.
+ // On the pad there is nothing to fire a seeker at and a crew to change what
+ // she carries; off it there is no crew and plenty to fire at.
+ else if(k==="SEEK"){if(!cycleLoad())fireSeeker();}
  else if(k==="TURN")turnHer();
 }
 function toggleMenu(){
@@ -1468,9 +1529,13 @@ function updatePads(){
  // The count goes in the button's own text rather than under it, because a
  // label that only changes underneath does not change at all: the caption is
  // only rewritten when the word above it has.
- const left=G.h?G.h.seek:0;
- label(seekBtn,left?("SEEK ×"+left):"SEEK",left?"homing":"none left");
- if(seekBtn&&seekBtn.classList)seekBtn.classList.toggle("spent",!left);
+ const left=G.h?G.h.seek:0, home=atHome(G.h)&&G.phase==="play";
+ // What she is loaded with goes in the button's own text, not underneath it:
+ // a caption is only rewritten when the word above it has changed, and "LOAD"
+ // never changes. This is the second time that has bitten here.
+ if(home)label(seekBtn,loadout().tag,"loadout");
+ else label(seekBtn,left?("SEEK ×"+left):"SEEK",left?"homing":"none left");
+ if(seekBtn&&seekBtn.classList)seekBtn.classList.toggle("spent",!home&&!left);
  label(scanBtn,"SCAN","");
  label(hovBtn,"HOVER","");
  if(scanBtn&&scanBtn.classList)scanBtn.classList.toggle("lit",!!G.scan);
@@ -1549,9 +1614,11 @@ function helpMenu(back){
   "among people. Shoot a barrack until the door goes, land near them, and they run for you; "+
   "sixteen is all she holds. Fly east over the fence and put her down on the pad at the post "+
   "office to let them out. Your own gun and your own skids will kill them as surely as a tank "+
-  "will. SEEK puts a heat seeker off the rail: she carries four, they turn onto the jets and "+
-  "the mines before anything on the ground, and the only place to get more is the pad at the "+
-  "post office. SCAN is the strip along the top: the whole country at once. The sound out of the "+
+  "will. SEEK puts a heat seeker off the rail: they turn onto the jets and the mines before "+
+  "anything on the ground, and the only place to get more is the pad at the post office. "+
+  "Standing on that pad the same button reads LOAD and cycles what she carries for the next "+
+  "trip out: standard, light, gunship or armoured. Nothing is unlocked and nothing "+
+  "accumulates - every one of them gives something up, and weight is paid for in the run. SCAN is the strip along the top: the whole country at once. The sound out of the "+
   "box is the one the machine of 1982 made: no score, just the blades, beating faster as you "+
   "pull up. MENU has the switch for a synth score if you would rather have one.");
 }
@@ -2137,7 +2204,9 @@ function report(){
   vx:h?Math.round(h.vx):0,
   cruise:h?+(h.cruise||0).toFixed(3):0,
   top:h?Math.round(MAXV+(CRUISE-MAXV)*(h.cruise||0)):MAXV,
-  seek:h?h.seek:0,
+  seek:h?h.seek:0,seekMax:h?(h.seekMax===undefined?SEEK_MAX:h.seekMax):0,
+  load:loadout().id,loadName:loadout().name,
+  weight:h?+(h.weight||1).toFixed(3):1,home:atHome(h),
   seekers:G.seekers.map(k=>({x:Math.round(k.x),y:Math.round(k.y),ang:+k.ang.toFixed(3)})),
   aboard:G.aboard,rescued:G.rescued,lost:G.lost,chops:G.chops,score:G.score,
   cam:Math.round(G.cam.x),
@@ -2172,6 +2241,7 @@ if(isStandaloneApp())setFocus(true);
   if(b){b.textContent="SOUND OFF";b.setAttribute("aria-pressed","false");}}
  if(p.music===true)MUSIC.on=true;          // off unless it was asked for
  if(p.rotor===false)AUDIO.rotor=false;
+ if(typeof p.load==="number")G.load=clamp(p.load|0,0,LOADOUTS.length-1);
  if(p.scan===false)G.scan=false;
  if(typeof p.best==="number"&&isFinite(p.best)&&p.best>0)G.best=Math.floor(p.best);
  if(typeof p.diff==="number"&&p.diff>=1&&p.diff<=4)G.diff=p.diff|0;

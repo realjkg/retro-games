@@ -736,3 +736,110 @@ test('The run buys a trip that was three minutes of holding the stick',()=>{
   assert.ok(now<was*0.78,'and the run takes a fifth off it or better: '+now+' against '+was);
   assert.ok(now>10,'without making the country feel small: '+now);
 });
+
+/* ---- what you load her with ---- */
+const pick=(r,id)=>r.run(`G.load=LOADOUTS.findIndex(L=>L.id==="${id}");G.h=chopper();`);
+const onPad=(r)=>r.run('G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.h.vx=0;');
+
+test('Four loadouts, and standard is the machine as she was',()=>{
+  const r=runtime(2,61);
+  assert.equal(r.run('LOADOUTS.length'),4);
+  const std=JSON.parse(r.run('JSON.stringify(LOADOUTS[0])'));
+  assert.equal(std.id,'standard');
+  assert.equal(std.seek,r.run('SEEK_MAX'),'the same four seekers');
+  assert.equal(std.hp,3,'the same three hits');
+  assert.equal(std.weight,1,'and no weight against her');
+  // Nothing is unlocked and nothing accumulates: every one of them gives
+  // something up against standard.
+  const all=JSON.parse(r.run('JSON.stringify(LOADOUTS)'));
+  for(const L of all.slice(1)){
+    const better=(L.seek>std.seek?1:0)+(L.hp>std.hp?1:0)+(L.weight<std.weight?1:0);
+    const worse =(L.seek<std.seek?1:0)+(L.hp<std.hp?1:0)+(L.weight>std.weight?1:0);
+    assert.ok(better>=1&&worse>=1,L.id+' is not a trade: '+better+' up, '+worse+' down');
+  }
+});
+
+test('The choice is made on the pad, with her skids down, and nowhere else',()=>{
+  const r=runtime(2,62); clear(r);
+  const first=r.run('loadout().id');
+  onPad(r);
+  assert.equal(r.run('cycleLoad()'),true,'she is home and on the ground');
+  assert.notEqual(r.run('loadout().id'),first,'and it changed');
+  // In the air over the pad: no.
+  const air=r.run('loadout().id');
+  r.run('G.h.landed=false;G.h.y=40;');
+  assert.equal(r.run('cycleLoad()'),false);
+  assert.equal(r.run('loadout().id'),air,'nothing changes in the air');
+  // On the ground, but out at a barrack, where there is no crew.
+  r.run('G.h.landed=true;G.h.y=GROUND_Y-CHOP_H;G.h.x=HUTS[0];');
+  assert.equal(r.run('cycleLoad()'),false);
+  assert.equal(r.run('loadout().id'),air,'and nothing changes away from home');
+  // Four presses bring it round to where it started.
+  onPad(r);
+  for(let i=0;i<4;i++)r.run('cycleLoad()');
+  assert.equal(r.run('loadout().id'),air,'the ring comes round');
+});
+
+test('Weight is paid in the run, the stick and the climb',()=>{
+  const fly=(r,n)=>r.run(`for(let i=0;i<${n};i++){stepGame(0.02);G.h.y=56;G.h.vy=0;G.h.landed=false;}`);
+  const measure=(id)=>{
+    const r=runtime(2,63); clear(r); pick(r,id);
+    r.run('G.h.x=300;G.h.y=56;G.h.landed=false;G.h.tf=3;G.h.want=3;G.h.seq=0;'+
+          'stick.held=true;stick.x=1;');
+    let t=0; while(r.run('G.h.cruise')<1&&t<900){fly(r,1);t++;}
+    const top=r.run('G.h.vx');
+    // and sixty pixels of climb, which is a barrack to get over
+    const c=runtime(2,64); clear(c); pick(c,id);
+    c.run('G.h.x=1000;G.h.y=GROUND_Y-CHOP_H-1;G.h.landed=false;'+
+          'stick.held=true;stick.x=0;stick.y=-1;');
+    const from=c.run('G.h.y'); let n=0;
+    while(c.run('G.h.y')>from-60&&n<900){c.run('stepGame(0.02);');n++;}
+    return {onStep:t*0.02,top:top,climb:n*0.02};
+  };
+  const light=measure('light'), std=measure('standard'), heavy=measure('armoured');
+  assert.ok(light.onStep<std.onStep&&std.onStep<heavy.onStep,
+    'the heavier she is the longer she takes to get up on the step');
+  assert.ok(light.top>std.top&&std.top>heavy.top,
+    'and the less of a run there is when she is: '+[light.top,std.top,heavy.top]);
+  assert.ok(light.climb<std.climb&&std.climb<heavy.climb,
+    'and the worse she climbs: '+[light.climb,std.climb,heavy.climb]);
+  // A difference worth choosing between, but not a different game.
+  assert.ok(heavy.climb>light.climb*1.25,'the climb is where it is felt');
+  // But every one of them is still worth committing to a run in: the heaviest
+  // machine up on the step is still quicker than the lightest one hovering.
+  assert.ok(heavy.top>98*1.2,'even loaded she gains by running: '+heavy.top);
+});
+
+test('A swap is a load, not a repair, and the crew fill the rails she has',()=>{
+  const r=runtime(2,65); clear(r);
+  pick(r,'standard'); onPad(r);
+  r.run('G.h.hp=2;');                                  // she has taken one
+  r.run('G.load=LOADOUTS.findIndex(L=>L.id==="armoured");');
+  r.run('G.load=(G.load+LOADOUTS.length-1)%LOADOUTS.length;cycleLoad();');
+  assert.equal(r.run('loadout().id'),'armoured');
+  assert.equal(r.run('G.h.hp'),3,'a fourth hit is loaded on, the one she lost is not given back');
+  assert.equal(r.run('G.h.seekMax'),2,'and she is down to two rails');
+  // The crew fill what she has, not what standard has.
+  r.run('G.h.seek=0;');
+  step(r,120);
+  assert.equal(r.run('G.h.seek'),2,'filled to her own rails and no further');
+});
+
+test('A fresh machine comes with what you chose',()=>{
+  const r=runtime(2,66); clear(r);
+  pick(r,'gunship'); onPad(r);
+  assert.equal(r.run('G.h.seek'),6);
+  r.run('G.h.hp=1;damageChopper("a test");');          // shot down
+  step(r,200);
+  assert.equal(r.run('G.h.seek'),6,'the next one off the hangar floor is a gunship too');
+  assert.equal(r.run('G.h.hp'),3);
+  assert.equal(r.run('G.h.weight'),r.run('LOADOUTS.find(L=>L.id==="gunship").weight'));
+});
+
+test('What she was carrying is remembered between visits',()=>{
+  const r=runtime(2,67); clear(r);
+  onPad(r); r.run('cycleLoad();');
+  const chosen=r.run('loadout().id');
+  const again=runtime(2,67,true,r.store);
+  assert.equal(again.run('loadout().id'),chosen,'the pad remembers what you fly');
+});

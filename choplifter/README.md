@@ -32,6 +32,9 @@ other. She can be going left with her nose pointed at you. So this has a stick.
   - **in profile the gun fires level** — this is how a jet is met and how a barrack door is
     taken off;
   - **nose-on she is in the tank attacking position and the gun fires straight down.**
+- **LOAD** is the same button with her skids down on the pad at the post office: it cycles
+  what she carries for the next trip — standard, light, gunship or armoured. See below; it is
+  a trade every time, never an upgrade.
 - **SEEK** (C/F) puts a heat seeker off the rail. She carries four, fires one at a time, and
   the only way to get more is to set down at the post office and let the crew load them, one
   every seven tenths of a second. It turns onto whatever is hottest — the jets and the air
@@ -214,6 +217,48 @@ looking into it — on the screen that hung a lasso round her, and it was wrong 
 is a horizontal circle and your eye is at its height, so it projects to the same flat ellipse
 whichever way her nose is pointing. It is one shape now, and a test says so.
 
+## What you load her with
+
+Not an upgrade tree. There is nothing to unlock and nothing to accumulate:
+every sortie starts from the same four choices, and every one of them gives
+something up. What you are deciding, standing on the pad, is what the next trip
+is *for* — shooting your way out, surviving a mistake, or getting there.
+
+The choice is made **on the pad at the post office, with her skids down**,
+because that is where the crew are. There the SEEK button shows what she is
+loaded with — STD, LIGHT, GUN, ARMOUR — and tapping it cycles; in the air, or
+on the sand out at a barrack, it is the seeker button again and the loadout
+cannot be touched.
+
+| | seekers | hits | weight | on the step | top | sixty pixels of climb |
+|---|---|---|---|---|---|---|
+| **STANDARD** | 4 | 3 | 1.00 | 2.2s | 146 | 1.06s |
+| **LIGHT** | 2 | 3 | 0.84 | 2.0s | 155 | 0.92s |
+| **GUNSHIP** | 6 | 3 | 1.20 | 2.5s | 138 | 1.22s |
+| **ARMOURED** | 2 | 4 | 1.30 | 2.6s | 135 | 1.32s |
+
+**Standard is the machine as she was before any of this**, so the button can be
+ignored entirely and nothing has changed.
+
+One number does the work. Weight is what she is carrying, and it is paid in
+four places: how long she takes to get up on the step, how much run there is
+when she is, how quickly she answers the stick, and how she climbs. The climb
+is where it is felt oftenest — every barrack is something to get over, and an
+armoured machine takes half again as long to clear one. It is the same
+arithmetic in all four, which is why the choice reads as one decision rather
+than four sliders.
+
+A swap is a load, not a repair. Change to ARMOURED with a hit already in her
+and you get the fourth hit's worth of room, not the hit back. The crew fill the
+rails she has — two on a LIGHT, six on a GUNSHIP — and a fresh machine off the
+hangar floor comes loaded the way you last chose.
+
+`tools/playtest.js` flies the same climb twice off the same pad on the same
+stick, once as she comes and once after three taps of the button, and compares
+the height she actually gained: 31 pixels standard, 20 armoured.
+`--sabotage=oneload` makes everything weigh the same and the row goes red with
+"31px then 31px".
+
 ## Up on the step
 
 The deepest barrack is nineteen hundred pixels from the pad, and sixty-four
@@ -303,7 +348,7 @@ before any of this — the row goes red.
 `npm test` cannot see the screen. Everything that has ever been visibly wrong in this
 repository was wrong on the screen while the numbers were right, so there is a second tool
 that opens the committed page in a real browser, presses the keys a player presses, reads the
-pixels the page actually painted, and asks nine questions of nine scenes:
+pixels the page actually painted, and asks ten questions of ten scenes:
 
 ```
 PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
@@ -323,6 +368,7 @@ node tools/playtest.js --sabotage=bands    # and prove a check can go red
 | `leans` | does she nose over into a run, come back level out of it, and lean the other way flown backwards — in the painted picture, not in the number? |
 | `seeks` | does a seeker turn onto what it was fired at, or fly on past it? |
 | `cruise` | does a straight run build speed in the ground she crosses, and does a turn take it away? |
+| `load` | does what she is carrying change how she flies, measured in height gained? |
 
 **Every one of those checks has been shown to fail.** `--sabotage=<name>` patches one defect
 into the page in memory and runs against that, because a check that passes on the broken build
@@ -341,6 +387,7 @@ and on the fixed one is not a check:
 | `dumbseeker` | the seeker flies straight on off the rail | `seeks` |
 | `nocruise` | she never gets up on the step | `cruise` on the way out |
 | `freecruise` | she is always up on it, turn or no turn | `cruise`, both scenes |
+| `oneload` | every loadout weighs the same | `load` |
 
 `leanthrottle` is the fidelity defect this game shipped with in its first commit, kept as a
 sabotage so it cannot come back: the flight-home scene holds the stick east for four seconds
@@ -454,6 +501,11 @@ The brief was a modernisation, so these are deliberate and are not the original:
   and the side effect is that no tank ever chases you the length of the map.
 - **The ground is a line.** There is no terrain, no cover, and nothing to fly around.
 - **One high score, in this browser.** No table, no names, no two-player.
+- **The loadout is four fixed choices, not a workshop.** No mixing, no numbers to spend, no
+  carrying anything over between missions beyond which of the four you last flew.
+- **Nothing tells you what to load.** There is no readout of what is waiting out there before
+  you commit, so the first trip of a mission is always a guess — deliberately, but it does
+  mean GUNSHIP is a bet rather than a read.
 - **No extra machines for points.** Three is three. The original handed them out; this does
   not, and the endless-machines switch is the only relief on offer.
 - **The balance was measured against a very poor player.** `tools/` has no autopilot in it,

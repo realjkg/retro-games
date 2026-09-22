@@ -16,6 +16,7 @@
  *   leans   does she nose over into a run, and come back level out of it?
  *   seeks   does a seeker turn onto what it was fired at?
  *   cruise  does a straight run build speed, and a turn take it away?
+ *   load    does what she is carrying change how she flies?
  *   whole   is the figure one figure: no shed ink, no sky shut inside it?
  *
  * Read the rows. The summary line at the bottom is for a machine.
@@ -35,6 +36,7 @@
  *   dumbseeker   the seeker flies straight on off the rail  -> seeks
  *   nocruise     she never gets up on the step               -> cruise
  *   freecruise   she is always up on it, turn or no turn     -> cruise
+ *   oneload      every loadout weighs the same                -> load
  *
  *   PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
  *   node tools/playtest.js --keep             and write the frames to .playtest
@@ -107,9 +109,12 @@ const SABOTAGE={
   // The seeker leaves the rail and flies straight on, which is a rocket.
   dumbseeker:['   k.ang+=clamp(d,-SEEK_TURN*dt,SEEK_TURN*dt);','   k.ang+=0;'],
   // She never gets up on the step, which is the trip as it was before this.
-  nocruise:[' const top=MAXV+(CRUISE-MAXV)*h.cruise;',' const top=MAXV;'],
+  nocruise:[' const top=MAXV+((CRUISE-MAXV)/w)*h.cruise;',' const top=MAXV;'],
   // And she is always on it, which makes the run free rather than committed.
-  freecruise:[' const top=MAXV+(CRUISE-MAXV)*h.cruise;',' const top=CRUISE;']
+  freecruise:[' const top=MAXV+((CRUISE-MAXV)/w)*h.cruise;',' const top=MAXV+(CRUISE-MAXV)/w;'],
+  // Everything weighs the same, whatever she is carrying, which is the
+  // loadout as a menu that changes nothing you can feel.
+  oneload:[' const w=h.weight||1;',' const w=1;']
 };
 function pageURL(){
   let html=fs.readFileSync(PAGE,'utf8');
@@ -160,6 +165,8 @@ const SAMPLER=function(n){
         lean:r?(+r.lean||0):0,
         attitude:(r&&typeof r.attitude==='string')?r.attitude:'',
         vx:r?(+r.vx||0):0,seek:r?(r.seek|0):0,
+        loadName:(r&&typeof r.loadName==='string')?r.loadName:'',
+        weight:r?(+r.weight||1):1,
         seekers:sk.map(k=>({x:Math.round(+k.x||0),y:Math.round(+k.y||0)})),
         foePos:(r&&Array.isArray(r.foes))?r.foes.map(e=>({k:typeof e.k==='string'?e.k:'',
           x:Math.round(+e.x||0),y:Math.round(+e.y||0)})):[],
@@ -451,6 +458,29 @@ const SCENES=[
    return {killed:gone,closed:near};
   }},
 
+ {name:'loaded heavy',
+  // The same climb, twice, off the same pad on the same stick: once as she
+  // comes and once with the weight of an armoured machine on her. A player
+  // makes this comparison the first time they try the button, so the tool
+  // makes it too - and it is measured in the height she actually gained.
+  setup:'newGame(2,606);G.foes=[];G.waveT=999;G.people=[];G.load=0;G.h=chopper();'+
+        'G.h.x=POST_X;G.h.y=GROUND_Y-CHOP_H;G.h.landed=true;G.cam.x=POST_X-200;',
+  ask:'alive answers load',
+  script:[{keys:['ArrowUp'],n:45},                       // the standard climb
+          {keys:['ArrowDown'],n:90},                     // back onto the pad
+          {keys:[],taps:['c','c','c'],n:10},             // standard -> armoured
+          {keys:['ArrowUp'],n:45}],                      // and the same climb again
+  answers:s=>Math.min.apply(null,s.map(f=>f.y))<at(s,0).y-20,
+  load:s=>{
+   const base=at(s,0).y;
+   const first=base-Math.min.apply(null,s.slice(0,45).map(f=>f.y));
+   const after=s.slice(146);
+   const from=after.length?after[0].y:base;
+   const second=from-Math.min.apply(null,after.map(f=>f.y));
+   return {light:Math.round(first),heavy:Math.round(second),
+           name:(at(s,-1).loadName||'')};
+  }},
+
  {name:'the pad again',
   setup:'newGame(2,15);G.foes=[];G.waveT=999;G.aboard=8;G.h.x=POST_X;G.h.y=52;'+
         'G.h.landed=false;G.h.tf=0;G.h.want=0;G.h.seq=1;G.cam.x=POST_X-200;',
@@ -578,6 +608,14 @@ function judge(def,r){
    * has to begin at her hovering speed - so it is something she works up to
    * rather than something she has - and end a third faster than that. Turned
    * round and round on the same stick she must never get there at all. */
+  /* The loadout is judged on the height she gained, not on what the menu
+   * said: the same stick, the same pad, the same forty-five frames, once as
+   * she comes and once loaded. An armoured machine has to climb visibly less
+   * far in the time - and it has to be the armoured one that is loaded, or
+   * the comparison is of nothing. */
+  const ld=has('load')&&def.load?def.load(r.s):null;
+  const loadOK=!!(ld&&ld.light>25&&ld.heavy>10&&ld.heavy<=ld.light*0.85&&
+    /ARMOUR/i.test(ld.name));
   const cr=has('cruise')&&def.cruise?def.cruise(r.s):null;
   const cruiseOK=!cr?null:cr.want==='faster'
     ? (cr.early<=HOVER*1.15&&cr.late>=HOVER*1.3)
@@ -593,6 +631,7 @@ function judge(def,r){
     leans:has('leans')?leansOK:null,
     seeks:has('seeks')?seeksOK:null,
     cruise:has('cruise')?cruiseOK:null,
+    load:has('load')?loadOK:null,
     note:'pic '+t.pics+'/'+t.snap.toFixed(2)+' jump '+j.chopper.toFixed(0)+'/'+
       (j.man<0?'-':j.man.toFixed(0))+' gait '+(st<0?'-':st)+' live '+alive+
       (w?' lost '+w.missing+' one-piece '+Math.round(100*w.main/Math.max(1,w.ink))+
@@ -602,7 +641,8 @@ function judge(def,r){
          ' mirror '+L.mirrored.tilt+' roll '+L.roll.tilt:'')+
       (sk?' seeker '+(sk.killed?'hit':'missed')+' by '+
          (sk.closed>1e8?'-':sk.closed.toFixed(1))+'px':'')+
-      (cr?' ground '+cr.early+'->'+cr.late+'px/s ('+cr.want+')':'')
+      (cr?' ground '+cr.early+'->'+cr.late+'px/s ('+cr.want+')':'')+
+      (ld?' climb '+ld.light+'px then '+ld.heavy+'px as '+(ld.name||'?'):'')
   };
 }
 
@@ -620,7 +660,7 @@ function judge(def,r){
   K=Object.assign(K,await pg.evaluate(function(){
     try{return {FRONTIER_X:FRONTIER_X,POST_X:POST_X,WORLD:WORLD};}catch(e){return {};}
   }));
-  const cols=['in','stride','turn','alive','answers','off','whole','leans','seeks','cruise'];
+  const cols=['in','stride','turn','alive','answers','off','whole','leans','seeks','cruise','load'];
   console.log((SAB?'SABOTAGED: '+SAB+'\n\n':'')+
     'scene'.padEnd(22)+cols.map(c=>c.padStart(5)).join(' ')+'   what was measured');
   console.log('-'.repeat(22+cols.length*6+40));
