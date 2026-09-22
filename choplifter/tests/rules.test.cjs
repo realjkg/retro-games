@@ -659,3 +659,80 @@ test('She cannot fire one sitting on the pad',()=>{
   assert.equal(r.run('G.seekers.length'),0);
   assert.equal(r.run('G.h.seek'),had,'and it does not cost her one');
 });
+
+/* ---- up on the step ---- */
+// Flown level on purpose: what the collective is doing is not what these are
+// about, and letting her sink turns every one of them into a landing test.
+const fly=(r,n)=>r.run(`for(let i=0;i<${n};i++){stepGame(0.02);G.h.y=56;G.h.vy=0;G.h.landed=false;}`);
+const run=(r,dir)=>r.run(`G.h.x=${dir>0?300:2000};G.h.y=56;G.h.landed=false;`+
+  `G.h.tf=${dir*3};G.h.want=${dir*3};G.h.seq=${dir>0?0:2};stick.held=true;stick.x=${dir};`);
+
+test('She is not faster; she gets faster, and only on a committed run',()=>{
+  const r=runtime(2,51); clear(r); run(r,1);
+  fly(r,60);                                   // a second and a bit of full stick
+  assert.ok(r.run('G.h.vx')<=r.run('MAXV')+1,'she starts at her hovering speed');
+  assert.equal(r.run('G.h.cruise'),0,'and is not on the step yet');
+  fly(r,120);
+  const top=r.run('G.h.vx');
+  assert.ok(top>r.run('MAXV')*1.35,'she works up to a real difference: '+top);
+  assert.ok(top<=r.run('CRUISE')+1,'and no further than she is allowed');
+  assert.equal(r.run('G.h.cruise'),1);
+  // It is hers to lose: turning her off the run takes it away faster than it
+  // came, which is what stops it being a free upgrade.
+  r.run('G.h.tf=0;G.h.want=0;');
+  fly(r,30);
+  assert.ok(r.run('G.h.vx')<=r.run('MAXV')+2,'turned nose-on she is back to hovering speed');
+  assert.ok(r.run('G.h.cruise')<0.05);
+});
+
+test('Half a push, a turn or flying her backwards is not a run',()=>{
+  // Half over is half her speed and never the step.
+  const h=runtime(2,52); clear(h); run(h,1); h.run('stick.x=0.5;');
+  fly(h,200);
+  assert.equal(h.run('G.h.cruise'),0,'half a push does not get her up on it');
+  assert.ok(h.run('G.h.vx')<h.run('MAXV')*0.6);
+  // Nose east, stick west: she is being dragged, not flown.
+  const b=runtime(2,53); clear(b); run(b,1); b.run('stick.x=-1;');
+  fly(b,200);
+  assert.equal(b.run('G.h.cruise'),0,'backwards is not a run');
+  // Nose-on is not a run either, whatever the stick is doing.
+  const n=runtime(2,54); clear(n); run(n,1); n.run('G.h.tf=0;G.h.want=0;G.h.seq=1;');
+  fly(n,200);
+  assert.equal(n.run('G.h.cruise'),0,'nose-on she is not on the step');
+  // And she gets there going west exactly as she does going east.
+  const w=runtime(2,55); clear(w); run(w,-1);
+  fly(w,200);
+  assert.equal(w.run('G.h.cruise'),1,'west is the same as east');
+  assert.ok(w.run('G.h.vx')<-w.run('MAXV')*1.35);
+});
+
+test('The step is lost on the ground and is not hers when she starts',()=>{
+  const r=runtime(2,56); clear(r);
+  assert.equal(r.run('G.h.cruise'),0,'she leaves the pad off the step');
+  run(r,1); fly(r,200);
+  assert.equal(r.run('G.h.cruise'),1);
+  // Put her down. Whatever she was doing a moment ago, she is not doing it now.
+  r.run('stick.x=0;stick.y=1;');
+  step(r,220);
+  assert.equal(r.run('G.h.landed'),true);
+  assert.equal(r.run('G.h.cruise'),0,'she does not sit on the pad up on the step');
+});
+
+test('The run buys a trip that was three minutes of holding the stick',()=>{
+  // The measurement the change exists for: the pad to the deepest barrack.
+  const HUTS_DEEPEST=374;                       // the deepest barrack on the strip
+  const go=(cruising)=>{
+    const t=runtime(2,57); clear(t);
+    t.run('G.h.x=POST_X;G.h.y=56;G.h.landed=false;G.h.tf=-3;G.h.want=-3;G.h.seq=2;'+
+          'stick.held=true;stick.x=-1;');
+    if(!cruising)t.run('Object.defineProperty(G.h,"cruise",{get:()=>0,set:()=>{}});');
+    let n=0;
+    while(t.run('G.h.x')>HUTS_DEEPEST&&n<6000){
+      t.run('stepGame(0.02);G.h.y=56;G.h.vy=0;G.h.landed=false;');n++;}
+    return n*0.02;
+  };
+  const was=go(false), now=go(true);
+  assert.ok(was>19&&was<22,'the old trip was about twenty seconds: '+was);
+  assert.ok(now<was*0.78,'and the run takes a fifth off it or better: '+now+' against '+was);
+  assert.ok(now>10,'without making the country feel small: '+now);
+});

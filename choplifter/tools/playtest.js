@@ -15,6 +15,7 @@
  *   off     does it leave the way it came - the people aboard, the chopper away?
  *   leans   does she nose over into a run, and come back level out of it?
  *   seeks   does a seeker turn onto what it was fired at?
+ *   cruise  does a straight run build speed, and a turn take it away?
  *   whole   is the figure one figure: no shed ink, no sky shut inside it?
  *
  * Read the rows. The summary line at the bottom is for a machine.
@@ -32,6 +33,8 @@
  *   bands        the chopper drawn in three slid slices    -> whole
  *   levelflight  she flies flat out with her nose level     -> leans
  *   dumbseeker   the seeker flies straight on off the rail  -> seeks
+ *   nocruise     she never gets up on the step               -> cruise
+ *   freecruise   she is always up on it, turn or no turn     -> cruise
  *
  *   PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
  *   node tools/playtest.js --keep             and write the frames to .playtest
@@ -46,6 +49,7 @@ const KEEP=process.argv.includes('--keep');
 const SAB=(process.argv.find(a=>a.startsWith('--sabotage='))||'').split('=')[1]||'';
 
 const JUMP=9;             // px a man may cross in one frame before it is a teleport
+const HOVER=98;           // her hovering speed, which the run is measured against
 const LEANMIN=.10;        // radians before a lean is a lean and not a wobble
 const TILTMIN=1.2;        // px between her ends before the picture has leaned
 const STRIDES=3;          // drawn gait frames that must show while he crosses
@@ -84,8 +88,8 @@ const SABOTAGE={
             '  h.tf=h.want;'],
   // The defect the fidelity pass found: thrust taken off the lean, which makes
   // the turn a throttle and the three positions a gear lever.
-  leanthrottle:[' const target=h.landed?0:MAXV*s.x;',
-                ' const target=h.landed?0:MAXV*(h.tf/3);'],
+  leanthrottle:[' const target=h.landed?0:top*s.x;',
+                ' const target=h.landed?0:top*(h.tf/3);'],
   frozenrotor:[' h.rotor=(h.rotor+dt*26)%(Math.PI*2);',' h.rotor=0;'],
   slidwalk:['  p.f=Math.floor(p.gait/6)%4;','  p.f=0;'],
   teleport:[' p.x=clamp(p.x+p.vx*dt,0,WORLD-HOST_W);',
@@ -101,7 +105,11 @@ const SABOTAGE={
   // of this and what the lean checks exist to notice.
   levelflight:[' h.lean+=clamp(lean-h.lean,-LEAN_RATE*dt,LEAN_RATE*dt);',' h.lean=0;'],
   // The seeker leaves the rail and flies straight on, which is a rocket.
-  dumbseeker:['   k.ang+=clamp(d,-SEEK_TURN*dt,SEEK_TURN*dt);','   k.ang+=0;']
+  dumbseeker:['   k.ang+=clamp(d,-SEEK_TURN*dt,SEEK_TURN*dt);','   k.ang+=0;'],
+  // She never gets up on the step, which is the trip as it was before this.
+  nocruise:[' const top=MAXV+(CRUISE-MAXV)*h.cruise;',' const top=MAXV;'],
+  // And she is always on it, which makes the run free rather than committed.
+  freecruise:[' const top=MAXV+(CRUISE-MAXV)*h.cruise;',' const top=CRUISE;']
 };
 function pageURL(){
   let html=fs.readFileSync(PAGE,'utf8');
@@ -145,7 +153,9 @@ const SAMPLER=function(n){
       let r=null; try{r=(typeof window.__chop==='function')?window.__chop():null;}catch(e){}
       const p=(r&&Array.isArray(r.people))?r.people:[];
       const sk=(r&&Array.isArray(r.seekers))?r.seekers:[];
-      out.push({x:r?Math.round(+r.x||0):0,y:r?Math.round(+r.y||0):0,
+      let now=0; try{now=performance.now();}catch(e){}
+      out.push({t:now,
+        x:r?Math.round(+r.x||0):0,y:r?Math.round(+r.y||0):0,
         turn:r?(+r.turn||0):0,pic:r?(r.frame|0):0,
         lean:r?(+r.lean||0):0,
         attitude:(r&&typeof r.attitude==='string')?r.attitude:'',
@@ -339,10 +349,13 @@ const SCENES=[
  {name:'over the fence',
   setup:'newGame(2,7);G.h.x=FRONTIER_X+120;G.h.y=68;G.h.landed=false;'+
         'G.cam.x=Math.max(0,G.h.x-200);',
-  ask:'in alive answers off whole',
+  ask:'in alive answers off whole cruise',
   script:[{keys:['Shift','ArrowLeft'],n:160}],
   answers:s=>at(s,-1).x<at(s,0).x-40,
-  off:s=>at(s,-1).x<K.FRONTIER_X},
+  off:s=>at(s,-1).x<K.FRONTIER_X,
+  // She starts the run at her hovering speed and works up from it: the first
+  // second of ground is the old speed, the last of it is not.
+  cruise:s=>({early:groundSpeed(s,0,50),late:groundSpeed(s,90),want:'faster'})},
 
  {name:'the first barracks',
   setup:'newGame(2,11);G.foes=[];G.waveT=999;'+
@@ -377,7 +390,7 @@ const SCENES=[
   setup:'newGame(2,14);G.foes=[];G.waveT=999;G.aboard=8;'+
         'G.h.x=FRONTIER_X-240;G.h.y=60;G.h.landed=false;'+
         'G.cam.x=Math.max(0,G.h.x-160);',
-  ask:'in turn alive answers off whole',
+  ask:'in turn alive answers off whole cruise',
   // The stick held east the whole way while the button is turning her round
   // and round: where she is pointing has nothing to do with where she is going,
   // so she must not lose a pixel of ground to any of it.
@@ -387,7 +400,10 @@ const SCENES=[
           {keys:['Shift','ArrowRight'],taps:['x'],n:52},
           {keys:['Shift','ArrowRight'],n:60}],
   answers:s=>at(s,-1).x>at(s,0).x+60,
-  off:s=>at(s,-1).x>K.FRONTIER_X&&s.every((f,i)=>!i||f.x>=s[i-1].x-1)},
+  off:s=>at(s,-1).x>K.FRONTIER_X&&s.every((f,i)=>!i||f.x>=s[i-1].x-1),
+  // The same stick, but turned round and round the whole way: the run is
+  // something she has to commit to, so this one must never get up on the step.
+  cruise:s=>({early:groundSpeed(s,0,50),late:groundSpeed(s,90),want:'held down'})},
 
  {name:'the run in',
   // Flat out east in profile, then let go of everything and hover. She has to
@@ -471,6 +487,20 @@ function strides(s){
   }
   return moved?best:-1;
 }
+/* How fast she crossed the ground, in pixels a second, over a window of
+ * frames - measured off where she was and what the clock said, not off the
+ * speed she reports. Frames are not evenly spaced in a real browser, so a
+ * window of a few of them is what gives a number worth comparing. */
+function groundSpeed(s,from,to){
+  const a=s.slice(Math.max(0,from),to===undefined?s.length:to);
+  let best=0;
+  for(let i=8;i<a.length;i++){
+    const dt=(a[i].t-a[i-8].t)/1000;
+    if(dt<=0.02)continue;
+    best=Math.max(best,Math.abs(a[i].x-a[i-8].x)/dt);
+  }
+  return Math.round(best);
+}
 function turning(s){
   const pics=new Set();
   let snap=0;
@@ -544,6 +574,14 @@ function judge(def,r){
    * twenty is a hit on a jet sixteen pixels long. A seeker that does not turn
    * goes by a hundred pixels away, which is the distance this is measuring. */
   const seeksOK=!!(sk&&sk.killed&&sk.closed<=20);
+  /* The run is measured in ground crossed, not in the speed she reports. It
+   * has to begin at her hovering speed - so it is something she works up to
+   * rather than something she has - and end a third faster than that. Turned
+   * round and round on the same stick she must never get there at all. */
+  const cr=has('cruise')&&def.cruise?def.cruise(r.s):null;
+  const cruiseOK=!cr?null:cr.want==='faster'
+    ? (cr.early<=HOVER*1.15&&cr.late>=HOVER*1.3)
+    : (cr.late<=HOVER*1.15);
   return {
     in:   has('in')?(j.chopper<=14&&(j.man<0||j.man<=JUMP)):null,
     stride: has('stride')?(st>=STRIDES):null,
@@ -554,6 +592,7 @@ function judge(def,r){
     whole:has('whole')?!!(w&&w.ink>60&&w.missing===0&&w.shed===0&&w.holes===0):null,
     leans:has('leans')?leansOK:null,
     seeks:has('seeks')?seeksOK:null,
+    cruise:has('cruise')?cruiseOK:null,
     note:'pic '+t.pics+'/'+t.snap.toFixed(2)+' jump '+j.chopper.toFixed(0)+'/'+
       (j.man<0?'-':j.man.toFixed(0))+' gait '+(st<0?'-':st)+' live '+alive+
       (w?' lost '+w.missing+' one-piece '+Math.round(100*w.main/Math.max(1,w.ink))+
@@ -562,7 +601,8 @@ function judge(def,r){
       (L?' tilt '+L.dive.tilt+'/'+L.level.tilt+'/'+L.climb.tilt+
          ' mirror '+L.mirrored.tilt+' roll '+L.roll.tilt:'')+
       (sk?' seeker '+(sk.killed?'hit':'missed')+' by '+
-         (sk.closed>1e8?'-':sk.closed.toFixed(1))+'px':'')
+         (sk.closed>1e8?'-':sk.closed.toFixed(1))+'px':'')+
+      (cr?' ground '+cr.early+'->'+cr.late+'px/s ('+cr.want+')':'')
   };
 }
 
@@ -580,7 +620,7 @@ function judge(def,r){
   K=Object.assign(K,await pg.evaluate(function(){
     try{return {FRONTIER_X:FRONTIER_X,POST_X:POST_X,WORLD:WORLD};}catch(e){return {};}
   }));
-  const cols=['in','stride','turn','alive','answers','off','whole','leans','seeks'];
+  const cols=['in','stride','turn','alive','answers','off','whole','leans','seeks','cruise'];
   console.log((SAB?'SABOTAGED: '+SAB+'\n\n':'')+
     'scene'.padEnd(22)+cols.map(c=>c.padStart(5)).join(' ')+'   what was measured');
   console.log('-'.repeat(22+cols.length*6+40));

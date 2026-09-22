@@ -425,7 +425,9 @@ function bladesTick(){
  // How hard she is pulling, nought to one.
  const lift=flying?clamp(-h.vy/VMAX,0,1):0;
  BLADES.hz=flying?BLADE_HZ+lift*18:0;
- BLADES.beat=flying?BLADE_BEAT*(1+lift*.30):0;
+ // The beat quickens when she is pulling, and again when she is up on the
+ // step: you can hear her get there before you can see it in the ground.
+ BLADES.beat=flying?BLADE_BEAT*(1+lift*.30+(h.cruise||0)*.16):0;
  BLADES.level=flying&&AUDIO.rotor&&SOUND.enabled?BLADE_VOL:0;
  if(!SOUND.ctx)return;
  if(BLADES.level>0)bladesStart();
@@ -575,6 +577,27 @@ const say=(t)=>{G.msg=t;G.msgT=2.6;};
  * pictures and a third of a second, not a flicker. */
 const TURN_RATE=9;                 // turn units a second
 const MAXV=98, ACCEL=165, AIRDRAG=1.6;
+/* ---- up on the step ----
+ *
+ * The deepest barrack is nineteen hundred pixels from the pad, and sixty-four
+ * hostages at sixteen a load is four trips there and back. At her hovering
+ * speed that is the best part of three minutes of holding the stick in a
+ * straight line, and none of it is the game: the game is what happens over the
+ * huts and on the pad.
+ *
+ * So she is not made faster. She is allowed to *get* faster, and only where it
+ * costs nothing to the part that is the game. Held at full stick, in profile,
+ * going the way her nose is pointed, she stops fighting her own downwash and
+ * runs on - which is a real thing a helicopter does, and it happens to be the
+ * one place in the trip where speed is not a precision problem. Ease off, turn
+ * her, or drag her backwards, and it is gone three times faster than it came.
+ *
+ * She is quicker than a jet up there, which is the point of committing to the
+ * run: what it costs is that she is in profile, in a straight line, not
+ * stopping, and a jet coming the other way does not care how fast she is. */
+const CRUISE=146;                  // what she works up to, against 98 hovering
+const CRUISE_AT=1.3;               // seconds at full stick before it begins
+const CRUISE_IN=1.1, CRUISE_OUT=3.2;  // and it is lost three times faster
 const GRAV=64, LIFT=-172, DESCENT=72, VMAX=124;
 const HARD_LANDING=86;             // any faster onto the ground and it hurts
 const FOOT_NOSE=6, FOOT_SIDE=15;   // half the sand she covers, nose-on and side-on
@@ -614,7 +637,7 @@ const TURN_RING=[3,0,-3,0];
 function chopper(){
  return {x:POST_X,y:GROUND_Y-CHOP_H,vx:0,vy:0,w:CHOP_W,h:CHOP_H,
   tf:-3,want:-3,seq:2,landed:true,hp:3,cool:0,rotor:0,bounce:0,
-  lean:0,seek:SEEK_MAX,seekCool:0};
+  lean:0,seek:SEEK_MAX,seekCool:0,cruise:0,runT:0};
 }
 /* How far over she is, on the screen, for what she is doing. Her lean is one
  * angle whichever frame she is in: a dive when she is going the way she points,
@@ -966,7 +989,15 @@ function chopperStep(dt){
   h.tf=Math.abs(h.want-h.tf)<=Math.abs(step)?h.want:h.tf+step;
  }
  // Flying. How far the stick is pushed is how hard she goes.
- const target=h.landed?0:MAXV*s.x;
+ // Up on the step, or not. All four have to hold: her hand right out, her
+ // side to you, her nose the way she is going, and her skids off the ground.
+ const nose=h.tf<0?-1:1;
+ const running=!h.landed&&Math.abs(s.x)>.9&&Math.abs(h.tf)>=2&&s.x*nose>0;
+ h.runT=running?(h.runT||0)+dt:0;
+ h.cruise=clamp(h.cruise+clamp((running&&h.runT>=CRUISE_AT?1:0)-h.cruise,
+   -CRUISE_OUT*dt,CRUISE_IN*dt),0,1);
+ const top=MAXV+(CRUISE-MAXV)*h.cruise;
+ const target=h.landed?0:top*s.x;
  h.vx+=clamp(target-h.vx,-ACCEL*dt,ACCEL*dt);
  if(Math.abs(s.x)<.06)h.vx-=h.vx*Math.min(1,AIRDRAG*dt);
  // And she leans to what she is actually doing rather than to what the stick
@@ -1507,7 +1538,9 @@ function helpMenu(back){
   "The stick flies her: push it and she goes, and how far you push it is how hard. Up lifts, "+
   "down sets her down at a rate she can land at, HOVER holds the height you are at. On a "+
   "keyboard the arrows are the stick. She hangs off her disc, so she noses over into a run "+
-  "and comes back level out of it, and her gun points where her nose points.",
+  "and comes back level out of it, and her gun points where her nose points. Hold the stick "+
+  "right out with her side to you and she works up onto the step, half as fast again - and "+
+  "loses it the moment you turn her, ease off, or fly her backwards.",
   [{label:"Back",fn:()=>back?pauseMenu():mainMenu()}],
   "TURN points her, and it has nothing to do with where she is going: side, at you, other side, "+
   "at you, round again. In profile the gun fires level, which is how a jet is met and how a "+
@@ -2102,6 +2135,8 @@ function report(){
   attitude:h?(h.landed||Math.abs(h.lean)<LEAN_STEP/2?"level":
    Math.abs(h.tf)<1.5?"roll":(h.vx*(h.tf<0?-1:1)>0?"dive":"climb")):"level",
   vx:h?Math.round(h.vx):0,
+  cruise:h?+(h.cruise||0).toFixed(3):0,
+  top:h?Math.round(MAXV+(CRUISE-MAXV)*(h.cruise||0)):MAXV,
   seek:h?h.seek:0,
   seekers:G.seekers.map(k=>({x:Math.round(k.x),y:Math.round(k.y),ang:+k.ang.toFixed(3)})),
   aboard:G.aboard,rescued:G.rescued,lost:G.lost,chops:G.chops,score:G.score,

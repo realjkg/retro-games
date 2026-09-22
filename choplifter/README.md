@@ -21,7 +21,9 @@ design: the stick flies her and a button turns her, and the two have nothing to 
 other. She can be going left with her nose pointed at you. So this has a stick.
 
 - **The stick flies her.** Drag the thumb pad: how far out of the middle you push it is how
-  hard she goes, in both axes. Up lifts. Down is a *rate*, not a shove — hold it all the way
+  hard she goes, in both axes. Hold it right out in profile and she works up onto the step —
+  half as fast again, bought with a second of commitment and lost the moment you turn, ease
+  off, or fly her backwards. Up lifts. Down is a *rate*, not a shove — hold it all the way
   to the sand and she settles at a speed she can be landed at. Let go of everything and she
   falls, and a fall costs you a hit. On a keyboard the **arrows or WASD** are the stick.
 - **TURN** (X/E) is button 1. It walks her round the ring the original walks: side, nose-on
@@ -212,6 +214,49 @@ looking into it — on the screen that hung a lasso round her, and it was wrong 
 is a horizontal circle and your eye is at its height, so it projects to the same flat ellipse
 whichever way her nose is pointing. It is one shape now, and a test says so.
 
+## Up on the step
+
+The deepest barrack is nineteen hundred pixels from the pad, and sixty-four
+hostages at sixteen a load is four trips there and back. At her hovering speed
+that was the best part of three minutes of holding the stick in a straight
+line — and none of it is the game. The game is what happens over the huts and
+on the pad.
+
+So she is not faster. She is allowed to **get** faster, and only where it costs
+nothing to the part that is the game. Held at full stick, in profile, going the
+way her nose is pointed, she stops fighting her own downwash and runs on. Four
+things have to hold at once and any of them takes it away:
+
+| what she needs | what takes it away |
+|---|---|
+| the stick right out | easing off |
+| her side to you — in profile, not nose-on | turning her |
+| going the way she points | being dragged backwards |
+| her skids off the ground | setting her down |
+
+It takes **1.3 seconds of commitment before it starts to build** and about a
+second more to arrive; it is lost three times faster than it came. Ninety-eight
+pixels a second hovering, a hundred and forty-six up on the step. Measured
+against the trip it exists for — the pad to the deepest barrack — that is
+**20.4 seconds down to 14.2**, and a clean rescue saves the better part of a
+minute of straight-line flying.
+
+She is quicker than a jet up there, which is the point of committing to the
+run. What it costs is that she is in profile, in a straight line, not stopping,
+and a jet coming the other way does not care how fast she is.
+
+You can hear it before you can see it: the blades quicken as she gets there.
+And you can see it in her attitude, because she is pinned at her deepest lean
+the whole time she is up on the step.
+
+`tools/playtest.js` measures it in **ground actually crossed** — where she was
+and what the clock said, not the speed she reports. On a committed run west she
+goes from 98 px/s to about 151; on the flight home, where the same stick is
+held while the button turns her round and round, she never gets past about 105.
+Two sabotages, one either way: `--sabotage=nocruise` never lets her up on the
+step and `--sabotage=freecruise` gives it to her for nothing, and each turns
+that row red.
+
 ## She goes where the disc points
 
 A helicopter has no throttle to shove. She hangs off her disc, and she goes where the disc
@@ -258,7 +303,7 @@ before any of this — the row goes red.
 `npm test` cannot see the screen. Everything that has ever been visibly wrong in this
 repository was wrong on the screen while the numbers were right, so there is a second tool
 that opens the committed page in a real browser, presses the keys a player presses, reads the
-pixels the page actually painted, and asks eight questions of nine scenes:
+pixels the page actually painted, and asks nine questions of nine scenes:
 
 ```
 PW=$PWD/../law-of-the-west/node_modules/playwright-core node tools/playtest.js
@@ -277,6 +322,7 @@ node tools/playtest.js --sabotage=bands    # and prove a check can go red
 | `whole` | is the figure one figure: no shed ink, no sky shut inside it? |
 | `leans` | does she nose over into a run, come back level out of it, and lean the other way flown backwards — in the painted picture, not in the number? |
 | `seeks` | does a seeker turn onto what it was fired at, or fly on past it? |
+| `cruise` | does a straight run build speed in the ground she crosses, and does a turn take it away? |
 
 **Every one of those checks has been shown to fail.** `--sabotage=<name>` patches one defect
 into the page in memory and runs against that, because a check that passes on the broken build
@@ -293,6 +339,8 @@ and on the fixed one is not a check:
 | `bands` | the chopper drawn in three slid slices | `whole` |
 | `levelflight` | she flies flat out with her nose level | `leans` |
 | `dumbseeker` | the seeker flies straight on off the rail | `seeks` |
+| `nocruise` | she never gets up on the step | `cruise` on the way out |
+| `freecruise` | she is always up on it, turn or no turn | `cruise`, both scenes |
 
 `leanthrottle` is the fidelity defect this game shipped with in its first commit, kept as a
 sabotage so it cannot come back: the flight-home scene holds the stick east for four seconds
@@ -376,6 +424,12 @@ The brief was a modernisation, so these are deliberate and are not the original:
   bring different knees through, but nobody would call the arm swing readable.
 - **She has no separate landing picture.** The skids are part of every frame of the turn and
   do not flex or settle; touching down is a change of state, not a change of drawing.
+- **The run is not in the original either.** The 1982 machine had one speed. This is the same
+  kind of modernisation the lean is: it changes the transit, which was dead time, and leaves
+  the hovering speed — where the game actually is — exactly where it was.
+- **Faster trips mean a faster war.** Pressure is `wave + trips*2`, so getting home sooner
+  brings the next wave sooner. That is self-balancing rather than free, but it has only been
+  measured through the crude bot in the node harness, not played.
 - **The lean is one axis and the original had none of it.** Nothing in the sources says the
   1982 machine tilted at all, and it plainly did not; this is a modernisation, not a
   reproduction, and it is the one place the picture departs from what that machine drew. She
