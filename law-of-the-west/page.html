@@ -150,6 +150,12 @@ body.gamemode .abtn{width:68px;height:68px}
   body.gamemode .dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,34px)}
   body.gamemode .abtn{width:56px;height:56px}
 }
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>

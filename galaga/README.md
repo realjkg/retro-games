@@ -58,6 +58,40 @@ second — roughly twice the arcade's, which is a deliberate departure: with the
 original's slower bullet the two-shot limit bites on every other press and a
 held button stutters.
 
+**Endless fighters.** `FIGHTERS` on the title card cycles 3, 5, 2, ENDLESS, and
+the setting is remembered between visits; the same switch is in the pause menu,
+along with a way to end a run and see the tally. On endless a death still costs
+you the fighter and whatever the boss was carrying — what it does not cost is
+the game. The panel shows **∞** where the count goes. No extra fighters are
+handed out, because there is nothing to hand them to, and **an endless run never
+becomes a high score**. Turning the switch off part way through does not launder
+the run: once it has been endless, it is not a score.
+
+**Music.** An eight-bar fanfare plays over the first flight of every game — it
+runs about as long as the five flights take to come down — a second tune
+announces a challenging stage, a third lands a perfect bonus and a fourth closes
+a game out. Nothing plays while you are shooting, which is the arcade's
+arrangement.
+
+What makes a chip tune sound like one is the texture rather than the melody, and
+all of it is here: a **lead** that arrives from just under its own pitch and
+wobbles when it is held, a **harmony** under it, an **arpeggio** channel playing
+each chord as a run of sixteenths because no sound chip had a voice to spare for
+holding one, a walking **bass**, a **noise channel** doing the work of a kick,
+a snare and a hat, and an echo a beat and a half behind. Everything is scheduled
+against the audio clock rather than the frame clock, so a busy page cannot drag
+it.
+
+The chords are written as a chart — `C4+E4+G4:4` — and `arpeggiate()` turns them
+into the run of sixteenths; drum patterns are tiled to an exact length by
+`tile()`, so the noise channel can never be the thing that knocks a tune out of
+step. It was, on the first attempt, twice.
+
+They are **reconstructions by ear and not transcriptions.** Nobody working on
+this could hear the result, so `tools/music.js` draws each tune as a piano roll
+and the shapes were checked by looking: a rising figure answered a step higher,
+a turn, a landing, and every voice ending on the same beat.
+
 **Scoring**
 
 | | in the formation | in flight |
@@ -75,7 +109,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 28 tests, no browser
+    node --test tests/*.test.cjs                          # 42 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
@@ -102,6 +136,7 @@ first one, because CI has no browser and the game has to stay playable from
 Two more tools exist only so a person can look at the pixels, which is the one
 thing no check does:
 
+    PW=... node tools/music.js out.png       the tunes, as piano rolls
     PW=... node tools/sprites.js out.png     every sprite and frame at 8×
     PW=... node tools/shots.js out/          thirteen moments of the game
     PW=... node tools/render-icons.js        the home-screen icons, from the art
@@ -146,10 +181,22 @@ four of those checks fail on the build they replaced.
   a few frames.
 * **No enemy ever fires from the formation**, which is right, but no enemy fires
   a *pair* of shots on a spread either, which the arcade does at higher stages.
+* **Endless is not a practice mode.** It removes the cost of dying and nothing
+  else: there is no way to start at stage 12, no slow motion, and no way to
+  summon a capture so you can practise getting the fighter back.
 * **The stage never gets harder in the ways the arcade's does** beyond entry and
   dive speed and how often somebody dives. There is no second beam, no faster
   formation, no tighter dive.
+* **The double-tap zoom fix is unverified on the device it is for.** The
+  controls now carry their own `touch-action`, which is what the shared guard
+  always assumed they did, and `tools/zoomguard.js` proves it in Chromium.
+  The behaviour being defended against is WebKit's and there is no WebKit here.
 * **There is no attract-mode demo.** The title screen flies the formation and
   that is all; the arcade plays itself.
-* **Sound is six oscillator voices.** It is a reasonable set of blips and it is
-  not the arcade's music.
+* **The music is not the arcade's music.** It is a fanfare written to sit where
+  the arcade's sits and to have its shape; it is not a transcription and it is
+  not off by a note, it is a different tune. Anyone with the original to hand
+  could replace the note rows in `TUNES` and nothing else would need to change.
+* **There is no music during play**, which is faithful, and no enemy-entry
+  sound worth the name, which is not: the arcade's swarm has a voice and this
+  one has a single blip.

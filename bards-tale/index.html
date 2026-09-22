@@ -111,6 +111,12 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
 .sheet .r span:last-child{color:var(--gold)}
 @media (pointer:fine){#pads .hint{display:block}}
 .hint{display:none;font-size:10px;color:var(--dim);text-align:center}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>

@@ -26,6 +26,8 @@ const MOMENTS=[
   ['challenge',  `newGame();startStage(3);hideOverlay();G.state='play';step(4)`],
   ['flags',      `newGame();hideOverlay();G.stage=44;G.lives=5;G.state='play';step(0.1)`],
   ['gameover',   `newGame();G.score=45280;G.shots=210;G.hits=131;G.stage=9;gameOver()`],
+  ['endless',    `newGame();hideOverlay();G.endless=true;G.state='play';G.ship.inv=99;step(17);G.diveT=1e9;step(0.2)`],
+  ['pause',      `G.state='play';togglePause()`],
   ['help',       `showSplash();showHelp()`]
 ];
 

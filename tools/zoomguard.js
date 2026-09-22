@@ -17,7 +17,8 @@ let chromium;
 try{ chromium=require(process.env.PW?path.join(process.env.PW,'index.js'):'playwright-core').chromium; }
 catch(e){ console.log('playwright-core not installed; skipping.'); process.exit(0); }
 
-const GAMES=['archon','aztec','choplifter','drol','lode-runner','law-of-the-west'];
+const GAMES=['archon','aztec','bards-tale','choplifter','drol','galaga',
+  'lode-runner','law-of-the-west'];
 const fail=[], note=[];
 const ok=(c,m)=>{ if(!c)fail.push(m); };
 
@@ -62,6 +63,16 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
       // and the pinch WebKit offers as a gesture
       const ge=new Event('gesturestart',{bubbles:true,cancelable:true});
       document.dispatchEvent(ge); out.gesture=ge.defaultPrevented;
+      // The guard steps aside for anything pressable, on the understanding
+      // that a control is already exempt from double-tap zoom. That is only
+      // true if the control says so itself: .menuitem said nothing, in every
+      // game, so double-tapping a menu button zoomed the page.
+      out.bare=[];
+      document.querySelectorAll('button,[role=button],[data-cmd],a').forEach(el=>{
+        const ta=getComputedStyle(el).touchAction;
+        if(ta!=='none'&&ta!=='manipulation')
+          out.bare.push((el.id||el.className||el.tagName)+'='+ta);
+      });
       // a page that is zoomed already must be put back
       const meta=document.querySelector('meta[name="viewport"]');
       out.meta=!!meta;
@@ -81,7 +92,8 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
       ' | mash on a button '+(r.mash===null?'n/a':r.mash?'SWALLOWED':'through')+
       ' | pinch '+(r.pinch?'blocked':'THROUGH')+
       ' | gesture '+(r.gesture?'blocked':'THROUGH')+
-      ' | un-zoom '+(r.rewrote?'yes':'NO'));
+      ' | un-zoom '+(r.rewrote?'yes':'NO')+
+      ' | controls exempt '+(r.bare.length?'NO ('+r.bare.length+')':'yes'));
     ok(!r.single,g+': a single tap is being swallowed, so nothing can be pressed');
     ok(r.second,g+': the second tap of a double tap goes through - this is the zoom');
     ok(r.mash!==true,g+': mashing a control loses every second press');
@@ -89,6 +101,8 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
     ok(r.gesture,g+": WebKit's own pinch gesture is not prevented");
     ok(r.hasUnzoom,g+': nothing can put the page back if it is zoomed already');
     ok(r.rewrote,g+': a zoomed page is not put back');
+    ok(!r.bare.length,g+': pressable controls with no touch-action of their own, '+
+      'which the guard steps aside for: '+r.bare.slice(0,4).join(' '));
     await c.close();
   }
   await b.close();

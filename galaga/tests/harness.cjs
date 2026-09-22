@@ -22,8 +22,16 @@ function runtime(file){
       className:'',width:224,height:288,
       classList:{add(){},remove(){},toggle(){},contains(){return false}},
       setAttribute(){},addEventListener(){},removeEventListener(){},
-      setPointerCapture(){},closest(){return null},
-      querySelectorAll(){return[]},
+      setPointerCapture(){},hasPointerCapture(){return false},
+      releasePointerCapture(){},closest(){return null},
+      /* Menus are built by writing innerHTML and then wiring up whatever
+         querySelectorAll hands back. Returning nothing made every screen that
+         has buttons on it throw the moment a test reached one — game over
+         among them. Counting the buttons in the markup is enough of a DOM. */
+      querySelectorAll(sel){
+        const n=String(this.innerHTML||'').split('class="menuitem').length-1;
+        return /menuitem/.test(String(sel))?Array.from({length:n},()=>mkEl('item')):[];
+      },
       getBoundingClientRect(){return{left:0,top:0,width:224,height:288}},
       getContext(){return drawing},toDataURL(){return'data:,'}};
   }
@@ -40,6 +48,7 @@ function runtime(file){
     createBuffer(ch,n){const d=new Float32Array(n);return{length:n,getChannelData(){return d}};}
     createBufferSource(){return{buffer:null,connect(){},start(){}};}
     createBiquadFilter(){return{type:'',frequency:{value:0},connect(){},disconnect(){}};}
+    createDelay(){return{delayTime:{value:0},connect(){},disconnect(){}};}
     resume(){return Promise.resolve();}
   }
   const docEvents=[];
@@ -58,11 +67,13 @@ function runtime(file){
   vm.createContext(box);
   vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
+  /* the same thing, brought back as data rather than as a string */
+  const j=c=>JSON.parse(run('JSON.stringify('+c+')'));
   // Start every test from a running stage 1 with no overlay in the way and
   // nothing diving: a parked fighter is shot down inside twenty seconds
   // otherwise, and then the test is measuring the respawn instead.
   run(`newGame();hideOverlay();G.state='play';G.diveT=1e9;`);
-  return {run,notes,el,store,box,docEvents};
+  return {run,j,notes,el,store,box,docEvents};
 }
 // Advance the game the way the frame loop does: fixed sixtieths.
 const step=(r,seconds,dt=1/60)=>

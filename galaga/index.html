@@ -78,6 +78,12 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
 .tally .r span:last-child{color:var(--gold);font-weight:700}
 #sound{position:absolute;right:8px;top:8px;z-index:3}
 @media (pointer:fine){#pads{display:none}}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom.
+   .menuitem never was, so double-tapping a menu button zoomed the page. */
+.menuitem,#sound,#fs,#install,button,a{touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -174,6 +180,202 @@ const Snd={ctx:null,on:load('galaga.sound','1')==='1',
   stage(){[392,523,659,784].forEach((f,i)=>this.tone('square',f,f,0.12,0.05,i*0.11));},
   perfect(){[523,659,784,1046,1318].forEach((f,i)=>this.tone('square',f,f,0.13,0.06,i*0.1));},
   extra(){[659,880,1174].forEach((f,i)=>this.tone('triangle',f,f,0.16,0.06,i*0.12));}
+};
+
+/* ---------- music ---------- */
+/* The arcade plays a fanfare over the first flight and nothing at all while
+ * you are shooting, which is how this works too.
+ *
+ * What makes a chip tune sound like one is not the melody, it is the texture:
+ * a chord played as a run of sixteenths because there is no channel to hold it,
+ * a chirp of pitch at the front of every note, a noise channel standing in for
+ * a drum kit, and an echo a beat and a half behind. All of that is here.
+ *
+ * The tunes are written as note names against the equal-tempered scale and
+ * scheduled against the audio clock rather than the frame clock, so they do not
+ * drag when the page is busy. They are original: Galaga's own score belongs to
+ * somebody, and the README says what these are.
+ */
+const SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function hz(name){
+  if(name==='-')return 0;                       /* a rest */
+  const m=/^([A-G])([#b]?)(-?\d)$/.exec(name);
+  if(!m)return 0;
+  const n=SEMI[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)+(+m[3]+1)*12;
+  return 440*Math.pow(2,(n-69)/12);
+}
+const beatsOf=line=>line.trim().split(/\s+/)
+  .reduce((a,t)=>a+(+t.split(':')[1]||1),0);
+
+/* A chord chart into a run of sixteenths. Three channels of a sound chip
+ * cannot hold a chord, so one of them cycles the notes of it fast enough that
+ * the ear hears the chord anyway; this is that, written out. */
+function arpeggiate(chart,step){
+  step=step||0.25;
+  const out=[];
+  for(const tok of chart.trim().split(/\s+/)){
+    const[chord,b]=tok.split(':');
+    const notes=chord.split('+');
+    const n=Math.round((+b||1)/step);
+    for(let i=0;i<n;i++)out.push(notes[i%notes.length]+':'+step);
+  }
+  return out.join(' ');
+}
+/* A pattern tiled to exactly this many beats, so a drum line can never be the
+ * thing that leaves a tune's parts out of step with each other. */
+function tile(pattern,beats){
+  const src=pattern.trim().split(/\s+/);
+  const out=[];let at=0,i=0;
+  while(at<beats-1e-9){
+    const[n,b]=src[i++%src.length].split(':');
+    let d=+b||1;
+    if(at+d>beats)d=beats-at;
+    out.push(n+':'+(Math.round(d*1000)/1000));
+    at+=d;
+  }
+  return out.join(' ');
+}
+
+/* A voice is a waveform, a gain, how long it rings past its note, and the
+ * chirp and wobble that stop it sounding like a test tone. */
+const VOICES={
+  lead:{type:'square',  gain:0.070,ring:0.040,bend:0.945,vib:{rate:5.6,depth:0.006},echo:true},
+  harm:{type:'square',  gain:0.026,ring:0.030,bend:0.97},
+  arp: {type:'square',  gain:0.020,ring:0.010},
+  bass:{type:'triangle',gain:0.080,ring:0.050,bend:0.92},
+  drum:{drum:true}
+};
+const Music={
+  playing:null,
+  stop(){this.playing=null;},
+  /* k kick, s snare, h hat — one noise channel doing the work of three. */
+  hit(c,kind,t,out){
+    if(kind==='k'){
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine';
+      o.frequency.setValueAtTime(150,t);
+      o.frequency.exponentialRampToValueAtTime(45,t+0.11);
+      g.gain.setValueAtTime(0.13,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
+      o.connect(g);g.connect(out);o.start(t);o.stop(t+0.15);
+      return;
+    }
+    const dur=kind==='s'?0.13:0.035;
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=c.createBufferSource();src.buffer=buf;
+    const bp=c.createBiquadFilter();
+    bp.type='bandpass';bp.frequency.value=kind==='s'?1900:7600;
+    const g=c.createGain();g.gain.value=kind==='s'?0.085:0.040;
+    src.connect(bp);bp.connect(g);g.connect(out);src.start(t);
+  },
+  note(c,f,t,dur,V,out,echo){
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=V.type;
+    /* the chirp: every note arrives from just under its own pitch */
+    if(V.bend){
+      o.frequency.setValueAtTime(f*V.bend,t);
+      o.frequency.exponentialRampToValueAtTime(f,t+0.022);
+    }else o.frequency.setValueAtTime(f,t);
+    /* and a held note wobbles, because a held chip note always did */
+    if(V.vib&&dur>0.32){
+      const lfo=c.createOscillator(),amt=c.createGain();
+      lfo.frequency.setValueAtTime(V.vib.rate,t);
+      amt.gain.setValueAtTime(0,t);
+      amt.gain.linearRampToValueAtTime(f*V.vib.depth,t+dur*0.4);
+      lfo.connect(amt);amt.connect(o.frequency);
+      lfo.start(t);lfo.stop(t+dur+0.05);
+    }
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(V.gain,t+0.010);
+    g.gain.setValueAtTime(V.gain*0.85,t+dur*0.65);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur+V.ring);
+    o.connect(g);g.connect(out);
+    if(echo&&V.echo)g.connect(echo);
+    o.start(t);o.stop(t+dur+V.ring+0.02);
+  },
+  /* Each part is [voice, "note:beats ..."] over one tempo. */
+  play(tune){
+    if(!Snd.on)return;
+    Snd.boot();
+    const c=Snd.ctx;
+    if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const beat=60/tune.bpm;
+    const t0=c.currentTime+0.06;
+    const out=c.destination;
+    /* the echo, a beat and a half behind and fading */
+    let echo=null;
+    try{
+      const dl=c.createDelay(2);
+      dl.delayTime.value=beat*1.5;
+      const fb=c.createGain();fb.gain.value=0.20;
+      const wet=c.createGain();wet.gain.value=0.38;
+      dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(out);
+      echo=dl;
+    }catch(e){}
+    let last=0;
+    for(const[v,line]of tune.parts){
+      const V=VOICES[v]||VOICES.lead;
+      let t=t0;
+      for(const tok of line.trim().split(/\s+/)){
+        const[n,b]=tok.split(':');
+        const dur=(+b||1)*beat;
+        if(V.drum){ if(n!=='-')this.hit(c,n,t,out); }
+        else{ const f=hz(n); if(f)this.note(c,f,t,dur,V,out,echo); }
+        t+=dur;
+      }
+      last=Math.max(last,t-t0);
+    }
+    this.playing=tune;
+    return last;
+  }
+};
+
+/* Eight bars over the first flight: a phrase, its answer, a turn and a
+ * landing, on four voices and a noise channel. */
+const THEME_BARS=32;
+const TUNES={
+  start:{bpm:152,parts:[
+    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 B5:.5 G5:.5 E5:1'+
+            ' A5:.5 E5:.5 C5:.5 A4:.5 C5:.5 E5:.5 A5:1'+
+            ' F5:.5 A5:.5 C6:.5 F6:.5 E6:.5 C6:.5 A5:1'+
+            ' G5:.5 B5:.5 D6:.5 G6:.5 D6:.5 B5:.5 G5:1'+
+            ' E6:.5 D6:.5 C6:.5 G5:.5 E5:.5 G5:.5 C6:1'+
+            ' E6:.5 C6:.5 A5:.5 E5:.5 A5:.5 C6:.5 E6:1'+
+            ' F6:.5 E6:.5 D6:.5 C6:.5 B5:.5 A5:.5 G5:.5 B5:.5'+
+            ' C6:2 G5:.5 E5:.5 C6:1'],
+    ['harm','E4:1 G4:1 C5:1 E5:1  C5:1 A4:1 E4:1 A4:1'+
+            ' A4:1 C5:1 F5:1 A5:1  B4:1 D5:1 G5:1 D5:1'+
+            ' C5:1 G4:1 E4:1 G4:1  A4:1 E5:1 C5:1 E5:1'+
+            ' A4:1 C5:1 D5:1 G4:1  E5:2 C5:1 E5:1'],
+    ['arp',arpeggiate('C4+E4+G4:4 A3+C4+E4:4 F3+A3+C4:4 G3+B3+D4:4'+
+                      ' C4+E4+G4:4 A3+C4+E4:4 F3+A3+D4:4 C4+E4+G4:4')],
+    ['bass','C3:1 G2:1 C3:1 E3:1  A2:1 E3:1 A2:1 C3:1'+
+            ' F2:1 C3:1 F3:1 A2:1  G2:1 D3:1 G3:1 B2:1'+
+            ' C3:1 G2:1 C3:1 E3:1  A2:1 E3:1 A2:1 G2:1'+
+            ' F2:1 A2:1 G2:1 B2:1  C3:2 G2:1 C3:1'],
+    /* seven bars of the pattern, then a bar of fill under the landing */
+    ['drum',tile('k:.5 h:.5 s:.5 h:.5',THEME_BARS-4)+
+            ' k:.5 h:.5 s:.5 h:.5 k:1 s:.5 s:.5']]},
+  /* A challenging stage announces itself: nothing shoots back for the next
+   * forty, and the tune is the only warning you get. */
+  challenge:{bpm:168,parts:[
+    ['lead','G5:.5 A5:.5 B5:.5 D6:1 B5:.5 D6:1.5 -:.5'+
+            ' G5:.5 B5:.5 D6:.5 G6:1 D6:.5 G6:1.5'],
+    ['arp',arpeggiate('G4+B4+D5:5 G4+B4+D5:4.5')],
+    ['bass','G3:1 D3:1 G3:1.5 D3:1 -:.5'+
+            ' G3:1 D3:1 G3:1 D3:.5 G3:1'],
+    ['drum',tile('k:.5 h:.5 s:.5 h:.5',9.5)]]},
+  perfect:{bpm:160,parts:[
+    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 E6:.5 G6:.5 C7:2'],
+    ['harm','E4:.5 G4:.5 C5:.5 E5:.5 G5:.5 C6:.5 E6:2'],
+    ['bass','C3:1 C3:1 G3:1 C4:2'],
+    ['drum',tile('k:.25 s:.25',5)]]},
+  over:{bpm:104,parts:[
+    ['lead','C5:1 B4:.5 A4:.5 G4:1 E4:1 C4:2'],
+    ['bass','C3:1 G2:1 E2:1 C2:3']]}
 };
 
 /* ---------- sprite art ---------- */
@@ -494,6 +696,8 @@ function slotPos(s){
 const G={
   state:'splash',          // splash | play | dying | stagecard | over | paused
   stage:1,score:0,high:+load('galaga.high',0)||0,lives:3,startLives:3,
+  endless:load('galaga.endless','0')==='1',  /* the count never moves */
+  noScore:false,                             /* and the run cannot be a high one */
   enemies:[],bullets:[],ebullets:[],booms:[],freed:null,
   ship:{x:W/2,y:262,alive:true,dual:false,captured:false,t:0},
   waves:[],waveT:0,waveI:0,spawnI:0,spawnT:0,
@@ -748,10 +952,10 @@ function valueOf(e){
 function addScore(n){
   G.score+=n;
   if(G.score>=G.nextExtra){
-    G.lives++;G.nextExtra+=G.extraStep;Snd.extra();
-    flash('EXTRA FIGHTER');
+    G.nextExtra+=G.extraStep;
+    if(!G.endless){G.lives++;Snd.extra();flash('EXTRA FIGHTER');}
   }
-  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  if(!G.noScore&&G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
   el('score').textContent=G.score;
   el('high').textContent=G.high;
 }
@@ -855,7 +1059,7 @@ function playerDies(){
   G.ship.alive=false;
   boom(G.ship.x,G.ship.y,true);
   Snd.die();
-  G.lives--;
+  if(!G.endless)G.lives--;
   G.state='dying';G.dieT=1.5;
 }
 function respawn(){
@@ -865,7 +1069,8 @@ function respawn(){
 }
 function gameOver(){
   G.state='over';G.over=true;
-  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  Music.play(TUNES.over);
+  if(!G.noScore&&G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
   showOver();
 }
 
@@ -879,7 +1084,7 @@ function beamStep(boss,dt){
     G.ship.alive=false;
     G.pull={x:G.ship.x,y:G.ship.y,t:0,boss};
     G.ship.captured=true;
-    G.lives--;
+    if(!G.endless)G.lives--;
     Snd.capture();
     flash('FIGHTER CAPTURED');
   }
@@ -997,6 +1202,7 @@ function shipStep(dt){
 }
 function nextStage(){
   Snd.stage();
+  if(stageIsChallenge(G.stage+1))Music.play(TUNES.challenge);
   startStage(G.stage+1);
   G.state='stagecard';G.cardT=1.7;
   showCard('STAGE '+G.stage,stageIsChallenge(G.stage)?'CHALLENGING STAGE':'');
@@ -1005,7 +1211,7 @@ function endChallenge(){
   const perfect=G.chalHit>=G.chalTotal;
   const bonus=perfect?10000:G.chalHit*100;
   addScore(bonus);
-  if(perfect)Snd.perfect();else Snd.stage();
+  if(perfect)Music.play(TUNES.perfect);else Snd.stage();
   showCard(perfect?'PERFECT!':'NUMBER OF HITS '+G.chalHit,
            (perfect?'SPECIAL BONUS 10000':'BONUS '+bonus)+' PTS');
   G.state='stagecard';G.cardT=2.6;
@@ -1143,6 +1349,21 @@ function drawBoomInto(g,b){
   }
 }
 
+/* The count, where there is no count. Nine pixels by five, because two loops
+ * meeting at a waist do not fit in the five-wide font: at five by three it came
+ * out as a filled block with two holes in it and read as a domino. */
+const INF=[
+".##...##.",
+"#..#.#..#",
+"#...#...#",
+"#..#.#..#",
+".##...##."];
+function drawInf(x,y,col){
+  g.fillStyle=col;
+  for(let r=0;r<INF.length;r++)for(let c=0;c<INF[r].length;c++)
+    if(INF[r][c]==='#')g.fillRect(x+c,y+r,1,1);
+}
+
 const FLAGS=[[50,'#38c840'],[30,'#2f7be8'],[20,'#ee3322'],[10,'#f8d000'],[5,'#ff8a10'],[1,'#ffffff']];
 function drawFlag(x,y,col,big){
   g.fillStyle='#c8c8e0';g.fillRect(x,y,1,big?10:8);
@@ -1152,7 +1373,10 @@ function drawHud(){
   g.fillStyle='#000000';g.fillRect(0,HUDY,W,H-HUDY);
   g.fillStyle='#1a1a2a';g.fillRect(0,HUDY,W,1);
   if(G.state==='splash')return;   /* no stale count under the title screen */
-  for(let i=0;i<Math.min(6,Math.max(0,G.lives-1));i++)
+  if(G.endless){
+    g.drawImage(SPR.ship,2,HUDY);
+    drawInf(19,HUDY+5,'#e8e6f2');
+  }else for(let i=0;i<Math.min(6,Math.max(0,G.lives-1));i++)
     g.drawImage(SPR.ship,2+i*15,HUDY);
   /* the stages you have cleared, as the flags the cabinet flies */
   let n=Math.max(0,G.stage-1),x=W-3;
@@ -1226,15 +1450,23 @@ function showSplash(){
     '<h1>GALAGA</h1>'+
     '<p class="sub">Forty of them fly in. The green ones want your fighter.</p>'+
     '<button class="menuitem sel" type="button">START</button>'+
-    '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+G.startLives+'</button>'+
+    '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+
+      (G.endless?'ENDLESS':G.startLives)+'</button>'+
     '<button class="menuitem" type="button">HOW TO PLAY</button>'+
     '<small class="tip">← → move · SPACE fire · P pause · hold to autofire</small>',
     [{go:newGame},{go:cycleLives},{go:showHelp}]);
 }
+/* Two, three, five, endless, and back to three. Endless is the fourth stop on
+ * the same switch rather than a mode of its own, because it is the same
+ * question: how many of these do I get. */
 function cycleLives(){
-  G.startLives=G.startLives===3?5:G.startLives===5?2:3;
+  if(G.endless){setEndless(false);G.startLives=3;}
+  else if(G.startLives===3)G.startLives=5;
+  else if(G.startLives===5)G.startLives=2;
+  else setEndless(true);
   save('galaga.lives',G.startLives);
-  const b=el('mfight');if(b)b.textContent='FIGHTERS: '+G.startLives;
+  const b=el('mfight');
+  if(b)b.textContent='FIGHTERS: '+(G.endless?'ENDLESS':G.startLives);
 }
 function showHelp(){
   ov.className='card';
@@ -1248,7 +1480,10 @@ function showHelp(){
     '<div class="r"><span>Boss diving, one escort left</span><span>800</span></div>'+
     '<div class="r"><span>Boss diving, both escorts left</span><span>1600</span></div>'+
     '</div>'+
-    '<small class="tip">A boss takes two hits. If its beam catches you it keeps your '+
+    '<small class="tip"><b>FIGHTERS: ENDLESS</b> is the fourth stop on the switch '+
+    'above. A death still costs you the fighter and whatever it was carrying; what '+
+    'it does not cost is the game. No extra fighters are handed out, and an endless '+
+    'run never becomes a high score.<br><br>A boss takes two hits. If its beam catches you it keeps your '+
     'fighter and you lose a life. Shoot that boss <b>while it is diving</b> and the '+
     'fighter flies home and docks: two ships, two shots at once. Shoot it while it '+
     'sits in the formation and your fighter dies with it — and never shoot the '+
@@ -1280,7 +1515,19 @@ function showOver(){
 }
 function showPause(){
   ov.className='card';
-  ov.innerHTML='<h1>PAUSED</h1><p class="sub">P, or the button, to go back in.</p>';
+  buildMenu(
+    '<h1>PAUSED</h1>'+
+    '<p class="sub">'+(G.endless
+      ? 'Endless fighters. A death costs you the wave, never the game — and this run '+
+        'will not become a high score.'
+      : 'P, or the button, to go back in.')+'</p>'+
+    '<button class="menuitem sel" type="button">BACK IN</button>'+
+    '<button class="menuitem" type="button">FIGHTERS: '+
+      (G.endless?'ENDLESS':G.lives)+'</button>'+
+    '<button class="menuitem" type="button">END THIS RUN</button>',
+    [{go:togglePause},
+     {go:()=>{setEndless(!G.endless);showPause();}},
+     {go:()=>{G.state='play';gameOver();}}]);
 }
 
 /* The title screen flies the formation behind the menu rather than a picture of
@@ -1294,8 +1541,16 @@ function attract(){
     G.enemies.push(e);
   });
 }
+function setEndless(on){
+  G.endless=on;
+  save('galaga.endless',on?'1':'0');
+  /* Once a run has been endless it can never be a high score, and turning the
+   * switch back off does not launder it. */
+  if(on)G.noScore=true;
+}
 function newGame(){
   G.score=0;G.lives=G.startLives;G.shots=0;G.hits=0;G.over=false;
+  G.noScore=G.endless;
   G.nextExtra=20000;
   G.ship.alive=true;G.ship.dual=false;G.ship.captured=false;G.ship.x=W/2;G.ship.inv=1.2;
   G.pull=null;G.freed=null;
@@ -1303,7 +1558,8 @@ function newGame(){
   startStage(1);
   G.state='stagecard';G.cardT=1.5;
   showCard('STAGE 1','');
-  Snd.boot();Snd.stage();
+  Snd.boot();
+  Music.play(TUNES.start);
 }
 
 /* ---------- input ---------- */
@@ -1384,6 +1640,7 @@ st.addEventListener('pointercancel',drop);
 
 el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('galaga.sound',Snd.on?'1':'0');
+  if(!Snd.on)Music.stop();
   el('soundstate').textContent=Snd.on?'on':'off';
   if(Snd.on){Snd.boot();Snd.shot();}
 });
