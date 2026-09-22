@@ -70,4 +70,15 @@ const step=(r,seconds,dt=1/60)=>
 // Long enough for all five flights to arrive and settle into the formation.
 const settle=r=>step(r,22);
 
-module.exports={runtime,step,settle};
+// A fighter that is on the screen and cannot be shot off it.
+//
+// Anything in flight fires at you, the boss on its capture run included. A test
+// that parks a fighter at the centre of the screen for twelve seconds and then
+// checks what the capture cost is really checking what the capture cost *plus*
+// whatever the boss hit it with on the way down, and that came out wrong two
+// times in five. Invulnerability stops the bullets and does not stop the beam,
+// which is exactly the isolation these tests want.
+const park=(r,x)=>r.run(`G.ship.alive=true;G.ship.dual=false;G.ship.x=${x||112};
+  G.ship.inv=1e4;`);
+
+module.exports={runtime,step,settle,park};
