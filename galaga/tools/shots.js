@@ -20,6 +20,7 @@ const MOMENTS=[
   ['diving',     `newGame();hideOverlay();G.state='play';step(17);G.diveT=0;step(1.4)`],
   ['beam',       `newGame();hideOverlay();G.state='play';step(17);G.ship.x=112;G.diveT=99;launchCapture(G.enemies.find(e=>e.kind==='boss'&&e.st==='slot'));step(4.2)`],
   ['boom',       `newGame();hideOverlay();G.state='play';step(17);G.enemies.slice(0,6).forEach(e=>{boom(e.x,e.y);});boom(G.ship.x,G.ship.y,true);step(0.12)`],
+  ['firing',     `newGame();hideOverlay();G.state='play';G.ship.inv=99;step(17);G.diveT=1e9;keys.autofire=true;step(0.9);keys.autofire=false`],
   ['dual',       `newGame();hideOverlay();G.state='play';step(17);G.ship.dual=true;playerFire();step(0.25)`],
   ['held',       `newGame();hideOverlay();G.state='play';step(17);const b=G.enemies.find(e=>e.kind==='boss');b.holds=true;b.hurt=true;step(0.1)`],
   ['challenge',  `newGame();startStage(3);hideOverlay();G.state='play';step(4)`],

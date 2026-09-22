@@ -113,6 +113,12 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
  * Everything below works in those coordinates and never in CSS ones.
  */
 const W=224,H=288;
+/* How the fighter feels, in one place.
+ *   SHIPSPD   crosses the playfield in about a second and a quarter
+ *   BULLETSPD leaves the top of the screen in about half a second
+ *   FIREGAP   the ceiling on a held button; the two-bullet limit is what
+ *             actually paces you, which is the arcade's arrangement */
+const SHIPSPD=168,BULLETSPD=620,FIREGAP=0.09;
 
 /* ---------- small helpers ---------- */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -712,9 +718,11 @@ function enemyFire(e){
   const a=Math.atan2(dy,dx)+jitter;
   G.ebullets.push({x:e.x,y:e.y+6,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp});
 }
+/* Returns whether a shot actually left, so a held button can try again on the
+ * next frame rather than sit out another whole interval. */
 function playerFire(){
   const maxB=G.ship.dual?4:2;
-  if(!G.ship.alive||G.bullets.length>=maxB)return;
+  if(!G.ship.alive||G.bullets.length>=maxB)return false;
   if(G.ship.dual){
     G.bullets.push({x:G.ship.x-8,y:G.ship.y-8});
     if(G.bullets.length<maxB)G.bullets.push({x:G.ship.x+8,y:G.ship.y-8});
@@ -724,6 +732,7 @@ function playerFire(){
     G.shots++;
   }
   Snd.shot();
+  return true;
 }
 
 /* ---------- scoring ---------- */
@@ -779,11 +788,17 @@ function collide(dt){
   /* player bullets */
   for(let i=G.bullets.length-1;i>=0;i--){
     const b=G.bullets[i];
-    b.y-=252*dt;
+    /* Where it was, as well as where it is. At four hundred and eighty pixels
+     * a second a bullet steps eight pixels a frame, and a bee's hit band is
+     * thirteen tall — close enough that sampling only the new position is
+     * asking to shoot straight through something. The test is against the
+     * whole step, so nothing can be tunnelled past however fast it goes. */
+    const py=b.y;
+    b.y-=BULLETSPD*dt;
     if(b.y<-8){G.bullets.splice(i,1);continue;}
     let gone=false;
     if(G.freed&&!gone){
-      if(Math.abs(b.x-G.freed.x)<7&&Math.abs(b.y-G.freed.y)<8){
+      if(Math.abs(b.x-G.freed.x)<7&&G.freed.y>=b.y-8&&G.freed.y<=py+8){
         boom(G.freed.x,G.freed.y,true);Snd.kill();G.freed=null;G.ship.captured=false;
         flash('FIGHTER LOST');
         G.bullets.splice(i,1);continue;
@@ -793,7 +808,7 @@ function collide(dt){
       const e=G.enemies[j];
       if(e.dead||e.st==='gone')continue;
       const r=hitBoxes(e);
-      if(Math.abs(b.x-e.x)<r&&Math.abs(b.y-e.y)<r+1){
+      if(Math.abs(b.x-e.x)<r&&e.y>=b.y-(r+1)&&e.y<=py+(r+1)){
         G.bullets.splice(i,1);gone=true;G.hits++;
         e.hp--;
         if(e.hp>0){e.hurt=true;Snd.bossHit();addScore(0);}
@@ -974,8 +989,11 @@ function shipStep(dt){
     if(Math.abs(d)>1.2)v=clamp(d/6,-1,1);
     else v=0;
   }
-  s.x=clamp(s.x+v*104*dt,s.dual?18:10,W-(s.dual?18:10));
-  if(keys.autofire){s.t-=dt;if(s.t<=0){s.t=0.16;playerFire();}}
+  s.x=clamp(s.x+v*SHIPSPD*dt,s.dual?18:10,W-(s.dual?18:10));
+  if(keys.autofire){
+    s.t-=dt;
+    if(s.t<=0&&playerFire())s.t=FIREGAP;
+  }
 }
 function nextStage(){
   Snd.stage();
@@ -1321,14 +1339,25 @@ document.addEventListener('keyup',ev=>{
   else if(k==='ArrowRight'||k==='d'||k==='D')press('right',false);
   else if(k===' '||k==='z'||k==='Z')press('fire',false);
 });
+/* A held control stays held until the finger comes off it. Without capture, a
+ * thumb that drifts a few pixels past the edge of the button raises
+ * pointerleave and the fighter stops dead in the middle of a move, which reads
+ * as the controls dropping input. */
 function hold(id,k){
   const b=el(id);
-  const on=e=>{e.preventDefault();press(k,true);b.classList.add('on');};
-  const off=e=>{if(e)e.preventDefault();press(k,false);b.classList.remove('on');};
+  const on=e=>{
+    e.preventDefault();
+    try{b.setPointerCapture(e.pointerId);}catch(err){}
+    press(k,true);b.classList.add('on');
+  };
+  const off=e=>{
+    if(e){e.preventDefault();
+      try{if(b.hasPointerCapture(e.pointerId))b.releasePointerCapture(e.pointerId);}catch(err){}}
+    press(k,false);b.classList.remove('on');
+  };
   b.addEventListener('pointerdown',on);
   b.addEventListener('pointerup',off);
   b.addEventListener('pointercancel',off);
-  b.addEventListener('pointerleave',off);
 }
 hold('bl','left');hold('br','right');hold('bf','fire');
 el('bp').addEventListener('click',togglePause);
