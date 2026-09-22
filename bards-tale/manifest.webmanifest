@@ -1,0 +1,39 @@
+{
+  "name": "The Bard's Tale — The Sewers of Skara Brae",
+  "short_name": "Bard's Tale",
+  "description": "A browser recreation of the 1985 dungeon crawler: six adventurers, a town under a winter that will not end, and three levels of sewer beneath it.",
+  "id": "/retro-games/bards-tale/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#0a0806",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
