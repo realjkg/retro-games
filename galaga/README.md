@@ -67,12 +67,25 @@ handed out, because there is nothing to hand them to, and **an endless run never
 becomes a high score**. Turning the switch off part way through does not launder
 the run: once it has been endless, it is not a score.
 
-**Music.** A fanfare plays over the first flight of every game, a second one
+**Music.** An eight-bar fanfare plays over the first flight of every game — it
+runs about as long as the five flights take to come down — a second tune
 announces a challenging stage, a third lands a perfect bonus and a fourth closes
 a game out. Nothing plays while you are shooting, which is the arcade's
-arrangement. The tunes are two and three voices of square and triangle wave,
-scheduled against the audio clock rather than the frame clock so they do not
-drag when the page is busy.
+arrangement.
+
+What makes a chip tune sound like one is the texture rather than the melody, and
+all of it is here: a **lead** that arrives from just under its own pitch and
+wobbles when it is held, a **harmony** under it, an **arpeggio** channel playing
+each chord as a run of sixteenths because no sound chip had a voice to spare for
+holding one, a walking **bass**, a **noise channel** doing the work of a kick,
+a snare and a hat, and an echo a beat and a half behind. Everything is scheduled
+against the audio clock rather than the frame clock, so a busy page cannot drag
+it.
+
+The chords are written as a chart — `C4+E4+G4:4` — and `arpeggiate()` turns them
+into the run of sixteenths; drum patterns are tiled to an exact length by
+`tile()`, so the noise channel can never be the thing that knocks a tune out of
+step. It was, on the first attempt, twice.
 
 They are **reconstructions by ear and not transcriptions.** Nobody working on
 this could hear the result, so `tools/music.js` draws each tune as a piano roll
@@ -96,7 +109,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 40 tests, no browser
+    node --test tests/*.test.cjs                          # 42 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's

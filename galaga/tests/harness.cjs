@@ -48,6 +48,7 @@ function runtime(file){
     createBuffer(ch,n){const d=new Float32Array(n);return{length:n,getChannelData(){return d}};}
     createBufferSource(){return{buffer:null,connect(){},start(){}};}
     createBiquadFilter(){return{type:'',frequency:{value:0},connect(){},disconnect(){}};}
+    createDelay(){return{delayTime:{value:0},connect(){},disconnect(){}};}
     resume(){return Promise.resolve();}
   }
   const docEvents=[];

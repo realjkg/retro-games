@@ -20,7 +20,7 @@ const pw=require(process.env.PW||'playwright-core');
   pg.on('pageerror',e=>console.error('PAGE ERROR:',e.message));
   await pg.goto('file://'+path.join(__dirname,'..','index.html'));
   const data=await pg.evaluate(()=>{
-    const COL={lead:'#f8d000',harm:'#5ad1e6',bass:'#ee6688'};
+    const COL={lead:'#f8d000',harm:'#5ad1e6',arp:'#7ad47a',bass:'#ee6688',drum:'#9a8b76'};
     const names=Object.keys(TUNES);
     const PX=26,ROW=5,PAD=54,GAP=30;
     // one semitone a row, one beat PX pixels wide
@@ -28,9 +28,13 @@ const pw=require(process.env.PW||'playwright-core');
       const t=TUNES[k],notes=[];
       t.parts.forEach(([v,line])=>{
         let at=0;
+        const drum=!!(VOICES[v]&&VOICES[v].drum);
         line.trim().split(/\s+/).forEach(tok=>{
           const[n,d]=tok.split(':');const len=+d||1;
-          if(n!=='-')notes.push({v,n,at,len,f:hz(n)});
+          /* the noise channel has no pitch, so it gets a lane of its own
+             under the staff rather than a row on it - plotted on the pitch
+             grid its frequency of zero took the whole drawing with it */
+          if(n!=='-')notes.push({v,n,at,len,f:hz(n),drum});
           at+=len;
         });
       });
@@ -40,9 +44,13 @@ const pw=require(process.env.PW||'playwright-core');
     const rolls=names.map(roll);
     const semi=f=>Math.round(12*Math.log2(f/440)+69);
     let lo=999,hi=0;
-    rolls.forEach(r=>r.notes.forEach(n=>{const s=semi(n.f);
+    rolls.forEach(r=>r.notes.forEach(n=>{
+      if(n.drum)return;
+      const s=semi(n.f);
       if(s<lo)lo=s;if(s>hi)hi=s;}));
-    const H=(hi-lo+3)*ROW;
+    const DRUMROW={k:0,s:1,h:2};
+    const DRUMH=4*ROW;
+    const H=(hi-lo+3)*ROW+DRUMH;
     const W=Math.max(...rolls.map(r=>r.beats))*PX+PAD+20;
     const cv=document.createElement('canvas');
     cv.width=W;cv.height=rolls.length*(H+GAP)+20;
@@ -60,10 +68,18 @@ const pw=require(process.env.PW||'playwright-core');
       }
       g.fillStyle='#2a2a3a';g.fillRect(PAD,top+H,r.beats*PX,1);
       r.notes.forEach(n=>{
-        const y=top+H-(semi(n.f)-lo+1)*ROW;
+        if(n.drum){
+          const y=top+H-(DRUMROW[n.n]||0)*ROW-ROW;
+          g.fillStyle=COL.drum;
+          g.fillRect(PAD+n.at*PX+1,y,Math.max(2,Math.min(5,n.len*PX-2)),ROW-1);
+          return;
+        }
+        const y=top+H-DRUMH-(semi(n.f)-lo+1)*ROW;
         g.fillStyle=COL[n.v]||'#fff';
         g.fillRect(PAD+n.at*PX+1,y,Math.max(3,n.len*PX-2),ROW-1);
       });
+      /* a line between the pitched voices and the noise lane */
+      g.fillStyle='#2a2a3a';g.fillRect(PAD,top+H-DRUMH,r.beats*PX,1);
       // which voice is which
       let lx=6;
       Object.keys(COL).forEach(v=>{

@@ -186,10 +186,16 @@ const Snd={ctx:null,on:load('galaga.sound','1')==='1',
 /* The arcade plays a fanfare over the first flight and nothing at all while
  * you are shooting, which is how this works too.
  *
+ * What makes a chip tune sound like one is not the melody, it is the texture:
+ * a chord played as a run of sixteenths because there is no channel to hold it,
+ * a chirp of pitch at the front of every note, a noise channel standing in for
+ * a drum kit, and an echo a beat and a half behind. All of that is here.
+ *
  * The tunes are written as note names against the equal-tempered scale and
  * scheduled against the audio clock rather than the frame clock, so they do not
- * drag when the page is busy. They are reconstructions by ear, not
- * transcriptions, and the README says so. */
+ * drag when the page is busy. They are original: Galaga's own score belongs to
+ * somebody, and the README says what these are.
+ */
 const SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 function hz(name){
   if(name==='-')return 0;                       /* a rest */
@@ -198,16 +204,98 @@ function hz(name){
   const n=SEMI[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)+(+m[3]+1)*12;
   return 440*Math.pow(2,(n-69)/12);
 }
-/* A voice is a waveform, a gain and how long a note rings past its length. */
+const beatsOf=line=>line.trim().split(/\s+/)
+  .reduce((a,t)=>a+(+t.split(':')[1]||1),0);
+
+/* A chord chart into a run of sixteenths. Three channels of a sound chip
+ * cannot hold a chord, so one of them cycles the notes of it fast enough that
+ * the ear hears the chord anyway; this is that, written out. */
+function arpeggiate(chart,step){
+  step=step||0.25;
+  const out=[];
+  for(const tok of chart.trim().split(/\s+/)){
+    const[chord,b]=tok.split(':');
+    const notes=chord.split('+');
+    const n=Math.round((+b||1)/step);
+    for(let i=0;i<n;i++)out.push(notes[i%notes.length]+':'+step);
+  }
+  return out.join(' ');
+}
+/* A pattern tiled to exactly this many beats, so a drum line can never be the
+ * thing that leaves a tune's parts out of step with each other. */
+function tile(pattern,beats){
+  const src=pattern.trim().split(/\s+/);
+  const out=[];let at=0,i=0;
+  while(at<beats-1e-9){
+    const[n,b]=src[i++%src.length].split(':');
+    let d=+b||1;
+    if(at+d>beats)d=beats-at;
+    out.push(n+':'+(Math.round(d*1000)/1000));
+    at+=d;
+  }
+  return out.join(' ');
+}
+
+/* A voice is a waveform, a gain, how long it rings past its note, and the
+ * chirp and wobble that stop it sounding like a test tone. */
 const VOICES={
-  lead:{type:'square',  gain:0.070,ring:0.035},
-  harm:{type:'square',  gain:0.030,ring:0.030},
-  bass:{type:'triangle',gain:0.075,ring:0.050}
+  lead:{type:'square',  gain:0.070,ring:0.040,bend:0.945,vib:{rate:5.6,depth:0.006},echo:true},
+  harm:{type:'square',  gain:0.026,ring:0.030,bend:0.97},
+  arp: {type:'square',  gain:0.020,ring:0.010},
+  bass:{type:'triangle',gain:0.080,ring:0.050,bend:0.92},
+  drum:{drum:true}
 };
 const Music={
   playing:null,
   stop(){this.playing=null;},
-  /* Each part is [voice, "note:beats note:beats ..."] over one tempo. */
+  /* k kick, s snare, h hat — one noise channel doing the work of three. */
+  hit(c,kind,t,out){
+    if(kind==='k'){
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine';
+      o.frequency.setValueAtTime(150,t);
+      o.frequency.exponentialRampToValueAtTime(45,t+0.11);
+      g.gain.setValueAtTime(0.13,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
+      o.connect(g);g.connect(out);o.start(t);o.stop(t+0.15);
+      return;
+    }
+    const dur=kind==='s'?0.13:0.035;
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=c.createBufferSource();src.buffer=buf;
+    const bp=c.createBiquadFilter();
+    bp.type='bandpass';bp.frequency.value=kind==='s'?1900:7600;
+    const g=c.createGain();g.gain.value=kind==='s'?0.085:0.040;
+    src.connect(bp);bp.connect(g);g.connect(out);src.start(t);
+  },
+  note(c,f,t,dur,V,out,echo){
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=V.type;
+    /* the chirp: every note arrives from just under its own pitch */
+    if(V.bend){
+      o.frequency.setValueAtTime(f*V.bend,t);
+      o.frequency.exponentialRampToValueAtTime(f,t+0.022);
+    }else o.frequency.setValueAtTime(f,t);
+    /* and a held note wobbles, because a held chip note always did */
+    if(V.vib&&dur>0.32){
+      const lfo=c.createOscillator(),amt=c.createGain();
+      lfo.frequency.setValueAtTime(V.vib.rate,t);
+      amt.gain.setValueAtTime(0,t);
+      amt.gain.linearRampToValueAtTime(f*V.vib.depth,t+dur*0.4);
+      lfo.connect(amt);amt.connect(o.frequency);
+      lfo.start(t);lfo.stop(t+dur+0.05);
+    }
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(V.gain,t+0.010);
+    g.gain.setValueAtTime(V.gain*0.85,t+dur*0.65);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur+V.ring);
+    o.connect(g);g.connect(out);
+    if(echo&&V.echo)g.connect(echo);
+    o.start(t);o.stop(t+dur+V.ring+0.02);
+  },
+  /* Each part is [voice, "note:beats ..."] over one tempo. */
   play(tune){
     if(!Snd.on)return;
     Snd.boot();
@@ -216,6 +304,17 @@ const Music={
     try{if(c.state==='suspended')c.resume();}catch(e){}
     const beat=60/tune.bpm;
     const t0=c.currentTime+0.06;
+    const out=c.destination;
+    /* the echo, a beat and a half behind and fading */
+    let echo=null;
+    try{
+      const dl=c.createDelay(2);
+      dl.delayTime.value=beat*1.5;
+      const fb=c.createGain();fb.gain.value=0.20;
+      const wet=c.createGain();wet.gain.value=0.38;
+      dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(out);
+      echo=dl;
+    }catch(e){}
     let last=0;
     for(const[v,line]of tune.parts){
       const V=VOICES[v]||VOICES.lead;
@@ -223,17 +322,8 @@ const Music={
       for(const tok of line.trim().split(/\s+/)){
         const[n,b]=tok.split(':');
         const dur=(+b||1)*beat;
-        const f=hz(n);
-        if(f){
-          const o=c.createOscillator(),g=c.createGain();
-          o.type=V.type;o.frequency.setValueAtTime(f,t);
-          g.gain.setValueAtTime(0.0001,t);
-          g.gain.linearRampToValueAtTime(V.gain,t+0.012);
-          g.gain.setValueAtTime(V.gain,t+dur*0.7);
-          g.gain.exponentialRampToValueAtTime(0.0001,t+dur+V.ring);
-          o.connect(g);g.connect(c.destination);
-          o.start(t);o.stop(t+dur+V.ring+0.02);
-        }
+        if(V.drum){ if(n!=='-')this.hit(c,n,t,out); }
+        else{ const f=hz(n); if(f)this.note(c,f,t,dur,V,out,echo); }
         t+=dur;
       }
       last=Math.max(last,t-t0);
@@ -242,33 +332,47 @@ const Music={
     return last;
   }
 };
-/* The fanfare the cabinet plays as the first flight comes down. Four bars: a
- * rising run answered a step higher, then a turn and a landing. */
+
+/* Eight bars over the first flight: a phrase, its answer, a turn and a
+ * landing, on four voices and a noise channel. */
+const THEME_BARS=32;
 const TUNES={
-  start:{bpm:150,parts:[
-    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 G5:.5 E5:.5 G5:1 -:.5'+
-            ' D5:.5 F5:.5 A5:.5 D6:.5 A5:.5 F5:.5 A5:1 -:.5'+
-            ' E5:.5 G5:.5 C6:.5 E6:.5 C6:.5 G5:.5 E5:.5 C5:.5'+
-            ' G5:1.5 C6:1.5'],
-    ['harm','E4:.5 G4:.5 C5:.5 E5:.5 C5:.5 G4:.5 E5:1 -:.5'+
-            ' F4:.5 A4:.5 D5:.5 F5:.5 D5:.5 A4:.5 F5:1 -:.5'+
-            ' G4:.5 C5:.5 E5:.5 G5:.5 E5:.5 C5:.5 G4:.5 E4:.5'+
-            ' E5:1.5 E5:1.5'],
-    ['bass','C3:1 G2:1 C3:1 G2:1 -:.5'+
-            ' D3:1 A2:1 D3:1 A2:1 -:.5'+
-            ' C3:1 G2:1 C3:1 E3:1'+
-            ' G2:1.5 C3:1.5']]},
+  start:{bpm:152,parts:[
+    ['lead','C5:.5 E5:.5 G5:.5 C6:.5 B5:.5 G5:.5 E5:1'+
+            ' A5:.5 E5:.5 C5:.5 A4:.5 C5:.5 E5:.5 A5:1'+
+            ' F5:.5 A5:.5 C6:.5 F6:.5 E6:.5 C6:.5 A5:1'+
+            ' G5:.5 B5:.5 D6:.5 G6:.5 D6:.5 B5:.5 G5:1'+
+            ' E6:.5 D6:.5 C6:.5 G5:.5 E5:.5 G5:.5 C6:1'+
+            ' E6:.5 C6:.5 A5:.5 E5:.5 A5:.5 C6:.5 E6:1'+
+            ' F6:.5 E6:.5 D6:.5 C6:.5 B5:.5 A5:.5 G5:.5 B5:.5'+
+            ' C6:2 G5:.5 E5:.5 C6:1'],
+    ['harm','E4:1 G4:1 C5:1 E5:1  C5:1 A4:1 E4:1 A4:1'+
+            ' A4:1 C5:1 F5:1 A5:1  B4:1 D5:1 G5:1 D5:1'+
+            ' C5:1 G4:1 E4:1 G4:1  A4:1 E5:1 C5:1 E5:1'+
+            ' A4:1 C5:1 D5:1 G4:1  E5:2 C5:1 E5:1'],
+    ['arp',arpeggiate('C4+E4+G4:4 A3+C4+E4:4 F3+A3+C4:4 G3+B3+D4:4'+
+                      ' C4+E4+G4:4 A3+C4+E4:4 F3+A3+D4:4 C4+E4+G4:4')],
+    ['bass','C3:1 G2:1 C3:1 E3:1  A2:1 E3:1 A2:1 C3:1'+
+            ' F2:1 C3:1 F3:1 A2:1  G2:1 D3:1 G3:1 B2:1'+
+            ' C3:1 G2:1 C3:1 E3:1  A2:1 E3:1 A2:1 G2:1'+
+            ' F2:1 A2:1 G2:1 B2:1  C3:2 G2:1 C3:1'],
+    /* seven bars of the pattern, then a bar of fill under the landing */
+    ['drum',tile('k:.5 h:.5 s:.5 h:.5',THEME_BARS-4)+
+            ' k:.5 h:.5 s:.5 h:.5 k:1 s:.5 s:.5']]},
   /* A challenging stage announces itself: nothing shoots back for the next
    * forty, and the tune is the only warning you get. */
   challenge:{bpm:168,parts:[
     ['lead','G5:.5 A5:.5 B5:.5 D6:1 B5:.5 D6:1.5 -:.5'+
             ' G5:.5 B5:.5 D6:.5 G6:1 D6:.5 G6:1.5'],
+    ['arp',arpeggiate('G4+B4+D5:5 G4+B4+D5:4.5')],
     ['bass','G3:1 D3:1 G3:1.5 D3:1 -:.5'+
-            ' G3:1 D3:1 G3:1 D3:.5 G3:1']]},
+            ' G3:1 D3:1 G3:1 D3:.5 G3:1'],
+    ['drum',tile('k:.5 h:.5 s:.5 h:.5',9.5)]]},
   perfect:{bpm:160,parts:[
     ['lead','C5:.5 E5:.5 G5:.5 C6:.5 E6:.5 G6:.5 C7:2'],
     ['harm','E4:.5 G4:.5 C5:.5 E5:.5 G5:.5 C6:.5 E6:2'],
-    ['bass','C3:1 C3:1 G3:1 C4:2']]},
+    ['bass','C3:1 C3:1 G3:1 C4:2'],
+    ['drum',tile('k:.25 s:.25',5)]]},
   over:{bpm:104,parts:[
     ['lead','C5:1 B4:.5 A4:.5 G4:1 E4:1 C4:2'],
     ['bass','C3:1 G2:1 E2:1 C2:3']]}

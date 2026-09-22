@@ -26,9 +26,13 @@ test('every note in every tune is one the scale knows', ()=>{
     for(const[voice,line]of parts){
       assert.ok(r.j(`Object.keys(VOICES)`).includes(voice),
         k+': there is no voice called '+voice);
+      /* the noise channel speaks in drums, not in notes */
+      const drum=!!r.j(`!!VOICES['${voice}'].drum`);
       for(const tok of line.trim().split(/\s+/)){
         const[n,b]=tok.split(':');
-        if(n!=='-')assert.ok(+r.run(`hz('${n}')`)>0,k+': '+n+' is not a note');
+        if(drum)assert.ok('ksh-'.includes(n)&&n.length===1,
+          k+': '+n+' is not a drum this kit has');
+        else if(n!=='-')assert.ok(+r.run(`hz('${n}')`)>0,k+': '+n+' is not a note');
         assert.ok(+b>0||b===undefined,k+': '+tok+' has no length');
       }
     }
@@ -53,8 +57,32 @@ test('the fanfare is a fanfare, not a blip', ()=>{
   assert.ok(parts.length>=3,'the theme has only '+parts.length+' voice(s)');
   const bars=beats(parts[0][1])/4;
   assert.ok(bars>=4,'the theme is '+bars+' bars long');
+  // It plays over the first flight rather than before it, and the five flights
+  // take about thirteen seconds to come down, so the theme runs with them.
   const secs=beats(parts[0][1])*60/+r.run('TUNES.start.bpm');
-  assert.ok(secs>4&&secs<12,'the theme runs '+secs.toFixed(1)+' seconds');
+  assert.ok(secs>8&&secs<15,'the theme runs '+secs.toFixed(1)+' seconds');
+  const voices=parts.map(p=>p[0]);
+  assert.ok(voices.includes('drum'),'the theme has no noise channel');
+  assert.ok(voices.includes('arp'),'the theme has nothing standing in for a chord');
+});
+
+test('a chord chart becomes a run of sixteenths, and keeps its length', ()=>{
+  const r=runtime();
+  const out=r.run(`arpeggiate('C4+E4+G4:1 F4+A4+C5:2',0.25)`);
+  assert.equal(beats(out),3,'the arpeggio came out '+beats(out)+' beats');
+  assert.deepEqual(out.split(' ').slice(0,5),
+    ['C4:0.25','E4:0.25','G4:0.25','C4:0.25','F4:0.25']);
+});
+
+test('a drum pattern is tiled to exactly the length it is asked for', ()=>{
+  // This is what stops the noise channel being the thing that knocks a tune
+  // out of step, which is exactly what it did on the first attempt.
+  const r=runtime();
+  for(const n of [4,9.5,30,0.3]){
+    const out=r.run(`tile('k:.5 h:.5 s:.5 h:.5',${n})`);
+    assert.ok(Math.abs(beats(out)-n)<1e-9,
+      'asked for '+n+' beats and got '+beats(out));
+  }
 });
 
 test('starting a game plays the theme, and silence means silence', ()=>{
