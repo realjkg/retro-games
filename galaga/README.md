@@ -48,6 +48,16 @@ are in here.
 formation flights, nothing takes a slot, nothing shoots back. Each is 100, and
 all forty is a flat 10,000.
 
+**How it handles.** The fighter crosses the playfield in about one and a
+quarter seconds, so a tenth of a second on the control is worth one column of
+the formation and you can aim with a tap. Holding fire repeats at up to eleven
+a second; what actually paces you is the arcade's two-bullet limit, and a shot
+the limit turns away retries on the very next frame rather than paying the
+cooldown again. Bullets leave the top of the screen in about four tenths of a
+second — roughly twice the arcade's, which is a deliberate departure: with the
+original's slower bullet the two-shot limit bites on every other press and a
+held button stutters.
+
 **Scoring**
 
 | | in the formation | in flight |
@@ -65,7 +75,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 24 tests, no browser
+    node --test tests/*.test.cjs                          # 28 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
@@ -109,6 +119,21 @@ was found by a test that was written afterwards to catch it:
   from where the dive ended: a sixty-pixel teleport that nothing in the game's
   state would ever have shown. `no flight path has a gap in it` in
   `tests/flight.test.cjs` fails on the build that had it.
+* A held fire button gave a tenth of a second, then a whole second of nothing,
+  then a tenth again. A shot the two-bullet limit turned away still paid the
+  cooldown, so the retry kept landing outside the window. Nobody would find
+  that by reading the code; it took counting the gaps between shots.
+* `the beam takes the fighter, and the boss carries it` failed two runs in five
+  on CI and blocked every deploy for a day. The boss shoots on its capture run,
+  the test parked a fighter under it with no invulnerability, and sometimes the
+  capture cost two lives instead of one. Three green runs locally are not
+  evidence that a suite passes.
+
+Three numbers govern all of that and sit together at the top of the script as
+`SHIPSPD`, `BULLETSPD` and `FIREGAP`. `tests/feel.test.cjs` holds them to what a
+player can feel: across in under a second and a half, a column of movement per
+tenth of a second, and no gap over a third of a second in a held button. All
+four of those checks fail on the build they replaced.
 
 ## What is not fixed
 
