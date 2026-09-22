@@ -1,7 +1,7 @@
 // What the game is worth, what it costs you, and what the boss does with your
 // fighter once it has it.
 const test=require('node:test'),assert=require('node:assert');
-const {runtime,step,settle}=require('./harness.cjs');
+const {runtime,step,settle,park}=require('./harness.cjs');
 
 const at=(r,i)=>JSON.parse(r.run(`JSON.stringify({x:G.enemies[${i}].x,y:G.enemies[${i}].y})`));
 // Put a bullet exactly where an enemy is and let the frame resolve it.
@@ -81,7 +81,8 @@ test('an extra fighter at twenty thousand, and every seventy thousand after', ()
 
 test('the beam takes the fighter, and the boss carries it', ()=>{
   const r=runtime();settle(r);
-  r.run(`G.stage=2;G.ship.x=112;G.ship.alive=true;G.ship.inv=0;G.lives=3;
+  park(r);
+  r.run(`G.stage=2;G.lives=3;
     const b=G.enemies.find(e=>e.kind==='boss');b.__mark=1;launchCapture(b);`);
   for(let i=0;i<60*12;i++){
     step(r,1/60);
@@ -94,7 +95,8 @@ test('the beam takes the fighter, and the boss carries it', ()=>{
 
 test('shoot the captor in flight and the fighter comes home as a pair', ()=>{
   const r=runtime();settle(r);
-  r.run(`G.ship.captured=true;G.ship.alive=true;G.ship.inv=0;
+  park(r);
+  r.run(`G.ship.captured=true;
     const b=G.enemies.find(e=>e.kind==='boss');b.holds=true;b.hp=1;b.__mark=1;
     launchDive(b,112);`);
   step(r,0.4);
