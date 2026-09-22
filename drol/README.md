@@ -78,10 +78,29 @@ scene starts — gave him two pixels of lift. What changed:
   its white rail are unchanged — that is what the photographs show — and the four
   pixels under them that used to be black are now the slab's thickness in the
   scene's darker blue. You stop where the floor can be seen to end.
-- **The view is the whole maze again.** It was a pixel short of the world, so the
-  camera scrolled a world that fits and the bottom storey's floor sat off the
-  bottom of the screen. The stage is the world's shape (346×256) rather than a
-  shape the world no longer had.
+- **The view is the whole maze again, top to bottom.** It was a pixel short of
+  the world, so the camera scrolled a world that fits and the bottom storey's
+  floor sat off the bottom of the screen.
+- **And much more of it side to side.** The view used to scale off its own width
+  — the scale was `w/346` and the view was `w/s`, which is 346 pixels for every
+  screen there is — so a bigger display only ever magnified the same narrow slice
+  of a thousand-pixel maze. The scale now comes off a target, `VIEW_WANT`, of how
+  much maze we would like to see: below it a screen shows what it has at 1:1,
+  above it the view holds at the target and the surplus goes into bigger pixels.
+
+  | screen | shipped | now |
+  |---|---|---|
+  | phone, portrait | 346px (35%) | 372px (37%) |
+  | phone, landscape | 346px (35%) | **700px (70%)** |
+  | tablet or laptop | 346px (35%) | **700px (70%)** |
+
+  Portrait is at its physical limit, not at a policy: 372 CSS pixels is all the
+  width there is, and one game pixel never goes below one CSS pixel because the
+  panel's lettering is eight pixels tall and stops being readable the moment it
+  does. Turn the phone sideways, or use full screen, and you see twice the maze.
+  The stage takes whatever shape the view turned out to be — `fit()` publishes it
+  as the element's `aspect-ratio` and as a `--ar` custom property for the
+  full-screen rules — so the pixels stay square at every size.
 - **The line the game talks in has its own strip** under the maze. It used to be
   painted across the bottom storey's floor.
 
@@ -464,6 +483,11 @@ What is **not** fixed, and is left written down here rather than for a player to
   wrong in, and next to the transcribed sprites they read as the guesses they are.
 - **The bot still stalls about once in six games**, usually with a child on the far side of a
   magnet. `tools/play-agent.js` reports it; nothing in the game stops it happening.
+- **Portrait still shows a third of the maze.** The only ways past it are pixels
+  below 1:1, which makes the panel unreadable, or a panel drawn at a different
+  scale from the maze, which is a bigger change than this. The scope along the
+  top holds the whole maze at once, which is the original's own answer to a
+  narrow window.
 - **The pads sit a long way below the stage in portrait**, because the screen takes the shape
   the world has and the page gives the rest to the pads. Full screen is the answer to that,
   not a layout change.

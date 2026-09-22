@@ -42,12 +42,20 @@ const ok=v=>v?'ok  ':'FAIL';
  // than the other three for an eighteen-pixel robot.
  await p.click('.menuitem');await p.waitForTimeout(150);
  await p.click('.diffgrid .menuitem:nth-child(3)');await p.waitForTimeout(500);
- const climb=await p.evaluate(()=>{
+ // Measuring the robot alone. Flying or walking into the child rescues them,
+ // which puts the game into its cheer card and stops stepGame - so a check that
+ // left the child in the maze sometimes measured a paused game and reported that
+ // the robot could not climb or could not walk.
+ const BARE='G.endless=true;G.lives=99;G.phase="play";'+
+            'G.L.child=null;G.L.pet=null;G.L.toy=null;G.L.foes=[];G.L.curses=[];G.L.plants=[];';
+ const climb=await p.evaluate(bare=>{
   const out=[];
   for(let f=0;f<FLOORS;f++){
    G.scene=0;startScene();G.hero.inv=999;
    for(let i=0;i<MAPW;i++){if(f>0)G.L.map[i][slabRow(f-1)]=SLAB;G.L.map[i][slabRow(f)]=SLAB;}
+   eval(bare);
    G.hero.x=30*TS;G.hero.y=slabRow(f)*TS-G.hero.h;G.hero.vy=0;
+   G.hero.alive=true;G.phase="play";
    for(const k of Object.keys(keys))delete keys[k];
    const floor=G.hero.y;keys.U=true;
    for(let i=0;i<240;i++)stepGame(1/60);
@@ -55,7 +63,7 @@ const ok=v=>v?'ok  ':'FAIL';
   }
   for(const k of Object.keys(keys))delete keys[k];
   return out;
- });
+ },BARE);
  const same=climb.every(a=>Math.abs(a-climb[0])<=1);
  rows.push(['every storey gives the same room',same,climb.join('/')+'px of climb']);
  rows.push(["room over the robot's head",Math.min(...climb)>=20,
@@ -63,10 +71,18 @@ const ok=v=>v?'ok  ':'FAIL';
 
  const geo=await p.evaluate(()=>{
   const msg=(typeof MSG_H==='number')?MSG_H:0;   // read defensively: older builds have none
-  return {world:MAPH*TS,view:VH-(G.radar?RADAR_H:0)-msg};
+  return {world:MAPH*TS,view:VH-(G.radar?RADAR_H:0)-msg,
+          wide:VW,long:MAPW*TS,box:Math.round(cv.getBoundingClientRect().width)};
  });
  rows.push(['the whole maze is on the screen',geo.view>=geo.world,
             `view ${geo.view}px for a ${geo.world}px world`]);
+ // And how much of its length. The view used to scale off its own width, which
+ // works out to the same 346 pixels on every screen there is, so a wider display
+ // magnified one narrow slice instead of showing more maze. This browser is 760
+ // wide and can afford better than half.
+ rows.push(['a wide screen shows more maze, not bigger pixels',geo.wide>=600,
+            `${geo.wide}px of a ${geo.long}px maze on a ${geo.box}px screen`+
+            ` (${Math.round(geo.wide/geo.long*100)}%)`]);
 
  // A slab is solid for a whole tile row, so a whole tile row of it must be
  // painted. This reads the canvas: fly him up under a floor, then walk up the
@@ -74,11 +90,12 @@ const ok=v=>v?'ok  ':'FAIL';
  // and where the floor can be seen to end have to be the same row. Comparing
  // his stop against the tile boundary instead passed on the build that left
  // four black pixels of solid floor under every band.
- const slab=await p.evaluate(()=>{
-  G.scene=1;startScene();G.hero.inv=999;G.msgT=0;
+ const slab=await p.evaluate(bare=>{
+  G.scene=1;startScene();eval(bare);G.hero.inv=999;G.hero.alive=true;G.msgT=0;
   const f=2;
   for(let i=0;i<MAPW;i++){G.L.map[i][slabRow(f-1)]=SLAB;G.L.map[i][slabRow(f)]=SLAB;}
   G.hero.x=30*TS;G.hero.y=slabRow(f)*TS-G.hero.h;G.hero.vy=0;
+  G.hero.alive=true;G.phase="play";
   for(const k of Object.keys(keys))delete keys[k];
   keys.U=true;
   for(let i=0;i<240;i++)stepGame(1/60);
@@ -90,16 +107,17 @@ const ok=v=>v?'ok  ':'FAIL';
   const d=ctx.getImageData(hx,0,1,cv.height).data;
   let paint=-1;
   for(let y=headY-1;y>=top;y--){const i=y*4;if(d[i]+d[i+1]+d[i+2]>40){paint=y;break;}}
-  return {gap:headY-paint-1,headY,paint};
- });
+  return {gap:headY-paint-1,headY,paint,phase:G.phase};
+ },BARE);
  rows.push(['he stops where the floor can be seen to end',slab.gap===0,
-            `${slab.gap}px of floor painted black`]);
+            `${slab.gap}px of floor painted black`+(slab.phase==='play'?'':` (phase ${slab.phase})`)]);
 
  // Now every scene: is it alive, is the picture whole, does it answer the pad?
  for(const sc of [0,1,2]){
   const name=await p.evaluate(s=>{
     for(const k of Object.keys(keys))delete keys[k];   // nothing held over from the last check
-    G.scene=s;startScene();G.hero.inv=999;G.msgT=0;
+    G.endless=true;G.lives=99;G.phase="play";
+    G.scene=s;startScene();G.hero.inv=999;G.hero.alive=true;G.msgT=0;
     return SCENES[s].name;},sc);
   await p.waitForTimeout(40);
 
@@ -112,20 +130,26 @@ const ok=v=>v?'ok  ':'FAIL';
   rows.push([`scene ${sc+1} moves`,alive,name]);
 
   // answers the pad: hold the jetpack and he must climb, hold a direction and go
-  const answers=await p.evaluate(()=>{
-   // Put him back on his feet first: measuring a climb from a robot already
-   // pinned against the ceiling says he cannot fly when he is only out of room.
-   for(const k of Object.keys(keys))delete keys[k];
+  const answers=await p.evaluate(bare=>{
+   // From where he starts the scene, both times. Measuring from wherever sixty
+   // frames of physics happened to leave him asked a different question every
+   // run: pinned against a ceiling he cannot climb, and wedged in a hole he
+   // cannot walk, and neither says the pad went unanswered.
+   const spawn=()=>{
+    eval(bare);
+    for(const k of Object.keys(keys))delete keys[k];
+    G.hero.x=2*TS;G.hero.y=slabRow(0)*TS-G.hero.h;G.hero.vx=0;G.hero.vy=0;
+    G.hero.thrust=0;G.hero.inv=999;G.hero.alive=true;G.phase="play";
+   };
+   spawn();const y0=G.hero.y;keys.U=true;
    for(let i=0;i<40;i++)stepGame(1/60);
-   const y0=G.hero.y;keys.U=true;
-   for(let i=0;i<30;i++)stepGame(1/60);
    const rose=G.hero.y<y0-6;
-   delete keys.U;const x0=G.hero.x;keys.R=true;
-   for(let i=0;i<30;i++)stepGame(1/60);
+   spawn();const x0=G.hero.x;keys.D=true;keys.R=true;
+   for(let i=0;i<40;i++)stepGame(1/60);
    const moved=G.hero.x>x0+6;
    for(const k of Object.keys(keys))delete keys[k];
-   return {rose,moved};
-  });
+   return {rose,moved,climbed:Math.round(y0-G.hero.y)};
+  },BARE);
   rows.push([`scene ${sc+1} answers the pad`,answers.rose&&answers.moved,
              `${answers.rose?'flies':'will not fly'}, ${answers.moved?'walks':'will not move'}`]);
 
@@ -156,6 +180,9 @@ const ok=v=>v?'ok  ':'FAIL';
              outside.length?outside.join('; '):'urns, pillars, pets and the menagerie all clear']);
  }
 
+ const ended=await p.evaluate(()=>({phase:G.phase,alive:!!(G.hero&&G.hero.alive)}));
+ rows.push(['the game was still running at the end',ended.phase==='play'&&ended.alive,
+            `phase ${ended.phase}, robot ${ended.alive?'alive':'down'}`]);
  rows.push(['no exception while any of that ran',errors.length===0,
             errors.length?errors[0]:'clean']);
  await b.close();

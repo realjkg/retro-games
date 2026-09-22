@@ -298,14 +298,28 @@ test('The scope can be switched off, and the view takes those rows back',()=>{
   assert.equal(JSON.parse(kept.get('drol.prefs')).radar,false,'and the switch is remembered');
 });
 
-test('The view is sized to its box rather than to a fixed rectangle',()=>{
+// This test used to assert that VW was 346 whatever the box was, which is the
+// bug written down as the contract: the scale came off the view's own width, so
+// every screen showed the same narrow slice of a thousand-pixel maze.
+test('A wider box shows more maze, and a narrow one shows what it can',()=>{
   const r=runtime(2,35);
   const box=r.el('cv').rect;
+  const want=r.run('VIEW_WANT'), max=r.run('VIEW_MAX'), full=r.run('viewFullH()');
+
   box.width=1038;box.height=648;r.run('fit(true);');
-  assert.equal(r.run('VW'),346);
-  box.width=346;box.height=460;r.run('fit(true);');
-  assert.ok(r.run('VH')<=r.run('MAPH*TS+RADAR_H+MSG_H'),'never taller than the maze, its scope and the line under it');
-  assert.equal(r.run('VW'),346);
+  const wide=r.run('VW');
+  assert.ok(wide>=want,`a wide box shows at least the target (${wide} vs ${want})`);
+  assert.ok(wide<=max,`and never more than the cap (${wide} vs ${max})`);
+  assert.equal(r.run('VH'),full,'the whole maze, its scope and the line under it');
+
+  // A phone has no more width to give, so it shows what it has at 1:1 rather
+  // than shrinking the panel's lettering below a pixel a pixel.
+  box.width=372;box.height=275;r.run('fit(true);');
+  const narrow=r.run('VW');
+  assert.ok(narrow<=372,`never more game pixels than the box has (${narrow})`);
+  assert.ok(narrow>=340,`and all of the ones it has (${narrow})`);
+  assert.equal(r.run('VH'),full,'still the whole maze');
+  assert.ok(narrow<wide,'a bigger screen is more maze, not the same slice magnified');
 });
 
 test('Full screen is a layout, and the buttons say what they will do',()=>{

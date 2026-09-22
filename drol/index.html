@@ -32,7 +32,9 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   overscroll-behavior:none;touch-action:manipulation}
 body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
   padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
-#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+/* A phone gets its whole width; a bigger screen gets enough to show more maze
+   rather than the same slice magnified. */
+#wrap{width:100%;max-width:min(96vw,920px);display:flex;flex-direction:column;gap:6px;flex:1}
 #status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
@@ -105,8 +107,8 @@ body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
    space the page chrome gave back goes to the pads instead of to black bars. */
-body.fs #stage{width:min(100%,calc(58svh * 173 / 128));max-width:100%;margin:0 auto;border-radius:0;
-  aspect-ratio:173/128;border-left:0;border-right:0}
+body.fs #stage{width:min(100%,calc(58svh * var(--ar,1.352)));max-width:100%;margin:0 auto;
+  border-radius:0;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
@@ -122,7 +124,7 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 128));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(64vw,calc((100svh - 12px) * var(--ar,1.352)));max-width:64vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
   body.fs .sbtn{width:66px;height:38px}
@@ -1784,19 +1786,33 @@ function updateStatus(){
 /* ============ loop ============ */
 // The drawing surface takes the shape of the box it sits in: with the scope off
 // the maze simply gets those sixteen rows back.
+// How much maze we would like on the screen at once, in game pixels, out of the
+// thousand the maze is wide. The view used to scale off its own width - s was
+// w/346 and the view was w/s - which is 346 for every screen there is, so a
+// bigger display only ever magnified the same narrow slice. The scale comes off
+// this target instead: below it the screen shows what it can at 1:1, above it
+// the view holds at the target and the surplus goes into bigger pixels.
+const VIEW_WANT=700;
+const VIEW_MAX=760;
+// The height is never negotiable: the whole maze, its panel and the line the
+// game talks in, or the bottom storey's floor goes off the screen.
+const viewFullH=()=>MAPH*TS+RADAR_H+MSG_H;
 function fit(force){
- const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||244;
- if(!w||!hh)return;
- const s=clamp(w/346,1,6);
- // The view is the whole maze plus the panel whenever the box can hold it. The
- // browser's own aspect-ratio arithmetic lands a pixel short of the shape the
- // stylesheet asks for, and a pixel short put the bottom storey's floor off the
- // bottom of the screen and left the camera scrolling a world that fits.
- const WORLD_H=MAPH*TS+RADAR_H+MSG_H;
- const nw=clamp(Math.round(w/s),260,560);
- const raw=Math.round(hh/s), nh=raw>=WORLD_H-2?WORLD_H:clamp(raw,150,WORLD_H);
+ const r=cv.getBoundingClientRect(), w=r.width||346;
+ if(!w)return;
+ // One game pixel never goes below one CSS pixel: the panel's lettering is eight
+ // pixels tall and stops being readable the moment it does.
+ const s=clamp(w/VIEW_WANT,1,4);
+ const nw=clamp(Math.round(w/s),300,VIEW_MAX), nh=viewFullH();
  if(nw===VW&&nh===VH&&!force)return;
  VW=nw;VH=nh;cv.width=VW;cv.height=VH;
+ // The stage is whatever shape the view turned out to be, so the pixels stay
+ // square and the world still fills it top to bottom.
+ const st=cv.parentElement;
+ if(st&&st.style)st.style.aspectRatio=nw+" / "+nh;
+ const root=document.documentElement;
+ if(root&&root.style&&root.style.setProperty)
+  root.style.setProperty("--ar",(nw/nh).toFixed(4));
 }
 addEventListener("resize",()=>fit());
 addEventListener("orientationchange",()=>fit());
