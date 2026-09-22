@@ -5,8 +5,10 @@ Retro games on Apple II, Commodore64 and Atari
 
 - [Archon — The Light and the Dark](archon/) (Commodore 64) — [play it](https://realjkg.github.io/retro-games/archon/)
 - [Aztec — Tomb of Quetzalcoatl](aztec/) (Commodore 64) — [play it](https://realjkg.github.io/retro-games/aztec/)
+- [The Bard's Tale — Skara Brae](bards-tale/) (Commodore 64) — [play it](https://realjkg.github.io/retro-games/bards-tale/)
 - [Choplifter — Bungeling Rescue](choplifter/) (Apple II) — [play it](https://realjkg.github.io/retro-games/choplifter/)
 - [Drol — The Four-Storey Maze](drol/) (Apple II) — [play it](https://realjkg.github.io/retro-games/drol/)
+- [Galaga — The Swarm](galaga/) (Arcade) — [play it](https://realjkg.github.io/retro-games/galaga/)
 - [Law of the West — Gold Gulch](law-of-the-west/) (Commodore 64) — [play it](https://realjkg.github.io/retro-games/law-of-the-west/)
 - [Lode Runner — Bungeling Empire](lode-runner/) (Apple II) — [play it](https://realjkg.github.io/retro-games/lode-runner/)
 

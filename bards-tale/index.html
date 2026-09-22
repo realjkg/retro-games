@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>The Bard's Tale — The Sewers of Skara Brae</title>
+<meta name="description" content="The Bard's Tale: a browser recreation of Interplay's 1985 dungeon crawler. Six adventurers, a town under a winter that will not end, and the sewers under it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%BB%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#0a0806">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bard's Tale">
+<style>
+:root{--bg:#0d0a08;--panel:#171210;--panel2:#221a15;--ink:#e8ddc8;--dim:#9a8b76;
+  --gold:#d8a838;--line:#3a2c22;--blood:#a8321e;--mana:#4a7fd0;--good:#4caf6a}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#eee7da;--panel:#fffaf0;--panel2:#f5ecdd;--ink:#241b12;
+    --dim:#6b5b47;--line:#d6c8b0}
+}
+:root[data-theme="dark"]{--bg:#0d0a08;--panel:#171210;--panel2:#221a15;--ink:#e8ddc8;
+  --dim:#9a8b76;--line:#3a2c22}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise iOS Safari's selection handles and its Copy callout. */
+html,body,.btn,.menuitem,#status,#overlay,#roster,#log,canvas,.pc{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:5px;flex:1}
+#status{font-size:12px;line-height:1.35;padding:5px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:9px;display:flex;justify-content:space-between;gap:8px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:16/11;background:#000;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;touch-action:none}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#roster{width:100%;border-collapse:collapse;font-size:11px;background:var(--panel);
+  border:1px solid var(--line);border-radius:9px;overflow:hidden}
+#roster td{padding:2px 4px;border-top:1px solid var(--line);white-space:nowrap}
+#roster tr:first-child td{border-top:none}
+#roster .nm{width:36%;overflow:hidden;text-overflow:ellipsis}
+#roster .hp{color:var(--blood);text-align:right}
+#roster .sp{color:var(--mana);text-align:right}
+#roster .ac{color:var(--dim);text-align:right}
+#roster .st{color:var(--gold);text-align:right;font-size:10px}
+#roster tr.dead td{opacity:.42}
+#roster tr.sel td{background:var(--panel2)}
+#roster tr.act td{background:var(--panel2)}
+#roster tr.act td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
+#log{height:74px;overflow-y:auto;font-size:11.5px;line-height:1.45;padding:5px 8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  -webkit-overflow-scrolling:touch}
+#log div{margin:0 0 1px}
+#log .say{color:var(--gold)}
+#log .hit{color:var(--blood)}
+#log .ok{color:var(--good)}
+#log .dim{color:var(--dim)}
+#pads{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+.padrow{display:flex;align-items:center;justify-content:center;gap:6px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--ink);
+  font-size:14px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center;
+  padding:0 6px;min-width:58px;height:46px}
+.btn small{font-size:8.5px;font-weight:600;letter-spacing:.03em;opacity:.6;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#1a1207;border-color:var(--gold)}
+.btn[disabled]{opacity:.35}
+.btn.wide{flex:1}
+#overlay{position:absolute;inset:0;background:rgba(10,8,6,.95);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:7px;padding:12px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+#overlay.splash{background:linear-gradient(rgba(8,6,4,0) 0%,rgba(8,6,4,.3) 30%,rgba(8,6,4,.95) 62%);
+  justify-content:flex-end;padding:10px 12px 12px}
+/* A fight's side menus sit at the bottom over a scrim, because whatever you are
+   choosing between, you want to keep looking at the thing in front of you. */
+#overlay.low{background:linear-gradient(rgba(8,6,4,0) 0%,rgba(8,6,4,.55) 34%,rgba(8,6,4,.96) 60%);
+  justify-content:flex-end;padding:8px 10px 10px;gap:4px}
+#overlay.low .scroll{justify-content:flex-end;gap:4px}
+#overlay.low h1{font-size:14px}
+#overlay.low .sub{font-size:10.5px;margin:0}
+#overlay.low .menuitem{padding:6px 9px;font-size:12px}
+#fightbar{flex-wrap:wrap;gap:5px}
+#fightbar .btn{height:40px;min-width:0;flex:1 1 30%;font-size:12px}
+#fightbar .who{width:100%;text-align:center;font-size:11px;color:var(--gold);margin-bottom:1px}
+h1{font-size:19px;margin:0;letter-spacing:.1em;color:var(--gold);font-weight:800}
+h2{font-size:14px;margin:0;color:var(--gold);letter-spacing:.06em}
+.sub{font-size:11.5px;color:var(--dim);margin:0 0 3px;max-width:400px;line-height:1.5}
+.menuitem{width:min(330px,92%);padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);font-size:13px;cursor:pointer;color:var(--ink);text-align:left;
+  display:flex;justify-content:space-between;gap:10px}
+.menuitem b{color:var(--gold);font-weight:600}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#1a1207}
+.menuitem.sel b{color:#1a1207}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:min(340px,96%)}
+.grid2 .menuitem,.grid3 .menuitem{width:auto}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;width:min(340px,96%)}
+small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
+.scroll{max-height:100%;overflow-y:auto;width:100%;display:flex;flex-direction:column;
+  align-items:center;gap:6px}
+#sound{position:absolute;right:6px;top:6px;z-index:3;min-width:0;height:26px;font-size:9px;padding:0 6px}
+.sheet{font-size:11px;text-align:left;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;width:min(330px,94%);line-height:1.6}
+.sheet .r{display:flex;justify-content:space-between;gap:10px}
+.sheet .r span:last-child{color:var(--gold)}
+@media (pointer:fine){#pads .hint{display:block}}
+.hint{display:none;font-size:10px;color:var(--dim);text-align:center}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status">
+    <span id="place">Skara Brae</span>
+    <span id="purse">GOLD <b id="gold">0</b></span>
+  </div>
+  <div id="stage">
+    <canvas id="c" width="256" height="176"></canvas>
+    <button id="sound" class="btn" type="button">SOUND <span id="soundstate">on</span></button>
+    <div id="overlay" class="splash"></div>
+  </div>
+  <table id="roster"><tbody id="rbody"></tbody></table>
+  <div id="log"></div>
+  <div id="pads">
+    <div class="padrow">
+      <button class="btn" id="bturnl" type="button">↰<small>turn</small></button>
+      <button class="btn wide" id="bfwd" type="button">▲<small>forward</small></button>
+      <button class="btn" id="bturnr" type="button">↱<small>turn</small></button>
+    </div>
+    <div class="padrow" id="fightbar" hidden></div>
+    <div class="padrow">
+      <button class="btn wide" id="bparty" type="button">PARTY<small>sheets</small></button>
+      <button class="btn wide" id="bcast" type="button">CAST<small>spell</small></button>
+      <button class="btn wide" id="bsing" type="button">SING<small>bard</small></button>
+      <button class="btn wide" id="buse" type="button">USE<small>item</small></button>
+      <button class="btn wide" id="bmenu" type="button">MENU<small>save</small></button>
+    </div>
+    <div class="hint">arrows or WASD to move · C cast · B sing · U use · P party · ESC menu</div>
+  </div>
+</div>
+<script>
+'use strict';
+/* The Bard's Tale — The Sewers of Skara Brae
+ *
+ * A party of six, a town in a winter that will not end, and three levels of
+ * sewer under it. The view is 256x176 logical pixels drawn with
+ * image-rendering:pixelated; everything below works in those and never in CSS.
+ */
+const VW=256,VH=176;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+/* One seeded generator for everything the game has to be able to reproduce:
+ * the dungeons are the same dungeons on every machine and in every test run. */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;
+  return((t^t>>>14)>>>0)/4294967296;};}
+let R=Math.random;                       /* combat and encounters: really random */
+const d=(n,s)=>{let t=0;for(let i=0;i<n;i++)t+=1+Math.floor(R()*s);return t;};
+const pick=a=>a[Math.floor(R()*a.length)];
+
+function load(k,dv){try{const v=localStorage.getItem(k);return v===null?dv:v;}catch(e){return dv;}}
+function save(k,v){try{localStorage.setItem(k,String(v));}catch(e){}}
+function drop(k){try{localStorage.removeItem(k);}catch(e){}}
+
+/* ---------- who you can be ---------- */
+/* Five numbers, the game's five: strength, intellect, dexterity, constitution
+ * and luck. A race shifts them and sets what the body can take. */
+const STATS=['st','iq','dx','cn','lk'];
+const RACES={
+  human:    {name:'Human',    mod:{},                              hp:3},
+  elf:      {name:'Elf',      mod:{iq:2,dx:2,cn:-2,st:-1},         hp:2},
+  dwarf:    {name:'Dwarf',    mod:{st:2,cn:3,dx:-2,iq:-1},         hp:4},
+  hobbit:   {name:'Hobbit',   mod:{dx:3,lk:3,st:-3,cn:-1},         hp:2},
+  halfelf:  {name:'Half-Elf', mod:{iq:1,dx:1},                     hp:3},
+  halforc:  {name:'Half-Orc', mod:{st:3,cn:2,iq:-2,lk:-2},         hp:4},
+  gnome:    {name:'Gnome',    mod:{iq:3,cn:1,st:-2},               hp:2}
+};
+/* hd is the die the class rolls for hit points at every level; sp is the die
+ * for spell points, and null for the classes that never cast anything. */
+const CLASSES={
+  warrior:  {name:'Warrior',  hd:10,sp:0,  req:{st:14},            hit:2,  armour:'all'},
+  paladin:  {name:'Paladin',  hd:10,sp:0,  req:{st:14,iq:12,lk:14},hit:2,  armour:'all'},
+  rogue:    {name:'Rogue',    hd:6, sp:0,  req:{dx:15},            hit:1,  armour:'light'},
+  bard:     {name:'Bard',     hd:8, sp:0,  req:{iq:12,lk:14},      hit:1,  armour:'light'},
+  hunter:   {name:'Hunter',   hd:8, sp:0,  req:{dx:13},            hit:2,  armour:'light'},
+  monk:     {name:'Monk',     hd:8, sp:0,  req:{dx:15,cn:15},      hit:2,  armour:'none'},
+  conjurer: {name:'Conjurer', hd:4, sp:6,  req:{iq:13},            hit:0,  armour:'none',mage:'co'},
+  magician: {name:'Magician', hd:4, sp:6,  req:{iq:13},            hit:0,  armour:'none',mage:'ma'},
+  sorcerer: {name:'Sorcerer', hd:4, sp:8,  req:{iq:15},            hit:0,  armour:'none',mage:'so'},
+  wizard:   {name:'Wizard',   hd:4, sp:8,  req:{iq:18,lk:15},      hit:0,  armour:'none',mage:'wi'}
+};
+const CLASS_ORDER=Object.keys(CLASSES);
+const RACE_ORDER=Object.keys(RACES);
+
+/* ---------- what you can carry ---------- */
+/* ac is how much it takes off your armour class; dice/faces is the damage a
+ * weapon rolls. `hands` weapons cannot be worn with a shield. */
+const ITEMS={
+  dagger:   {name:'Dagger',       kind:'weapon',dmg:[1,4], cost:20,  use:'light'},
+  shortsw:  {name:'Short Sword',  kind:'weapon',dmg:[1,6], cost:60,  use:'light'},
+  broadsw:  {name:'Broad Sword',  kind:'weapon',dmg:[2,5], cost:200, use:'heavy'},
+  battleax: {name:'Battle Axe',   kind:'weapon',dmg:[2,6], cost:320, use:'heavy',hands:2},
+  mace:     {name:'Mace',         kind:'weapon',dmg:[1,8], cost:150, use:'light'},
+  staff:    {name:'Quarterstaff', kind:'weapon',dmg:[1,6], cost:30,  use:'any'},
+  bow:      {name:'Short Bow',    kind:'weapon',dmg:[1,6], cost:120, use:'light',reach:true},
+  robes:    {name:'Robes',        kind:'body',  ac:1,      cost:20,  use:'any'},
+  leather:  {name:'Leather Armour',kind:'body', ac:3,      cost:90,  use:'light'},
+  chain:    {name:'Chain Mail',   kind:'body',  ac:5,      cost:400, use:'heavy'},
+  plate:    {name:'Plate Mail',   kind:'body',  ac:7,      cost:1200,use:'heavy'},
+  buckler:  {name:'Buckler',      kind:'shield',ac:1,      cost:60,  use:'light'},
+  shield:   {name:'Tower Shield', kind:'shield',ac:3,      cost:250, use:'heavy'},
+  helm:     {name:'Iron Helm',    kind:'helm',  ac:1,      cost:80,  use:'heavy'},
+  potion:   {name:'Healing Potion',kind:'use',  heal:[3,8],cost:100, use:'any',charges:1},
+  torch:    {name:'Torch',        kind:'use',   light:60,  cost:15,  use:'any',charges:1},
+  ropes:    {name:"Climber's Rope",kind:'use',  rope:true, cost:40,  use:'any',charges:3}
+};
+/* What a class is allowed to put on. Nothing stops you buying it; it simply
+ * will not equip, which is the game telling you what you are. */
+function canUse(pc,id){
+  const it=ITEMS[id],a=CLASSES[pc.cls].armour;
+  if(it.use==='any')return true;
+  if(a==='all')return true;
+  if(a==='light')return it.use==='light';
+  return false;                                    /* monks and mages: staff, robes */
+}
+
+/* ---------- spells ---------- */
+/* The game asks for four letters and gives you nothing if they are the wrong
+ * four. That is the whole interface, and it is kept here. `at` is the level the
+ * caster learns it; `where` is 'fight', 'walk' or 'any'. */
+const SPELLS=[
+  {code:'MAFL',name:'Mage Flame',    cls:'co',at:1,sp:2, where:'any',  fx:'light',  amt:120,
+   text:'a cold light that walks with you'},
+  {code:'VOPL',name:'Vorpal Plating',cls:'co',at:1,sp:4, where:'fight',fx:'tohit',  amt:2,
+   text:'every blade in the party bites truer'},
+  {code:'SHSP',name:'Shield Spell',  cls:'co',at:2,sp:4, where:'any',  fx:'ac',     amt:2,
+   text:'the air in front of the party thickens'},
+  {code:'FLRE',name:'Flesh Restore', cls:'co',at:3,sp:6, where:'any',  fx:'heal',   amt:[3,8],
+   text:'a wound closes'},
+  {code:'ARFI',name:'Arc Fire',      cls:'ma',at:1,sp:3, where:'fight',fx:'dmg',    amt:[1,6],
+   text:'a thin line of fire'},
+  {code:'TRZP',name:'Trap Zap',      cls:'ma',at:1,sp:2, where:'walk', fx:'untrap',
+   text:'whatever was set on that door comes undone'},
+  {code:'SCSI',name:'Scry Site',     cls:'ma',at:2,sp:3, where:'walk', fx:'locate',
+   text:'you know exactly where you stand'},
+  {code:'FIHO',name:'Fire Horn',     cls:'ma',at:3,sp:8, where:'fight',fx:'group',  amt:[2,6],
+   text:'fire across a whole rank of them'},
+  {code:'MIBL',name:'Mind Blade',    cls:'so',at:1,sp:4, where:'fight',fx:'dmg',    amt:[2,5],
+   text:'something invisible opens a cut'},
+  {code:'SOSI',name:'Sorcerer Sight',cls:'so',at:2,sp:3, where:'walk', fx:'reveal',
+   text:'the walls thin out for a moment'},
+  {code:'HOLY',name:'Holy Word',     cls:'so',at:3,sp:9, where:'fight',fx:'group',  amt:[3,6],
+   text:'a word that the undead cannot hear twice'},
+  {code:'PHDO',name:'Phase Door',    cls:'wi',at:1,sp:5, where:'walk', fx:'phase',
+   text:'the wall is behind you now'},
+  {code:'APAR',name:'Apport Arcane', cls:'wi',at:2,sp:10,where:'walk', fx:'exit',
+   text:'the party stands in the street, blinking'},
+  {code:'DEST',name:'Death Strike',  cls:'wi',at:3,sp:12,where:'fight',fx:'slay',
+   text:'one of them simply stops'}
+];
+const SPELL_BY_CODE={};SPELLS.forEach(s=>SPELL_BY_CODE[s.code]=s);
+function knownSpells(pc){
+  const m=CLASSES[pc.cls].mage;
+  if(!m)return[];
+  return SPELLS.filter(s=>s.cls===m&&s.at<=Math.ceil(pc.lvl/2));
+}
+
+/* ---------- the bard's six songs ---------- */
+/* A song lasts a handful of turns and costs a swallow from the bard's flask,
+ * which is what the game charges instead of spell points. */
+const SONGS=[
+  {name:"Sanctuary Score", fx:'ac',   amt:2, turns:12,text:'the party is harder to touch'},
+  {name:"Traveller's Tune",fx:'regen',amt:1, turns:20,text:'wounds close as you walk'},
+  {name:"Wayland's Watch", fx:'light',amt:90,turns:90,text:'the dark pulls back'},
+  {name:"Seeker's Ballad", fx:'find', amt:1, turns:14,text:'what is hidden is a little less so'},
+  {name:"Badh'r Kilnfest", fx:'tohit',amt:2, turns:12,text:'the party swings like it means it'},
+  {name:"Lucklaran",       fx:'luck', amt:2, turns:16,text:'the dice lean your way'}
+];
+
+/* ---------- what is down there ---------- */
+/* `lv` is the sewer level it starts turning up on; `n` is how many come at
+ * once; `xp` and `gold` are per monster. */
+const MONSTERS=[
+  {id:'rat',   name:'Sewer Rat',    plural:'Sewer Rats',    lv:1,n:[3,6],hp:[1,4], ac:8,hit:0,dmg:[1,3],xp:20,  gold:[3,10]},
+  {id:'kobold',name:'Kobold',       plural:'Kobolds',       lv:1,n:[2,5],hp:[1,6], ac:7,hit:1,dmg:[1,6],xp:40, gold:[6,16]},
+  {id:'slime', name:'Mud Man',      plural:'Mud Men',       lv:1,n:[1,3],hp:[2,6], ac:6,hit:1,dmg:[1,8],xp:70, gold:[10,26],slow:true},
+  {id:'gremlin',name:'Gremlin',     plural:'Gremlins',      lv:2,n:[2,4],hp:[2,6], ac:5,hit:2,dmg:[1,6],xp:110, gold:[16,40],steal:true},
+  {id:'skel',  name:'Skeleton',     plural:'Skeletons',     lv:2,n:[2,5],hp:[2,8], ac:5,hit:2,dmg:[1,8],xp:140, gold:[22,50], undead:true},
+  {id:'zerk',  name:'Berserker',    plural:'Berserkers',    lv:2,n:[2,4],hp:[3,6], ac:4,hit:3,dmg:[2,6],xp:200, gold:[30,70]},
+  {id:'wererat',name:'Wererat',     plural:'Wererats',      lv:3,n:[1,3],hp:[3,8], ac:3,hit:3,dmg:[2,5],xp:300, gold:[45,95]},
+  {id:'jester',name:'Crazed Jester',plural:'Crazed Jesters',lv:3,n:[1,3],hp:[3,8],ac:3,hit:3,dmg:[2,6],xp:380,gold:[55,115],spell:'ARFI'},
+  {id:'ghoul', name:'Ghoul',        plural:'Ghouls',        lv:3,n:[2,4],hp:[4,8], ac:2,hit:4,dmg:[2,6],xp:450,gold:[65,135],undead:true},
+  {id:'madgod',name:'The Mad God',  plural:'The Mad God',   lv:9,n:[1,1],hp:[12,10],ac:0,hit:6,dmg:[3,8],xp:3000,gold:[900,900],boss:true,spell:'FIHO'}
+];
+const MON_BY_ID={};MONSTERS.forEach(m=>MON_BY_ID[m.id]=m);
+
+/* ---------- the world ---------- */
+/* Skara Brae is drawn by hand, because it is a place rather than a maze: the
+ * Guild on the north street, Garth's beside it, the Temple and the Scarlet Bard
+ * on the flanks, the Review Board in the south, and in the middle of it the
+ * grate house with the way down.
+ *
+ *   #  wall      .  street      ~  the inside of a building, which you cannot
+ *   +  door         enter from here
+ *   G  Adventurers' Guild   E  Garth's Equipment   T  Temple
+ *   V  the Scarlet Bard     R  Review Board        S  the sewer grate
+ */
+const TOWN=[
+"######################",
+"#....................#",
+"#.##########.#######.#",
+"#.#~~~~~~~~#.#~~~~~#.#",
+"#.#~~~~~~~~#.#~~~~~#.#",
+"#.####G#####.###E###.#",
+"#....................#",
+"#.####.#####+#####.#.#",
+"#.#~~#.#.........#.#~#",
+"#.#~~#.#.........#.#~#",
+"#.T~~#.#....S....#.V~#",
+"#.#~~#.#.........#.#~#",
+"#.####.#.........#.#~#",
+"#......###########...#",
+"#.##################.#",
+"#.#~~~~~~~~~~~~~~~~#.#",
+"#.#~~~~~~~~~~~~~~~~#.#",
+"#.########R#########.#",
+"#....................#",
+"#.##################.#",
+"#....................#",
+"######################"];
+const SIZE=22;
+
+/* The sewers are cut by a generator with a fixed seed, so level two is the same
+ * level two on every machine, in every test run and every time you come back to
+ * it. Perfect mazes are miserable to walk, so a tenth of the dead ends are
+ * opened up afterwards, which is what gives the loops you can run a fight into.
+ *
+ *   <  up      >  down     D  a dark square that puts your light out
+ *   S  a spinner, which turns you somewhere you did not choose
+ *   X  a teleporter        $  something somebody left
+ *   B  the Mad God's floor
+ */
+function carve(seed){
+  const rr=mulberry(seed);
+  const g=[];
+  for(let y=0;y<SIZE;y++)g.push(new Array(SIZE).fill('#'));
+  const CN=10, cx=i=>1+i*2;                 /* ten cells a side, at odd columns */
+  const seen=[];
+  for(let i=0;i<CN;i++)seen.push(new Array(CN).fill(false));
+  const stack=[[0,0]];seen[0][0]=true;g[cx(0)][cx(0)]='.';
+  while(stack.length){
+    const [x,y]=stack[stack.length-1];
+    const opts=[[1,0],[-1,0],[0,1],[0,-1]]
+      .map(([dx,dy])=>[x+dx,y+dy,dx,dy])
+      .filter(([nx,ny])=>nx>=0&&ny>=0&&nx<CN&&ny<CN&&!seen[ny][nx]);
+    if(!opts.length){stack.pop();continue;}
+    const [nx,ny,dx,dy]=opts[Math.floor(rr()*opts.length)];
+    seen[ny][nx]=true;
+    g[cx(y)+dy][cx(x)+dx]='.';
+    g[cx(ny)][cx(nx)]='.';
+    stack.push([nx,ny]);
+  }
+  /* braid: open a tenth of the dead ends so the place has loops in it */
+  for(let y=1;y<SIZE-1;y++)for(let x=1;x<SIZE-1;x++){
+    if(g[y][x]!=='.')continue;
+    const open=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>g[y+dy][x+dx]==='.').length;
+    if(open===1&&rr()<0.22){
+      const shut=[[1,0],[-1,0],[0,1],[0,-1]]
+        .filter(([dx,dy])=>g[y+dy][x+dx]==='#'&&x+dx*2>0&&y+dy*2>0&&x+dx*2<SIZE-1&&y+dy*2<SIZE-1);
+      if(shut.length){const[dx,dy]=shut[Math.floor(rr()*shut.length)];g[y+dy][x+dx]='.';}
+    }
+  }
+  return g;
+}
+/* Breadth-first from a square, so features can be placed by how far away they
+ * are rather than by where they happen to land. */
+function reach(g,sx,sy){
+  const dist=[];for(let y=0;y<SIZE;y++)dist.push(new Array(SIZE).fill(-1));
+  dist[sy][sx]=0;const q=[[sx,sy]];
+  for(let i=0;i<q.length;i++){
+    const[x,y]=q[i];
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=SIZE||ny>=SIZE)continue;
+      if(g[ny][nx]==='#'||dist[ny][nx]>=0)continue;
+      dist[ny][nx]=dist[y][x]+1;q.push([nx,ny]);
+    }
+  }
+  return dist;
+}
+function buildLevel(n){
+  const g=carve(0xBADD1+n*7919);
+  const rr=mulberry(0x51DE+n*104729);
+  const up=[1,1];
+  g[1][1]='<';
+  const dist=reach(g,1,1);
+  /* the way down is the furthest square there is from the way in */
+  let best=[1,1],bd=-1;
+  for(let y=1;y<SIZE-1;y++)for(let x=1;x<SIZE-1;x++)
+    if(dist[y][x]>bd){bd=dist[y][x];best=[x,y];}
+  g[best[1]][best[0]]=n===3?'B':'>';
+  /* and everything else goes on a dead end, which is where you would put it */
+  const ends=[];
+  for(let y=1;y<SIZE-1;y++)for(let x=1;x<SIZE-1;x++){
+    if(g[y][x]!=='.')continue;
+    const open=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>g[y+dy][x+dx]!=='#').length;
+    if(open===1&&dist[y][x]>4)ends.push([x,y]);
+  }
+  for(let i=ends.length-1;i>0;i--){const j=Math.floor(rr()*(i+1));[ends[i],ends[j]]=[ends[j],ends[i]];}
+  const plan=n===1?['$','$','D','S','$']
+           :n===2?['$','D','S','X','$','D','$']
+                 :['$','D','D','S','X','$','$','X'];
+  plan.forEach((ch,i)=>{if(ends[i])g[ends[i][1]][ends[i][0]]=ch;});
+  return {grid:g,up,down:best,dist};
+}
+const LEVELS=[null,buildLevel(1),buildLevel(2),buildLevel(3)];
+function tileAt(depth,x,y){
+  if(x<0||y<0||x>=SIZE||y>=SIZE)return '#';
+  return depth===0?TOWN[y][x]:LEVELS[depth].grid[y][x];
+}
+const SOLID='#~';
+const solid=(depth,x,y)=>SOLID.indexOf(tileAt(depth,x,y))>=0;
+
+/* ---------- adventurers ---------- */
+function statBonus(v){return v>=18?3:v>=16?2:v>=14?1:v<=7?-1:0;}
+function rollStats(race){
+  const m=RACES[race].mod,out={};
+  STATS.forEach(s=>out[s]=clamp(8+d(2,5)+(m[s]||0),3,18));
+  return out;
+}
+function meetsReq(stats,cls){
+  const req=CLASSES[cls].req;
+  return Object.keys(req).every(k=>stats[k]>=req[k]);
+}
+function mkChar(name,race,cls,stats){
+  const pc={name:name.slice(0,10),race,cls,lvl:1,xp:0,
+    gear:{weapon:null,body:null,shield:null,helm:null},pack:[],status:'ok',
+    song:0,flask:CLASSES[cls].hd===8&&cls==='bard'?3:0};
+  STATS.forEach(s=>pc[s]=stats[s]);
+  const C=CLASSES[cls];
+  /* half the die flat plus a roll of it: a first-level warrior is somewhere
+   * between thirteen and twenty-two rather than between four and sixteen,
+   * which is the difference between the sewers being hard and being a joke */
+  pc.maxhp=Math.max(6,Math.round(C.hd*0.6)+d(1,C.hd)+statBonus(pc.cn)+RACES[race].hp);
+  pc.hp=pc.maxhp;
+  pc.maxsp=C.sp?Math.max(2,d(1,C.sp)+statBonus(pc.iq)):0;
+  pc.sp=pc.maxsp;
+  return pc;
+}
+function acOf(pc){
+  let ac=10-statBonus(pc.dx);
+  for(const slot of['body','shield','helm']){
+    const id=pc.gear[slot];
+    if(id)ac-=ITEMS[id].ac||0;
+  }
+  if(pc.cls==='monk')ac-=Math.floor(pc.lvl/2)+1;
+  if(P.buff.ac)ac-=P.buff.ac;
+  return ac;
+}
+function weaponOf(pc){
+  const id=pc.gear.weapon;
+  return id?ITEMS[id]:{name:'bare hands',dmg:pc.cls==='monk'?[1,4+pc.lvl]:[1,2]};
+}
+function alive(pc){return pc.status==='ok'||pc.status==='poisoned';}
+function nextXp(pc){return pc.lvl*pc.lvl*600;}
+
+/* ---------- the party ---------- */
+const P={
+  roster:[],                 /* up to six, in marching order */
+  gold:600,
+  depth:0,x:6,y:6,dir:0,     /* 0 north, 1 east, 2 south, 3 west */
+  light:0,                   /* turns of light left */
+  buff:{},                   /* ac / tohit / regen / find, each with turns left */
+  fight:null,
+  steps:0,
+  found:{},                  /* squares already looted */
+  flag:{madgod:false}
+};
+const DIRS=[[0,-1],[1,0],[0,1],[-1,0]];
+const DIRNAME=['north','east','south','west'];
+
+function party(){return P.roster;}
+function living(){return P.roster.filter(alive);}
+function front(){return P.roster.filter(alive).slice(0,4);}
+function wipedOut(){return P.roster.length>0&&living().length===0;}
+
+/* ---------- the log ---------- */
+const LOGMAX=120;
+const logLines=[];
+function say(text,cls){
+  logLines.push({text,cls:cls||''});
+  if(logLines.length>LOGMAX)logLines.shift();
+  paintLog();
+}
+function blank(){say(' ');}
+
+/* ---------- time passing ---------- */
+/* One step, one turn: light burns down, songs run out, poison bites, and the
+ * bard's regeneration puts a point back. */
+function tick(n){
+  n=n||1;
+  for(let i=0;i<n;i++){
+    P.steps++;
+    if(P.light>0&&P.depth>0)P.light--;
+    if(P.buffT)for(const k of Object.keys(P.buffT)){
+      P.buffT[k]--;
+      if(P.buffT[k]<=0){delete P.buffT[k];delete P.buff[k];}
+    }
+    if(P.buff.regen&&P.steps%4===0)
+      living().forEach(pc=>{pc.hp=Math.min(pc.maxhp,pc.hp+P.buff.regen);});
+    P.roster.forEach(pc=>{
+      if(pc.status==='poisoned'){
+        pc.hp-=1;
+        if(pc.hp<=0){pc.hp=0;pc.status='dead';say(pc.name+' dies of the poison.','hit');}
+      }
+    });
+  }
+}
+function addBuff(fx,amt,turns){
+  P.buff[fx]=amt;
+  P.buffT=P.buffT||{};
+  P.buffT[fx]=turns;
+}
+
+/* ---------- walking ---------- */
+function ahead(){const[dx,dy]=DIRS[P.dir];return[P.x+dx,P.y+dy];}
+function turn(n){P.dir=(P.dir+n+4)%4;paint();}
+function step(){
+  if(P.fight)return;
+  const[nx,ny]=ahead();
+  if(solid(P.depth,nx,ny)){say('A wall.','dim');Snd.bump();paint();return;}
+  P.x=nx;P.y=ny;
+  tick(1);
+  Snd.step();
+  const t=tileAt(P.depth,P.x,P.y);
+  square(t);
+  if(!P.fight&&!overlayUp())maybeEncounter();
+  paint();
+}
+function square(t){
+  if(P.depth===0){
+    const svc={G:'guild',E:'garth',T:'temple',V:'tavern',R:'review',S:'grate'}[t];
+    if(svc)openService(svc);
+    return;
+  }
+  if(t==='<'||t==='>'){askStairs(t);return;}
+  if(t==='B'&&!P.flag.madgod){startFight(['madgod'],true);return;}
+  if(t==='S'){
+    P.dir=Math.floor(R()*4);
+    say('The floor turns under you. You are facing '+DIRNAME[P.dir]+' — or you think you are.','say');
+    Snd.magic();return;
+  }
+  if(t==='D'){
+    if(P.light>0){P.light=0;say('The dark here eats your light.','say');Snd.magic();}
+    else say('It is very dark.','dim');
+    return;
+  }
+  if(t==='X'){
+    const open=[];
+    for(let y=1;y<SIZE-1;y++)for(let x=1;x<SIZE-1;x++)
+      if(tileAt(P.depth,x,y)==='.')open.push([x,y]);
+    const[nx,ny]=open[Math.floor(R()*open.length)];
+    P.x=nx;P.y=ny;
+    say('The floor drops away and puts you down somewhere else.','say');
+    Snd.magic();return;
+  }
+  if(t==='$'){
+    const key=P.depth+':'+P.x+','+P.y;
+    if(P.found[key]){say('Somebody has been here. You were somebody.','dim');return;}
+    P.found[key]=true;
+    const g=d(P.depth+1,40)+20*P.depth;
+    P.gold+=g;
+    say('A strongbox, and '+g+' gold in it.','ok');
+    if(R()<0.4){
+      const id=pick(['potion','potion','torch','ropes','dagger','shortsw','leather','buckler']);
+      P.roster[0].pack.push(id);
+      say(P.roster[0].name+' takes '+ITEMS[id].name+'.','ok');
+    }
+    Snd.coin();
+  }
+}
+/* An encounter is more likely the deeper you are and the longer you have gone
+ * without one; walking into the same corridor forever will still find you. */
+let quiet=0;
+function maybeEncounter(){
+  quiet++;
+  const chance=P.depth===0?0.02:0.055+P.depth*0.02+quiet*0.004;
+  if(R()>chance)return;
+  quiet=0;
+  const lv=P.depth||1;
+  const pool=MONSTERS.filter(m=>!m.boss&&m.lv<=lv+(P.depth?0:0));
+  if(!pool.length)return;
+  const groups=[pick(pool).id];
+  if(R()<0.35&&P.depth>1)groups.push(pick(pool).id);
+  if(R()<0.15&&P.depth>2)groups.push(pick(pool).id);
+  startFight(groups,false);
+}
+
+/* ---------- monsters on the floor ---------- */
+function mkGroup(id,depth){
+  const m=MON_BY_ID[id];
+  const n=m.boss?1:clamp(m.n[0]+Math.floor(R()*(m.n[1]-m.n[0]+1)),1,9);
+  const list=[];
+  for(let i=0;i<n;i++)list.push({hp:d(m.hp[0],m.hp[1]),alive:true});
+  return{id,m,list,name:n===1?m.name:n+' '+m.plural};
+}
+function groupAlive(g){return g.list.some(u=>u.alive);}
+function countAlive(g){return g.list.filter(u=>u.alive).length;}
+function startFight(ids,boss){
+  P.fight={groups:ids.map(id=>mkGroup(id,P.depth)),round:0,orders:[],who:0,boss:!!boss,
+    surprise:R()<0.18};
+  blank();
+  say(boss?'Something very large is already standing up.'
+          :'You have company.','say');
+  P.fight.groups.forEach(g=>say('  '+g.name,'say'));
+  Snd.fight();
+  beginRound();
+}
+
+/* ---------- a round of it ---------- */
+function beginRound(){
+  const f=P.fight;
+  f.round++;f.orders=[];f.who=0;
+  if(f.round===1&&f.surprise){
+    say('They were waiting for you.','hit');
+    resolveMonsters();
+    f.surprise=false;
+    if(!P.fight)return;
+  }
+  nextOrder();
+}
+function nextOrder(){
+  const f=P.fight;
+  while(f.who<P.roster.length&&!alive(P.roster[f.who]))f.who++;
+  if(f.who>=P.roster.length){resolveRound();return;}
+  askOrder(P.roster[f.who]);
+}
+function setOrder(o){
+  const f=P.fight;
+  f.orders[f.who]=o;
+  f.who++;
+  nextOrder();
+}
+
+function toHit(pc,mon){
+  const w=weaponOf(pc);
+  const bonus=pc.lvl+CLASSES[pc.cls].hit+statBonus(pc.st)+(P.buff.tohit||0);
+  return d(1,20)+bonus>=10+mon.ac;
+}
+/* Whether a character can get at a group at all. What matters is not which
+ * number the group has but how many live groups are standing in front of it:
+ * as the front ones fall the back ones come forward. Without that, a third
+ * group is out of melee reach for ever, and a party that has spent its spell
+ * points is in a fight that cannot end — which is how a playthrough found this,
+ * at round ninety-seven. */
+function meleeReaches(gi,pc){
+  if(weaponOf(pc).reach)return true;
+  const f=P.fight;
+  if(!f)return gi<2;
+  let ahead=0;
+  for(let i=0;i<gi;i++)if(groupAlive(f.groups[i]))ahead++;
+  return ahead<2;
+}
+/* Damage lands on the front one of a group, and the group is only as dead as
+ * its last member; returns whether that one went down. */
+function hurtGroup(g,dmg){
+  const u=g.list.find(u=>u.alive);
+  if(!u)return false;
+  u.hp-=dmg;
+  if(u.hp<=0){u.alive=false;return true;}
+  return false;
+}
+function attack(pc,gi){
+  const f=P.fight,g=f.groups[gi];
+  if(!g||!groupAlive(g)){say(pc.name+' has nothing left to swing at.','dim');return;}
+  if(!meleeReaches(gi,pc)){say(pc.name+' cannot reach that far back.','dim');return;}
+  const w=weaponOf(pc);
+  const swings=1+(pc.cls==='warrior'?Math.floor(pc.lvl/4):0);
+  for(let i=0;i<swings;i++){
+    if(!groupAlive(g))break;
+    if(!toHit(pc,g.m)){say(pc.name+' misses the '+g.m.name+'.','dim');continue;}
+    let dmg=d(w.dmg[0],w.dmg[1])+statBonus(pc.st);
+    const critter=(pc.cls==='rogue'||pc.cls==='hunter');
+    if(critter&&d(1,100)<=3+pc.lvl*2){
+      dmg+=d(2,8);
+      say(pc.name+' finds the gap. '+g.m.name+' drops.','ok');
+      hurtGroup(g,9999);
+      continue;
+    }
+    dmg=Math.max(1,dmg);
+    const died=hurtGroup(g,dmg);
+    say(pc.name+' hits the '+g.m.name+' for '+dmg+(died?'. It falls.':'.'),'hit');
+  }
+  Snd.hit();
+}
+function castAt(pc,sp,gi,ally){
+  if(pc.sp<sp.sp){say(pc.name+' has not the power.','dim');return;}
+  pc.sp-=sp.sp;
+  Snd.magic();
+  const f=P.fight;
+  if(sp.fx==='dmg'||sp.fx==='group'||sp.fx==='slay'){
+    const g=f&&f.groups[gi];
+    if(!g||!groupAlive(g)){say('The spell finds nothing.','dim');return;}
+    if(sp.fx==='slay'){
+      if(g.m.boss&&d(1,100)>18){say(sp.name+' washes over it and does nothing.','dim');return;}
+      hurtGroup(g,9999);
+      say(sp.name+': the '+g.m.name+' simply stops.','ok');
+      return;
+    }
+    if(sp.fx==='group'){
+      let n=0;
+      for(const u of g.list){
+        if(!u.alive)continue;
+        u.hp-=d(sp.amt[0],sp.amt[1])+pc.lvl;
+        if(u.hp<=0){u.alive=false;n++;}
+      }
+      say(sp.name+' — '+sp.text+'. '+(n?n+' fall.':'They hold.'),'hit');
+      return;
+    }
+    const dmg=d(sp.amt[0],sp.amt[1])+Math.floor(pc.lvl/2);
+    const died=hurtGroup(g,dmg);
+    say(sp.name+' hits the '+g.m.name+' for '+dmg+(died?'. It falls.':'.'),'hit');
+    return;
+  }
+  if(sp.fx==='heal'){
+    const t=ally||pc;
+    const before=t.hp;
+    if(t.status==='dead'){say('That is past healing here.','dim');pc.sp+=sp.sp;return;}
+    t.hp=Math.min(t.maxhp,t.hp+d(sp.amt[0],sp.amt[1])+pc.lvl);
+    t.status=t.status==='poisoned'?'ok':t.status;
+    say(sp.name+': '+t.name+' takes back '+(t.hp-before)+' points.','ok');
+    return;
+  }
+  if(sp.fx==='light'){P.light=Math.max(P.light,sp.amt);say(sp.name+' — '+sp.text+'.','ok');return;}
+  if(sp.fx==='ac'){addBuff('ac',sp.amt,14);say(sp.name+' — '+sp.text+'.','ok');return;}
+  if(sp.fx==='tohit'){addBuff('tohit',sp.amt,12);say(sp.name+' — '+sp.text+'.','ok');return;}
+  if(sp.fx==='locate'){
+    say('You are on level '+P.depth+' at '+P.x+', '+P.y+', facing '+DIRNAME[P.dir]+'.','ok');return;}
+  if(sp.fx==='reveal'){addBuff('find',1,20);say(sp.name+' — '+sp.text+'.','ok');return;}
+  if(sp.fx==='untrap'){say(sp.name+' — '+sp.text+'.','ok');return;}
+  if(sp.fx==='phase'){
+    const[dx,dy]=DIRS[P.dir];
+    const nx=P.x+dx*2,ny=P.y+dy*2;
+    if(solid(P.depth,nx,ny)){say('There is too much stone that way.','dim');return;}
+    P.x=nx;P.y=ny;say(sp.name+' — '+sp.text+'.','ok');return;
+  }
+  if(sp.fx==='exit'){
+    if(P.depth===0){say('You are already outside.','dim');return;}
+    P.depth=0;P.x=12;P.y=8;P.dir=2;P.light=0;P.fight=null;
+    say(sp.name+' — '+sp.text+'.','ok');return;
+  }
+}
+function sing(pc,song){
+  if(pc.flask<=0){say(pc.name+"'s flask is empty. Try the Scarlet Bard.",'dim');return;}
+  pc.flask--;
+  const s=SONGS[song];
+  if(s.fx==='light')P.light=Math.max(P.light,s.amt);
+  else addBuff(s.fx,s.amt,s.turns);
+  say(pc.name+' plays '+s.name+' — '+s.text+'.','ok');
+  Snd.song();
+}
+function useItem(pc,idx,ally){
+  const id=pc.pack[idx];
+  if(!id)return;
+  const it=ITEMS[id];
+  if(it.heal){
+    const t=ally||pc;
+    if(t.status==='dead'){say('Not while they are dead.','dim');return;}
+    const before=t.hp;
+    t.hp=Math.min(t.maxhp,t.hp+d(it.heal[0],it.heal[1]));
+    if(t.status==='poisoned')t.status='ok';
+    say(t.name+' drinks and takes back '+(t.hp-before)+' points.','ok');
+  }else if(it.light){
+    P.light=Math.max(P.light,it.light);say(pc.name+' lights a torch.','ok');
+  }else if(it.rope){
+    say('The rope is no use here.','dim');return;
+  }else{say('Nothing happens.','dim');return;}
+  pc.pack.splice(idx,1);
+  Snd.magic();
+}
+function tryRun(){
+  const f=P.fight;
+  if(f.boss){say('It is between you and the only door.','hit');return false;}
+  const n=f.groups.reduce((t,g)=>t+countAlive(g),0);
+  const luck=living().reduce((t,pc)=>t+statBonus(pc.lk),0);
+  if(d(1,20)+luck>=8+n){
+    say('You get out of there.','ok');
+    P.fight=null;closeFightbar();
+    const[dx,dy]=DIRS[P.dir];
+    if(!solid(P.depth,P.x-dx,P.y-dy)){P.x-=dx;P.y-=dy;}
+    hideOverlay();paint();
+    return true;
+  }
+  say('They cut you off.','hit');
+  return false;
+}
+
+function resolveRound(){
+  const f=P.fight;
+  if(!f)return;
+  closeFightbar();hideOverlay();
+  blank();
+  say('— round '+f.round+' —','dim');
+  for(let i=0;i<P.roster.length;i++){
+    const pc=P.roster[i],o=f.orders[i];
+    if(!pc||!alive(pc)||!o)continue;
+    if(o.k==='attack')attack(pc,o.g);
+    else if(o.k==='defend'){pc.defending=true;say(pc.name+' guards.','dim');}
+    else if(o.k==='cast')castAt(pc,o.sp,o.g,o.ally);
+    else if(o.k==='sing')sing(pc,o.song);
+    else if(o.k==='use')useItem(pc,o.idx,o.ally);
+    else if(o.k==='run'){if(tryRun())return;}
+    if(!P.fight)return;
+    if(victory())return;
+  }
+  resolveMonsters();
+  if(!P.fight)return;
+  P.roster.forEach(pc=>pc.defending=false);
+  tick(1);
+  if(victory())return;
+  if(wipedOut()){defeat();return;}
+  beginRound();
+}
+function resolveMonsters(){
+  const f=P.fight;
+  /* Only so many of them can get at you at once. Without this a floor with
+   * three groups of four on it lands twelve blows a round on four people and
+   * nothing that walks down there at level three ever walks back. */
+  let reach=6;
+  for(const g of f.groups){
+    if(!groupAlive(g))continue;
+    if(reach<=0)break;
+    const n=Math.min(countAlive(g),4,reach);
+    reach-=n;
+    if(g.m.spell&&d(1,100)<=25){
+      const sp=SPELL_BY_CODE[g.m.spell];
+      const t=pick(front().length?front():living());
+      if(t){
+        const dmg=d(sp.amt[0],sp.amt[1])+g.m.lv;
+        t.hp-=dmg;
+        say('The '+g.m.name+' casts '+sp.name+'. '+t.name+' takes '+dmg+'.','hit');
+        if(t.hp<=0)downs(t);
+      }
+      continue;
+    }
+    for(let i=0;i<n;i++){
+      const targets=front().length?front():living();
+      if(!targets.length)break;
+      const t=pick(targets);
+      let ac=acOf(t);
+      if(t.defending)ac-=3;
+      if(d(1,20)+g.m.hit+g.m.lv<10+ac){say('The '+g.m.name+' misses '+t.name+'.','dim');continue;}
+      let dmg=d(g.m.dmg[0],g.m.dmg[1]);
+      t.hp-=dmg;
+      say('The '+g.m.name+' hits '+t.name+' for '+dmg+'.','hit');
+      if(g.m.steal&&P.gold>0&&d(1,100)<=20){
+        const took=Math.min(P.gold,d(2,40));P.gold-=took;
+        say('It goes through your purse and takes '+took+' gold.','hit');
+      }
+      if(t.hp<=0)downs(t);
+    }
+  }
+  Snd.hit();
+}
+function downs(pc){
+  pc.hp=0;pc.status='dead';
+  say(pc.name+' is down.','hit');
+  Snd.die();
+}
+function victory(){
+  const f=P.fight;
+  if(!f)return false;
+  if(f.groups.some(groupAlive))return false;
+  let xp=0,gold=0;
+  f.groups.forEach(g=>g.list.forEach(u=>{xp+=g.m.xp;gold+=d(g.m.gold[0],g.m.gold[1]);}));
+  const each=xp;
+  living().forEach(pc=>pc.xp+=each);
+  P.gold+=gold;
+  blank();
+  say('That is the last of them. '+each+' experience each, and '+gold+' gold.','ok');
+  if(f.boss){
+    P.flag.madgod=true;
+    say('The Mad God is a heap of cold stone. Whatever it was guarding is yours.','ok');
+    P.gold+=2000;
+    say('Two thousand gold, and the way out is behind you.','ok');
+  }
+  P.fight=null;
+  Snd.win();
+  closeFightbar();hideOverlay();paint();
+  return true;
+}
+function defeat(){
+  P.fight=null;closeFightbar();
+  blank();
+  say('The party is dead in the dark under Skara Brae.','hit');
+  Snd.die();
+  showDefeat();
+}
+
+/* ---------- sound ---------- */
+/* Oscillators only: there is no sample data in the page and nothing is fetched,
+ * which is what keeps the game a single file that runs from a folder. */
+const Snd={ctx:null,on:load('bt.sound','1')==='1',
+  boot(){if(this.ctx)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();}catch(e){this.ctx=null;}},
+  tone(type,f0,f1,dur,gain,delay){
+    if(!this.on)return;this.boot();const c=this.ctx;if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const t=c.currentTime+(delay||0);
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(f0,t);
+    if(f1&&f1!==f0)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(gain,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.02);
+  },
+  noise(dur,gain,f,delay){
+    if(!this.on)return;this.boot();const c=this.ctx;if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),dd=buf.getChannelData(0);
+    for(let i=0;i<n;i++)dd[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=buf;
+    const bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f||600;
+    const g=c.createGain();g.gain.value=gain;
+    s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(c.currentTime+(delay||0));
+  },
+  step(){this.noise(0.07,0.05,320);},
+  bump(){this.tone('square',120,70,0.1,0.05);},
+  hit(){this.noise(0.15,0.12,700);this.tone('sawtooth',260,110,0.14,0.05);},
+  die(){this.noise(0.5,0.16,300);this.tone('sawtooth',200,40,0.5,0.07);},
+  magic(){[523,659,784].forEach((f,i)=>this.tone('sine',f,f*1.5,0.16,0.045,i*0.05));},
+  coin(){[880,1174].forEach((f,i)=>this.tone('triangle',f,f,0.1,0.05,i*0.07));},
+  fight(){[196,233,294].forEach((f,i)=>this.tone('sawtooth',f,f,0.2,0.05,i*0.11));},
+  win(){[392,494,587,784].forEach((f,i)=>this.tone('triangle',f,f,0.18,0.055,i*0.12));},
+  song(){[440,554,659,880,659,554].forEach((f,i)=>this.tone('triangle',f,f,0.13,0.05,i*0.1));},
+  door(){this.noise(0.25,0.08,180);}
+};
+
+/* ---------- monster pictures ---------- */
+/* Each one is drawn into a 48x48 buffer at whole pixels and then blown up with
+ * smoothing off, so what reaches the screen is pixel art whatever size the
+ * page is. Drawn rather than written out as a grid because a grid of forty-
+ * eight rows is unreadable in a source file, and these have to be legible
+ * enough to tell a ghoul from a wererat at a glance. */
+const MP={K:'#141018',D:'#2c2620',S:'#6e6458',W:'#dcd6c4',F:'#c98b64',N:'#7a5230',
+  R:'#a8321e',O:'#d97b21',Y:'#e8c249',G:'#4a7a3a',B:'#3c5fa8',P:'#7a4a9a',
+  E:'#e84c2a',C:'#5ad1e6',M:'#9a3050',T:'#3a3a44'};
+function mkArt(draw){
+  const cv=document.createElement('canvas');cv.width=cv.height=48;
+  const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
+  const A={
+    box:(x,y,w,h,c)=>{g.fillStyle=MP[c]||c;g.fillRect(x|0,y|0,w|0,h|0);},
+    disc:(cx,cy,r,c)=>{g.fillStyle=MP[c]||c;
+      for(let y=-r;y<=r;y++){const w=Math.floor(Math.sqrt(r*r-y*y));
+        g.fillRect((cx-w)|0,(cy+y)|0,(w*2+1)|0,1);}},
+    tri:(x0,y0,x1,y1,x2,y2,c)=>{g.fillStyle=MP[c]||c;g.beginPath();
+      g.moveTo(x0,y0);g.lineTo(x1,y1);g.lineTo(x2,y2);g.closePath();g.fill();},
+    band:(y,x0,x1,c)=>{g.fillStyle=MP[c]||c;g.fillRect(x0|0,y|0,(x1-x0)|0,1);},
+    /* a taper: a limb or a tail, from one width to another */
+    limb:(x0,y0,x1,y1,w0,w1,c)=>{g.fillStyle=MP[c]||c;
+      const n=Math.max(2,Math.round(Math.hypot(x1-x0,y1-y0)));
+      for(let i=0;i<=n;i++){const t=i/n,w=Math.max(1,Math.round(w0+(w1-w0)*t));
+        g.fillRect(Math.round(x0+(x1-x0)*t-w/2),Math.round(y0+(y1-y0)*t-w/2),w,w);}},
+    mirror:()=>{const d=g.getImageData(0,0,48,48);
+      for(let y=0;y<48;y++)for(let x=0;x<24;x++){
+        const a=(y*48+x)*4,b=(y*48+47-x)*4;
+        for(let k=0;k<4;k++)d.data[b+k]=d.data[a+k];}
+      g.putImageData(d,0,0);}
+  };
+  draw(A);
+  return cv;
+}
+const ART={};
+function bakeMonsters(){
+  ART.rat=mkArt(A=>{
+    A.limb(24,34,44,40,3,1,'F');                 /* tail */
+    A.disc(24,32,11,'N');                        /* body */
+    A.disc(24,18,9,'N');                         /* head */
+    A.tri(16,12,20,2,24,13,'N');A.tri(32,12,28,2,24,13,'N');   /* ears */
+    A.tri(17,12,20,5,23,13,'M');A.tri(31,12,28,5,25,13,'M');
+    A.box(21,17,3,3,'E');A.box(25,17,3,3,'E');   /* eyes */
+    A.tri(22,22,26,22,24,27,'W');                /* snout */
+    A.box(22,25,2,3,'W');A.box(25,25,2,3,'W');   /* teeth */
+    A.limb(18,40,14,44,4,3,'N');A.limb(30,40,34,44,4,3,'N');
+  });
+  ART.kobold=mkArt(A=>{
+    A.limb(24,26,24,42,11,8,'G');                /* body */
+    A.disc(24,16,9,'G');
+    A.tri(15,12,18,1,24,12,'G');A.tri(33,12,30,1,24,12,'G');
+    A.box(20,15,3,3,'E');A.box(26,15,3,3,'E');
+    A.tri(20,20,28,20,24,25,'Y');
+    A.limb(14,28,12,44,5,4,'G');A.limb(34,28,36,44,5,4,'G');
+    A.box(37,6,2,34,'N');A.tri(34,6,42,6,38,0,'S'); /* spear */
+    A.box(18,30,12,7,'N');                       /* jerkin */
+  });
+  ART.slime=mkArt(A=>{
+    A.disc(24,32,15,'N');
+    A.disc(17,22,8,'N');A.disc(31,22,8,'N');
+    A.disc(24,20,10,'N');
+    A.box(19,18,4,4,'Y');A.box(26,18,4,4,'Y');
+    A.limb(11,30,4,42,7,5,'N');A.limb(37,30,44,42,7,5,'N');   /* two long arms */
+    for(let i=0;i<9;i++)A.box(8+i*4,43+((i*5)%4),3,5,'D');    /* and it drips */
+    A.box(14,26,4,3,'D');A.box(30,34,5,4,'D');A.box(20,38,4,3,'D');
+  });
+  ART.gremlin=mkArt(A=>{
+    A.tri(4,4,16,18,6,26,'P');A.tri(44,4,32,18,42,26,'P');    /* bat ears */
+    A.limb(24,26,24,40,9,7,'P');
+    A.disc(24,17,10,'P');
+    A.box(19,14,4,4,'Y');A.box(25,14,4,4,'Y');
+    A.box(19,15,2,2,'K');A.box(27,15,2,2,'K');
+    A.band(23,19,29,'W');A.band(24,20,28,'W');
+    A.box(20,22,2,2,'W');A.box(26,22,2,2,'W');
+    A.limb(15,28,10,38,4,3,'P');A.limb(33,28,38,38,4,3,'P');
+    A.limb(19,40,17,46,5,4,'P');A.limb(29,40,31,46,5,4,'P');
+  });
+  ART.skel=mkArt(A=>{
+    A.disc(24,14,10,'W');
+    A.box(18,13,5,5,'K');A.box(25,13,5,5,'K');
+    A.box(22,20,4,3,'K');
+    A.box(20,22,2,2,'K');A.box(26,22,2,2,'K');
+    A.box(23,24,2,18,'W');                       /* spine */
+    for(let i=0;i<5;i++)A.box(16,26+i*3,16,2,'W');
+    A.limb(16,26,10,40,4,3,'W');A.limb(32,26,38,40,4,3,'W');
+    /* a blade with a crossguard, because at three pixels wide with a point on
+       it the thing read as the kobold's spear */
+    A.box(5,10,5,26,'S');A.box(6,10,3,26,'W');
+    A.tri(5,10,10,10,7,2,'W');
+    A.box(2,36,11,3,'D');A.box(6,39,3,6,'N');
+    A.limb(19,42,17,47,4,3,'W');A.limb(29,42,31,47,4,3,'W');
+  });
+  ART.zerk=mkArt(A=>{
+    A.limb(24,24,24,44,15,12,'N');
+    A.box(14,28,20,6,'S');                       /* belt of plates */
+    A.disc(24,14,9,'F');
+    A.box(15,8,18,4,'N');                        /* hair */
+    A.box(19,13,4,3,'K');A.box(25,13,4,3,'K');
+    A.band(20,20,28,'K');A.band(21,21,27,'K');
+    A.limb(12,26,6,38,6,5,'F');A.limb(36,26,42,38,6,5,'F');
+    A.box(2,10,4,26,'N');A.tri(0,12,10,6,10,18,'S');          /* axe */
+    A.tri(2,12,10,8,10,16,'W');
+  });
+  ART.wererat=mkArt(A=>{
+    A.limb(24,24,24,44,12,10,'D');
+    A.disc(24,15,9,'D');
+    A.tri(15,10,18,0,24,11,'D');A.tri(33,10,30,0,24,11,'D');
+    A.box(20,14,3,3,'E');A.box(25,14,3,3,'E');
+    A.tri(21,19,27,19,24,25,'W');
+    A.box(21,23,2,3,'W');A.box(25,23,2,3,'W');
+    A.limb(13,27,7,40,5,4,'D');A.limb(35,27,41,40,5,4,'D');
+    A.box(6,36,3,3,'S');A.box(39,36,3,3,'S');    /* claws */
+    A.limb(24,44,44,46,4,1,'F');
+  });
+  ART.jester=mkArt(A=>{
+    A.limb(24,26,24,42,10,9,'M');
+    A.box(14,26,20,3,'Y');
+    A.disc(24,16,9,'W');
+    A.tri(14,12,6,2,22,10,'M');A.tri(34,12,42,2,26,10,'G');   /* cap horns */
+    A.disc(6,3,3,'Y');A.disc(42,3,3,'Y');        /* bells */
+    A.box(15,8,18,4,'M');
+    A.box(19,15,3,3,'K');A.box(26,15,3,3,'K');
+    A.band(21,20,28,'R');A.band(22,19,29,'R');A.band(23,20,28,'R');
+    A.limb(15,28,9,38,4,3,'W');A.limb(33,28,39,38,4,3,'W');
+    for(let i=0;i<4;i++)A.box(18+i*4,42,3,4,(i%2)?'G':'Y');   /* motley hem */
+  });
+  ART.ghoul=mkArt(A=>{
+    A.limb(24,26,23,44,11,9,'S');
+    A.disc(24,16,9,'S');
+    A.box(18,14,5,4,'K');A.box(25,14,5,4,'K');
+    A.box(19,15,2,2,'E');A.box(27,15,2,2,'E');
+    A.band(22,19,29,'K');A.band(23,18,30,'K');A.band(24,19,29,'K');
+    A.box(20,21,2,3,'W');A.box(26,21,2,3,'W');
+    A.limb(14,28,8,40,5,3,'S');A.limb(34,28,40,40,5,3,'S');
+    A.box(5,38,4,3,'W');A.box(39,38,4,3,'W');
+    for(let i=0;i<4;i++)A.box(18+i*4,30+((i*5)%6),3,3,'D');   /* rot */
+  });
+  ART.madgod=mkArt(A=>{
+    A.box(6,10,36,36,'S');                       /* the idol */
+    A.tri(6,10,42,10,24,0,'S');
+    A.box(10,14,28,28,'D');
+    A.box(13,18,9,7,'E');A.box(26,18,9,7,'E');
+    A.box(15,20,4,4,'K');A.box(29,20,4,4,'K');
+    for(let i=0;i<7;i++)A.box(13+i*3,30,2,8,'W');/* the mouth */
+    A.box(12,29,25,2,'K');A.box(12,38,25,2,'K');
+    A.box(2,12,4,32,'S');A.box(42,12,4,32,'S');
+    A.box(0,44,48,4,'D');
+  });
+}
+
+/* ---------- a 5x7 bitmap font ---------- */
+/* Two hex digits per row, five bits used. The page's own text is HTML; this is
+ * only for the handful of words that belong inside the picture. */
+const FONT={
+'0':'0E1113151911 0E','1':'040C0404040 40E','2':'0E110102040 81F','3':'1F0204020111 0E',
+'4':'02060A121F02 02','5':'1F101E010111 0E','6':'06081 01E11110E','7':'1F01020408 0808',
+'8':'0E11110E11110E','9':'0E11110F01020C',
+'A':'0E11111F111111','B':'1E11111E11111E','C':'0E1110101011 0E','D':'1C1211111112 1C',
+'E':'1F10101E10101F','F':'1F10101E101010','G':'0E111017111 10F','H':'1111111F111111',
+'I':'0E04040404040E','J':'0702020202120C','K':'1112141814 1211','L':'1010101010101F',
+'M':'111B1515111111','N':'1119151311 1111','O':'0E1111111111 0E','P':'1E11111E101010',
+'Q':'0E1111111512 0D','R':'1E11111E141211','S':'0F10100E01011E','T':'1F0404040404 04',
+'U':'1111111111110E','V':'111111111 10A04','W':'1111111515 1B11','X':'11110A040A1111',
+'Y':'11110A04040404','Z':'1F010204081 01F',
+' ':'00000000000000','-':'0000001F000000','!':'0404040404 0004','.':'00000000000004',
+',':'00000000040408','/':'01020204080810',':':'00040400040400',"'":'04040000000000'};
+function glyph(ch){
+  const s=(FONT[ch]||FONT['-']).replace(/ /g,'');
+  const r=[];for(let i=0;i<7;i++)r.push(parseInt(s.substr(i*2,2),16)||0);
+  return r;
+}
+const textW=s=>String(s).length*6-1;
+function drawText(g,str,x,y,col){
+  g.fillStyle=col||'#e8ddc8';
+  str=String(str).toUpperCase();
+  let px=Math.round(x);
+  for(const ch of str){
+    const rows=glyph(ch);
+    for(let r=0;r<7;r++){
+      const bits=rows[r];if(!bits)continue;
+      for(let c=0;c<5;c++)if(bits&(1<<(4-c)))g.fillRect(px+c,Math.round(y)+r,1,1);
+    }
+    px+=6;
+  }
+}
+const drawTextC=(g,s,y,col)=>drawText(g,s,(VW-textW(s))/2,y,col);
+
+/* ---------- the view ---------- */
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+g.imageSmoothingEnabled=false;
+const VIEW={x0:6,y0:6,x1:250,y1:158};
+const CXP=(VIEW.x0+VIEW.x1)/2, CYP=(VIEW.y0+VIEW.y1)/2-6;
+const MAXD=5;
+function frameAt(k){
+  const s=Math.pow(0.545,k);
+  return{x0:CXP-(CXP-VIEW.x0)*s,x1:CXP+(VIEW.x1-CXP)*s,
+         y0:CYP-(CYP-VIEW.y0)*s,y1:CYP+(VIEW.y1-CYP)*s};
+}
+/* k steps ahead, side -1 for the left hand and +1 for the right */
+function cellAt(k,side){
+  const[fx,fy]=DIRS[P.dir],[rx,ry]=DIRS[(P.dir+1)%4];
+  return[P.x+fx*k+rx*(side||0),P.y+fy*k+ry*(side||0)];
+}
+function lit(){return P.depth===0||P.light>0;}
+/* How much light reaches a slab. In the dark a torch gives you two squares and
+ * a rumour of the third, which is most of what the sewers are about. */
+function shade(k){
+  if(P.depth===0)return[0.95,0.8,0.66,0.54,0.44,0.36][k]||0.3;
+  if(!lit())return[0.30,0.16,0.07,0.03,0.02,0.02][k]||0;
+  return[1,0.8,0.62,0.47,0.35,0.26][k]||0.2;
+}
+function tone(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  const r=Math.round(((n>>16)&255)*f),gg=Math.round(((n>>8)&255)*f),b=Math.round((n&255)*f);
+  return'rgb('+r+','+gg+','+b+')';
+}
+function quad(x0,y0,x1,y1,x2,y2,x3,y3,col){
+  g.fillStyle=col;g.beginPath();
+  g.moveTo(x0,y0);g.lineTo(x1,y1);g.lineTo(x2,y2);g.lineTo(x3,y3);g.closePath();g.fill();
+}
+function drawWorld(){
+  const dark=P.depth>0&&!lit();
+  const wallC=P.depth===0?'#7a6f60':'#5a5344';
+  const floorC=P.depth===0?'#453f37':'#2e2b24';
+  const ceilC=P.depth===0?'#1b2436':'#1a1712';
+  /* sky or ceiling above, ground below, both running to the vanishing point */
+  const far=frameAt(MAXD);
+  g.fillStyle=tone(floorC,P.depth===0?1:(dark?0.35:1));
+  g.fillRect(VIEW.x0,VIEW.y0,VIEW.x1-VIEW.x0,VIEW.y1-VIEW.y0);
+  quad(VIEW.x0,VIEW.y0,VIEW.x1,VIEW.y0,far.x1,far.y0,far.x0,far.y0,
+       tone(ceilC,P.depth===0?1:(dark?0.5:1)));
+  /* how far you can see before something stops you */
+  let block=MAXD+1;
+  for(let k=1;k<=MAXD;k++){const[x,y]=cellAt(k,0);if(solid(P.depth,x,y)){block=k;break;}}
+  if(block<=MAXD){
+    const b=frameAt(block),f=shade(block-1);
+    g.fillStyle=tone(wallC,f);
+    g.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+    /* courses of stone, so a dead end is a wall and not a flat colour */
+    g.fillStyle='rgba(0,0,0,'+(0.28*f).toFixed(2)+')';
+    const h=(b.y1-b.y0)/5;
+    for(let i=1;i<5;i++)g.fillRect(b.x0,b.y0+h*i,b.x1-b.x0,1);
+    for(let i=0;i<5;i++){
+      const y=b.y0+h*i,off=(i%2)?0:(b.x1-b.x0)/4;
+      for(let x=b.x0+off;x<b.x1;x+=(b.x1-b.x0)/2)g.fillRect(x,y,1,h);
+    }
+  }
+  const last=Math.min(block-1,MAXD-1);
+  for(let k=last;k>=0;k--){
+    const a=frameAt(k),b=frameAt(k+1),f=shade(k);
+    const[lx,ly]=cellAt(k,-1),[rx,ry]=cellAt(k,1);
+    if(solid(P.depth,lx,ly))
+      quad(a.x0,a.y0,b.x0,b.y0,b.x0,b.y1,a.x0,a.y1,tone(wallC,f*0.82));
+    else
+      quad(a.x0,a.y0,b.x0,b.y0,b.x0,b.y1,a.x0,a.y1,tone(ceilC,f*0.7));
+    if(solid(P.depth,rx,ry))
+      quad(a.x1,a.y0,b.x1,b.y0,b.x1,b.y1,a.x1,a.y1,tone(wallC,f*0.62));
+    else
+      quad(a.x1,a.y0,b.x1,b.y0,b.x1,b.y1,a.x1,a.y1,tone(ceilC,f*0.55));
+    /* the floor of this slab, a shade lighter than the one behind it */
+    quad(a.x0,a.y1,b.x0,b.y1,b.x1,b.y1,a.x1,a.y1,tone(floorC,f*0.9));
+    quad(a.x0,a.y0,b.x0,b.y0,b.x1,b.y0,a.x1,a.y0,tone(ceilC,f*0.85));
+    /* and the seam between slabs, which is what makes distance readable */
+    g.strokeStyle='rgba(0,0,0,'+(0.5*f).toFixed(2)+')';g.lineWidth=1;
+    g.beginPath();g.moveTo(b.x0,b.y0);g.lineTo(b.x0,b.y1);
+    g.moveTo(b.x1,b.y0);g.lineTo(b.x1,b.y1);g.stroke();
+    decorate(k,a,b,f);
+  }
+  g.strokeStyle='#1a1712';g.lineWidth=2;
+  g.strokeRect(VIEW.x0-1,VIEW.y0-1,VIEW.x1-VIEW.x0+2,VIEW.y1-VIEW.y0+2);
+}
+/* Doors and stairs, drawn in the slab they are actually in. */
+const DOORS='+GETVRS';
+function decorate(k,a,b,f){
+  const[cx,cy]=cellAt(k,0);
+  const t=tileAt(P.depth,cx,cy);
+  if(k>0&&DOORS.indexOf(t)>=0){
+    const w=(b.x1-b.x0)*0.44,hh=(b.y1-b.y0)*0.78;
+    const x=CXP-w/2,y=b.y1-hh;
+    g.fillStyle=tone('#5a3a1e',f);g.fillRect(x,y,w,hh);
+    g.fillStyle=tone('#3a2412',f);g.fillRect(x+1,y+1,w-2,hh-2);
+    g.fillStyle=tone('#8a6a34',f);g.fillRect(x+w*0.72,y+hh*0.5,Math.max(1,w*0.1),Math.max(1,hh*0.07));
+    if(t!=='+'){
+      const label={G:'GUILD',E:'GARTH',T:'TEMPLE',V:'TAVERN',R:'REVIEW',S:'SEWER'}[t];
+      if(label&&k<=2)drawText(g,label,CXP-textW(label)/2,y-9,tone('#d8a838',Math.min(1,f+0.2)));
+    }
+  }
+  if(t==='<'||t==='>'){
+    const w=(b.x1-b.x0)*0.7,x=CXP-w/2;
+    for(let i=0;i<4;i++){
+      const y=b.y1+(a.y1-b.y1)*(i/4);
+      g.fillStyle=tone(t==='>'?'#241f19':'#6a6152',f*(1-i*0.12));
+      g.fillRect(x-(a.x1-b.x1)*(i/8),y,w+(a.x1-b.x1)*(i/4),Math.max(1,(a.y1-b.y1)/5));
+    }
+    if(k<=2)drawText(g,t==='>'?'DOWN':'UP',CXP-textW(t==='>'?'DOWN':'UP')/2,b.y1-10,
+      tone('#d8a838',Math.min(1,f+0.25)));
+  }
+  if(t==='$'&&!P.found[P.depth+':'+cx+','+cy]&&k<=2){
+    const w=(b.x1-b.x0)*0.3;
+    g.fillStyle=tone('#8a6a34',f);g.fillRect(CXP-w/2,b.y1-w*0.6,w,w*0.6);
+    g.fillStyle=tone('#d8a838',f);g.fillRect(CXP-w/2,b.y1-w*0.6,w,2);
+  }
+}
+
+/* The fight, drawn over the corridor it is happening in. */
+function drawFight(){
+  const f=P.fight;
+  g.fillStyle='rgba(8,6,4,0.62)';
+  g.fillRect(VIEW.x0,VIEW.y0,VIEW.x1-VIEW.x0,VIEW.y1-VIEW.y0);
+  const live=f.groups.filter(groupAlive);
+  const show=live.length?live:f.groups;
+  /* whole-number scaling only: three groups at two-and-a-bit times size would
+     overrun the canvas and land the art on half-pixels */
+  const S=show.length>=3?1:2;
+  const w=48*S,gap=8;
+  const total=show.length*w+(show.length-1)*gap;
+  let x=Math.round(CXP-total/2);
+  const y=Math.round(VIEW.y0+6);
+  show.forEach((grp,i)=>{
+    const img=ART[grp.id];
+    if(img)g.drawImage(img,x,y,w,w);
+    drawText(g,String(i+1),x+2,y+2,'#d8a838');
+    x+=w+gap;
+  });
+  /* The names go underneath as a list rather than one under each picture: at
+   * three groups a picture is forty-eight pixels wide and 'CRAZED JESTERS' is
+   * eighty-four, and clipping it to fit gave 'CRAZED J'. */
+  let ly=y+w+4;
+  show.forEach((grp,i)=>{
+    const n=countAlive(grp);
+    const label=(i+1)+') '+(n>1?n+' '+grp.m.plural:grp.m.name);
+    drawText(g,label,Math.round(CXP-textW(label)/2),ly,n?'#e8ddc8':'#6e6458');
+    ly+=9;
+  });
+}
+function drawHud(){
+  g.fillStyle='#0d0a08';g.fillRect(0,VIEW.y1+3,VW,VH-VIEW.y1-3);
+  const where=P.depth===0?'SKARA BRAE':'SEWERS '+P.depth;
+  drawText(g,where,4,VH-11,'#9a8b76');
+  const c='N E S W'.split(' ')[P.dir];
+  drawText(g,'FACING '+c,VW-6-textW('FACING '+c),VH-11,'#d8a838');
+  if(P.depth>0){
+    const l=P.light>0?'LIGHT '+P.light:'DARK';
+    drawText(g,l,Math.round(CXP-textW(l)/2),VH-11,P.light>0?'#5ad1e6':'#a8321e');
+  }
+}
+function paintView(){
+  g.fillStyle='#0d0a08';g.fillRect(0,0,VW,VH);
+  if(P.roster.length)drawWorld();
+  else{
+    drawTextC(g,"THE BARD'S TALE",50,'#d8a838');
+    drawTextC(g,'SKARA BRAE',64,'#9a8b76');
+  }
+  if(P.fight)drawFight();
+  drawHud();
+}
+
+/* ---------- the page around it ---------- */
+function el(id){return document.getElementById(id);}
+const rbody=el('rbody'),logEl=el('log'),ov=el('overlay');
+function paintLog(){
+  logEl.innerHTML=logLines.map(l=>'<div class="'+l.cls+'">'+l.text+'</div>').join('');
+  logEl.scrollTop=logEl.scrollHeight;
+}
+const STATUS={ok:'',poisoned:'POIS',dead:'DEAD'};
+function paintRoster(){
+  const f=P.fight;
+  rbody.innerHTML=P.roster.map((pc,i)=>{
+    const cls=[alive(pc)?'':'dead',f&&f.who===i?'act':''].filter(Boolean).join(' ');
+    return '<tr class="'+cls+'">'+
+      '<td class="nm">'+(i+1)+' '+esc(pc.name)+'</td>'+
+      '<td class="dim">'+CLASSES[pc.cls].name.slice(0,4).toUpperCase()+' '+pc.lvl+'</td>'+
+      '<td class="ac">AC '+acOf(pc)+'</td>'+
+      '<td class="hp">'+pc.hp+'/'+pc.maxhp+'</td>'+
+      '<td class="sp">'+(pc.maxsp?pc.sp+'/'+pc.maxsp:'—')+'</td>'+
+      '<td class="st">'+(STATUS[pc.status]||'')+'</td></tr>';
+  }).join('');
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function paint(){
+  paintView();paintRoster();
+  el('gold').textContent=P.gold;
+  el('place').textContent=P.depth===0?'Skara Brae':'The Sewers, level '+P.depth;
+  const busy=!!P.fight||overlayUp();
+  ['bfwd','bturnl','bturnr'].forEach(id=>el(id).disabled=busy);
+}
+
+/* ---------- overlays ---------- */
+/* One menu builder for the whole game: a title, a line of explanation, a list
+ * of choices and an optional way back. The keyboard walks it, a tap takes it. */
+let menuItems=[],menuGo=[],menuSel=0,menuBack=null;
+function overlayUp(){return !ov.classList.contains('hidden');}
+function hideOverlay(){
+  ov.className='hidden';ov.innerHTML='';
+  menuItems=[];menuGo=[];menuBack=null;
+  paint();
+}
+function menu(o){
+  const parts=['<div class="scroll">'];
+  if(o.title)parts.push('<h1>'+esc(o.title)+'</h1>');
+  if(o.sub)parts.push('<p class="sub">'+o.sub+'</p>');
+  if(o.html)parts.push(o.html);
+  (o.items||[]).forEach(it=>{
+    parts.push('<button class="menuitem" type="button"'+(it.off?' disabled':'')+'>'+
+      '<span>'+esc(it.label)+'</span>'+(it.right?'<b>'+esc(it.right)+'</b>':'')+'</button>');
+  });
+  if(o.tip)parts.push('<small class="tip">'+o.tip+'</small>');
+  parts.push('</div>');
+  ov.className=o.cls||'';
+  ov.innerHTML=parts.join('');
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));
+  menuGo=(o.items||[]).map(it=>it.go);
+  menuBack=o.back||null;
+  menuSel=Math.max(0,(o.items||[]).findIndex(it=>!it.off));
+  menuItems.forEach((m,i)=>m.addEventListener('click',()=>{
+    if((o.items[i]||{}).off)return;
+    menuSel=i;paintMenu();
+    const f=menuGo[i];if(f)f();
+  }));
+  paintMenu();
+  paint();
+}
+function paintMenu(){menuItems.forEach((m,i)=>m.classList.toggle('sel',i===menuSel));}
+function menuMove(n){
+  if(!menuItems.length)return;
+  for(let i=0;i<menuItems.length;i++){
+    menuSel=(menuSel+n+menuItems.length)%menuItems.length;
+    if(!menuItems[menuSel].disabled)break;
+  }
+  paintMenu();
+}
+function menuEnter(){const f=menuGo[menuSel];if(f)f();}
+
+/* ---------- title ---------- */
+function showSplash(){
+  const saved=!!load('bt.save',null);
+  menu({cls:'splash',title:"THE BARD'S TALE",
+    sub:'Skara Brae is three years into a winter Mangar made, and the only door '+
+        'nobody has tried is the grate in the plaza.',
+    items:[
+      {label:'A NEW PARTY',go:()=>{newGame();}},
+      {label:'CONTINUE',right:saved?'saved':'',off:!saved,go:()=>{loadGame();}},
+      {label:'HOW TO PLAY',go:showHelp}
+    ],
+    tip:'arrows or WASD to walk · C cast · B sing · U use · P party · ESC menu'});
+}
+function showHelp(){
+  menu({title:'HOW TO PLAY',
+    html:'<div class="sheet">'+
+      '<div class="r"><span>Walk</span><span>▲ and the two turns</span></div>'+
+      '<div class="r"><span>Guild</span><span>make and keep characters</span></div>'+
+      '<div class="r"><span>Garth\'s</span><span>weapons, armour, torches</span></div>'+
+      '<div class="r"><span>Temple</span><span>wounds, poison, the dead</span></div>'+
+      '<div class="r"><span>Review Board</span><span>levels, when you have earned one</span></div>'+
+      '<div class="r"><span>Scarlet Bard</span><span>fills the bard\'s flask</span></div>'+
+      '<div class="r"><span>The grate</span><span>down</span></div></div>',
+    sub:'Six adventurers. The four in front do the fighting and take the blows; '+
+        'the two behind cast, sing and shoot. Spells cost spell points and songs '+
+        'cost a swallow from the flask. Take a torch — the dark down there is not '+
+        'a metaphor, and some squares will put your light out.',
+    items:[{label:'BACK',go:showSplash}],back:showSplash});
+}
+function showDefeat(){
+  menu({title:'THE PARTY IS DEAD',
+    sub:'What is left of them is somewhere on level '+P.depth+'. The Temple will '+
+        'take gold for the ones you can carry out, if anybody could.',
+    items:[
+      {label:'BACK TO THE TITLE',go:()=>{drop('bt.save');P.roster=[];showSplash();}}
+    ]});
+}
+
+/* ---------- making a party ---------- */
+let draft=null;
+function newGame(){
+  P.roster=[];P.gold=600;P.depth=0;P.x=6;P.y=6;P.dir=0;P.light=0;
+  P.buff={};P.buffT={};P.found={};P.flag={madgod:false};P.fight=null;P.steps=0;
+  closeFightbar();
+  logLines.length=0;
+  say('Skara Brae, and the snow has not stopped in three years.','say');
+  Snd.boot();
+  guild();
+}
+const NAMES=['Brann','Tarna','Kylo','Merrow','Sable','Dunn','Ysolde','Gorm','Pike',
+  'Wren','Halvard','Isolde','Rook','Fenn','Mab','Orrin','Thessa','Galt'];
+function guild(){
+  const full=P.roster.length>=6;
+  menu({title:"ADVENTURERS' GUILD",
+    sub:P.roster.length?P.roster.length+' of six. '+
+        (P.roster.length>=2?'You can leave when you are ready.':'Two at the very least.')
+       :'Nobody walks into the sewers alone.',
+    items:[
+      {label:'MAKE A CHARACTER',off:full,go:createName},
+      {label:'MARCHING ORDER',off:P.roster.length<2,go:orderScreen},
+      {label:'DISBAND SOMEBODY',off:!P.roster.length,go:disbandScreen},
+      {label:'SAVE THE PARTY',off:!P.roster.length,go:()=>{saveGame();say('Saved.','ok');guild();}},
+      {label:'OUT INTO THE STREET',off:P.roster.length<2,go:()=>{hideOverlay();
+        say('You step out into the snow.','dim');}}
+    ],
+    tip:P.roster.length<2?'The guild will not let two of you out, let alone one.':''});
+}
+function createName(){
+  const suggested=NAMES[Math.floor(R()*NAMES.length)];
+  menu({title:'WHO IS THIS?',
+    html:'<input id="nmin" maxlength="10" value="'+esc(suggested)+'" '+
+      'style="width:min(240px,80%);padding:8px;border-radius:8px;border:1px solid var(--line);'+
+      'background:var(--panel2);color:var(--ink);font:inherit;font-size:14px;text-align:center">',
+    items:[
+      {label:'ANOTHER NAME',go:createName},
+      {label:'CARRY ON',go:()=>{
+        const v=(el('nmin').value||suggested).trim()||suggested;
+        draft={name:v};createRace();}},
+      {label:'NEVER MIND',go:guild}
+    ]});
+}
+function createRace(){
+  menu({title:draft.name,sub:'What are they?',
+    items:RACE_ORDER.map(k=>({label:RACES[k].name,
+      right:Object.keys(RACES[k].mod).map(s=>s.toUpperCase()+(RACES[k].mod[s]>0?'+':'')+
+        RACES[k].mod[s]).join(' ')||'even',
+      go:()=>{draft.race=k;draft.stats=rollStats(k);createClass();}})).concat(
+      [{label:'BACK',go:createName}])});
+}
+function createClass(){
+  const st=draft.stats;
+  menu({title:draft.name+' the '+RACES[draft.race].name,
+    html:'<div class="sheet">'+STATS.map(s=>
+      '<div class="r"><span>'+{st:'Strength',iq:'Intellect',dx:'Dexterity',
+        cn:'Constitution',lk:'Luck'}[s]+'</span><span>'+st[s]+'</span></div>').join('')+'</div>',
+    sub:'Some doors are shut by the dice. Roll again if you like.',
+    items:[{label:'ROLL AGAIN',go:()=>{draft.stats=rollStats(draft.race);createClass();}}]
+      .concat(CLASS_ORDER.map(k=>({label:CLASSES[k].name,
+        right:meetsReq(st,k)?'':Object.keys(CLASSES[k].req).map(r=>r.toUpperCase()+' '+
+          CLASSES[k].req[r]).join(' '),
+        off:!meetsReq(st,k),
+        go:()=>{
+          const pc=mkChar(draft.name,draft.race,k,st);
+          starterKit(pc);
+          P.roster.push(pc);
+          say(pc.name+' the '+RACES[pc.race].name+' '+CLASSES[pc.cls].name+' joins you.','ok');
+          guild();
+        }})))
+      .concat([{label:'BACK',go:createRace}])});
+}
+/* Nobody starts naked: the guild hands out what the class can hold. */
+function starterKit(pc){
+  const a=CLASSES[pc.cls].armour;
+  if(a==='all'){pc.gear.weapon='shortsw';pc.gear.body='leather';pc.gear.shield='buckler';}
+  else if(a==='light'){pc.gear.weapon=pc.cls==='hunter'?'bow':'dagger';pc.gear.body='leather';}
+  else{pc.gear.weapon='staff';pc.gear.body='robes';}
+  pc.pack.push('torch');
+}
+function orderScreen(){
+  menu({title:'MARCHING ORDER',
+    sub:'The first four take the blows. Tap two to swap them.',
+    items:P.roster.map((pc,i)=>({label:(i+1)+'  '+pc.name,
+      right:(i<4?'front':'back')+' · '+CLASSES[pc.cls].name,
+      go:()=>{
+        if(draft&&draft.swap!==undefined&&draft.swap!==i){
+          const j=draft.swap;
+          [P.roster[i],P.roster[j]]=[P.roster[j],P.roster[i]];
+          draft=null;orderScreen();
+        }else{draft={swap:i};orderScreen();}
+      }})).concat([{label:'DONE',go:()=>{draft=null;guild();}}]),
+    tip:draft&&draft.swap!==undefined?'Now tap the one to swap with.':''});
+}
+function disbandScreen(){
+  menu({title:'DISBAND',sub:'They go back to whatever they were doing.',
+    items:P.roster.map((pc,i)=>({label:pc.name,right:CLASSES[pc.cls].name,
+      go:()=>{say(pc.name+' leaves the party.','dim');P.roster.splice(i,1);guild();}}))
+      .concat([{label:'BACK',go:guild}])});
+}
+
+/* ---------- the five doors and the grate ---------- */
+function openService(which){
+  ({guild,garth,temple,tavern,review,grate})[which]();
+}
+function garth(){
+  menu({title:"GARTH'S EQUIPMENT",sub:'Gold: '+P.gold,
+    items:[
+      {label:'BUY',go:buyWho},
+      {label:'SELL',go:sellWho},
+      {label:'LEAVE',go:leaveShop}
+    ]});
+}
+function leaveShop(){
+  hideOverlay();
+  stepBack();
+}
+/* Coming out of a building puts you back in the street you came from, which is
+ * the only sane thing to do when the door is a square you stand on. */
+function stepBack(){
+  const[dx,dy]=DIRS[P.dir];
+  if(!solid(P.depth,P.x-dx,P.y-dy)&&tileAt(P.depth,P.x-dx,P.y-dy)!=='~'){
+    P.x-=dx;P.y-=dy;
+  }
+  P.dir=(P.dir+2)%4;
+  paint();
+}
+function buyWho(){
+  menu({title:'BUY FOR WHOM?',sub:'Gold: '+P.gold,
+    items:P.roster.map((pc,i)=>({label:pc.name,right:CLASSES[pc.cls].name,
+      go:()=>buyList(i)})).concat([{label:'BACK',go:garth}])});
+}
+function buyList(i){
+  const pc=P.roster[i];
+  menu({title:'FOR '+pc.name.toUpperCase(),sub:'Gold: '+P.gold,
+    items:Object.keys(ITEMS).map(id=>{
+      const it=ITEMS[id];
+      const ok=canUse(pc,id)&&P.gold>=it.cost;
+      return{label:it.name,right:it.cost+'g'+(canUse(pc,id)?'':' — no'),off:!ok,
+        go:()=>{
+          P.gold-=it.cost;pc.pack.push(id);
+          equipBest(pc);
+          say(pc.name+' buys '+it.name+'.','ok');Snd.coin();
+          buyList(i);
+        }};
+    }).concat([{label:'BACK',go:buyWho}])});
+}
+/* Whatever is in the pack that the character can hold and that is better than
+ * what they have on, goes on. Nobody carries plate in a sack. */
+function equipBest(pc){
+  const slots={weapon:'weapon',body:'body',shield:'shield',helm:'helm'};
+  for(const id of pc.pack.slice()){
+    const it=ITEMS[id];
+    const slot=slots[it.kind];
+    if(!slot||!canUse(pc,id))continue;
+    const cur=pc.gear[slot]?ITEMS[pc.gear[slot]]:null;
+    const score=x=>x?(x.ac||0)*10+(x.dmg?x.dmg[0]*x.dmg[1]:0):-1;
+    if(score(it)>score(cur)){
+      if(slot==='shield'&&pc.gear.weapon&&ITEMS[pc.gear.weapon].hands===2)continue;
+      if(cur)pc.pack.push(pc.gear[slot]);
+      pc.gear[slot]=id;
+      pc.pack.splice(pc.pack.indexOf(id),1);
+    }
+  }
+}
+function sellWho(){
+  menu({title:'SELL WHAT?',sub:'Gold: '+P.gold,
+    items:P.roster.flatMap((pc,i)=>pc.pack.map((id,j)=>({
+      label:pc.name+': '+ITEMS[id].name,right:Math.floor(ITEMS[id].cost/2)+'g',
+      go:()=>{
+        P.gold+=Math.floor(ITEMS[id].cost/2);
+        pc.pack.splice(j,1);
+        say(pc.name+' sells '+ITEMS[id].name+'.','ok');Snd.coin();
+        sellWho();
+      }}))).concat([{label:'BACK',go:garth}])});
+}
+/* What the Temple charges. The first pass had a resurrection at six hundred a
+ * level against monsters that dropped three gold, so a party that lost anybody
+ * lost them for good and then lost everybody. */
+const TEMPLE={wound:8,poison:70,dead:220};
+function temple(){
+  const jobs=P.roster.map((pc,i)=>{
+    if(pc.status==='dead')return{pc,i,what:'dead',cost:TEMPLE.dead*pc.lvl};
+    if(pc.status==='poisoned')return{pc,i,what:'poison',cost:TEMPLE.poison};
+    if(pc.hp<pc.maxhp)return{pc,i,what:'wound',cost:TEMPLE.wound*(pc.maxhp-pc.hp)};
+    return null;
+  }).filter(Boolean);
+  menu({title:'TEMPLE OF THE MOON',sub:'Gold: '+P.gold,
+    items:jobs.map(j=>({
+      label:j.pc.name+' — '+{dead:'dead',poison:'poisoned',wound:'wounded'}[j.what],
+      right:j.cost+'g',off:P.gold<j.cost,
+      go:()=>{
+        P.gold-=j.cost;
+        j.pc.status='ok';j.pc.hp=j.pc.maxhp;
+        say('The priests see to '+j.pc.name+'.','ok');Snd.magic();
+        temple();
+      }})).concat(
+      jobs.length?[]:[{label:'NOBODY NEEDS US',off:true,go:null}],
+      [{label:'LEAVE',go:leaveShop}])});
+}
+function tavern(){
+  const RUMOURS=[
+    'Mangar sits at the top of a tower that has no door at the bottom.',
+    'The grate in the plaza has been unlocked since the first winter.',
+    'There is a thing under the third level that used to be a god.',
+    'Some floors down there turn you around. Count your steps, not your turns.',
+    'A dark square will take your light and not give it back.',
+    'The Review Board will not promote a corpse. Temple first.'
+  ];
+  const bards=P.roster.filter(pc=>pc.cls==='bard');
+  menu({title:'THE SCARLET BARD',sub:'Gold: '+P.gold,
+    items:[
+      {label:'BUY A ROUND',right:'50g',off:P.gold<50||!bards.length,
+       go:()=>{P.gold-=50;bards.forEach(b=>b.flask=Math.min(6,b.flask+3));
+         say('The flasks are full again.','ok');Snd.coin();tavern();}},
+      {label:'LISTEN',go:()=>{say('"'+pick(RUMOURS)+'"','say');tavern();}},
+      {label:'LEAVE',go:leaveShop}],
+    tip:bards.length?'':'No bard in the party, so the drink is just a drink.'});
+}
+function review(){
+  const ready=P.roster.filter(pc=>pc.xp>=nextXp(pc)&&pc.status!=='dead');
+  menu({title:'REVIEW BOARD',
+    sub:ready.length?'Somebody has earned something.':'Come back with more behind you.',
+    items:P.roster.map(pc=>({
+      label:pc.name,right:pc.xp+' / '+nextXp(pc),
+      off:!(pc.xp>=nextXp(pc)&&pc.status!=='dead'),
+      go:()=>{levelUp(pc);review();}}))
+      .concat([{label:'LEAVE',go:leaveShop}])});
+}
+function levelUp(pc){
+  pc.xp-=nextXp(pc);
+  pc.lvl++;
+  const C=CLASSES[pc.cls];
+  const hp=Math.max(1,d(1,C.hd)+statBonus(pc.cn));
+  pc.maxhp+=hp;pc.hp+=hp;
+  if(C.sp){const sp=Math.max(1,d(1,C.sp)+statBonus(pc.iq));pc.maxsp+=sp;pc.sp+=sp;}
+  say(pc.name+' is now level '+pc.lvl+'. '+hp+' more hit points.','ok');
+  const learned=knownSpells(pc).filter(s=>s.at===Math.ceil(pc.lvl/2));
+  learned.forEach(s=>say('  learns '+s.code+' — '+s.name,'ok'));
+  Snd.win();
+}
+function grate(){
+  menu({title:'THE GRATE',
+    sub:'It is not locked. It has not been locked for three years.',
+    items:[
+      {label:'DOWN INTO THE SEWERS',go:()=>{
+        P.depth=1;P.x=LEVELS[1].up[0];P.y=LEVELS[1].up[1];P.dir=1;
+        say('The grate closes over you.','say');Snd.door();
+        hideOverlay();}},
+      {label:'NOT TODAY',go:leaveShop}]});
+}
+function askStairs(t){
+  const up=t==='<';
+  menu({title:up?'STAIRS UP':'STAIRS DOWN',
+    items:[
+      {label:up?(P.depth===1?'OUT INTO THE PLAZA':'UP A LEVEL'):'DOWN A LEVEL',
+       go:()=>{
+        if(up){
+          if(P.depth===1){P.depth=0;P.x=12;P.y=10;P.dir=2;P.light=0;
+            say('You come up through the grate into the snow.','say');}
+          else{P.depth--;const dn=LEVELS[P.depth].down;P.x=dn[0];P.y=dn[1];}
+        }else{
+          P.depth++;P.x=LEVELS[P.depth].up[0];P.y=LEVELS[P.depth].up[1];
+          say('Down to level '+P.depth+'.','say');
+        }
+        Snd.door();hideOverlay();}},
+      {label:'STAY WHERE YOU ARE',go:hideOverlay}]});
+}
+
+/* ---------- giving orders ---------- */
+/* The orders go in the button pad rather than over the picture: whatever you
+ * are deciding, you should be able to see what you are deciding about. */
+const fightbar=el('fightbar');
+function askOrder(pc){
+  const f=P.fight;
+  hideOverlay();
+  const spells=knownSpells(pc).filter(s=>s.where==='fight'||s.where==='any');
+  const acts=[
+    {label:'ATTACK',go:()=>pickGroup(g2=>setOrder({k:'attack',g:g2}),pc)},
+    {label:'DEFEND',go:()=>setOrder({k:'defend'})},
+    {label:'CAST',off:!spells.length||pc.sp<=0,
+     go:()=>pickSpell(pc,spells,sp=>{
+       if(sp.fx==='heal')pickAlly(a=>setOrder({k:'cast',sp,ally:a}));
+       else if(sp.fx==='dmg'||sp.fx==='group'||sp.fx==='slay')
+         pickGroup(g2=>setOrder({k:'cast',sp,g:g2}),pc);
+       else setOrder({k:'cast',sp});
+     },()=>askOrder(pc))},
+    {label:'SING',off:pc.cls!=='bard'||pc.flask<=0,
+     go:()=>pickSong(pc,s=>setOrder({k:'sing',song:s}),()=>askOrder(pc))},
+    {label:'ITEM',off:!pc.pack.length,
+     go:()=>pickItem(pc,idx=>{
+       const it=ITEMS[pc.pack[idx]];
+       if(it.heal)pickAlly(a=>setOrder({k:'use',idx,ally:a}));
+       else setOrder({k:'use',idx});
+     },()=>askOrder(pc))},
+    {label:'RUN',off:!!f.boss,go:()=>setOrder({k:'run'})}
+  ];
+  fightbar.hidden=false;
+  fightbar.innerHTML='<div class="who">'+esc(pc.name)+' — round '+f.round+'</div>'+
+    acts.map(a=>'<button class="btn" type="button"'+(a.off?' disabled':'')+'>'+
+      esc(a.label)+'</button>').join('');
+  Array.from(fightbar.querySelectorAll('button')).forEach((b,i)=>{
+    if(acts[i].off)return;
+    b.addEventListener('click',()=>{Snd.boot();acts[i].go();});
+  });
+  fightOrder=acts;fightSel=acts.findIndex(a=>!a.off);
+  paintFightbar();
+  paint();
+}
+let fightOrder=[],fightSel=0;
+function paintFightbar(){
+  Array.from(fightbar.querySelectorAll('button')).forEach((b,i)=>
+    b.classList.toggle('on',i===fightSel));
+}
+function fightMove(n){
+  if(!fightOrder.length)return;
+  for(let i=0;i<fightOrder.length;i++){
+    fightSel=(fightSel+n+fightOrder.length)%fightOrder.length;
+    if(!fightOrder[fightSel].off)break;
+  }
+  paintFightbar();
+}
+function fightEnter(){const a=fightOrder[fightSel];if(a&&!a.off)a.go();}
+function closeFightbar(){fightbar.hidden=true;fightbar.innerHTML='';fightOrder=[];}
+function pickGroup(then,pc){
+  const f=P.fight;
+  menu({cls:'low',title:'AT WHICH?',
+    items:f.groups.map((g,i)=>({label:(i+1)+') '+g.name,
+      right:groupAlive(g)?(pc&&!meleeReaches(i,pc)?'out of reach':''):'down',
+      off:!groupAlive(g),go:()=>then(i)}))
+      .concat([{label:'BACK',go:()=>askOrder(P.roster[f.who])}])});
+}
+function pickSpell(pc,spells,then,back){
+  menu({cls:P.fight?'low':'',title:'WHICH SPELL?',sub:pc.name+' has '+pc.sp+' spell points.',
+    items:spells.map(s=>({label:s.code+'  '+s.name,right:s.sp+'sp',off:pc.sp<s.sp,
+      go:()=>then(s)})).concat([{label:'BACK',go:back}])});
+}
+function pickSong(pc,then,back){
+  menu({cls:P.fight?'low':'',title:'WHICH SONG?',sub:pc.name+' has '+pc.flask+' swallows left.',
+    items:SONGS.map((s,i)=>({label:s.name,right:s.text,go:()=>then(i)}))
+      .concat([{label:'BACK',go:back}])});
+}
+function pickItem(pc,then,back){
+  menu({cls:P.fight?'low':'',title:'WHICH ITEM?',
+    items:pc.pack.map((id,i)=>({label:ITEMS[id].name,go:()=>then(i)}))
+      .concat([{label:'BACK',go:back}])});
+}
+function pickAlly(then){
+  menu({cls:P.fight?'low':'',title:'FOR WHOM?',
+    items:P.roster.map((pc,i)=>({label:pc.name,
+      right:pc.status==='dead'?'dead':pc.hp+'/'+pc.maxhp,
+      go:()=>then(pc)}))});
+}
+
+/* ---------- out of a fight ---------- */
+function castMenu(){
+  if(P.fight)return;
+  const casters=P.roster.filter(pc=>alive(pc)&&knownSpells(pc).length&&pc.sp>0);
+  if(!casters.length){say('Nobody here has a spell left.','dim');return;}
+  menu({title:'WHO CASTS?',
+    items:casters.map(pc=>({label:pc.name,right:pc.sp+'sp',
+      go:()=>{
+        const spells=knownSpells(pc).filter(s=>s.where!=='fight');
+        if(!spells.length){say(pc.name+' knows nothing for out here.','dim');hideOverlay();return;}
+        pickSpell(pc,spells,sp=>{
+          if(sp.fx==='heal')pickAlly(a=>{castAt(pc,sp,0,a);hideOverlay();});
+          else{castAt(pc,sp,0);hideOverlay();}
+        },castMenu);
+      }})).concat([{label:'NEVER MIND',go:hideOverlay}])});
+}
+function singMenu(){
+  if(P.fight)return;
+  const bards=P.roster.filter(pc=>alive(pc)&&pc.cls==='bard'&&pc.flask>0);
+  if(!bards.length){say('No bard with anything left in the flask.','dim');return;}
+  const pc=bards[0];
+  pickSong(pc,i=>{sing(pc,i);hideOverlay();},hideOverlay);
+}
+function useMenu(){
+  if(P.fight)return;
+  const who=P.roster.filter(pc=>alive(pc)&&pc.pack.length);
+  if(!who.length){say('Nobody is carrying anything to use.','dim');return;}
+  menu({title:'WHO USES WHAT?',
+    items:who.map(pc=>({label:pc.name,right:pc.pack.length+' things',
+      go:()=>pickItem(pc,idx=>{
+        const it=ITEMS[pc.pack[idx]];
+        if(it.heal)pickAlly(a=>{useItem(pc,idx,a);hideOverlay();});
+        else{useItem(pc,idx);hideOverlay();}
+      },useMenu)})).concat([{label:'NEVER MIND',go:hideOverlay}])});
+}
+function partyMenu(){
+  menu({title:'THE PARTY',
+    items:P.roster.map(pc=>({label:pc.name,
+      right:CLASSES[pc.cls].name+' '+pc.lvl,go:()=>sheet(pc)}))
+      .concat([{label:'CLOSE',go:hideOverlay}])});
+}
+function sheet(pc){
+  const w=weaponOf(pc);
+  const gear=['weapon','body','shield','helm'].map(s=>pc.gear[s]?ITEMS[pc.gear[s]].name:'—');
+  const spells=knownSpells(pc);
+  menu({title:pc.name,
+    sub:RACES[pc.race].name+' '+CLASSES[pc.cls].name+', level '+pc.lvl,
+    html:'<div class="sheet">'+
+      STATS.map(s=>'<div class="r"><span>'+{st:'Strength',iq:'Intellect',dx:'Dexterity',
+        cn:'Constitution',lk:'Luck'}[s]+'</span><span>'+pc[s]+'</span></div>').join('')+
+      '<div class="r"><span>Hit points</span><span>'+pc.hp+' / '+pc.maxhp+'</span></div>'+
+      (pc.maxsp?'<div class="r"><span>Spell points</span><span>'+pc.sp+' / '+pc.maxsp+'</span></div>':'')+
+      (pc.cls==='bard'?'<div class="r"><span>Flask</span><span>'+pc.flask+'</span></div>':'')+
+      '<div class="r"><span>Armour class</span><span>'+acOf(pc)+'</span></div>'+
+      '<div class="r"><span>Experience</span><span>'+pc.xp+' / '+nextXp(pc)+'</span></div>'+
+      '<div class="r"><span>Weapon</span><span>'+esc(w.name)+'</span></div>'+
+      '<div class="r"><span>Worn</span><span>'+esc(gear.slice(1).join(', '))+'</span></div>'+
+      '<div class="r"><span>Carrying</span><span>'+
+        esc(pc.pack.map(id=>ITEMS[id].name).join(', ')||'nothing')+'</span></div>'+
+      (spells.length?'<div class="r"><span>Knows</span><span>'+
+        spells.map(s=>s.code).join(' ')+'</span></div>':'')+
+      '</div>',
+    items:[{label:'BACK',go:partyMenu}],back:partyMenu});
+}
+function gameMenu(){
+  menu({title:'MENU',sub:'Gold: '+P.gold+' · '+P.steps+' steps taken',
+    items:[
+      {label:'SAVE',off:!P.roster.length,go:()=>{saveGame();say('Saved.','ok');hideOverlay();}},
+      {label:'LOAD THE SAVED PARTY',off:!load('bt.save',null),go:()=>{loadGame();}},
+      {label:'BACK TO THE TITLE',go:showSplash},
+      {label:'CLOSE',go:hideOverlay}]});
+}
+
+/* ---------- keeping it ---------- */
+function saveGame(){
+  save('bt.save',JSON.stringify({v:1,roster:P.roster,gold:P.gold,depth:P.depth,
+    x:P.x,y:P.y,dir:P.dir,light:P.light,found:P.found,flag:P.flag,steps:P.steps}));
+}
+function loadGame(){
+  const raw=load('bt.save',null);
+  if(!raw)return false;
+  let s;try{s=JSON.parse(raw);}catch(e){return false;}
+  if(!s||!s.roster||!s.roster.length)return false;
+  P.roster=s.roster;P.gold=s.gold|0;P.depth=s.depth|0;P.x=s.x|0;P.y=s.y|0;
+  P.dir=s.dir|0;P.light=s.light|0;P.found=s.found||{};P.flag=s.flag||{madgod:false};
+  P.steps=s.steps|0;P.buff={};P.buffT={};P.fight=null;
+  closeFightbar();
+  logLines.length=0;
+  say('You pick up where you left off.','say');
+  hideOverlay();
+  return true;
+}
+
+/* ---------- input ---------- */
+function held(id,fn){
+  const b=el(id);
+  b.addEventListener('click',e=>{e.preventDefault();Snd.boot();if(!b.disabled)fn();});
+}
+held('bfwd',()=>{if(!overlayUp())step();});
+held('bturnl',()=>{if(!overlayUp())turn(-1);});
+held('bturnr',()=>{if(!overlayUp())turn(1);});
+el('bparty').addEventListener('click',()=>{Snd.boot();if(P.roster.length)partyMenu();});
+el('bcast').addEventListener('click',()=>{Snd.boot();if(!overlayUp())castMenu();});
+el('bsing').addEventListener('click',()=>{Snd.boot();if(!overlayUp())singMenu();});
+el('buse').addEventListener('click',()=>{Snd.boot();if(!overlayUp())useMenu();});
+el('bmenu').addEventListener('click',()=>{Snd.boot();gameMenu();});
+
+document.addEventListener('keydown',ev=>{
+  const k=ev.key;
+  const typing=ev.target&&ev.target.tagName==='INPUT';
+  if(typing&&k!=='Enter')return;
+  if(!overlayUp()&&fightOrder.length){
+    if(k==='ArrowLeft'||k==='a'||k==='A'||k==='ArrowUp'){fightMove(-1);ev.preventDefault();}
+    else if(k==='ArrowRight'||k==='d'||k==='D'||k==='ArrowDown'){fightMove(1);ev.preventDefault();}
+    else if(k==='Enter'||k===' '){fightEnter();ev.preventDefault();}
+    return;
+  }
+  if(overlayUp()){
+    if(k==='ArrowUp'||k==='w'||k==='W'){menuMove(-1);ev.preventDefault();}
+    else if(k==='ArrowDown'||k==='s'||k==='S'){menuMove(1);ev.preventDefault();}
+    else if(k==='Enter'||k===' '){menuEnter();ev.preventDefault();}
+    else if(k==='Escape'&&menuBack){menuBack();ev.preventDefault();}
+    return;
+  }
+  if(k==='ArrowUp'||k==='w'||k==='W'){step();ev.preventDefault();}
+  else if(k==='ArrowLeft'||k==='a'||k==='A'){turn(-1);ev.preventDefault();}
+  else if(k==='ArrowRight'||k==='d'||k==='D'){turn(1);ev.preventDefault();}
+  else if(k==='ArrowDown'||k==='s'||k==='S'){turn(2);ev.preventDefault();}
+  else if(k==='c'||k==='C')castMenu();
+  else if(k==='b'||k==='B')singMenu();
+  else if(k==='u'||k==='U')useMenu();
+  else if(k==='p'||k==='P'){if(P.roster.length)partyMenu();}
+  else if(k==='Escape')gameMenu();
+  Snd.boot();
+});
+
+el('sound').addEventListener('click',()=>{
+  Snd.on=!Snd.on;save('bt.sound',Snd.on?'1':'0');
+  el('soundstate').textContent=Snd.on?'on':'off';
+  if(Snd.on){Snd.boot();Snd.coin();}
+});
+el('soundstate').textContent=Snd.on?'on':'off';
+
+/* ---------- boot ---------- */
+bakeMonsters();
+showSplash();
+paint();
+
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+<!-- no-zoom:start -->
+<script>
+/* ---- the pinch and the double tap ---- *
+ *
+ * iOS Safari has ignored `user-scalable=no` and `maximum-scale` in the viewport
+ * meta tag since iOS 10. Every one of these pages carried both and neither did
+ * anything, so a double tap anywhere - on the glass, on a control, on the black
+ * - zoomed the page, and a zoomed page puts the controls off the edge of the
+ * screen. In a game with a clock running that is not an inconvenience, it is a
+ * death, and full screen does not help because the zoom is applied to the
+ * visual viewport on top of whatever the layout is doing.
+ *
+ * Three things are needed and the meta tag is none of them:
+ *
+ *   1. gesturestart / gesturechange / gestureend. This is how WebKit offers a
+ *      pinch, and it exists on no other engine.
+ *   2. A non-passive touchend that eats the second tap of a double tap. It has
+ *      to be non-passive or preventDefault is ignored outright, and it has to
+ *      be touchend rather than dblclick, because the zoom is committed before
+ *      a dblclick is ever dispatched.
+ *   3. A way back for a player who is zoomed already, because neither of the
+ *      above can un-zoom a page that is. Rewriting the viewport meta is the
+ *      only lever a page has over WebKit's zoom, and it only fires on a real
+ *      change, so the content is toggled rather than re-set.
+ *
+ * This file is the one copy. tools/sync-nozoom.js writes it into each game
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  var D=document, W=window;
+  if(!D.addEventListener)return;
+  for(var i=0,g=["gesturestart","gesturechange","gestureend"];i<g.length;i++)
+    D.addEventListener(g[i],function(e){e.preventDefault();},{passive:false});
+  /* Eating the second tap of a double tap eats the click the browser makes
+   * out of it, and every game here has controls that listen for one - so on a
+   * control this would cost the player every second press of a fast mash,
+   * which in a game about pressing fire quickly is worse than the zoom. The
+   * controls do not need it: a button carrying touch-action none or
+   * manipulation is already exempt from double-tap zoom on every engine that
+   * honours it. So the guard leaves anything pressable alone and covers the
+   * rest of the page, which is where the zoom was coming from. */
+  var PRESSABLE="button,a,input,select,textarea,label,[data-cmd],[role=button]";
+  function pressable(t){
+    return !!(t&&t.closest&&t.closest(PRESSABLE));
+  }
+  var lastTap=0;
+  D.addEventListener("touchend",function(e){
+    var now=Date.now();
+    if(now-lastTap<=350&&e.cancelable&&!pressable(e.target))e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+  /* A second finger is a pinch wherever it lands, and no game here wants one. */
+  D.addEventListener("touchstart",function(e){
+    if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+  },{passive:false});
+
+  var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
+  if(!vv||!meta)return;
+  var base=meta.getAttribute("content"), fixing=false;
+  function unzoom(){
+    if(fixing||vv.scale<=1.01)return;
+    fixing=true;
+    meta.setAttribute("content",base+", minimum-scale=1");
+    W.setTimeout(function(){
+      meta.setAttribute("content",base);
+      fixing=false;
+      if(W.scrollTo)W.scrollTo(0,0);
+    },50);
+  }
+  vv.addEventListener("resize",unzoom);
+  vv.addEventListener("scroll",unzoom);
+  W.__unzoom=unzoom;                 // so a harness can ask for it directly
+})();
+</script>
+<!-- no-zoom:end -->
+</body>
+</html>

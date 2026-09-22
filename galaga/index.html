@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Galaga — The Swarm</title>
+<meta name="description" content="Galaga: a browser recreation of Namco's 1981 arcade classic. Forty enemies fly in, the formation breathes, and the boss wants your fighter — take it back and shoot twice as wide.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%B8%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#04040a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Galaga">
+<style>
+:root{--bg:#0a0a12;--panel:#14141f;--panel2:#1e1e2d;--ink:#e6e6f2;--dim:#9a9ab4;--gold:#e8c63a;
+  --line:#2e2e42;--hi:#5ad1e6}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#e9e9f2;--panel:#fff;--panel2:#f2f2f8;--ink:#16161f;
+    --dim:#5c5c74;--line:#d2d2e0}
+}
+:root[data-theme="dark"]{--bg:#0a0a12;--panel:#14141f;--panel2:#1e1e2d;--ink:#e6e6f2;--dim:#9a9ab4;
+  --line:#2e2e42}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise iOS Safari's selection handles and its Copy callout. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,.soundrow,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:520px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:8px}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:7/9;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none;flex:0 1 auto;min-height:0}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto}
+.padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#16130a;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.move{width:82px;height:66px;font-size:22px}
+.abtn{width:92px;height:74px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.04em}
+.sbtn{width:62px;height:32px;border-radius:9px;font-size:10px;font-weight:700}
+.tops{display:flex;gap:6px}
+#overlay{position:absolute;inset:0;background:rgba(6,6,12,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Over the title art the overlay is only a scrim, so the swarm shows through. */
+#overlay.splash{background:linear-gradient(rgba(4,4,10,0) 0%,rgba(4,4,10,0) 44%,rgba(4,4,10,.93) 70%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 14px}
+#overlay.splash h1{font-size:17px;margin-bottom:2px;text-shadow:0 1px 3px #000}
+#overlay.splash .menuitem{width:min(280px,82%);padding:9px;background:rgba(20,20,34,.92);
+  border-color:#4a4a6a;color:#e6e6f2}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#16130a}
+#overlay.splash .sub,#overlay.splash small.tip{color:#c9c9e0;text-shadow:0 1px 2px #000}
+#overlay.card{background:linear-gradient(rgba(4,4,10,.7),rgba(4,4,10,.95) 58%);justify-content:center}
+h1{font-size:23px;margin:0;letter-spacing:.18em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:380px;line-height:1.45}
+.menuitem{width:min(320px,88%);padding:11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#16130a;font-weight:700}
+small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
+.tally{font-size:12px;color:var(--ink);line-height:1.7;background:rgba(20,20,34,.85);
+  border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:min(300px,86%)}
+.tally .r{display:flex;justify-content:space-between;gap:18px}
+.tally .r span:last-child{color:var(--gold);font-weight:700}
+#sound{position:absolute;right:8px;top:8px;z-index:3}
+@media (pointer:fine){#pads{display:none}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status">
+    <span id="hud">1UP <b id="score">0</b> &nbsp; HIGH <b id="high">0</b></span>
+    <span id="hud2">STAGE <b id="stage-n">1</b></span>
+  </div>
+  <div id="stage">
+    <canvas id="c" width="224" height="288"></canvas>
+    <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button>
+    <div id="overlay" class="splash"></div>
+  </div>
+  <div id="pads">
+    <div class="padrow">
+      <button class="btn move" id="bl" type="button">◀<small>left</small></button>
+      <div class="tops">
+        <button class="btn sbtn" id="bp" type="button">PAUSE</button>
+      </div>
+      <button class="btn move" id="br" type="button">▶<small>right</small></button>
+    </div>
+    <div class="padrow" style="justify-content:center;margin-top:8px">
+      <button class="btn abtn" id="bf" type="button">FIRE</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* Galaga — The Swarm
+ *
+ * The playfield is the arcade's: 224x288 logical pixels, drawn at whatever size
+ * the page gives it with image-rendering:pixelated, so a pixel stays a pixel.
+ * Everything below works in those coordinates and never in CSS ones.
+ */
+const W=224,H=288;
+
+/* ---------- small helpers ---------- */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2;
+function rnd(n){return Math.random()*n;}
+function pick(a){return a[(Math.random()*a.length)|0];}
+
+/* localStorage is absent in a file:// sandbox on some browsers and throws on
+ * read in private mode on others, so every touch of it is guarded. */
+function load(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,String(v));}catch(e){}}
+
+/* ---------- sound ---------- */
+/* Six voices, all built from oscillators at call time; there is no sample data
+ * in the page and nothing is fetched, which is what keeps it a single file. */
+const Snd={ctx:null,on:load('galaga.sound','1')==='1',
+  boot(){
+    if(this.ctx)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();}catch(e){this.ctx=null;}
+  },
+  tone(type,f0,f1,dur,gain,delay){
+    if(!this.on)return;this.boot();const c=this.ctx;if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const t=c.currentTime+(delay||0);
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(f0,t);
+    if(f1&&f1!==f0)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(gain,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.02);
+  },
+  noise(dur,gain,f,delay){
+    if(!this.on)return;this.boot();const c=this.ctx;if(!c)return;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=buf;
+    const bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f||900;
+    const g=c.createGain();g.gain.value=gain;
+    s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(c.currentTime+(delay||0));
+  },
+  shot(){this.tone('square',1180,320,0.09,0.06);},
+  kill(){this.noise(0.26,0.16,1200);this.tone('sawtooth',420,90,0.22,0.05);},
+  bossHit(){this.tone('square',300,520,0.07,0.07);},
+  die(){this.noise(0.75,0.22,420);this.tone('sawtooth',260,40,0.7,0.09);},
+  beam(){this.tone('sine',180,700,0.5,0.05);this.tone('sine',240,900,0.5,0.035,0.06);},
+  capture(){for(let i=0;i<6;i++)this.tone('square',300+i*110,300+i*110,0.1,0.05,i*0.1);},
+  rescue(){for(let i=0;i<5;i++)this.tone('square',440*Math.pow(2,i/5),0,0.12,0.06,i*0.09);},
+  dive(){this.tone('sawtooth',720,300,0.28,0.028);},
+  stage(){[392,523,659,784].forEach((f,i)=>this.tone('square',f,f,0.12,0.05,i*0.11));},
+  perfect(){[523,659,784,1046,1318].forEach((f,i)=>this.tone('square',f,f,0.13,0.06,i*0.1));},
+  extra(){[659,880,1174].forEach((f,i)=>this.tone('triangle',f,f,0.16,0.06,i*0.12));}
+};
+
+/* ---------- sprite art ---------- */
+/* Every sprite is a 16x16 pixel grid written out as text, so the picture in the
+ * source is the picture on the screen. They are baked once into canvases at
+ * boot; nothing draws from the strings in the frame loop. */
+const PAL={'.':null,W:'#ffffff',R:'#ee3322',Y:'#f8d000',B:'#2f7be8',C:'#5ad1e6',
+  G:'#38c840',P:'#b040d0',O:'#ff8a10',K:'#101018',S:'#c8c8e0'};
+
+const ART={};
+
+/* The fighter: white nose, red shoulders, two white wing pods. */
+ART.ship=[
+"................",
+".......WW.......",
+".......WW.......",
+"......WWWW......",
+"......WWWW......",
+"......WWWW......",
+".....WWWWWW.....",
+".....WRRRRW.....",
+"....WWRRRRWW....",
+"...WWWRRRRWWW...",
+"..WWWWRRRRWWWW..",
+"..WW.WWRRWW.WW..",
+"..WW..WWWW..WW..",
+"..WW..W..W..WW..",
+"................",
+"................"];
+
+/* Zako, the blue escort. Wings out, then wings folded. */
+ART.zako0=[
+"................",
+"...B........B...",
+"..BB........BB..",
+"..BBB..YY..BBB..",
+"...BBB.YY.BBB...",
+"...BBBYYYYBBB...",
+"..BBBBYYYYBBBB..",
+".BBBBYYWWYYBBBB.",
+".BBBBYYWWYYBBBB.",
+"..BBBBYYYYBBBB..",
+"...BBBYYYYBBB...",
+"....BB.YY.BB....",
+".....B.YY.B.....",
+".......YY.......",
+"......Y..Y......",
+"................"];
+ART.zako1=[
+"................",
+"................",
+"....BB....BB....",
+"....BBB.BBB.....",
+".....BB.YY.BB...",
+"....BBBBYYBBB...",
+"....BBBYYYYBB...",
+"...BBBYYWWYYBB..",
+"...BBBYYWWYYBB..",
+"....BBBYYYYBB...",
+".....BBYYYYBB...",
+".....BB.YY.BB...",
+"....BBB.YY.BBB..",
+"....BB..YY..BB..",
+"......Y..Y......",
+"................"];
+
+/* Goei, the red butterfly: the same wingspan, a white spine, cyan shoulders. */
+ART.goei0=[
+"................",
+"..R..........R..",
+"..RR........RR..",
+"...RR..RR..RR...",
+"...RRR.RR.RRR...",
+"..RRRRRWWRRRRR..",
+".RRRRRRWWRRRRRR.",
+".RRRRCCWWCCRRRR.",
+".RRRRCCWWCCRRRR.",
+"..RRRRRWWRRRRR..",
+"...RRRRWWRRRR...",
+"....RR.WW.RR....",
+".....R.WW.R.....",
+".......WW.......",
+"......W..W......",
+"................"];
+ART.goei1=[
+"................",
+"................",
+"....RR....RR....",
+"....RRR..RRR....",
+".....RR.RR.RR...",
+"....RRRRWWRRR...",
+"....RRRCWWCRR...",
+"...RRRCCWWCCRR..",
+"...RRRCCWWCCRR..",
+"....RRRCWWCRR...",
+".....RRRWWRRR...",
+".....RR.WW.RR...",
+"....RRR.WW.RRR..",
+"....RR..WW..RR..",
+"......W..W......",
+"................"];
+
+/* The boss: a green hull with two white eyes and purple wings. When it has
+ * taken a hit the green becomes purple, which is the only cue you get. */
+ART.boss0=[
+"................",
+".....GGGGGG.....",
+"....GGGGGGGG....",
+"...GGWWGGWWGG...",
+"...GGWWGGWWGG...",
+"..GGGGGGGGGGGG..",
+".GGGGGGGGGGGGGG.",
+".P.GGGGGGGGGG.P.",
+"PPP.GGGGGGGG.PPP",
+"PPPP.GGGGGG.PPPP",
+".PPP..GGGG..PPP.",
+"..P...GGGG...P..",
+"......GGGG......",
+".......GG.......",
+"......G..G......",
+"................"];
+ART.boss1=[
+"................",
+".....GGGGGG.....",
+"P...GGGGGGGG...P",
+"PP.GGWWGGWWGG.PP",
+"PPP.GWWGGWWG.PPP",
+".PPPGGGGGGGGPPP.",
+"..PPGGGGGGGGPP..",
+"...GGGGGGGGGG...",
+"...GGGGGGGGGG...",
+"....GGGGGGGG....",
+".....GGGGGG.....",
+"......GGGG......",
+"......GGGG......",
+".......GG.......",
+"......G..G......",
+"................"];
+
+/* Bake each grid into its own 16x16 canvas. `tint` swaps palette letters, which
+ * is how the boss goes purple after a hit without a second set of art. */
+function bake(grid,tint){
+  const cv=document.createElement('canvas');cv.width=16;cv.height=16;
+  const g=cv.getContext('2d');
+  for(let y=0;y<16;y++){
+    const row=grid[y]||'';
+    for(let x=0;x<16;x++){
+      let ch=row[x]||'.';
+      if(tint&&tint[ch])ch=tint[ch];
+      const col=PAL[ch];
+      if(!col)continue;
+      g.fillStyle=col;g.fillRect(x,y,1,1);
+    }
+  }
+  return cv;
+}
+/* The hurt boss: its green hull goes magenta and its wings go hot pink. The
+ * two colours are the whole warning that this one now dives at you. */
+const HURT={G:'P',P:'R'};
+const SPR={};
+function bakeAll(){
+  SPR.ship=bake(ART.ship);
+  SPR.shipDim=bake(ART.ship,{W:'S',R:'P'});
+  SPR.zako=[bake(ART.zako0),bake(ART.zako1)];
+  SPR.goei=[bake(ART.goei0),bake(ART.goei1)];
+  SPR.boss=[bake(ART.boss0),bake(ART.boss1)];
+  SPR.bossHurt=[bake(ART.boss0,HURT),bake(ART.boss1,HURT)];
+}
+
+/* ---------- geometry: paths ---------- */
+/* A path is a plain list of points. Flight advances along it by arc length, so
+ * speed is speed whatever the curvature, and the heading a sprite is drawn at
+ * comes from the step it just took rather than from a number stored anywhere. */
+function pathLen(p){
+  let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);
+  return L;
+}
+/* Walk `d` units along the polyline; returns {x,y,ang,done}. */
+function along(p,d){
+  if(p.length<2)return{x:p[0].x,y:p[0].y,ang:0,done:true};
+  let acc=0;
+  for(let i=1;i<p.length;i++){
+    const dx=p[i].x-p[i-1].x,dy=p[i].y-p[i-1].y,seg=Math.hypot(dx,dy);
+    if(seg<=0)continue;
+    if(acc+seg>=d){
+      const t=(d-acc)/seg;
+      return{x:p[i-1].x+dx*t,y:p[i-1].y+dy*t,ang:Math.atan2(dy,dx),done:false};
+    }
+    acc+=seg;
+  }
+  const n=p.length-1;
+  return{x:p[n].x,y:p[n].y,ang:Math.atan2(p[n].y-p[n-1].y,p[n].x-p[n-1].x),done:true};
+}
+function arc(out,cx,cy,r,a0,a1,step){
+  const n=Math.max(2,Math.ceil(Math.abs(a1-a0)/(step||0.14)));
+  for(let i=1;i<=n;i++){const a=lerp(a0,a1,i/n);out.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r});}
+}
+function line(out,x0,y0,x1,y1,step){
+  const d=Math.hypot(x1-x0,y1-y0),n=Math.max(1,Math.ceil(d/(step||6)));
+  for(let i=1;i<=n;i++)out.push({x:lerp(x0,x1,i/n),y:lerp(y0,y1,i/n)});
+}
+/* Cubic bezier, used wherever a flight has to leave one heading and arrive on
+ * another without a corner: the loop exits, the returns to formation. */
+function bez(out,p0,c0,c1,p1,n){
+  n=n||24;
+  for(let i=1;i<=n;i++){
+    const t=i/n,u=1-t;
+    out.push({x:u*u*u*p0.x+3*u*u*t*c0.x+3*u*t*t*c1.x+t*t*t*p1.x,
+              y:u*u*u*p0.y+3*u*u*t*c0.y+3*u*t*t*c1.y+t*t*t*p1.y});
+  }
+}
+
+/* The four entry flights of the arcade game, as point lists.
+ * dir is -1 for the left-hand mirror and +1 for the right-hand one. */
+function entryPath(kind,dir){
+  const p=[];
+  if(kind===0){
+    /* up the middle from below, then one full loop out to the side */
+    const x0=W/2-dir*16;
+    p.push({x:x0,y:H+26});
+    line(p,x0,H+26,x0,168,7);
+    const r=30,cx=x0+dir*r;
+    arc(p,cx,168,r,dir>0?Math.PI:0,dir>0?Math.PI+TAU:-TAU,0.15);
+    line(p,x0,168,x0,96,7);
+  }else if(kind===1){
+    /* in from a top corner, a wide dive across, and a loop low and central */
+    const x0=dir>0?W+22:-22;
+    p.push({x:x0,y:34});
+    bez(p,{x:x0,y:34},{x:W/2+dir*40,y:44},{x:W/2-dir*54,y:120},{x:W/2-dir*30,y:170},26);
+    const r=28,cx=W/2-dir*30+dir*r;
+    arc(p,cx,170,r,dir>0?Math.PI:0,dir>0?Math.PI+TAU:-TAU,0.15);
+    line(p,W/2-dir*30,170,W/2-dir*10,104,7);
+  }else if(kind===2){
+    /* from below on the flank, a tight climb up the outside */
+    const x0=W/2+dir*86;
+    p.push({x:x0,y:H+26});
+    line(p,x0,H+26,x0,190,7);
+    const r=34,cx=x0-dir*r;
+    arc(p,cx,190,r,dir>0?0:Math.PI,dir>0?-Math.PI*1.5:Math.PI*2.5,0.14);
+    const q=p[p.length-1];
+    line(p,q.x,q.y,W/2,116,7);
+  }else{
+    /* straight down from the top, split to the side, and back up into a loop */
+    const x0=W/2+dir*26;
+    p.push({x:x0,y:-24});
+    line(p,x0,-24,x0,150,7);
+    /* The loop has to start where the descent ended. Mirroring it by negating
+     * the sweep alone leaves the left-hand version starting a diameter away
+     * from the dive, which is a sixty-pixel jump nothing in the game's state
+     * would ever show. */
+    const r=30,cx=x0+dir*r;
+    arc(p,cx,150,r,dir>0?Math.PI:0,dir>0?Math.PI-TAU:TAU,0.15);
+    line(p,x0,150,W/2+dir*8,110,7);
+  }
+  return p;
+}
+
+/* A dive: peel out of the slot, loop once, then run at where the player is and
+ * off the bottom of the screen. `tx` is the player's x at the moment of peeling,
+ * which is why a dive never quite comes at you twice the same way. */
+function divePath(sx,sy,tx,dir){
+  const p=[{x:sx,y:sy}];
+  const r=22,cx=sx+dir*r;
+  arc(p,cx,sy,r,dir>0?Math.PI:0,dir>0?Math.PI+TAU:-TAU,0.17);
+  const mid={x:clamp(tx+dir*40,14,W-14),y:lerp(sy,H,0.45)};
+  bez(p,{x:sx,y:sy},{x:sx-dir*20,y:sy+46},{x:mid.x,y:mid.y-30},mid,18);
+  bez(p,mid,{x:mid.x,y:mid.y+40},{x:tx,y:H-40},{x:tx-dir*12,y:H+30},18);
+  return p;
+}
+/* Coming back: in from the top on the far side, then a curve home to the slot.
+ * The curve's first control point is straight ahead of the entry heading, so
+ * nothing ever arrives at its slot sideways. */
+function returnPath(fromX,slot){
+  const p=[{x:fromX,y:-22}];
+  bez(p,{x:fromX,y:-22},{x:fromX,y:60},{x:slot.x,y:slot.y-70},{x:slot.x,y:slot.y},22);
+  return p;
+}
+/* The boss's capture run: down the screen, then a hover well above the player. */
+function capturePath(sx,sy,tx){
+  const p=[{x:sx,y:sy}];
+  const r=20,dir=sx<W/2?1:-1,cx=sx+dir*r;
+  arc(p,cx,sy,r,dir>0?Math.PI:0,dir>0?Math.PI+TAU:-TAU,0.18);
+  bez(p,{x:sx,y:sy},{x:sx,y:sy+50},{x:tx,y:110},{x:tx,y:HOVER_Y},20);
+  return p;
+}
+const HOVER_Y=112;
+
+/* ---------- the formation ---------- */
+/* 10 columns and 5 rows, 40 slots, laid out as the arcade lays them out: four
+ * bosses across the middle of the top row, two rows of eight butterflies, two
+ * rows of ten bees. */
+const COLS=10,COLW=16,ROWH=16,TOPY=36;
+const ROWS=[
+  {kind:'boss',cols:[3,4,5,6]},
+  {kind:'goei',cols:[1,2,3,4,5,6,7,8]},
+  {kind:'goei',cols:[1,2,3,4,5,6,7,8]},
+  {kind:'zako',cols:[0,1,2,3,4,5,6,7,8,9]},
+  {kind:'zako',cols:[0,1,2,3,4,5,6,7,8,9]}
+];
+function slotList(){
+  const out=[];
+  ROWS.forEach((r,ri)=>r.cols.forEach(c=>out.push({kind:r.kind,row:ri,col:c})));
+  return out;
+}
+/* The formation sways and breathes. Both come from the clock and nothing else,
+ * so every enemy standing in it agrees about where its slot is. */
+const F={t:0,sway:0,spread:1};
+function formationStep(dt){
+  F.t+=dt;
+  F.sway=Math.sin(F.t*0.62)*9;
+  F.spread=1+Math.sin(F.t*0.37)*0.055;
+}
+function slotPos(s){
+  return{x:W/2+F.sway+(s.col-(COLS-1)/2)*COLW*F.spread,y:TOPY+s.row*ROWH};
+}
+
+/* ---------- state ---------- */
+const G={
+  state:'splash',          // splash | play | dying | stagecard | over | paused
+  stage:1,score:0,high:+load('galaga.high',0)||0,lives:3,startLives:3,
+  enemies:[],bullets:[],ebullets:[],booms:[],freed:null,
+  ship:{x:W/2,y:262,alive:true,dual:false,captured:false,t:0},
+  waves:[],waveT:0,waveI:0,spawnI:0,spawnT:0,
+  stageT:0,cardT:0,dieT:0,respawnT:0,
+  shots:0,hits:0,
+  challenge:false,chalHit:0,chalTotal:0,
+  msg:'',msgT:0,
+  nextExtra:20000,extraStep:70000,
+  diveT:1.6,captureT:0,capturing:false,
+  over:false
+};
+
+function stageIsChallenge(n){return n%4===3;}
+
+let nextId=1;
+function mkEnemy(slot,path){
+  return{id:nextId++,kind:slot.kind,slot,path,d:0,spd:0,st:'entering',
+    x:path[0].x,y:path[0].y,ang:Math.PI/2,frame:0,ft:0,
+    hp:slot.kind==='boss'?2:1,hurt:false,holds:false,
+    tween:null,tw:0,twd:0.55,shootT:rnd(1)+0.4,gone:0,escortOf:null};
+}
+
+/* Five flights of eight, each on one of the four entry paths, mirrored left and
+ * right alternately — the order the arcade brings them in. */
+function buildWaves(stage){
+  const slots=slotList();
+  const waves=[];
+  for(let i=0;i<5;i++){
+    const members=slots.slice(i*8,i*8+8);
+    const kind=[0,1,2,3,1][i];
+    const dir=(i%2===0)?1:-1;
+    waves.push({members,path:entryPath(kind,dir),dir});
+  }
+  return waves;
+}
+/* A challenging stage: the same five flights, but the slots are never taken —
+ * each group flies its path and leaves. Nothing shoots back. */
+function buildChallenge(stage){
+  const waves=[];
+  const kinds=[[0,1],[2,-1],[1,1],[3,-1],[2,1]];
+  for(let i=0;i<5;i++){
+    const members=[];
+    for(let j=0;j<8;j++)members.push({kind:j<2?'goei':'zako',row:0,col:j,pass:true});
+    waves.push({members,path:entryPath(kinds[i][0],kinds[i][1]),dir:kinds[i][1]});
+  }
+  return waves;
+}
+
+function startStage(n){
+  G.stage=n;
+  G.challenge=stageIsChallenge(n);
+  G.enemies.length=0;G.bullets.length=0;G.ebullets.length=0;G.booms.length=0;
+  G.freed=null;
+  G.waves=G.challenge?buildChallenge(n):buildWaves(n);
+  G.waveI=0;G.spawnI=0;G.waveT=0.7;G.spawnT=0;G.stageT=0;
+  G.chalHit=0;G.chalTotal=G.challenge?40:0;
+  G.diveT=G.challenge?1e9:2.2;
+  G.capturing=false;G.captureT=0;
+  F.t=0;
+  el('stage-n').textContent=n;
+}
+
+/* Entry speed climbs with the stage, which is most of the difficulty curve. */
+function entrySpeed(){return 112+Math.min(52,(G.stage-1)*4);}
+function diveSpeed(){return 78+Math.min(46,(G.stage-1)*3.4);}
+
+function spawnStep(dt){
+  if(G.waveI>=G.waves.length)return;
+  const wv=G.waves[G.waveI];
+  if(G.waveT>0){G.waveT-=dt;return;}
+  G.spawnT-=dt;
+  if(G.spawnT>0)return;
+  const m=wv.members[G.spawnI];
+  const e=mkEnemy(m,wv.path);
+  e.spd=entrySpeed();
+  e.pass=!!m.pass;
+  G.enemies.push(e);
+  if(G.spawnI===0)Snd.dive();
+  G.spawnI++;G.spawnT=0.19;
+  if(G.spawnI>=wv.members.length){G.waveI++;G.spawnI=0;G.waveT=1.05;}
+}
+
+/* ---------- flight ---------- */
+function toSlot(e){
+  const s=slotPos(e.slot);
+  const ahead=48;
+  const c0={x:e.x+Math.cos(e.ang)*ahead,y:e.y+Math.sin(e.ang)*ahead};
+  const c1={x:s.x,y:s.y-58};
+  e.tween={p0:{x:e.x,y:e.y},c0,c1,p1:s};
+  e.tw=0;e.st='toslot';
+}
+function tweenAt(tn,t){
+  const u=1-t,p0=tn.p0,c0=tn.c0,c1=tn.c1,p1=tn.p1;
+  return{x:u*u*u*p0.x+3*u*u*t*c0.x+3*u*t*t*c1.x+t*t*t*p1.x,
+         y:u*u*u*p0.y+3*u*u*t*c0.y+3*u*t*t*c1.y+t*t*t*p1.y};
+}
+function exitPath(e){
+  const dir=e.x<W/2?-1:1;
+  const p=[{x:e.x,y:e.y}];
+  bez(p,{x:e.x,y:e.y},{x:e.x+Math.cos(e.ang)*50,y:e.y+Math.sin(e.ang)*50},
+      {x:W/2+dir*120,y:H-30},{x:W/2+dir*150,y:H+40},20);
+  return p;
+}
+
+function enemyStep(e,dt){
+  e.ft+=dt;
+  if(e.ft>0.13){e.ft=0;e.frame^=1;}
+
+  if(e.st==='entering'||e.st==='diving'||e.st==='returning'||e.st==='capturing'||e.st==='exiting'){
+    const before=along(e.path,e.d);
+    e.d+=e.spd*dt;
+    const at=along(e.path,e.d);
+    e.x=at.x;e.y=at.y;
+    if(Math.hypot(at.x-before.x,at.y-before.y)>0.01)e.ang=at.ang;
+    if(at.done){
+      if(e.st==='entering'){
+        if(e.pass){e.path=exitPath(e);e.d=0;e.st='exiting';}
+        else toSlot(e);
+      }
+      else if(e.st==='exiting')e.dead=true;
+      else if(e.st==='diving'){e.st='gone';e.gone=0.35+rnd(0.5);}
+      else if(e.st==='returning'){e.st='slot';}
+      else if(e.st==='capturing'){e.st='beam';e.beamT=0;e.beamPh=0;}
+    }
+    return;
+  }
+  if(e.st==='beam'){
+    e.ang=Math.PI/2;
+    e.beamT+=dt;
+    if(e.beamPh===0&&e.beamT>0.55){e.beamPh=1;e.beamT=0;}
+    else if(e.beamPh===1&&e.beamT>1.5){e.beamPh=2;e.beamT=0;}
+    else if(e.beamPh===2&&e.beamT>0.45){
+      G.capturing=false;
+      e.path=returnPath(e.x<W/2?28:W-28,slotPos(e.slot));e.d=0;e.spd=diveSpeed();e.st='returning';
+    }
+    return;
+  }
+  if(e.st==='gone'){
+    e.gone-=dt;
+    e.x=-999;
+    if(e.gone<=0){
+      const fx=clamp(slotPos(e.slot).x+(rnd(40)-20),18,W-18);
+      e.path=returnPath(fx,slotPos(e.slot));e.d=0;e.spd=diveSpeed()*1.25;e.st='returning';
+    }
+    return;
+  }
+  if(e.st==='toslot'){
+    e.tw+=dt/e.twd;
+    const t=Math.min(1,e.tw);
+    const a=tweenAt(e.tween,Math.max(0,t-0.02)),b=tweenAt(e.tween,t);
+    e.x=b.x;e.y=b.y;
+    if(Math.hypot(b.x-a.x,b.y-a.y)>0.01)e.ang=Math.atan2(b.y-a.y,b.x-a.x);
+    if(t>=1){e.st='slot';e.ang=Math.PI/2;}
+    return;
+  }
+  /* in the formation: stand in the slot the clock puts you in */
+  const s=slotPos(e.slot);
+  e.x=s.x;e.y=s.y;e.ang=Math.PI/2;
+}
+
+function inFlight(e){return e.st==='diving'||e.st==='capturing'||e.st==='beam';}
+
+/* ---------- picking who dives ---------- */
+function slotted(){return G.enemies.filter(e=>e.st==='slot'&&!e.dead);}
+function launchDive(e,tx){
+  const dir=e.x<W/2?1:-1;
+  e.path=divePath(e.x,e.y,tx,dir);e.d=0;e.spd=diveSpeed();e.st='diving';
+  e.shootT=0.35+rnd(0.5);
+  Snd.dive();
+}
+function launchCapture(boss){
+  const tx=clamp(G.ship.x,34,W-34);
+  boss.path=capturePath(boss.x,boss.y,tx);boss.d=0;boss.spd=diveSpeed()*0.9;boss.st='capturing';
+  G.capturing=true;
+  Snd.beam();
+}
+function diveDirector(dt){
+  if(G.challenge||G.waveI<G.waves.length)return;
+  G.diveT-=dt;
+  if(G.diveT>0)return;
+  const pool=slotted();
+  if(!pool.length)return;
+  G.diveT=Math.max(0.75,2.5-G.stage*0.09)+rnd(0.7);
+
+  /* The boss wants your fighter, but only one beam at a time, only if you have
+   * a fighter to take, and never while you are already flying two. */
+  const bosses=pool.filter(e=>e.kind==='boss'&&!e.holds);
+  if(!G.capturing&&bosses.length&&G.ship.alive&&!G.ship.dual&&!G.ship.captured&&
+     G.stage>=2&&Math.random()<0.34){
+    launchCapture(pick(bosses));
+    return;
+  }
+  const boss=pool.filter(e=>e.kind==='boss');
+  if(boss.length&&Math.random()<0.4){
+    const b=pick(boss);
+    launchDive(b,G.ship.x);
+    /* two bees peel off with it; kill the boss with both still flying and it is
+     * worth sixteen hundred instead of four */
+    const bees=pool.filter(e=>e.kind==='zako').sort(
+      (a,c)=>Math.abs(a.x-b.x)-Math.abs(c.x-b.x)).slice(0,2);
+    b.escorts=bees;
+    bees.forEach((z,i)=>{
+      z.path=divePath(z.x,z.y,G.ship.x,z.x<W/2?1:-1);z.d=-(i+1)*13;
+      z.spd=diveSpeed();z.st='diving';z.escortOf=b;z.shootT=0.5+rnd(0.5);
+    });
+    return;
+  }
+  const n=1+(Math.random()<Math.min(0.55,0.15+G.stage*0.04)?1:0);
+  for(let i=0;i<n;i++){
+    const p=slotted();
+    if(!p.length)break;
+    launchDive(pick(p),G.ship.x+(rnd(30)-15));
+  }
+}
+
+/* ---------- shooting ---------- */
+function enemyFire(e){
+  const sx=G.ship.alive?G.ship.x:W/2, sy=G.ship.y;
+  const dx=sx-e.x,dy=Math.max(24,sy-e.y);
+  const L=Math.hypot(dx,dy),sp=98+Math.min(42,G.stage*3);
+  const jitter=(rnd(0.22)-0.11);
+  const a=Math.atan2(dy,dx)+jitter;
+  G.ebullets.push({x:e.x,y:e.y+6,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp});
+}
+function playerFire(){
+  const maxB=G.ship.dual?4:2;
+  if(!G.ship.alive||G.bullets.length>=maxB)return;
+  if(G.ship.dual){
+    G.bullets.push({x:G.ship.x-8,y:G.ship.y-8});
+    if(G.bullets.length<maxB)G.bullets.push({x:G.ship.x+8,y:G.ship.y-8});
+    G.shots+=2;
+  }else{
+    G.bullets.push({x:G.ship.x,y:G.ship.y-8});
+    G.shots++;
+  }
+  Snd.shot();
+}
+
+/* ---------- scoring ---------- */
+function valueOf(e){
+  const flying=inFlight(e)||e.st==='returning'||e.st==='entering'||e.st==='toslot'||e.st==='exiting';
+  if(G.challenge)return 100;
+  if(e.kind==='zako')return flying?100:50;
+  if(e.kind==='goei')return flying?160:80;
+  if(!flying)return 150;
+  const esc=(e.escorts||[]).filter(z=>!z.dead&&inFlight(z)).length;
+  return esc>=2?1600:esc===1?800:400;
+}
+function addScore(n){
+  G.score+=n;
+  if(G.score>=G.nextExtra){
+    G.lives++;G.nextExtra+=G.extraStep;Snd.extra();
+    flash('EXTRA FIGHTER');
+  }
+  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  el('score').textContent=G.score;
+  el('high').textContent=G.high;
+}
+function flash(t){G.msg=t;G.msgT=1.6;}
+function boom(x,y,big){G.booms.push({x,y,t:0,big:!!big,seed:(Math.random()*1e9)|0});}
+
+/* ---------- hitting things ---------- */
+function hitBoxes(e){
+  /* the drawn sprite is 16 wide but the body inside it is not; the arcade is
+   * forgiving here and so is this */
+  return e.kind==='boss'?7:6;
+}
+function killEnemy(e){
+  e.dead=true;
+  boom(e.x,e.y);
+  Snd.kill();
+  if(e.holds){
+    /* the boss was carrying your fighter. Shot down in flight it lets go and the
+     * fighter comes home; shot in the formation it takes the fighter with it. */
+    e.holds=false;
+    if(inFlight(e)){
+      G.freed={x:e.x,y:e.y,st:'rise',t:0,ang:-Math.PI/2};
+      flash('FIGHTER FREED');
+    }else{
+      G.ship.captured=false;
+      boom(e.x,e.y+16,true);
+      flash('FIGHTER LOST');
+    }
+  }
+  if(G.challenge)G.chalHit++;
+}
+
+function collide(dt){
+  /* player bullets */
+  for(let i=G.bullets.length-1;i>=0;i--){
+    const b=G.bullets[i];
+    b.y-=252*dt;
+    if(b.y<-8){G.bullets.splice(i,1);continue;}
+    let gone=false;
+    if(G.freed&&!gone){
+      if(Math.abs(b.x-G.freed.x)<7&&Math.abs(b.y-G.freed.y)<8){
+        boom(G.freed.x,G.freed.y,true);Snd.kill();G.freed=null;G.ship.captured=false;
+        flash('FIGHTER LOST');
+        G.bullets.splice(i,1);continue;
+      }
+    }
+    for(let j=0;j<G.enemies.length;j++){
+      const e=G.enemies[j];
+      if(e.dead||e.st==='gone')continue;
+      const r=hitBoxes(e);
+      if(Math.abs(b.x-e.x)<r&&Math.abs(b.y-e.y)<r+1){
+        G.bullets.splice(i,1);gone=true;G.hits++;
+        e.hp--;
+        if(e.hp>0){e.hurt=true;Snd.bossHit();addScore(0);}
+        else{addScore(valueOf(e));killEnemy(e);}
+        break;
+      }
+    }
+    if(gone)continue;
+  }
+  /* enemy bullets */
+  for(let i=G.ebullets.length-1;i>=0;i--){
+    const b=G.ebullets[i];
+    b.x+=b.vx*dt;b.y+=b.vy*dt;
+    if(b.y>H+8||b.x<-8||b.x>W+8){G.ebullets.splice(i,1);continue;}
+    if(G.ship.alive&&shipHit(b.x,b.y,2)){G.ebullets.splice(i,1);playerDies();}
+  }
+  /* an enemy flying into you is the other way to die */
+  if(G.ship.alive){
+    for(const e of G.enemies){
+      if(e.dead||!inFlight(e)||e.st==='beam')continue;
+      if(shipHit(e.x,e.y,6)){playerDies();break;}
+    }
+  }
+}
+function shipHit(x,y,r){
+  const s=G.ship;
+  if(Math.abs(y-s.y)>6+r)return false;
+  if(s.dual)return Math.abs(x-(s.x-8))<6+r||Math.abs(x-(s.x+8))<6+r;
+  return Math.abs(x-s.x)<6+r;
+}
+
+/* ---------- the fighter ---------- */
+function playerDies(){
+  if(!G.ship.alive||G.ship.inv>0)return;
+  if(G.ship.dual){
+    /* losing one of a pair costs the pair, not the game */
+    G.ship.dual=false;
+    boom(G.ship.x+8,G.ship.y,true);
+    Snd.die();
+    G.ship.inv=1.2;
+    return;
+  }
+  if(G.ship.inv>0)return;
+  G.ship.alive=false;
+  boom(G.ship.x,G.ship.y,true);
+  Snd.die();
+  G.lives--;
+  G.state='dying';G.dieT=1.5;
+}
+function respawn(){
+  if(G.lives<=0){gameOver();return;}
+  G.ship.x=W/2;G.ship.alive=true;G.ship.dual=false;G.ship.inv=1.6;
+  G.state='play';
+}
+function gameOver(){
+  G.state='over';G.over=true;
+  if(G.score>G.high){G.high=G.score;save('galaga.high',G.high);}
+  showOver();
+}
+
+/* The capture: the beam holds you, the fighter is drawn up into the boss, and
+ * the boss carries it in the formation until somebody shoots it down. */
+function beamStep(boss,dt){
+  if(boss.beamPh!==1)return;
+  if(!G.ship.alive||G.ship.dual||G.ship.captured||G.pull)return;
+  const spread=beamSpread(boss);
+  if(Math.abs(G.ship.x-boss.x)<spread&&G.ship.y>boss.y){
+    G.ship.alive=false;
+    G.pull={x:G.ship.x,y:G.ship.y,t:0,boss};
+    G.ship.captured=true;
+    G.lives--;
+    Snd.capture();
+    flash('FIGHTER CAPTURED');
+  }
+}
+function beamSpread(boss){
+  const open=boss.beamPh===0?boss.beamT/0.55:boss.beamPh===1?1:1-boss.beamT/0.45;
+  return 30*clamp(open,0,1);
+}
+function pullStep(dt){
+  const p=G.pull;if(!p)return;
+  p.t+=dt;
+  const b=p.boss;
+  p.x=lerp(p.x,b.x,Math.min(1,dt*2.2));
+  p.y=lerp(p.y,b.y+16,Math.min(1,dt*1.7));
+  p.ang=(p.ang||0)+dt*5.2;
+  if(p.t>1.7){
+    if(!b.dead)b.holds=true;else G.ship.captured=false;
+    G.pull=null;
+    if(G.lives<=0){gameOver();}
+    else{G.state='dying';G.dieT=0.6;}
+  }
+}
+/* The freed fighter: up to the top, back down the screen, and home. Shoot it and
+ * you have shot your own fighter, which is the joke the arcade plays on you. */
+function freedStep(dt){
+  const f=G.freed;if(!f)return;
+  if(f.st==='rise'){
+    f.y-=86*dt;f.ang=-Math.PI/2;
+    if(f.y<26){f.st='home';f.t=0;}
+    return;
+  }
+  const tx=G.ship.alive?G.ship.x:W/2;
+  f.x=lerp(f.x,tx,Math.min(1,dt*1.5));
+  f.y+=104*dt;f.ang=Math.PI/2*0+0;
+  if(f.y>=G.ship.y-1){
+    G.freed=null;G.ship.captured=false;
+    if(G.ship.alive){G.ship.dual=true;Snd.rescue();flash('DUAL FIGHTER');}
+  }
+}
+
+/* ---------- the frame ---------- */
+const HUDY=272;                       /* the strip the lives and flags live in */
+function stepGame(dt){
+  if(G.state==='splash'){
+    /* the title screen is a scene too: the swarm breathes behind the menu */
+    starStep(dt);formationStep(dt);
+    for(const e of G.enemies)enemyStep(e,dt);
+    return;
+  }
+  if(G.state==='stagecard'){
+    G.cardT-=dt;
+    starStep(dt);
+    if(G.cardT<=0){G.state='play';hideOverlay();}
+    return;
+  }
+  if(G.state!=='play'&&G.state!=='dying')return;
+
+  starStep(dt);
+  formationStep(dt);
+  G.stageT+=dt;
+  if(G.msgT>0)G.msgT-=dt;
+  if(G.ship.inv>0)G.ship.inv-=dt;
+
+  if(G.state==='play'){
+    spawnStep(dt);
+    diveDirector(dt);
+    shipStep(dt);
+  }
+  pullStep(dt);
+  freedStep(dt);
+
+  for(const e of G.enemies){
+    if(e.dead)continue;
+    enemyStep(e,dt);
+    if(e.st==='beam')beamStep(e,dt);
+    if(!G.challenge&&inFlight(e)&&e.st!=='beam'&&G.ship.alive){
+      e.shootT-=dt;
+      if(e.shootT<=0&&e.y<G.ship.y-30){e.shootT=0.55+rnd(0.9);enemyFire(e);}
+    }
+  }
+  collide(dt);
+
+  for(let i=G.booms.length-1;i>=0;i--){
+    G.booms[i].t+=dt;
+    if(G.booms[i].t>(G.booms[i].big?0.7:0.45))G.booms.splice(i,1);
+  }
+  for(let i=G.enemies.length-1;i>=0;i--)if(G.enemies[i].dead)G.enemies.splice(i,1);
+
+  if(G.state==='dying'){
+    G.dieT-=dt;
+    if(G.dieT<=0)respawn();
+    return;
+  }
+  if(G.waveI>=G.waves.length&&G.enemies.length===0&&!G.pull){
+    if(G.challenge)endChallenge();
+    else nextStage();
+  }
+}
+function shipStep(dt){
+  const s=G.ship;
+  if(!s.alive)return;
+  let v=0;
+  if(keys.left)v-=1;
+  if(keys.right)v+=1;
+  if(touchX!==null){
+    const d=touchX-s.x;
+    if(Math.abs(d)>1.2)v=clamp(d/6,-1,1);
+    else v=0;
+  }
+  s.x=clamp(s.x+v*104*dt,s.dual?18:10,W-(s.dual?18:10));
+  if(keys.autofire){s.t-=dt;if(s.t<=0){s.t=0.16;playerFire();}}
+}
+function nextStage(){
+  Snd.stage();
+  startStage(G.stage+1);
+  G.state='stagecard';G.cardT=1.7;
+  showCard('STAGE '+G.stage,stageIsChallenge(G.stage)?'CHALLENGING STAGE':'');
+}
+function endChallenge(){
+  const perfect=G.chalHit>=G.chalTotal;
+  const bonus=perfect?10000:G.chalHit*100;
+  addScore(bonus);
+  if(perfect)Snd.perfect();else Snd.stage();
+  showCard(perfect?'PERFECT!':'NUMBER OF HITS '+G.chalHit,
+           (perfect?'SPECIAL BONUS 10000':'BONUS '+bonus)+' PTS');
+  G.state='stagecard';G.cardT=2.6;
+  startStage(G.stage+1);
+  G.state='stagecard';
+}
+
+/* ---------- stars ---------- */
+/* Three layers at three speeds, each star blinking on a clock of its own. The
+ * blink is the thing people remember about this screen. */
+const stars=[];
+function makeStars(){
+  stars.length=0;
+  const cols=['#ffffff','#5ad1e6','#f8d000','#ee6688','#88ff99'];
+  for(let i=0;i<72;i++){
+    const layer=i%3;
+    stars.push({x:rnd(W),y:rnd(HUDY),v:14+layer*13,c:pick(cols),
+      per:0.7+rnd(1.6),ph:rnd(2)});
+  }
+}
+function starStep(dt){
+  for(const s of stars){
+    s.y+=s.v*dt;s.ph+=dt;
+    if(s.y>HUDY){s.y-=HUDY;s.x=rnd(W);}
+  }
+}
+
+/* ---------- a 5x7 bitmap font ---------- */
+/* Two hex digits per row, five bits used. Drawn a pixel at a time, so the
+ * letters on the playfield are the same kind of thing as the sprites and stay
+ * sharp at every scale the page is displayed at. */
+const FONT={
+'0':'0E1113151911 0E','1':'040C0404040 40E','2':'0E110102040 81F','3':'1F0204020111 0E',
+'4':'02060A121F02 02','5':'1F101E010111 0E','6':'06081 01E11110E','7':'1F01020408 0808',
+'8':'0E11110E11110E','9':'0E11110F01020C',
+'A':'0E11111F111111','B':'1E11111E11111E','C':'0E1110101011 0E','D':'1C1211111112 1C',
+'E':'1F10101E10101F','F':'1F10101E101010','G':'0E111017111 10F','H':'1111111F111111',
+'I':'0E04040404040E','J':'0702020202120C','K':'1112141814 1211','L':'1010101010101F',
+'M':'111B1515111111','N':'1119151311 1111','O':'0E1111111111 0E','P':'1E11111E101010',
+'Q':'0E1111111512 0D','R':'1E11111E141211','S':'0F10100E01011E','T':'1F0404040404 04',
+'U':'1111111111110E','V':'111111111 10A04','W':'1111111515 1B11','X':'11110A040A1111',
+'Y':'11110A04040404','Z':'1F010204081 01F',
+' ':'00000000000000','-':'0000001F000000','!':'0404040404 0004','.':'00000000000004',
+',':'00000000040408','/':'01020204080810',':':'00040400040400',"'":'04040000000000'
+};
+function glyph(ch){
+  const s=(FONT[ch]||FONT['-']).replace(/ /g,'');
+  const r=[];for(let i=0;i<7;i++)r.push(parseInt(s.substr(i*2,2),16)||0);
+  return r;
+}
+function textW(str){return str.length*6-1;}
+function drawText(g,str,x,y,col){
+  g.fillStyle=col||'#ffffff';
+  str=String(str).toUpperCase();
+  let px=Math.round(x);
+  for(const ch of str){
+    const rows=glyph(ch);
+    for(let r=0;r<7;r++){
+      const bits=rows[r];
+      if(!bits)continue;
+      for(let c=0;c<5;c++)if(bits&(1<<(4-c)))g.fillRect(px+c,Math.round(y)+r,1,1);
+    }
+    px+=6;
+  }
+}
+function drawTextC(g,str,y,col){drawText(g,str,(W-textW(String(str)))/2,y,col);}
+
+/* ---------- drawing ---------- */
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+g.imageSmoothingEnabled=false;
+function drawSpr(img,x,y,rot){
+  const px=Math.round(x),py=Math.round(y);
+  if(!rot){g.drawImage(img,px-8,py-8);return;}
+  g.save();g.translate(px,py);g.rotate(rot);g.drawImage(img,-8,-8);g.restore();
+}
+function sprFor(e){
+  if(e.kind==='zako')return SPR.zako[e.frame];
+  if(e.kind==='goei')return SPR.goei[e.frame];
+  return (e.hurt?SPR.bossHurt:SPR.boss)[e.frame];
+}
+/* The sprites are drawn nose-down, because that is how they stand in the
+ * formation; a heading of +y therefore needs no rotation at all. */
+function rotOf(e){return e.ang-Math.PI/2;}
+
+function drawBeam(e){
+  const spread=beamSpread(e);
+  if(spread<=0.5)return;
+  const y0=e.y+7,y1=HUDY;
+  const t=e.beamT;
+  for(let y=y0;y<y1;y++){
+    const f=(y-y0)/(y1-y0);
+    const w=spread*(0.25+0.75*f);
+    const band=((y*0.5-t*46)%9+9)%9;
+    const a=band<4.5?0.8:0.13;
+    g.fillStyle='rgba(120,215,255,'+(a*(1-f*0.22)).toFixed(3)+')';
+    g.fillRect(Math.round(e.x-w),y,Math.round(w*2),1);
+    /* two bright rails down the edges, or the cone reads as grey stair-treads
+       rather than as light */
+    g.fillStyle='rgba(210,245,255,0.85)';
+    g.fillRect(Math.round(e.x-w),y,1,1);g.fillRect(Math.round(e.x+w)-1,y,1,1);
+  }
+  g.fillStyle='rgba(255,255,255,0.75)';
+  g.fillRect(Math.round(e.x-spread*0.25),y0,Math.round(spread*0.5),1);
+}
+
+/* Explosions are fragments on whole pixels. An even ring of identical dots is
+ * what you get if you just step a radius, and it reads as a smoke ring; every
+ * fragment here gets its own radius, its own size and its own moment of going
+ * out, all from one hash of the explosion's seed, so it stays the same picture
+ * every time that explosion is drawn and a different one from its neighbour. */
+function hash(n){n=(n*2654435761)>>>0;n^=n>>>15;n=(n*2246822519)>>>0;n^=n>>>13;return n>>>0;}
+function drawBoom(b){drawBoomInto(g,b);}
+function drawBoomInto(g,b){
+  const dur=b.big?0.7:0.45,f=clamp(b.t/dur,0,1);
+  const n=b.big?15:9,R=b.big?25:16;
+  const bx=Math.round(b.x),by=Math.round(b.y);
+  if(f<0.3){
+    const cr=Math.round((b.big?7:5)*(1-f/0.3))+1;
+    const k=Math.max(1,Math.round(cr*0.42));
+    g.fillStyle=f<0.12?'#ffffff':'#f8d000';
+    /* two crossed bars, not a square: a square flash reads as a dropped tile */
+    g.fillRect(bx-cr,by-cr+k,cr*2,cr*2-2*k);
+    g.fillRect(bx-cr+k,by-cr,cr*2-2*k,cr*2);
+  }
+  for(let i=0;i<n;i++){
+    const h=hash((b.seed|0)+i*97);
+    const a=i*TAU/n+((h&1023)/1023-0.5)*0.55;
+    const rr=R*f*(0.5+((h>>>10)&1023)/1023*0.7);
+    const life=0.5+((h>>>20)&511)/511*0.5;
+    if(f>life)continue;
+    const sz=1+((((h>>>5)&15)<6)?1:0)+((b.big&&(((h>>>9)&15)<5))?1:0);
+    const p=f/life;
+    g.fillStyle=p<0.2?'#ffffff':p<0.45?'#f8d000':p<0.75?'#ff8a10':'#ee3322';
+    g.fillRect(bx+Math.round(Math.cos(a)*rr)-(sz>>1),by+Math.round(Math.sin(a)*rr)-(sz>>1),sz,sz);
+  }
+}
+
+const FLAGS=[[50,'#38c840'],[30,'#2f7be8'],[20,'#ee3322'],[10,'#f8d000'],[5,'#ff8a10'],[1,'#ffffff']];
+function drawFlag(x,y,col,big){
+  g.fillStyle='#c8c8e0';g.fillRect(x,y,1,big?10:8);
+  g.fillStyle=col;g.fillRect(x+1,y,big?7:5,big?6:4);
+}
+function drawHud(){
+  g.fillStyle='#000000';g.fillRect(0,HUDY,W,H-HUDY);
+  g.fillStyle='#1a1a2a';g.fillRect(0,HUDY,W,1);
+  if(G.state==='splash')return;   /* no stale count under the title screen */
+  for(let i=0;i<Math.min(6,Math.max(0,G.lives-1));i++)
+    g.drawImage(SPR.ship,2+i*15,HUDY);
+  /* the stages you have cleared, as the flags the cabinet flies */
+  let n=Math.max(0,G.stage-1),x=W-3;
+  for(const[v,col]of FLAGS){
+    while(n>=v&&x>10){const big=v>=30;x-=(big?9:7);drawFlag(x,HUDY+3,col,big);n-=v;}
+  }
+}
+
+function render(){
+  g.fillStyle='#000008';g.fillRect(0,0,W,H);
+  for(const s of stars){
+    if((s.ph%(s.per*2))>s.per)continue;
+    g.fillStyle=s.c;g.fillRect(Math.round(s.x),Math.round(s.y),1,1);
+  }
+  for(const e of G.enemies){
+    if(e.dead||e.st==='gone')continue;
+    if(e.st==='beam')drawBeam(e);
+    drawSpr(sprFor(e),e.x,e.y,rotOf(e));
+  }
+  /* The captured fighter hangs one row below its captor, which is exactly where
+   * the next rank of the formation stands; drawn in the same pass it vanishes
+   * behind a butterfly, so it goes over the top of everything. */
+  for(const e of G.enemies){
+    if(e.dead||e.st==='gone'||!e.holds)continue;
+    drawSpr(SPR.shipDim,e.x,e.y+15,Math.PI);
+  }
+  if(G.pull)drawSpr(SPR.ship,G.pull.x,G.pull.y,G.pull.ang||0);
+  if(G.freed)drawSpr(SPR.ship,G.freed.x,G.freed.y,0);
+  g.fillStyle='#ffffff';
+  for(const b of G.bullets)g.fillRect(Math.round(b.x),Math.round(b.y)-3,1,5);
+  g.fillStyle='#f8d000';
+  for(const b of G.ebullets){
+    g.fillRect(Math.round(b.x)-1,Math.round(b.y)-1,2,3);
+  }
+  if(G.ship.alive&&!(G.ship.inv>0&&Math.floor(G.ship.inv*12)%2)){
+    if(G.ship.dual){drawSpr(SPR.ship,G.ship.x-8,G.ship.y,0);drawSpr(SPR.ship,G.ship.x+8,G.ship.y,0);}
+    else drawSpr(SPR.ship,G.ship.x,G.ship.y,0);
+  }
+  for(const b of G.booms)drawBoom(b);
+  if(G.msgT>0)drawTextC(g,G.msg,HUDY-26,'#f8d000');
+  drawHud();
+}
+
+/* ---------- page furniture ---------- */
+function el(id){return document.getElementById(id);}
+const ov=el('overlay');
+function hideOverlay(){ov.className='hidden';ov.innerHTML='';}
+function showCard(title,sub){
+  ov.className='card';
+  ov.innerHTML='<h1>'+esc(title)+'</h1>'+(sub?'<p class="sub">'+esc(sub)+'</p>':'');
+}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+let menuSel=0,menuItems=[];
+function buildMenu(html,items){
+  ov.innerHTML=html;
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));
+  menuItems.forEach((m,i)=>{
+    m.addEventListener('click',()=>{menuSel=i;paintMenu();items[i].go();});
+  });
+  menuActions=items;paintMenu();
+}
+let menuActions=[];
+function paintMenu(){menuItems.forEach((m,i)=>m.classList.toggle('sel',i===menuSel));}
+
+function showSplash(){
+  G.state='splash';
+  attract();
+  ov.className='splash';
+  buildMenu(
+    '<h1>GALAGA</h1>'+
+    '<p class="sub">Forty of them fly in. The green ones want your fighter.</p>'+
+    '<button class="menuitem sel" type="button">START</button>'+
+    '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+G.startLives+'</button>'+
+    '<button class="menuitem" type="button">HOW TO PLAY</button>'+
+    '<small class="tip">← → move · SPACE fire · P pause · hold to autofire</small>',
+    [{go:newGame},{go:cycleLives},{go:showHelp}]);
+}
+function cycleLives(){
+  G.startLives=G.startLives===3?5:G.startLives===5?2:3;
+  save('galaga.lives',G.startLives);
+  const b=el('mfight');if(b)b.textContent='FIGHTERS: '+G.startLives;
+}
+function showHelp(){
+  ov.className='card';
+  ov.innerHTML=
+    '<h1>HOW TO PLAY</h1>'+
+    '<div class="tally" style="text-align:left">'+
+    '<div class="r"><span>Bee, in formation / diving</span><span>50 / 100</span></div>'+
+    '<div class="r"><span>Butterfly, formation / diving</span><span>80 / 160</span></div>'+
+    '<div class="r"><span>Boss, in formation</span><span>150</span></div>'+
+    '<div class="r"><span>Boss diving, alone</span><span>400</span></div>'+
+    '<div class="r"><span>Boss diving, one escort left</span><span>800</span></div>'+
+    '<div class="r"><span>Boss diving, both escorts left</span><span>1600</span></div>'+
+    '</div>'+
+    '<small class="tip">A boss takes two hits. If its beam catches you it keeps your '+
+    'fighter and you lose a life. Shoot that boss <b>while it is diving</b> and the '+
+    'fighter flies home and docks: two ships, two shots at once. Shoot it while it '+
+    'sits in the formation and your fighter dies with it — and never shoot the '+
+    'fighter on its way back.<br><br>Every fourth stage is a challenging stage: forty '+
+    'pass through, nothing shoots back, all forty is 10,000.</small>'+
+    '<button class="menuitem" type="button">BACK</button>';
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));menuSel=0;paintMenu();
+  menuActions=[{go:showSplash}];
+  menuItems[0].addEventListener('click',showSplash);
+}
+function showOver(){
+  const pct=G.shots?Math.round(G.hits*1000/G.shots)/10:0;
+  ov.className='card';
+  ov.innerHTML='<h1>GAME OVER</h1>'+
+    '<div class="tally">'+
+    '<div class="r"><span>Score</span><span>'+G.score+'</span></div>'+
+    '<div class="r"><span>High</span><span>'+G.high+'</span></div>'+
+    '<div class="r"><span>Stage reached</span><span>'+G.stage+'</span></div>'+
+    '<div class="r"><span>Shots fired</span><span>'+G.shots+'</span></div>'+
+    '<div class="r"><span>Number of hits</span><span>'+G.hits+'</span></div>'+
+    '<div class="r"><span>Hit-miss ratio</span><span>'+pct+'%</span></div>'+
+    '</div>'+
+    '<button class="menuitem sel" type="button">PLAY AGAIN</button>'+
+    '<button class="menuitem" type="button">TITLE</button>';
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));menuSel=0;paintMenu();
+  menuActions=[{go:newGame},{go:showSplash}];
+  menuItems[0].addEventListener('click',newGame);
+  menuItems[1].addEventListener('click',showSplash);
+}
+function showPause(){
+  ov.className='card';
+  ov.innerHTML='<h1>PAUSED</h1><p class="sub">P, or the button, to go back in.</p>';
+}
+
+/* The title screen flies the formation behind the menu rather than a picture of
+ * one: the swarm you are about to meet, breathing, with its wings going. */
+function attract(){
+  G.enemies.length=0;G.bullets.length=0;G.ebullets.length=0;G.booms.length=0;
+  G.pull=null;G.freed=null;G.ship.alive=false;G.msgT=0;
+  slotList().forEach(s=>{
+    const e=mkEnemy(s,[slotPos(s),{x:slotPos(s).x,y:slotPos(s).y+1}]);
+    e.st='slot';e.ft=rnd(0.13);
+    G.enemies.push(e);
+  });
+}
+function newGame(){
+  G.score=0;G.lives=G.startLives;G.shots=0;G.hits=0;G.over=false;
+  G.nextExtra=20000;
+  G.ship.alive=true;G.ship.dual=false;G.ship.captured=false;G.ship.x=W/2;G.ship.inv=1.2;
+  G.pull=null;G.freed=null;
+  el('score').textContent=0;el('high').textContent=G.high;
+  startStage(1);
+  G.state='stagecard';G.cardT=1.5;
+  showCard('STAGE 1','');
+  Snd.boot();Snd.stage();
+}
+
+/* ---------- input ---------- */
+const keys={left:false,right:false,autofire:false};
+let touchX=null;
+function press(k,on){
+  if(k==='fire'){
+    if(on&&!keys.autofire)G.ship.t=0;
+    keys.autofire=on;
+    if(on)Snd.boot();
+    return;
+  }
+  keys[k]=on;
+}
+document.addEventListener('keydown',ev=>{
+  const k=ev.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A'){press('left',true);ev.preventDefault();}
+  else if(k==='ArrowRight'||k==='d'||k==='D'){press('right',true);ev.preventDefault();}
+  else if(k===' '||k==='z'||k==='Z'){press('fire',true);ev.preventDefault();}
+  else if(k==='p'||k==='P')togglePause();
+  else if(k==='ArrowUp'||k==='ArrowDown'){
+    if(menuItems.length){menuSel=(menuSel+(k==='ArrowUp'?-1:1)+menuItems.length)%menuItems.length;paintMenu();}
+    ev.preventDefault();
+  }
+  else if(k==='Enter'){
+    if(menuItems.length&&menuActions[menuSel])menuActions[menuSel].go();
+    ev.preventDefault();
+  }
+});
+document.addEventListener('keyup',ev=>{
+  const k=ev.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A')press('left',false);
+  else if(k==='ArrowRight'||k==='d'||k==='D')press('right',false);
+  else if(k===' '||k==='z'||k==='Z')press('fire',false);
+});
+function hold(id,k){
+  const b=el(id);
+  const on=e=>{e.preventDefault();press(k,true);b.classList.add('on');};
+  const off=e=>{if(e)e.preventDefault();press(k,false);b.classList.remove('on');};
+  b.addEventListener('pointerdown',on);
+  b.addEventListener('pointerup',off);
+  b.addEventListener('pointercancel',off);
+  b.addEventListener('pointerleave',off);
+}
+hold('bl','left');hold('br','right');hold('bf','fire');
+el('bp').addEventListener('click',togglePause);
+function togglePause(){
+  if(G.state==='play'){G.state='paused';showPause();}
+  else if(G.state==='paused'){G.state='play';hideOverlay();}
+}
+/* Dragging anywhere on the playfield steers, which is how this is actually
+ * playable on a phone; the fire button stays under the other thumb. */
+const st=el('stage');
+function fieldX(ev){
+  const r=cv.getBoundingClientRect();
+  return clamp((ev.clientX-r.left)/r.width*W,0,W);
+}
+st.addEventListener('pointerdown',ev=>{
+  if(ev.target.id==='sound'||ev.target.closest('.menuitem'))return;
+  Snd.boot();
+  if(G.state==='play'||G.state==='dying'){touchX=fieldX(ev);st.setPointerCapture(ev.pointerId);}
+});
+st.addEventListener('pointermove',ev=>{if(touchX!==null)touchX=fieldX(ev);});
+const drop=()=>{touchX=null;};
+st.addEventListener('pointerup',drop);
+st.addEventListener('pointercancel',drop);
+
+el('sound').addEventListener('click',()=>{
+  Snd.on=!Snd.on;save('galaga.sound',Snd.on?'1':'0');
+  el('soundstate').textContent=Snd.on?'on':'off';
+  if(Snd.on){Snd.boot();Snd.shot();}
+});
+el('soundstate').textContent=Snd.on?'on':'off';
+
+/* ---------- boot ---------- */
+bakeAll();makeStars();
+G.startLives=+load('galaga.lives',3)||3;
+el('high').textContent=G.high;
+showSplash();
+
+let last=0;
+function frame(ts){
+  const t=ts/1000;
+  let dt=last?t-last:0;
+  last=t;
+  if(dt>0.1)dt=0.1;                   /* a backgrounded tab must not fast-forward */
+  stepGame(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+<!-- no-zoom:start -->
+<script>
+/* ---- the pinch and the double tap ---- *
+ *
+ * iOS Safari has ignored `user-scalable=no` and `maximum-scale` in the viewport
+ * meta tag since iOS 10. Every one of these pages carried both and neither did
+ * anything, so a double tap anywhere - on the glass, on a control, on the black
+ * - zoomed the page, and a zoomed page puts the controls off the edge of the
+ * screen. In a game with a clock running that is not an inconvenience, it is a
+ * death, and full screen does not help because the zoom is applied to the
+ * visual viewport on top of whatever the layout is doing.
+ *
+ * Three things are needed and the meta tag is none of them:
+ *
+ *   1. gesturestart / gesturechange / gestureend. This is how WebKit offers a
+ *      pinch, and it exists on no other engine.
+ *   2. A non-passive touchend that eats the second tap of a double tap. It has
+ *      to be non-passive or preventDefault is ignored outright, and it has to
+ *      be touchend rather than dblclick, because the zoom is committed before
+ *      a dblclick is ever dispatched.
+ *   3. A way back for a player who is zoomed already, because neither of the
+ *      above can un-zoom a page that is. Rewriting the viewport meta is the
+ *      only lever a page has over WebKit's zoom, and it only fires on a real
+ *      change, so the content is toggled rather than re-set.
+ *
+ * This file is the one copy. tools/sync-nozoom.js writes it into each game
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  var D=document, W=window;
+  if(!D.addEventListener)return;
+  for(var i=0,g=["gesturestart","gesturechange","gestureend"];i<g.length;i++)
+    D.addEventListener(g[i],function(e){e.preventDefault();},{passive:false});
+  /* Eating the second tap of a double tap eats the click the browser makes
+   * out of it, and every game here has controls that listen for one - so on a
+   * control this would cost the player every second press of a fast mash,
+   * which in a game about pressing fire quickly is worse than the zoom. The
+   * controls do not need it: a button carrying touch-action none or
+   * manipulation is already exempt from double-tap zoom on every engine that
+   * honours it. So the guard leaves anything pressable alone and covers the
+   * rest of the page, which is where the zoom was coming from. */
+  var PRESSABLE="button,a,input,select,textarea,label,[data-cmd],[role=button]";
+  function pressable(t){
+    return !!(t&&t.closest&&t.closest(PRESSABLE));
+  }
+  var lastTap=0;
+  D.addEventListener("touchend",function(e){
+    var now=Date.now();
+    if(now-lastTap<=350&&e.cancelable&&!pressable(e.target))e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+  /* A second finger is a pinch wherever it lands, and no game here wants one. */
+  D.addEventListener("touchstart",function(e){
+    if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+  },{passive:false});
+
+  var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
+  if(!vv||!meta)return;
+  var base=meta.getAttribute("content"), fixing=false;
+  function unzoom(){
+    if(fixing||vv.scale<=1.01)return;
+    fixing=true;
+    meta.setAttribute("content",base+", minimum-scale=1");
+    W.setTimeout(function(){
+      meta.setAttribute("content",base);
+      fixing=false;
+      if(W.scrollTo)W.scrollTo(0,0);
+    },50);
+  }
+  vv.addEventListener("resize",unzoom);
+  vv.addEventListener("scroll",unzoom);
+  W.__unzoom=unzoom;                 // so a harness can ask for it directly
+})();
+</script>
+<!-- no-zoom:end -->
+</body>
+</html>
