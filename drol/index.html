@@ -36,7 +36,7 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 #status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px}
 #status b{color:var(--gold)}
-#stage{position:relative;width:100%;aspect-ratio:173/97;background:#000;border:1px solid var(--line);
+#stage{position:relative;width:100%;aspect-ratio:173/128;background:#000;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;touch-action:none}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
@@ -105,8 +105,8 @@ body.fs #wrap{max-width:none;flex:1;min-height:0;height:auto;gap:4px;
 body.fs #status{display:none}
 /* The screen takes as much room as its own shape allows and no more, so the
    space the page chrome gave back goes to the pads instead of to black bars. */
-body.fs #stage{width:min(100%,calc(58svh * 173 / 97));max-width:100%;margin:0 auto;border-radius:0;
-  aspect-ratio:173/97;border-left:0;border-right:0}
+body.fs #stage{width:min(100%,calc(58svh * 173 / 128));max-width:100%;margin:0 auto;border-radius:0;
+  aspect-ratio:173/128;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
 body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
@@ -122,7 +122,7 @@ body.fs #audio-status{display:none}
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
   body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
-  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 97));max-width:60vw;margin:0}
+  body.fs #stage{order:2;width:min(60vw,calc((100svh - 12px) * 173 / 128));max-width:60vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
   body.fs .sbtn{width:66px;height:38px}
@@ -158,13 +158,20 @@ body.fs #audio-status{display:none}
 /* ============ the four-storey maze ============ */
 // Four storeys, one above the other, all of them on screen at once the way the
 // 1983 original had them: the only scrolling is sideways.
-const TS=10, MAPW=100, FLOORH=4, FLOORS=4, MAPH=FLOORH*FLOORS;
+// A storey is five rows: four of air and the slab at the bottom of it. The roof
+// is a row of its own above the first storey rather than the first storey's top
+// row, which is what used to make the top one half the height of the other
+// three - twenty pixels of air for an eighteen-pixel robot.
+const TS=10, MAPW=100, FLOORH=5, FLOORS=4, ROOF=1, MAPH=ROOF+FLOORH*FLOORS;
 const RADAR_H=34;                       // the panel across the top, as in the original
+const MSG_H=12;                         // and a line under the maze for what the game says,
+                                        // which used to be painted over the bottom floor
 let VW=346, VH=194;                     // game pixels; fit() reshapes them to the canvas box
 const AIR=0, SLAB=1;
 const HOLEW=4;                          // tiles cut out of a slab to make one hole
-const slabRow=f=>f*FLOORH+FLOORH-1;     // the floor of storey f, and the ceiling of f+1
-const storeyTop=f=>f*FLOORH;
+const slabRow=f=>ROOF+f*FLOORH+FLOORH-1;  // the floor of storey f, and the ceiling of f+1
+const storeyTop=f=>ROOF+f*FLOORH;         // the first row of air in storey f
+const STOREY_AIR=(FLOORH-1)*TS;           // how much room the jetpack has in one
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 // Deterministic generator: one seed reproduces a whole scene, which the tests rely on.
@@ -253,7 +260,14 @@ function genScene(scene,loop,diff,rand){
  // Pillars holding the storeys apart, every so often across the maze. They are
  // scenery: nothing collides with them, and the original's stand in the same way.
  for(let x=6+ri(10);x<MAPW-6;x+=14+ri(10))
-  for(let f=0;f<FLOORS-1;f++)L.pillars.push({x:x*TS,f});
+  for(let f=0;f<FLOORS;f++){
+   // Nothing stands on a hole. A pillar over one used to be drawn with its base
+   // hanging across the gap, holding up a floor that was not there.
+   const w=Math.ceil(PILLAR_PIX[0].length/TS);
+   let solid=true;
+   for(let k=0;k<w;k++)if(map[x+k]&&map[x+k][slabRow(f)]!==SLAB)solid=false;
+   if(solid)L.pillars.push({x:x*TS,f});
+  }
  // The third scene has urns standing on its floors, as the original's does: they
  // soak up a ball apiece and shatter for points, and they are cover.
  if(scene===2){
@@ -281,9 +295,9 @@ function spawnFoe(L,k,rand,loop,diff){
  let f=ri(FLOORS);
  if(k==="magnet"){                      // magnets hang from a ceiling, in the way of your shots
   if(f===0)f=1;
-  L.foes.push(mkFoe(k,x*TS,slabRow(f-1)*TS+TS,f,dir,loop,diff));
+  L.foes.push(mkFoe(k,x*TS,storeyTop(f)*TS,f,dir,loop,diff));
  }else if(k==="turkey"||k==="blade"){   // these two are in the air, not on the floor
-  L.foes.push(mkFoe(k,x*TS,storeyTop(f)*TS+TS+ri(2)*6,f,dir,loop,diff));
+  L.foes.push(mkFoe(k,x*TS,storeyTop(f)*TS+2+ri(3)*8,f,dir,loop,diff));
  }else{
   L.foes.push(mkFoe(k,x*TS,slabRow(f)*TS-F.h,f,dir,loop,diff));
  }
@@ -744,8 +758,11 @@ function startScene(){
 }
 function nextScene(){
  G.scene++;
- if(G.scene>=SCENES.length){G.scene=0;G.loop++;say("Round "+(G.loop+1)+". They are quicker now.");}
+ if(G.scene>=SCENES.length){G.scene=0;G.loop++;}
  startScene();G.phase="play";
+ // Arriving in a scene used to say nothing at all, so the line under the maze
+ // still named the one you had just left.
+ say("Round "+(G.loop+1)+" \u00b7 "+SCENES[G.scene].name+".");
 }
 function addScore(n){
  G.score+=n;
@@ -777,7 +794,7 @@ function moveBody(b,dx,dy){
    b.y=dy>0?Math.floor((b.y+b.h-1)/TS)*TS-b.h-.01:(Math.floor(b.y/TS)+1)*TS+.01;}}
  return{bx,by};
 }
-const storeyOf=b=>clamp(Math.floor((b.y+b.h/2)/(FLOORH*TS)),0,FLOORS-1);
+const storeyOf=b=>clamp(Math.floor((b.y+b.h/2-ROOF*TS)/(FLOORH*TS)),0,FLOORS-1);
 // Is there floor directly under him? Either boot will do.
 function onFloor(b){
  const y=Math.floor((b.y+b.h+1.5)/TS);
@@ -944,7 +961,7 @@ function foeStep(e,dt){
   // pixels of air in it, and the old fixed eight either side of where it started
   // buried the sword in the ceiling for half of every pass, where no ball could
   // reach it. The sway now fits whatever room the storey has.
-  const top=storeyTop(e.f)*TS+TS, bot=slabRow(e.f)*TS-e.h;
+  const top=storeyTop(e.f)*TS, bot=slabRow(e.f)*TS-e.h;
   const mid=(top+bot)/2, amp=Math.min(8,(bot-top)/2);
   e.y=mid+Math.sin(e.anim*3)*amp;
  }
@@ -972,7 +989,7 @@ function toyStep(dt){
  const L=G.L, t=L.toy;
  if(!t||!t.alive)return;
  t.x+=t.vx*dt;t.y+=t.vy*dt;
- const top=storeyTop(t.f)*TS+TS*.4, bot=slabRow(t.f)*TS-t.h-2;
+ const top=storeyTop(t.f)*TS+2, bot=slabRow(t.f)*TS-t.h-2;
  if(t.y<top){t.y=top;t.vy=Math.abs(t.vy);}
  if(t.y>bot){t.y=bot;t.vy=-Math.abs(t.vy);}
  if(t.x<2*TS){t.x=2*TS;t.vx=Math.abs(t.vx);}
@@ -983,7 +1000,7 @@ function toyStep(dt){
   const gap=L.gaps.filter(g=>g.f===Math.min(f,t.f));
   if(f!==t.f&&gap.length){
    const g=gap[Math.floor(Math.random()*gap.length)];
-   t.f=f;t.x=g.x*TS;t.y=storeyTop(f)*TS+TS;
+   t.f=f;t.x=g.x*TS;t.y=storeyTop(f)*TS+2;
   }
  }
 }
@@ -1362,12 +1379,23 @@ function drawPillar(x,top,bot,pal){
 }
 const px=v=>Math.round(v);
 const viewTop=()=>G.radar?RADAR_H:0;
-const viewH=()=>VH-viewTop();
+const viewH=()=>VH-viewTop()-MSG_H;
 const sx=x=>px(x-G.cam.x), sy=y=>px(y-G.cam.y+viewTop());
 function drawTiles(){
  const c=ctx, P=G.L.pal, cam=G.cam;
  const x0=Math.floor(cam.x/TS)-1, x1=Math.ceil((cam.x+VW)/TS)+1;
  const lo=Math.max(0,x0), hi=Math.min(MAPW-1,x1);
+ // The pillars stand behind everything, so they are painted before the floors
+ // are. Drawn after them, a pillar's entablature and its base were painting over
+ // the bright band and the white rail of every floor they met.
+ for(const q of G.L.pillars){
+  const px0=sx(q.x);
+  if(px0<-PILLAR_PIX[0].length||px0>VW)continue;
+  // It stands on the floor below and its capital starts under the one above, so
+  // it spans the air of the storey and no part of either slab.
+  const top=storeyTop(q.f)*TS, bot=slabRow(q.f)*TS;
+  drawPillar(px0,sy(top),sy(bot),PILLAR_BG);
+ }
  // The floors are drawn as slabs with a top face, a front face and a shadow under
  // them. ANALOG's review of the 1983 original praised its "pseudo-3D" look, and
  // this is where that came from: one row of tiles pretending to have thickness.
@@ -1376,21 +1404,28 @@ function drawTiles(){
   for(let x=lo;x<=hi;x++){
    if(G.L.map[x][slabRow(f)]!==SLAB)continue;
    const sxx=sx(x*TS), syy=sy(y);
-   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the band, five deep as it is there
+   // A slab is a whole tile row of solid, so a whole tile row of it is painted.
+   // Only the top five pixels used to be, and the four below them were black:
+   // you landed where the picture said you would, but flying up from underneath
+   // you cracked your head four pixels short of the floor you could see.
+   c.fillStyle=P.trim;c.fillRect(sxx,syy,TS,5);              // the bright band, as the screen has it
    // The white edge is dashed, as the screen has it: on for six pixels of every
    // ten, which reads as a rail rather than a line.
    if((x%3)!==2){c.fillStyle=P.lit;c.fillRect(sxx,syy,TS,2);}
-   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,1);           // its underside
+   c.fillStyle=P.stone;c.fillRect(sxx,syy+5,TS,TS-5);        // and the thickness under it
    // the lip either side of a hole, so a gap reads as an edge you can fall past
    if(G.L.map[x-1]&&G.L.map[x-1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx,syy,2,7);}
    if(G.L.map[x+1]&&G.L.map[x+1][slabRow(f)]===AIR){c.fillStyle=P.lit;c.fillRect(sxx+TS-2,syy,2,7);}
   }
  }
- // The roof over the top storey, and the two end walls.
+ // The roof over the top storey, and the two end walls. The roof is a slab seen
+ // from below, so its bright edge is along its underside and the thickness is
+ // above it - and, like the floors, all of it is painted because all of it is solid.
  for(let x=lo;x<=hi;x++){
-  const sxx=sx(x*TS);
-  c.fillStyle=P.trim;c.fillRect(sxx,sy(0)+TS-5,TS,5);
-  c.fillStyle=P.lit;c.fillRect(sxx,sy(0)+TS-2,TS,2);
+  const sxx=sx(x*TS), syy=sy(0);
+  c.fillStyle=P.stone;c.fillRect(sxx,syy,TS,TS-5);
+  c.fillStyle=P.trim;c.fillRect(sxx,syy+TS-5,TS,5);
+  if((x%3)!==2){c.fillStyle=P.lit;c.fillRect(sxx,syy+TS-2,TS,2);}
  }
  for(const wx of [0,MAPW-1])for(let y=0;y<MAPH;y++){
   const sxx=sx(wx*TS), syy=sy(y*TS);
@@ -1400,13 +1435,6 @@ function drawTiles(){
  // The three trapdoors of the third scene: shut, they are boards across the hole
  // with a hinge at either end. Sprung, the flap hangs down through it and the
  // colour says which kind of door you picked.
- // the pillars first: they stand behind everything
- for(const q of G.L.pillars){
-  const px0=sx(q.x);
-  if(px0<-PILLAR_PIX[0].length||px0>VW)continue;
-  const top=slabRow(q.f)*TS+5, bot=slabRow(q.f+1)*TS;
-  drawPillar(px0,sy(top),sy(bot),PILLAR_BG);
- }
  for(const t of G.L.traps){
   const sxx=sx(t.x), syy=sy(t.y);
   if(!t.sprung){
@@ -1634,8 +1662,8 @@ function drawHUD(){
   c.textAlign="left";
  }
  if(G.msgT>0){
-  c.fillStyle="rgba(0,0,0,.8)";c.fillRect(0,VH-12,VW,12);
-  c.fillStyle="#ff8ae8";c.fillText(G.msg,3,VH-10);
+  c.fillStyle="rgba(0,0,0,.8)";c.fillRect(0,VH-MSG_H,VW,MSG_H);
+  c.fillStyle="#ff8ae8";c.fillText(G.msg,3,VH-MSG_H+2);
  }
  if(G.phase==="cheer"){
   c.textAlign="center";c.font="bold 14px ui-rounded,Helvetica,Arial,sans-serif";
@@ -1757,10 +1785,16 @@ function updateStatus(){
 // The drawing surface takes the shape of the box it sits in: with the scope off
 // the maze simply gets those sixteen rows back.
 function fit(force){
- const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||194;
+ const r=cv.getBoundingClientRect(), w=r.width||346, hh=r.height||244;
  if(!w||!hh)return;
  const s=clamp(w/346,1,6);
- const nw=clamp(Math.round(w/s),260,560), nh=clamp(Math.round(hh/s),150,MAPH*TS+RADAR_H);
+ // The view is the whole maze plus the panel whenever the box can hold it. The
+ // browser's own aspect-ratio arithmetic lands a pixel short of the shape the
+ // stylesheet asks for, and a pixel short put the bottom storey's floor off the
+ // bottom of the screen and left the camera scrolling a world that fits.
+ const WORLD_H=MAPH*TS+RADAR_H+MSG_H;
+ const nw=clamp(Math.round(w/s),260,560);
+ const raw=Math.round(hh/s), nh=raw>=WORLD_H-2?WORLD_H:clamp(raw,150,WORLD_H);
  if(nw===VW&&nh===VH&&!force)return;
  VW=nw;VH=nh;cv.width=VW;cv.height=VH;
 }

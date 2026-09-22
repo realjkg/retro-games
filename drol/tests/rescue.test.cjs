@@ -51,6 +51,7 @@ function runtime(diff=2,seed=7,start=true,store){
   if(start)run(`newGame(${diff},${seed});`);
   return {run,notes,el,cls,docEvents,store:kept};
 }
+const clampTo=(v,a,b)=>v<a?a:v>b?b:v;
 const step=(r,n,dt=0.02)=>r.run(`for(let i=0;i<${n};i++)stepGame(${dt});`);
 // Put the robot alone on a storey with nothing else alive in the maze.
 function clearMaze(r,f=1,x=20){
@@ -303,7 +304,7 @@ test('The view is sized to its box rather than to a fixed rectangle',()=>{
   box.width=1038;box.height=648;r.run('fit(true);');
   assert.equal(r.run('VW'),346);
   box.width=346;box.height=460;r.run('fit(true);');
-  assert.ok(r.run('VH')<=r.run('MAPH*TS+RADAR_H'),'never taller than the maze plus its scope');
+  assert.ok(r.run('VH')<=r.run('MAPH*TS+RADAR_H+MSG_H'),'never taller than the maze, its scope and the line under it');
   assert.equal(r.run('VW'),346);
 });
 
@@ -560,44 +561,60 @@ test('A score made on endless robots is not a high score',()=>{
   assert.equal(r.run('G.best'),51000,'switched off, it counts again');
 });
 
-// The thing that made this test exist: a storey holds twenty pixels of air and
-// the robot is eighteen of it, so he has two heights to fire from. Whether a
-// ball connected was coming down to a pixel or two, and the thrown sword - the
-// one thing you most want to shoot - could not be hit at all.
+// A storey now holds forty pixels of air and the robot is eighteen of them, so
+// height is a real choice and a ball fired along a floor is not meant to reach
+// something forty pixels above it. What must hold is that every shootable thing
+// can be shot from somewhere: level with it for the forward shot, under it or
+// over it for the vertical one. The sword used to fail all three, because it
+// swayed into the ceiling where no ball could go.
 test('Everything the game says you can shoot, you can shoot',()=>{
-  const r0=runtime(2,47);
-  const kinds=r0.run('JSON.stringify(Object.keys(FOE).filter(k=>FOE[k].shootable))');
-  const air=r0.run('storeyTop(1)*TS+TS'), slab=r0.run('slabRow(1)*TS');
-  const unreachable=[];
-  for(const k of JSON.parse(kinds)){
-    let reached=0, tries=0;
-    for(let hy=air;hy<=slab-18;hy+=2){
-      tries++;
-      const r=runtime(2,47);clearMaze(r,1,20);
-      r.run(`G.hero.inv=999;G.hero.face=1;G.hero.y=${hy};
-        G.L.foes=[mkFoe("${k}",G.hero.x+44,
-          (${k==='turkey'||k==='blade'})?storeyTop(1)*TS+TS:slabRow(1)*TS-FOE["${k}"].h,
-          1,-1,0,0)];
-        const e=G.L.foes[0];e.sp=0;e.cool=99;e.vx=0;e.vy=0;e.hp=1;`);
-      r.run('shoot(1,0);');
-      for(let i=0;i<20;i++)r.run(`G.hero.y=${hy};G.hero.vy=0;stepGame(0.01);`);
-      // a turkey turns into dinner rather than dying, which still counts as hit
-      if(r.run('!G.L.foes[0]||G.L.foes[0].dead||G.L.foes[0].k==="roast"'))reached++;
-    }
-    if(reached<tries)unreachable.push(`${k} (${reached}/${tries} heights)`);
+  const r0=runtime(2,53);
+  const kinds=JSON.parse(r0.run('JSON.stringify(Object.keys(FOE).filter(k=>FOE[k].shootable))'));
+  const air=r0.run('storeyTop(1)*TS'), slab=r0.run('slabRow(1)*TS');
+  // Put it where the game puts it and let it settle there - a blade rides up and
+  // down its storey and a turkey holds its height, so where they end up is not
+  // where they were spawned.
+  const place=k=>`G.L.foes=[mkFoe("${k}",G.hero.x+44,`+
+    ((k==='turkey'||k==='blade')?'storeyTop(1)*TS+2':`slabRow(1)*TS-FOE["${k}"].h`)+
+    `,1,-1,0,0)];const e=G.L.foes[0];e.sp=0;e.cool=99;e.vx=0;e.vy=0;e.hp=1;`;
+  const settle=(r,hy)=>{for(let i=0;i<6;i++)r.run(`G.hero.y=${hy};G.hero.vy=0;stepGame(0.01);`);};
+  const where=k=>{
+    const r=runtime(2,53);clearMaze(r,1,20);
+    r.run(`G.hero.inv=999;G.hero.face=1;`+place(k));
+    settle(r,slab-18);
+    return JSON.parse(r.run('JSON.stringify({y:G.L.foes[0].y,h:G.L.foes[0].h})'));
+  };
+  const hit=(k,hy,dx,dy)=>{
+    const r=runtime(2,53);clearMaze(r,1,20);
+    r.run(`G.hero.inv=999;G.hero.face=1;G.hero.y=${hy};G.hero.vy=0;`+place(k));
+    if(dy)r.run('G.L.foes[0].x=G.hero.x;');
+    settle(r,hy);
+    r.run(`shoot(${dx},${dy});`);
+    for(let i=0;i<30;i++)r.run(`G.hero.y=${hy};G.hero.vy=0;stepGame(0.01);`);
+    // a turkey turns into dinner rather than dying, which still counts as hit
+    return r.run('!G.L.foes[0]||G.L.foes[0].dead||G.L.foes[0].k==="roast"');
+  };
+
+  const bad=[];
+  for(const k of kinds){
+    const at=where(k);
+    const level=clampTo(Math.round(at.y+at.h/2-9),air,slab-18);
+    if(!hit(k,level,1,0))bad.push(`${k}: the forward shot misses it from level with it`);
   }
-  assert.deepEqual(unreachable,[],'a ball fired along a floor reaches everything on it');
+  // And the vertical shot is what answers something flying above you: a turkey
+  // holds the top of its storey, out of reach of a ball fired along the floor.
+  if(!hit('turkey',slab-18,0,-1))bad.push('turkey: cannot be shot from the floor under it');
+  assert.deepEqual(bad,[],'every shootable thing can be shot from somewhere');
 });
 
 test('A thrown sword stays in the storey it was thrown down',()=>{
   const r=runtime(2,49);clearMaze(r,1,20);
-  r.run('G.hero.inv=999;G.L.foes=[mkFoe("blade",30*TS,storeyTop(1)*TS+TS,1,-1,0,0)];');
-  const air=r.run('storeyTop(1)*TS+TS'), slab=r.run('slabRow(1)*TS');
+  const air=r.run('storeyTop(1)*TS'), slab=r.run('slabRow(1)*TS');
+  r.run('G.hero.inv=999;G.L.foes=[mkFoe("blade",30*TS,storeyTop(1)*TS+2,1,-1,0,0)];');
   let lo=1e9, hi=-1e9;
   for(let i=0;i<300;i++){
     step(r,1);
-    const e=r.run('JSON.stringify({y:G.L.foes[0].y,h:G.L.foes[0].h})');
-    const {y,h}=JSON.parse(e);
+    const {y,h}=JSON.parse(r.run('JSON.stringify({y:G.L.foes[0].y,h:G.L.foes[0].h})'));
     lo=Math.min(lo,y);hi=Math.max(hi,y+h);
   }
   assert.ok(lo>=air,`never in the ceiling (${lo} vs ${air})`);

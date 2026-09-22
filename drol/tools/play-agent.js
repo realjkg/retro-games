@@ -65,9 +65,11 @@ const mid=b=>({x:b.x+b.w/2,y:b.y+b.h/2});
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
 function makeAgent(K){                       // K: the geometry constants of the game
- const storeyOf=b=>clamp(Math.floor((b.y+b.h/2)/(K.FLOORH*K.TS)),0,K.FLOORS-1);
- const slabTop=f=>(f*K.FLOORH+K.FLOORH-1)*K.TS;
- const storeyCeil=f=>(f*K.FLOORH)*K.TS;
+ // The roof is a row of its own above the first storey, so every storey index is
+ // measured from below it. Read from the game rather than assumed.
+ const storeyOf=b=>clamp(Math.floor((b.y+b.h/2-K.ROOF*K.TS)/(K.FLOORH*K.TS)),0,K.FLOORS-1);
+ const slabTop=f=>(K.ROOF+f*K.FLOORH+K.FLOORH-1)*K.TS;
+ const storeyCeil=f=>(K.ROOF+f*K.FLOORH)*K.TS;
 
  // The hole to use to get from storey `from` one step towards storey `to`.
  function gapToward(s,from,to){
@@ -102,7 +104,7 @@ function makeAgent(K){                       // K: the geometry constants of the
   const hx=mid(s.hero).x;
   let best=pool[0];
   for(const t of pool)if(Math.abs(t.x+t.w/2-hx)<Math.abs(best.x+best.w/2-hx))best=t;
-  return {x:best.x+best.w/2,f:Math.floor(best.y/(K.FLOORH*K.TS))};
+  return {x:best.x+best.w/2,f:Math.floor((best.y-K.ROOF*K.TS)/(K.FLOORH*K.TS))};
  }
 
  return function decide(s,memory,log){
@@ -132,7 +134,7 @@ function makeAgent(K){                       // K: the geometry constants of the
   let wantX=g.x, wantY=g.y, throughHole=false;
   if(goalF!==myF){
    // In the third scene the slab above the mother is holed only by trapdoors.
-   const trapStorey=s.traps.length?Math.floor(s.traps[0].y/(K.FLOORH*K.TS)):-1;
+   const trapStorey=s.traps.length?Math.floor((s.traps[0].y-K.ROOF*K.TS)/(K.FLOORH*K.TS)):-1;
    let target=(goalF>myF&&trapStorey===myF)?trapToward(s):gapToward(s,myF,goalF);
    // Stick with a hole once chosen for a second: a toy that keeps changing floors
    // will otherwise have the agent hovering between two of them.
@@ -261,7 +263,7 @@ function makeAgent(K){                       // K: the geometry constants of the
 function play(opts){
  const run=boot(opts.seed);
  // The geometry and the two pull ranges, read from the game rather than guessed.
- const K=run("({TS,FLOORH,FLOORS,MAPW,MAPH,MAGNET_REACH,VACUUM_REACH})");
+ const K=run("({TS,FLOORH,FLOORS,ROOF,MAPW,MAPH,MAGNET_REACH,VACUUM_REACH})");
  const decide=makeAgent(K);
  run(`newGame(${opts.diff},${opts.seed});`);
  const log={seed:opts.seed,diff:opts.diff,score:0,rescues:[],deaths:[],scenesSeen:0,
@@ -314,7 +316,7 @@ function play(opts){
   // work in which the straight-line distance barely moves, so a stall has to be
   // no progress of any kind: not towards the goal, and not between floors.
   if(s.hero&&memory.goalDist!==undefined){
-   const floor=Math.floor((s.hero.y+s.hero.h/2)/(K.FLOORH*K.TS));
+   const floor=Math.floor((s.hero.y+s.hero.h/2-K.ROOF*K.TS)/(K.FLOORH*K.TS));
    if(floor!==lastFloor){lastFloor=floor;still=0;}
    if(memory.goalDist<bestDist-20){bestDist=memory.goalDist;still=0;}
    else if(++still>1200){
@@ -324,7 +326,7 @@ function play(opts){
   if(memory.goalKey!==lastGoal){lastGoal=memory.goalKey;bestDist=1e9;still=0;}
   if(opts.trace&&f%30===0&&s.hero)
    console.log(`t=${s.time.toFixed(1)} scene ${s.scene+1} storey ${
-     Math.floor((s.hero.y+s.hero.h/2)/(K.FLOORH*K.TS))} x=${Math.round(s.hero.x)} `+
+     Math.floor((s.hero.y+s.hero.h/2-K.ROOF*K.TS)/(K.FLOORH*K.TS))} x=${Math.round(s.hero.x)} `+
      `score ${s.score} lives ${s.lives} keys ${Object.keys(keys).join("+")||"-"}`);
  }
  log.score=run("G.score");
