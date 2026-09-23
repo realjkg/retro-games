@@ -388,23 +388,69 @@ test('the gun holstered: FIRE draws it and does not shoot, and a guard is not he
     'holstered, he looks the same');
 });
 
-test('each man has his own voice, and a question rises where an order falls', ()=>{
+/* The pitch of synthesised speech, measured from the samples themselves:
+   autocorrelation over 40ms windows, voiced windows only. */
+function pitches(raw,sr=11025){
+  /* undo the synthesiser's treble lift first, or the second harmonic
+     outweighs a low voice's fundamental and the tracker reads an octave up */
+  const pcm=new Float32Array(raw.length);let y=0;
+  for(let k=0;k<raw.length;k++){y=raw[k]+0.92*y;pcm[k]=y;}
+  let m=0;for(const v of pcm)m=Math.max(m,Math.abs(v));for(let k=0;k<pcm.length;k++)pcm[k]/=m||1;
+  const out=[],win=Math.round(sr*0.04);
+  for(let a=0;a+win*2<pcm.length;a+=Math.round(win/2)){
+    let e=0;for(let k=a;k<a+win;k++)e+=pcm[k]*pcm[k];
+    if(e/win<0.01)continue;
+    let best=0,lag=0;
+    for(let L=Math.round(sr/320);L<=Math.round(sr/60);L++){
+      let c=0,n1=0,n2=0;
+      for(let k=a;k<a+win;k++){c+=pcm[k]*pcm[k+L];n1+=pcm[k]*pcm[k];n2+=pcm[k+L]*pcm[k+L];}
+      const r=c/Math.sqrt(n1*n2+1e-9);if(r>best){best=r;lag=L;}
+    }
+    if(best>0.5)out.push(sr/lag);
+  }
+  return out;
+}
+const median=a=>{const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1];};
+
+test('the castle talks: every line the guards say is German sounds it can make', ()=>{
   const r=runtime();
-  const sing=(text,mood,who)=>{r.notes.length=0;r.run(`Snd.on=true;Snd.intone(${JSON.stringify(text)},'${mood}',${JSON.stringify(who)})`);
-    return r.notes.filter((f,i)=>i%1===0).slice();};
-  const guard={kind:'guard',pitch:1,rate:1},ss={kind:'ss',pitch:1,rate:1};
-  const ask=sing('Wohin gehen Sie?','ask',guard),bark=sing('Halt! Stehenbleiben!','bark',guard);
-  assert.ok(ask.length>=3&&bark.length>=3);
-  assert.ok(ask[ask.length-1]>ask[0]*1.2,'a question does not rise: '+ask.map(Math.round));
-  assert.ok(bark[bark.length-1]<bark[0]*0.8,'an order does not fall: '+bark.map(Math.round));
-  const cold=sing('Ihre Papiere, bitte.','cold',ss);
-  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
-  assert.ok(avg(cold)<avg(sing('Ihre Papiere, bitte.','cold',guard))*0.8,'the SS do not sound lower');
-  const sus=sing('Sie haben einen komischen Akzent.','suspicious',guard);
-  const ups=sus.slice(1).filter((f,i)=>f>sus[i]).length,downs=sus.slice(1).filter((f,i)=>f<sus[i]).length;
-  assert.ok(ups>0&&downs>0,'suspicion does not waver');
-  const voices=r.j(`[mkGuard('guard',0,0),mkGuard('guard',0,0),mkGuard('guard',0,0)].map(g=>g.voice.pitch)`);
-  assert.ok(new Set(voices).size===3,'the guards all sound the same');
+  const res=r.j(`(()=>{const lines=HALT.concat(SSHALT,['Pass!','Ihren Pass!','Was ist los?','Kamerad! Nicht schießen!',
+      'Schweinehund!','Spion! Alarm!','Gut. Weitermachen.','Wo ist er?','Sucht ihn!'],
+    Object.values(QUESTIONS).map(q=>q.de),PAROLEN,CHIEFS.map(n=>'Kommandant '+n));
+    return lines.map(t=>{const ph=g2p(t).map(p=>p.replace('^',''));
+      /* heard, not counted: the share of 20ms windows loud enough to hear */
+      const pcm=synthLine(t,'bark',voiceFor('guard',1,1)),w=220;let on=0,n=0;
+      for(let a=0;a+w<=pcm.length;a+=w){let e=0;for(let k=a;k<a+w;k++)e+=pcm[k]*pcm[k];n++;if(Math.sqrt(e/w)>0.05)on++;}
+      return{t,bad:ph.filter(p=>!PH[p]),n:ph.length,loud:on/n,secs:pcm.length/VSR};});})()`);
+  for(const l of res){
+    assert.deepEqual(l.bad,[],l.t+' has sounds the voice cannot make');
+    assert.ok(l.n>0&&l.loud>0.4,l.t+' is silent: '+l.loud.toFixed(2)+' of it can be heard');
+    assert.ok(l.secs<4,l.t+' goes on for '+l.secs+'s');
+  }
+  assert.deepEqual(r.j(`g2p('Halt! Kommen Sie!').map(p=>p.replace('^',''))`),['h','A','l','t',',','k','O','m','@','n','_','z','i',',']);
+  assert.deepEqual(r.j(`g2p('Was ist los?').map(p=>p.replace('^',''))`),['v','a','s','_','I','s','t','_','l','o','s',',']);
+});
+
+test('high voices and low: every man his own pitch, the SS at the bottom, heard in the samples', ()=>{
+  const r=runtime();
+  const say=(t,m,v)=>median(pitches(r.j(`Array.from(synthLine(${JSON.stringify(t)},'${m}',${v}))`)));
+  const high=say('Halt! Kommen Sie!','bark',`voiceFor('guard',1.15,1)`);
+  const low=say('Halt! Kommen Sie!','bark',`voiceFor('guard',0.85,1)`);
+  const ss=say('Halt! Kommen Sie!','bark',`voiceFor('ss',1,1)`);
+  assert.ok(high>low*1.4,'a high guard ('+Math.round(high)+'Hz) against a low one ('+Math.round(low)+'Hz)');
+  assert.ok(ss<low,'the SS ('+Math.round(ss)+'Hz) are not the lowest');
+  const voices=r.j(`[mkGuard('guard',0,0),mkGuard('guard',0,0),mkGuard('guard',0,0)].map(g=>g.voice.f0)`);
+  assert.equal(new Set(voices).size,3,'the guards all sound the same');
+});
+
+test('a question rises at the end, an order falls', ()=>{
+  const r=runtime();
+  const contour=(t,m)=>{const p=pitches(r.j(`Array.from(synthLine(${JSON.stringify(t)},'${m}',voiceFor('guard',1,1)))`));
+    const k=Math.max(1,Math.floor(p.length/3));return[median(p.slice(0,k)),median(p.slice(-k))];};
+  const [a0,a1]=contour('Wohin gehen Sie?','ask');
+  assert.ok(a1>a0*1.2,'the question does not rise: '+Math.round(a0)+' → '+Math.round(a1));
+  const [b0,b1]=contour('Halt! Stehenbleiben!','bark');
+  assert.ok(b1<b0*0.85,'the order does not fall: '+Math.round(b0)+' → '+Math.round(b1));
 });
 
 test('the SS go in squads: never one alone', ()=>{
@@ -458,6 +504,80 @@ test('a squad that comes in after a man in uniform does not know him', ()=>{
   const st=r.j(`room().guards.map(g=>g.st)`);
   assert.ok(st.length>=2);
   assert.ok(st.every(s=>s!=='alert'),'they came in and knew him at once: '+st);
+});
+
+/* walk the prisoner out of the room by the first opening that leads to a
+   room he was not just in, and let the castle run until an SS man is in the
+   room with him or the time is up */
+const HUNT=`(function(){
+  globalThis.walkOn=function(){
+    const C=G.castle,rm=room();
+    const sides=Object.keys(SIDES).filter(s=>rm.doors[s]);
+    const s=sides.find(x=>{const j=(rm.cy+SIDES[x][1])*C.CW+rm.cx+SIDES[x][0];return j!==globalThis.lastRoom;})||sides[0];
+    globalThis.lastRoom=G.cur;leave(s);
+    const r=room();r.guards=r.guards.filter(g=>g.kind!=='guard');r.chests=[];r.g=r.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+    G.P.x=140;G.P.y=92;
+  };
+  globalThis.waitFor=function(g,secs){const out={came:false,firstX:null};
+    for(let k=0;k<secs*60;k++){stepGame(1/60);if(room().guards.indexOf(g)>=0){
+      if(out.firstX===null)out.firstX={x:g.x,y:g.y};if(g.st==='alert'){out.came=true;break;}}}
+    return out;};
+})()`;
+
+test('the SS are relentless: one who has seen you follows you room after room until you shoot him', ()=>{
+  const r=runtime(21);
+  r.run(`startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;G.hunt.t=1e9;`+HUNT);
+  bare(r,140,92);
+  guard(r,'ss',200,92);
+  r.run(`globalThis.S=room().guards[0];alarm(S);G.hunt.t=1e9;`);
+  assert.equal(r.j('S.locked'),true,'he saw a man in prison clothes and did not lock on');
+  const trail=[];
+  for(let n=0;n<4;n++){
+    r.run(`walkOn();G.hunt.t=1e9;`);
+    const w=r.j(`waitFor(S,10)`);
+    trail.push(w);
+    assert.ok(w.came,'room '+(n+1)+': he did not come after him');
+    const f=w.firstX;
+    assert.ok(f.x<0||f.x>280||f.y<8||f.y>168,'room '+(n+1)+': he appeared inside the room at '+JSON.stringify(f));
+  }
+  /* shoot him and he stops coming */
+  r.run(`S.hp=1;hitGuard(S);walkOn();G.hunt.t=1e9;`);
+  assert.equal(r.j(`waitFor(S,10).came`),false,'a dead man kept on coming');
+});
+
+test('several who have seen you all come, the nearest first', ()=>{
+  const r=runtime(22);
+  r.run(`startCastle(6);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
+  const res=r.j(`(()=>{
+    const C=G.castle;const ids=[];
+    /* two SS locked on, in two different rooms away from him */
+    const {dist}=roomPath(G.cur);
+    const far=C.rooms.map((rm,i)=>i).filter(i=>dist[i]>=2).sort((a,b)=>dist[a]-dist[b]);
+    const near=C.rooms.map((rm,i)=>i).find(i=>dist[i]===1);
+    const put=(ri)=>{const g=mkGuard('ss',140,92);g.st='alert';g.locked=true;C.rooms[ri].guards.push(g);ids.push(g.id);return g;};
+    const a=put(far[far.length-1]),b=put(near);
+    walkOn();G.hunt.t=1e9;
+    const order=[];
+    for(let k=0;k<60*25&&order.length<2;k++){stepGame(1/60);for(const g of room().guards)if((g===a||g===b)&&order.indexOf(g.id)<0)order.push(g.id);}
+    return{order,a:a.id,b:b.id,here:[room().guards.indexOf(a)>=0,room().guards.indexOf(b)>=0]};})()`);
+  assert.equal(res.order.length,2,'not both came: '+JSON.stringify(res));
+  assert.deepEqual(res.order,[res.b,res.a],'the far one came before the near one');
+});
+
+test('a uniform that holds: the SS who were hunting him come in, and cannot see him', ()=>{
+  const r=runtime(23);
+  r.run(`startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
+  bare(r,140,92);
+  guard(r,'ss',200,92);
+  r.run(`globalThis.S=room().guards[0];alarm(S);G.hunt.t=1e9;`);
+  r.run(`G.P.uniform=true;G.P.holstered=true;walkOn();G.hunt.t=1e9;`);
+  const w=r.j(`(()=>{for(let k=0;k<600;k++){stepGame(1/60);if(room().guards.indexOf(S)>=0&&S.st!=='enter')break;}
+    return{here:room().guards.indexOf(S)>=0,st:S.st,locked:S.locked};})()`);
+  assert.ok(w.here,'he did not come');
+  assert.notEqual(w.st,'alert','he came in and knew him at once, in a uniform that held');
+  assert.equal(w.locked,false,'he is still locked on to a man he cannot see');
+  r.run(`walkOn();G.hunt.t=1e9;`);
+  assert.equal(r.j(`waitFor(S,10).came`),false,'he followed him again after losing him');
 });
 
 test('picking a lock takes time, walking away gives it up, shooting it off is quick', ()=>{
