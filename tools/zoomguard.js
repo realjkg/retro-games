@@ -18,7 +18,7 @@ try{ chromium=require(process.env.PW?path.join(process.env.PW,'index.js'):'playw
 catch(e){ console.log('playwright-core not installed; skipping.'); process.exit(0); }
 
 const GAMES=['archon','aztec','bards-tale','choplifter','drol','galaga',
-  'lode-runner','law-of-the-west'];
+  'lode-runner','law-of-the-west','tapped'];
 const fail=[], note=[];
 const ok=(c,m)=>{ if(!c)fail.push(m); };
 

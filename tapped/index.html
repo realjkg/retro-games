@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Tapped — The Root Beer Bar</title>
+<meta name="description" content="Tapped: a browser recreation of the 1983 arcade game Root Beer Tapper. Four bars, a thirsty crowd walking in from the door, and every empty mug has to come back to you.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BA%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#120a06">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tapped">
+<style>
+:root{--bg:#120b07;--panel:#1f140d;--panel2:#2b1d13;--ink:#f2e8dc;--dim:#b49c86;--gold:#f0b43c;
+  --line:#3e2c1e;--hi:#ffd98a}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#f1e9df;--panel:#fff;--panel2:#f6efe6;--ink:#20150c;
+    --dim:#6f5a46;--line:#dccbb8}
+}
+:root[data-theme="dark"]{--bg:#120b07;--panel:#1f140d;--panel2:#2b1d13;--ink:#f2e8dc;--dim:#b49c86;
+  --line:#3e2c1e}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise iOS Safari's selection handles and its Copy callout. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:13px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:8px;
+  flex-wrap:wrap}
+#status b{color:var(--gold)}
+#stage{position:relative;width:100%;aspect-ratio:256/248;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none;flex:0 1 auto;min-height:0}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stickwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+/* The arcade had a joystick and a tap handle, not a keypad, so the glass has a
+   joystick: a round gate with a ball-top stick that follows the thumb. */
+#stick{position:relative;width:150px;height:150px;border-radius:50%;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#1a100a 0 30%,#2b1d13 31% 62%,#3e2c1e 63% 100%);
+  border:2px solid var(--line);box-shadow:inset 0 3px 10px rgba(0,0,0,.55)}
+#stick .gate{position:absolute;inset:18px;border-radius:50%;border:1px dashed rgba(240,180,60,.25)}
+#stick .shaft{position:absolute;left:50%;top:50%;width:14px;height:0;margin-left:-7px;
+  background:#15151a;border-radius:7px;transform-origin:50% 0}
+#knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+  background:radial-gradient(circle at 36% 32%,#ff8a7a 0,#e02a1e 38%,#8a0e08 100%);
+  box-shadow:0 5px 8px rgba(0,0,0,.55);pointer-events:none;will-change:transform}
+#stick.on #knob{box-shadow:0 2px 4px rgba(0,0,0,.6)}
+.stickwrap small{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#1a1006;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.move{font-size:20px}
+.abtn{width:104px;height:104px;border-radius:50%;font-size:14px;font-weight:800;letter-spacing:.05em}
+.sbtn{width:62px;height:32px;border-radius:9px;font-size:10px;font-weight:700}
+.right{display:flex;flex-direction:column;align-items:center;gap:8px}
+#overlay{position:absolute;inset:0;background:rgba(14,8,4,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Over the attract demo the overlay is only a scrim, so the bar shows through. */
+#overlay.splash{background:linear-gradient(rgba(10,6,3,.55) 0%,rgba(10,6,3,.2) 30%,rgba(10,6,3,.9) 62%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:26px;margin-bottom:0;text-shadow:0 2px 4px #000}
+#overlay.splash .menuitem{width:min(290px,84%);padding:8px;background:rgba(34,22,12,.92);
+  border-color:#5a4028;color:#f2e8dc}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#1a1006}
+#overlay.splash .sub,#overlay.splash small.tip{color:#e0cfbd;text-shadow:0 1px 2px #000}
+#overlay.card{background:linear-gradient(rgba(10,6,3,.72),rgba(10,6,3,.95) 58%);justify-content:center}
+/* a level card is a band across the middle; the bar it announces shows round it */
+#overlay.card.band{background:linear-gradient(rgba(10,6,3,0) 28%,rgba(10,6,3,.9) 38%,rgba(10,6,3,.9) 62%,rgba(10,6,3,0) 72%)}
+.ini .letter.cur{animation:blink .8s steps(2,start) infinite}
+@keyframes blink{to{color:transparent}}
+h1{font-size:23px;margin:0;letter-spacing:.16em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:400px;line-height:1.45}
+.menuitem{width:min(320px,88%);padding:10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);font-size:14px;cursor:pointer;color:var(--ink)}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#1a1006;font-weight:700}
+small.tip{color:var(--dim);font-size:11px;max-width:420px;line-height:1.5}
+.tally{font-size:12px;color:#f2e8dc;line-height:1.65;background:rgba(34,22,12,.85);
+  border:1px solid #5a4028;border-radius:10px;padding:6px 14px;min-width:min(300px,86%)}
+.tally .r{display:flex;justify-content:space-between;gap:18px}
+.tally .r span:last-child{color:var(--gold);font-weight:700}
+.tally .r.me span{color:var(--hi)}
+.tally .h{color:#b49c86;font-size:10px;letter-spacing:.14em;text-align:center}
+.ini{display:flex;gap:10px;justify-content:center;margin:4px 0}
+.ini .col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.ini .letter{width:52px;height:60px;border:2px solid #5a4028;border-radius:10px;background:#1f140d;
+  color:#f2e8dc;font:800 36px/56px ui-monospace,Menlo,Consolas,monospace;text-align:center}
+.ini .letter.cur{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 2px rgba(240,180,60,.25)}
+.ini .step{width:52px;height:34px;padding:0;font-size:15px;border-radius:9px;background:#2b1d13;
+  border:1px solid #5a4028;color:#f2e8dc;cursor:pointer}
+#status{align-items:center}
+#sound{height:28px;width:56px;margin-left:auto}
+@media (pointer:fine){#pads{display:none}}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom. */
+.menuitem,#sound,.step,button,a{touch-action:manipulation}
+.btn,#stick{touch-action:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status">
+    <span id="hud">SCORE <b id="score">0</b> &nbsp; HIGH <b id="high">0</b></span>
+    <span id="hud2">LEVEL <b id="level-n">1</b> &nbsp; BARTENDERS <b id="lives">3</b></span>
+    <!-- up here, not on the glass: on the playfield it sat on the first bar's tap -->
+    <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button>
+  </div>
+  <div id="stage">
+    <canvas id="c" width="256" height="248"></canvas>
+    <div id="overlay" class="splash"></div>
+  </div>
+  <div id="pads">
+    <div class="stickwrap">
+      <div id="stick" role="button" aria-label="joystick: up and down change bar, left and right run">
+        <div class="gate"></div><div class="shaft" id="shaft"></div><div id="knob"></div>
+      </div>
+      <small>▲ ▼ bar · ◀ ▶ run</small>
+    </div>
+    <div class="right">
+      <button class="btn sbtn" id="bp" type="button">PAUSE</button>
+      <button class="btn abtn" id="bf" type="button">POUR<small>hold · let go</small></button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* Tapped — The Root Beer Bar
+ *
+ * After Bally Midway's 1983 Root Beer Tapper. Four bars run left to right. The
+ * crowd comes in through the doors on the left and walks towards you; you
+ * stand at the taps on the right, pour, and slide the mug down the bar. A
+ * customer who catches one is pushed back towards the door, and if he goes
+ * through it he is served. If not he drinks, and slides the empty back.
+ *
+ * You lose a bartender when a customer reaches your end of the bar, when a full
+ * mug runs off the far end with nobody to catch it, or when an empty comes back
+ * and you are not there to catch it.
+ *
+ * The playfield is 256x248 logical pixels, drawn at whatever size the page has
+ * with image-rendering:pixelated. Every sprite is a grid of letters in this
+ * file, so the picture in the source is the picture on the screen.
+ */
+const W=256,H=248;
+const LANES=4,LANE_H=60,TOP0=6;
+const laneTop=i=>TOP0+i*LANE_H;
+/* The bar runs from BAR_L to BAR_R; the taps are on the wall at the right and
+ * the bartender stands under them at TAP_X. */
+const BAR_L=18,BAR_R=228,TAP_X=240,BX_MIN=30;
+/* How it feels, in one place.
+ *   RUNSPD   the bartender runs the length of the bar in about a second and a half
+ *   FULLSPD  a full mug reaches the door in under two seconds
+ *   POURT    how long the tap takes to fill a mug
+ *   PUSH     how far a customer is shoved back by the mug he catches */
+const RUNSPD=140,FULLSPD=118,POURT=0.42,PUSH=58,SLIDESPD=96;
+/* The original's scoring. */
+const SCORE={out:50,empty:100,tip:1500,bonus:3000};
+const TABLE_N=5;
+/* The arcade's count of bartenders. Accounts of the cabinet say you "start with
+ * two", with the reserve shown as mugs; read as two in reserve and one at the
+ * taps, that is three. It is one number, here, so if the cabinet says
+ * otherwise it is one edit. */
+const ARCADE_LIVES=3;
+
+/* ---------- small helpers ---------- */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function rnd(n){return Math.random()*n;}
+function pick(a){return a[(Math.random()*a.length)|0];}
+/* localStorage is absent in a file:// sandbox on some browsers and throws on
+ * read in private mode on others, so every touch of it is guarded. */
+function load(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,String(v));}catch(e){}}
+function drop(k){try{localStorage.removeItem(k);}catch(e){}}
+function loadJSON(k,d){try{const v=JSON.parse(load(k,'null'));return v===null?d:v;}catch(e){return d;}}
+
+/* ---------- sound ---------- */
+/* Every sound is built from oscillators at call time; there is no sample data
+ * in the page and nothing is fetched, which is what keeps it a single file. */
+const Snd={ctx:null,on:load('tapped.sound','1')==='1',
+  boot(){
+    if(this.ctx)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();}catch(e){this.ctx=null;}
+  },
+  live(){
+    if(!this.on)return null;this.boot();const c=this.ctx;if(!c)return null;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    return c;
+  },
+  tone(type,f0,f1,dur,gain,delay){
+    const c=this.live();if(!c)return;
+    const t=c.currentTime+(delay||0);
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(f0,t);
+    if(f1&&f1!==f0)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(gain,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.02);
+  },
+  noise(dur,gain,f,delay){
+    const c=this.live();if(!c)return;
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=buf;
+    const bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f||900;
+    const g=c.createGain();g.gain.value=gain;
+    s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(c.currentTime+(delay||0));
+  },
+  pour(){this.noise(0.16,0.05,2400);},
+  full(){this.tone('square',660,880,0.06,0.04);},
+  slide(){this.tone('triangle',520,260,0.16,0.05);},
+  clink(){this.tone('square',1560,1560,0.05,0.05);this.tone('square',2090,2090,0.06,0.03,0.04);},
+  out(){this.tone('square',420,140,0.24,0.05);},
+  crash(){this.noise(0.5,0.22,2600);this.tone('sawtooth',300,60,0.4,0.05);},
+  tip(){[784,988,1175,1568].forEach((f,i)=>this.tone('square',f,f,0.09,0.05,i*0.07));},
+  shake(){this.noise(0.12,0.05,5200);},
+  whoosh(){this.tone('sine',260,520,0.18,0.04);},
+  step(){this.tone('square',880,880,0.03,0.03);},
+  good(){[523,659,784,1046,1318].forEach((f,i)=>this.tone('square',f,f,0.12,0.06,i*0.09));},
+  bad(){this.noise(0.6,0.14,1800);this.tone('sawtooth',330,110,0.5,0.05);}
+};
+
+/* ---------- music ---------- */
+/* "Oh! Susanna" (Stephen Foster, 1848), the saloon's tune in the arcade too.
+ * It is an American classic in the public domain, so it needs no licence; the
+ * arrangement below is this game's own, not a copy of the arcade's. The
+ * game-over is the last line of it, slowed. Notes are
+ * scheduled against the audio clock, not the frame clock, so a busy page cannot
+ * drag them. */
+const SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function hz(name){
+  const m=/^([A-G])([#b]?)(-?\d)$/.exec(name);
+  if(!m)return 0;
+  const n=SEMI[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)+(+m[3]+1)*12;
+  return 440*Math.pow(2,(n-69)/12);
+}
+const TUNES={
+  start:{bpm:220,parts:[
+    ['square',0.06,'C5:.5 D5:.5 E5:1 G5:1 G5:1.5 A5:.5 G5:1 E5:1 C5:1.5 D5:.5 E5:1 E5:1 D5:1 C5:1 D5:2'],
+    ['triangle',0.09,'C3:1 G3:1 C3:1 G3:1 C3:1 G3:1 C3:1 G3:1 C3:1 G3:1 C3:1 G3:1 G2:1 D3:1 G2:2']]},
+  clear:{bpm:240,parts:[
+    ['square',0.06,'G5:.5 A5:.5 G5:.5 E5:.5 C5:1 D5:.5 E5:.5 D5:1 C5:2'],
+    ['triangle',0.09,'C3:1 E3:1 G3:1 E3:1 G2:1 B2:1 C3:2']]},
+  over:{bpm:120,parts:[
+    ['square',0.06,'C5:.5 D5:.5 E5:1 G5:1 G5:1 A5:.5 G5:.5 E5:1 C5:1 D5:1 E5:1 E5:.5 D5:.5 D5:.5 C5:2.5'],
+    ['triangle',0.09,'C3:2 C3:2 F2:2 C3:2 G2:2 G2:2 C3:2']]}
+};
+const Music={
+  gen:0,
+  stop(){this.gen++;},
+  play(tune){
+    const c=Snd.live();if(!c)return;
+    this.gen++;
+    const beat=60/tune.bpm,t0=c.currentTime+0.05;
+    for(const[type,gain,line]of tune.parts){
+      let t=t0;
+      for(const tok of line.trim().split(/\s+/)){
+        const[n,b]=tok.split(':');const dur=(+b||1)*beat;const f=hz(n);
+        if(f){
+          const o=c.createOscillator(),g=c.createGain();
+          o.type=type;o.frequency.setValueAtTime(f*0.96,t);
+          o.frequency.exponentialRampToValueAtTime(f,t+0.02);
+          g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(gain,t+0.01);
+          g.gain.setValueAtTime(gain*0.8,t+dur*0.6);
+          g.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.98);
+          o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur);
+        }
+        t+=dur;
+      }
+    }
+  }
+};
+
+/* ---------- sprites ---------- */
+/* A figure is twelve columns by twenty-four rows: a head of eight, a torso of
+ * eight and legs of eight, written as letters and put together BEFORE anything
+ * is outlined. That order matters. Outlining the parts one at a time is what
+ * drew a keyline across the middle of every caller in another game in this
+ * collection; here the outline goes once around the whole silhouette, so the
+ * only line on a figure is the one around it.
+ *
+ * Everything faces right. The left-facing copies are mirrors baked at load. */
+const HEADS={
+  cowboy:[
+    '....hhhh....',
+    '...hhhhhh...',
+    '...HHHHHH...',
+    '.hhhhhhhhhh.',
+    '...sssssse..',
+    '...sssssss..',
+    '...ssssmm...',
+    '....ssss....'],
+  athlete:[
+    '............',
+    '....hhhhh...',
+    '...hhhhhhh..',
+    '...hhhhhhhhh',
+    '...ssssse...',
+    '...sssssss..',
+    '...ssssmm...',
+    '....ssss....'],
+  punk:[
+    '.....hh.....',
+    '....hhh.....',
+    '...hhhhh....',
+    '...hhsssss..',
+    '...hssssse..',
+    '...sssssss..',
+    '...ssssmm...',
+    '....ssss....'],
+  alien:[
+    '...h....h...',
+    '....h..h....',
+    '...ssssss...',
+    '..ssssssss..',
+    '..sssswwss..',
+    '..sssswess..',
+    '...sssmss...',
+    '....ssss....'],
+  bandit:[
+    '....hhhh....',
+    '...hhhhhh...',
+    '.hhhhhhhhhh.',
+    '...ssssss...',
+    '...xxxxwxx..',
+    '...sssssss..',
+    '...sssmmm...',
+    '....ssss....'],
+  bartender:[
+    '...HHHHH....',
+    '..HHHHHHH...',
+    '..HHHsssss..',
+    '..HHssssse..',
+    '..Hsssssss..',
+    '...ssMMMM...',
+    '...sssss....',
+    '....sss.....']
+};
+/* Torsos. Walking swings the near arm against the legs; the rest are the
+ * poses a customer or the bartender strikes. */
+const TORSOS={
+  stand:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..ccaacccc..',
+    '..ccaacccc..',
+    '..ccaacccc..',
+    '..ccsscccc..',
+    '..BBBBBBBB..'],
+  fwd:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..cccaaccc..',
+    '..ccccaacc..',
+    '..cccccaass.',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  back:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..caaccccc..',
+    '.aaccccccc..',
+    '.ssccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  bang1:[
+    '.....ss.....',
+    '...cccccc...',
+    '..ccccccaass',
+    '..cccccaa...',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  bang2:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..cccccaaaa.',
+    '..ccccccc.ss',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  hold:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..cccaaaaa..',
+    '..cccccccss.',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  drink:[
+    '.....ssss...',
+    '...ccccaa...',
+    '..ccccccaa..',
+    '..cccccaac..',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  cheer:[
+    '.ss..ss..ss.',
+    '.aacccccaa..',
+    '..aacccaa...',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..cccccccc..',
+    '..BBBBBBBB..'],
+  pour:[
+    '.....ss..ss.',
+    '...ccccccaa.',
+    '..ccccccaa..',
+    '..cccccaac..',
+    '..cccccccc..',
+    '..wwwwwwww..',
+    '..wwwwwwww..',
+    '..wwwwwwww..'],
+  throw:[
+    '.....ss.....',
+    '...cccccc...',
+    '..cccccccc..',
+    '..cccaaaaass',
+    '..cccccccc..',
+    '..wwwwwwww..',
+    '..wwwwwwww..',
+    '..wwwwwwww..']
+};
+/* Bartender torsos are the same shapes in an apron: the waistcoat on top and
+ * the apron below the ribs. */
+function apron(rows){return rows.map((r,i)=>i>=5?r.replace(/[cB]/g,'w'):r.replace(/B/g,'w'));}
+/* Legs, in four frames of a walk: contact, passing, contact the other way,
+ * passing the other way. 'p' is the near leg and 'P' the far one, so the eye
+ * can follow which is which as they cross. */
+const LEGS={
+  stand:[
+    '...pppppp...',
+    '...pppppp...',
+    '...ppp.pp...',
+    '...pp..pp...',
+    '...pp..pp...',
+    '...pp..pp...',
+    '...pp..pp...',
+    '...bbb.bbb..'],
+  w0:[
+    '...pppppp...',
+    '...PPppppp..',
+    '..PPp..ppp..',
+    '..PP....pp..',
+    '.PP.....pp..',
+    '.PP......pp.',
+    'PP.......pp.',
+    'bb.......bbb'],
+  w1:[
+    '...pppppp...',
+    '...ppppPPP..',
+    '....ppPPPP..',
+    '....pp..PP..',
+    '....pp.PP...',
+    '....pp.PP...',
+    '....pp.bb...',
+    '....bbb.....'],
+  w2:[
+    '...pppppp...',
+    '...pppppPP..',
+    '..ppp..PPP..',
+    '..pp....PP..',
+    '.pp.....PP..',
+    '.pp......PP.',
+    'pp.......PP.',
+    'bb.......bbb'],
+  w3:[
+    '...pppppp...',
+    '...PPPpppp..',
+    '....PPpppp..',
+    '....PP..pp..',
+    '....PP.pp...',
+    '....PP.pp...',
+    '....PP.bb...',
+    '....bbb.....']
+};
+const WALK=['w0','w1','w2','w3'];
+const ARMS=['fwd','stand','back','stand'];     /* the arm swings against the legs */
+
+const KEY='#140c08';
+const PAL={
+  cowboy: {h:'#9a6230',H:'#3a2412',s:'#f0b484',e:'#1a1010',m:'#903028',w:'#fff',
+           a:'#8a2020',B:'#2a1a0a',p:'#3a58a8',P:'#26407e',b:'#5a3418'},
+  athlete:{h:'#2266d8',s:'#d8925e',e:'#1a1010',m:'#903028',w:'#fff',
+           a:'#a0a0ac',B:'#303038',p:'#383840',P:'#26262c',b:'#e8e8e8'},
+  punk:   {h:'#ea34c4',s:'#f2c4a4',e:'#1a1010',m:'#503040',w:'#fff',
+           a:'#5a5a6c',B:'#8a8a98',p:'#5870b0',P:'#3e5288',b:'#222228'},
+  alien:  {h:'#f0e040',s:'#62d062',e:'#101010',m:'#206020',w:'#fff',
+           a:'#7a82a0',B:'#e0c040',p:'#8a92b0',P:'#646c8a',b:'#4a5270'},
+  bandit: {h:'#26262e',s:'#e8b088',e:'#1a1010',m:'#903028',w:'#fff',x:'#101014',
+           c:'#e8e8e8',a:'#c83838',B:'#26262e',p:'#26262e',P:'#18181e',b:'#101014'},
+  bartender:{H:'#6a3a1a',s:'#f0b484',e:'#1a1010',M:'#4a2410',c:'#8a1c24',a:'#f4f0e8',
+           w:'#f4f0e8',B:'#f4f0e8',p:'#2a2a34',P:'#1c1c24',b:'#141418'}
+};
+/* Shirts vary by customer so a crowd is a crowd. */
+const SHIRTS={
+  cowboy:['#c83838','#d08a28','#3c8a48','#8a58b8'],
+  athlete:['#f2f2f2','#e8c040','#e06030','#40b0e0'],
+  punk:['#303038','#6a2a2a','#2a4a2a','#402a50'],
+  alien:['#a8b0c8','#c0a8e0','#a0d8d0','#e0c0a0']
+};
+
+function compose(head,torso,legs){return HEADS[head].concat(torso,LEGS[legs]);}
+/* Paint a grid of letters, then outline the silhouette once. The result is two
+ * pixels wider and taller than the grid. */
+function bake(grid,pal,flip){
+  const h=grid.length,w=grid[0].length;
+  const cv=document.createElement('canvas');cv.width=w+2;cv.height=h+2;
+  const g=cv.getContext('2d');
+  const on=(x,y)=>y>=0&&y<h&&x>=0&&x<w&&grid[y][x]!=='.';
+  for(let y=-1;y<=h;y++)for(let x=-1;x<=w;x++){
+    const fx=flip?w-1-x:x;
+    if(on(x,y)){g.fillStyle=pal[grid[y][x]]||'#f0f';g.fillRect(fx+1,y+1,1,1);}
+    else if(on(x-1,y)||on(x+1,y)||on(x,y-1)||on(x,y+1)){g.fillStyle=KEY;g.fillRect(fx+1,y+1,1,1);}
+  }
+  return cv;
+}
+const SPR={};
+function figure(kind,shirt,head,torso,legs,flip){
+  const k=kind+'|'+shirt+'|'+torso+'|'+legs+'|'+(flip?1:0);
+  if(!SPR[k]){
+    const pal=Object.assign({},PAL[kind]);
+    if(shirt)pal.c=shirt;
+    const t=kind==='bartender'?apron(TORSOS[torso]):TORSOS[torso];
+    SPR[k]=bake(compose(head,t,legs),pal,flip);
+  }
+  return SPR[k];
+}
+const MUG_FULL=[
+  'fff...',
+  'ffff..',
+  'rrrrhh',
+  'rRrr.h',
+  'rRrr.h',
+  'rrrrhh',
+  'gggg..'];
+const MUG_EMPTY=[
+  '......',
+  'gggg..',
+  'g..ghh',
+  'g..g.h',
+  'g..g.h',
+  'g..ghh',
+  'gggg..'];
+const MUGPAL={f:'#fff6dc',r:'#8a4412',R:'#c87a32',g:'#c8dce8',h:'#c8dce8'};
+const CAN=[
+  '.ssss.',
+  'rrrrrr',
+  'rrrrrr',
+  'wwwwww',
+  'wbbbbw',
+  'wbbbbw',
+  'wwwwww',
+  'rrrrrr',
+  'rrrrrr',
+  'rrrrrr',
+  '.ssss.'];
+const CANPAL={s:'#c0c0c8',r:'#c82828',w:'#f4f0e8',b:'#6a3010'};
+const COIN=['.yy.','yYyy','yyyy','.yy.'];
+const COINPAL={y:'#f0c030',Y:'#fff4a0'};
+function bakeAll(){
+  SPR.mugFull=bake(MUG_FULL,MUGPAL);SPR.mugEmpty=bake(MUG_EMPTY,MUGPAL);
+  SPR.mugFullL=bake(MUG_FULL,MUGPAL,true);SPR.mugEmptyL=bake(MUG_EMPTY,MUGPAL,true);
+  SPR.can=bake(CAN,CANPAL);SPR.coin=bake(COIN,COINPAL);
+}
+
+/* ---------- scenes ---------- */
+/* Four bars, in the arcade's order: the saloon, the ball park, the punk club
+ * and the space bar, and then round again faster. */
+const SCENES=[
+  {name:'THE SALOON',crowd:'cowboy',wall:'#5a3418',wall2:'#4a2a12',trim:'#2e1a0a',
+   top:'#b0763a',top2:'#8a5424',front:'#6a3a16',floor:'#3a2210'},
+  {name:'THE BALL PARK',crowd:'athlete',wall:'#1e5a34',wall2:'#184a2a',trim:'#0e2e1a',
+   top:'#c8a060',top2:'#a07840',front:'#7a2a2a',floor:'#2a3a24'},
+  {name:'THE PUNK CLUB',crowd:'punk',wall:'#3a2440',wall2:'#301c36',trim:'#1a0e20',
+   top:'#8a8a98',top2:'#6a6a78',front:'#2a2a34',floor:'#1a1420'},
+  {name:'THE SPACE BAR',crowd:'alien',wall:'#141a3a',wall2:'#10152e',trim:'#080a1c',
+   top:'#a8b4d0',top2:'#7a88a8',front:'#3a4468',floor:'#0c0e20'}
+];
+function levelCfg(L){
+  return{total:Math.min(7+L*3,40),gap:Math.max(0.9,3.0-0.2*L),
+    walk:12+2.4*L,empty:34+3*L,scene:(L-1)%4,tipP:0.14};
+}
+
+/* ---------- game state ---------- */
+const G={state:'splash',level:1,score:0,lives:ARCADE_LIVES,startLives:ARCADE_LIVES,endless:false,noScore:false,
+  cust:[],mugs:[],tips:[],fx:[],pops:[],spawned:0,total:0,spawnT:0,showT:0,t:0,
+  bt:{lane:0,x:TAP_X,fill:0,face:-1,dist:0,throwT:0,catchT:0,moving:false,holding:false},
+  cardT:0,deathT:0,why:'',frozen:null,demo:false,nextId:1,
+  stats:{served:0,empties:0,tips:0,bonus:0},bonus:null,ini:null,
+  table:loadJSON('tapped.scores',[])};
+if(!Array.isArray(G.table))G.table=[];
+G.endless=load('tapped.endless','0')==='1';
+function high(){return G.table.length?G.table[0].s:0;}
+function cfg(){return levelCfg(G.level);}
+
+function resetWorld(){
+  G.cust=[];G.mugs=[];G.tips=[];G.fx=[];G.pops=[];G.showT=0;G.frozen=null;
+  G.bt.fill=0;G.bt.throwT=0;G.bt.catchT=0;G.bt.x=TAP_X;G.bt.face=-1;G.bt.holding=false;
+}
+function startLevel(L){
+  G.level=L;resetWorld();
+  const c=cfg();
+  G.spawned=0;G.total=c.total;G.spawnT=0.6;G.bt.lane=0;
+  hud();
+}
+
+/* ---------- customers ---------- */
+function spawn(lane){
+  const c=cfg(),sc=SCENES[c.scene];
+  /* Now and then somebody from another bar wanders in; mostly it is the local crowd. */
+  const kind=Math.random()<0.8?sc.crowd:pick(['cowboy','athlete','punk','alien']);
+  G.cust.push({id:G.nextId++,kind,shirt:pick(SHIRTS[kind]),lane,
+    x:-14,st:'walk',t:0.7+rnd(0.4),dist:0,push:0,phase:rnd(1)});
+  G.spawned++;
+}
+/* Walk and pause, walk and pause: the arcade's crowd advances in fits. The
+ * position only changes while the legs are moving, and the leg frame is read
+ * from the distance walked, so a customer can never slide. */
+function custStep(p,dt){
+  const c=cfg();
+  p.phase+=dt;
+  if(p.st==='walk'||p.st==='wait'){
+    if(G.showT>0)return;                                  /* everybody watches the show */
+    p.t-=dt;
+    if(p.st==='walk'){
+      const v=c.walk*dt;p.x+=v;p.dist+=v;
+      if(p.t<=0){p.st='wait';p.t=0.45+rnd(0.7);}
+    }else if(p.t<=0){p.st='walk';p.t=0.6+rnd(0.5);}
+    if(p.x+12>=BAR_R-4&&!G.demo)return 'reached';
+    if(p.x+12>=BAR_R-4&&G.demo){p.st='slide';p.push=PUSH*3;p.mug=false;}
+  }else if(p.st==='slide'){
+    const v=SLIDESPD*dt;p.x-=v;p.push-=v;
+    if(p.x<-16){p.st='gone';served(p);return;}
+    if(p.push<=0){
+      if(p.x<4)p.push=40;                                 /* on the step: out he goes */
+      else{p.st='drink';p.t=1.0+rnd(0.3);}
+    }
+  }else if(p.st==='drink'){
+    p.t-=dt;
+    if(p.t<=0){
+      G.mugs.push({lane:p.lane,x:p.x+13,v:c.empty,full:false});
+      p.mug=false;p.st='wait';p.t=0.7+rnd(0.5);
+    }
+  }
+}
+function served(p){
+  G.stats.served++;
+  addScore(SCORE.out,p.x+8,laneTop(p.lane)+4);
+  Snd.out();
+}
+
+/* ---------- mugs ---------- */
+function mugStep(m,dt){
+  if(m.full){
+    m.x-=FULLSPD*dt;
+    /* the first customer it reaches who has his hands free takes it */
+    let best=null;
+    for(const p of G.cust){
+      if(p.lane!==m.lane||(p.st!=='walk'&&p.st!=='wait'))continue;
+      if(m.x<=p.x+13&&m.x>=p.x-2&&(!best||p.x>best.x))best=p;
+    }
+    if(best){
+      best.st='slide';best.push=PUSH;best.mug=true;m.dead=true;
+      Snd.clink();
+      if(!G.demo&&Math.random()<cfg().tipP)
+        G.tips.push({lane:best.lane,x:clamp(best.x+16,BAR_L+8,BAR_R-10),t:7});
+      return;
+    }
+    if(m.x<BAR_L-4)return 'missed';
+  }else{
+    m.x+=m.v*dt;
+    const b=G.bt;
+    if(b.lane===m.lane&&m.x>=b.x-9&&m.x<=b.x+2){
+      m.dead=true;b.catchT=0.22;G.stats.empties++;
+      addScore(SCORE.empty,b.x-4,laneTop(m.lane)+18);
+      Snd.clink();
+      return;
+    }
+    if(m.x>BAR_R+6)return 'dropped';
+  }
+}
+
+/* ---------- the bartender ---------- */
+const keys={left:false,right:false,fire:false};
+function atTap(){return Math.abs(G.bt.x-TAP_X)<2;}
+function laneMove(d){
+  if(G.state!=='play'&&!G.demo)return;
+  const b=G.bt;
+  b.lane=(b.lane+d+LANES)%LANES;b.x=TAP_X;b.fill=0;b.holding=false;b.face=-1;
+  Snd.whoosh();
+}
+function serve(){
+  const b=G.bt;
+  G.mugs.push({lane:b.lane,x:BAR_R-6,v:FULLSPD,full:true});
+  b.fill=0;b.throwT=0.25;b.face=-1;
+  Snd.slide();
+}
+function btStep(dt,input){
+  const b=G.bt;
+  b.throwT=Math.max(0,b.throwT-dt);b.catchT=Math.max(0,b.catchT-dt);
+  b.moving=false;
+  /* Hold to pour, let go to send it. A mug let go of before it is full stays
+   * under the tap and carries on filling next time. */
+  if(input.fire&&atTap()){
+    if(b.fill<1){
+      const was=b.fill;b.fill=Math.min(1,b.fill+dt/POURT);
+      if(was===0)Snd.pour();
+      if(b.fill>=1)Snd.full();
+    }
+    b.holding=true;b.face=1;
+    return;
+  }
+  if(b.holding&&!input.fire){
+    b.holding=false;
+    if(b.fill>=1){serve();return;}
+  }
+  const dir=(input.right?1:0)-(input.left?1:0);
+  if(dir){
+    const nx=clamp(b.x+dir*RUNSPD*dt,BX_MIN,TAP_X);
+    if(nx!==b.x){b.dist+=Math.abs(nx-b.x);b.x=nx;b.moving=true;b.face=dir;}
+    if(!atTap())b.fill=0;                               /* walked away from the tap: spilt */
+  }
+  for(const t of G.tips)
+    if(t.lane===b.lane&&Math.abs(t.x-b.x)<8){t.dead=true;tipped(t);}
+}
+function tipped(t){
+  G.stats.tips++;G.showT=2.6;
+  addScore(SCORE.tip,t.x-6,laneTop(t.lane)+16);
+  Snd.tip();
+}
+
+/* ---------- the attract demo ---------- */
+/* The title screen is the game playing itself: the arcade's did, and a title
+ * that only sits there tells nobody what the game is. It serves whoever is
+ * nearest the end of a bar and goes back for empties. */
+function demoInput(){
+  const b=G.bt,inp={left:false,right:false,fire:false};
+  const nearEnd=G.mugs.filter(m=>!m.full&&m.x>BAR_R-60);
+  if(nearEnd.length){
+    const m=nearEnd.sort((a,c)=>c.x-a.x)[0];
+    if(m.lane!==b.lane){laneMove(m.lane-b.lane);return inp;}
+    if(b.x<TAP_X)inp.right=true;
+    return inp;
+  }
+  if(b.x<TAP_X){inp.right=true;return inp;}
+  const want=[0,1,2,3].map(l=>{
+    const c=G.cust.filter(p=>p.lane===l&&(p.st==='walk'||p.st==='wait'));
+    const coming=G.mugs.filter(m=>m.lane===l&&m.full).length;
+    return{l,n:c.length-coming,x:c.length?Math.max(...c.map(p=>p.x)):-99};
+  }).filter(o=>o.n>0).sort((a,c)=>c.x-a.x);
+  if(!want.length)return inp;
+  if(want[0].l!==b.lane&&!b.holding){if(G.t%0.35<0.02)laneMove(want[0].l-b.lane);return inp;}
+  inp.fire=b.fill<1;
+  return inp;
+}
+
+/* ---------- score ---------- */
+function addScore(n,x,y){
+  if(G.demo)return;
+  G.score+=n;
+  G.pops.push({x,y,n,t:0.9});
+  if(!G.noScore&&G.score>high())el('high').textContent=G.score;
+  hud();
+}
+function hud(){
+  el('score').textContent=G.score;
+  el('high').textContent=Math.max(high(),G.noScore?0:G.score);
+  el('level-n').textContent=G.level;
+  el('lives').textContent=G.endless?'∞':G.lives;
+}
+
+/* ---------- the frame ---------- */
+function stepWorld(dt,input){
+  G.t+=dt;
+  G.showT=Math.max(0,G.showT-dt);
+  btStep(dt,input);
+  const c=cfg();
+  /* the next customer in, when a door is clear */
+  if(G.spawned<G.total){
+    G.spawnT-=dt;
+    if(G.spawnT<=0){
+      const free=[0,1,2,3].filter(l=>!G.cust.some(p=>p.lane===l&&p.x<20));
+      if(free.length){spawn(pick(free));G.spawnT=c.gap*(0.7+rnd(0.6));}
+      else G.spawnT=0.3;
+    }
+  }
+  let lost=null;
+  for(const p of G.cust){
+    const r=custStep(p,dt);
+    if(r&&!lost)lost={why:r,lane:p.lane,x:p.x+12};
+  }
+  G.cust=G.cust.filter(p=>p.st!=='gone');
+  for(const m of G.mugs){
+    const r=mugStep(m,dt);
+    if(r&&!lost)lost={why:r,lane:m.lane,x:m.x,full:m.full};
+  }
+  G.mugs=G.mugs.filter(m=>!m.dead);
+  for(const t of G.tips)if((t.t-=dt)<=0)t.dead=true;
+  G.tips=G.tips.filter(t=>!t.dead);
+  if(lost){
+    if(G.demo){
+      G.mugs=G.mugs.filter(m=>m.lane!==lost.lane);
+      fxCrash(lost);
+    }else return lost;
+  }
+  if(G.demo&&G.spawned>=G.total&&!G.cust.length){G.spawned=0;G.total=12;}
+  return null;
+}
+function fxStep(dt){
+  for(const f of G.fx)f.t+=dt;
+  G.fx=G.fx.filter(f=>f.t<f.life);
+  for(const p of G.pops){p.t-=dt;p.y-=dt*14;}
+  G.pops=G.pops.filter(p=>p.t>0);
+}
+function fxCrash(l){
+  const y=laneTop(l.lane)+30;
+  const x=l.why==='missed'?BAR_L-6:l.why==='dropped'?BAR_R+10:l.x;
+  const bits=[];
+  for(let i=0;i<14;i++)bits.push({a:rnd(Math.PI)+Math.PI,v:30+rnd(60),s:1+((i%3)?0:1),
+    c:pick(['#c8dce8','#fff6dc','#e8f0f8','#a8c0d0'])});
+  G.fx.push({kind:'crash',x,y,t:0,life:1.2,bits});
+  Snd.crash();
+}
+
+function stepGame(dt){
+  fxStep(dt);
+  switch(G.state){
+    case 'splash':
+      stepWorld(dt,demoInput());
+      break;
+    case 'card':
+      /* the crowd is already coming in while the card is up */
+      stepWorld(dt,{left:false,right:false,fire:false});
+      G.cardT-=dt;
+      if(G.cardT<=0){G.state='play';hideOverlay();saveSlot();}
+      break;
+    case 'play':{
+      if(dirHeld.t!==null){dirHeld.t-=dt;if(dirHeld.t<=0){laneMove(dirHeld.d);dirHeld.t=0.2;}}
+      const lost=stepWorld(dt,keys);
+      if(lost){die(lost);break;}
+      if(G.spawned>=G.total&&!G.cust.length&&!G.mugs.length){levelClear();break;}
+      autosave(dt);
+      break;
+    }
+    case 'dying':
+      G.deathT-=dt;G.t+=dt;
+      if(G.deathT<=0){
+        G.frozen=null;
+        if(!G.endless&&G.lives<=0)gameOver();
+        else{G.state='card';G.cardT=1.2;showCard('LEVEL '+G.level,'Back to the taps.');}
+      }
+      break;
+    case 'clear':
+      G.cardT-=dt;G.t+=dt;
+      if(G.cardT<=0)startBonus();
+      break;
+    case 'bonus':
+      bonusStep(dt);
+      break;
+    case 'over':case 'initials':
+      /* the bar carries on behind the last-call card, serving itself */
+      stepWorld(dt,demoInput());
+      break;
+    default:
+      G.t+=dt;
+  }
+}
+
+/* ---------- losing a bartender ---------- */
+/* Everything the death costs is paid the moment it happens and the slot is
+ * written straight away, so closing the page during the fall does not bring
+ * the bartender back. */
+const WHY={reached:'A CUSTOMER REACHED THE TAPS',missed:'A FULL MUG WENT OFF THE END',
+  dropped:'YOU MISSED AN EMPTY'};
+function die(l){
+  G.why=l.why;
+  fxCrash(l);
+  G.frozen={cust:G.cust.map(p=>Object.assign({},p)),mugs:G.mugs.map(m=>Object.assign({},m)),
+    lane:l.lane};
+  /* the customers still at the bars go back out and will come in again */
+  G.spawned-=G.cust.length;
+  G.cust=[];G.mugs=[];G.tips=[];G.showT=0;
+  G.bt.fill=0;G.bt.holding=false;
+  if(!G.endless)G.lives--;
+  G.state='dying';G.deathT=2.0;
+  Music.stop();
+  hud();
+  if(!G.endless&&G.lives<=0)clearSlot();else saveSlot();
+  showBanner(WHY[l.why]||'');
+}
+
+/* ---------- level clear and the bonus round ---------- */
+function levelClear(){
+  G.state='clear';G.cardT=1.8;
+  showCard('LEVEL '+G.level+' CLEAR','Every one of them served.');
+  Music.play(TUNES.clear);
+  /* checkpoint: a resume from here starts the next bar */
+  saveSlot({level:G.level+1});
+}
+/* The Soda Shake. Six cans, five of them shaken by a bandit, then shuffled.
+ * Open the one he did not shake. It is the arcade's bonus round and it is
+ * worth what the arcade's was. */
+const SLOT_X=[46,78,110,142,174,206];
+function startBonus(){
+  hideOverlay();
+  G.state='bonus';
+  const good=(Math.random()*6)|0;
+  const n=Math.min(4+G.level*2,14);
+  const swaps=[];
+  let last=-1;
+  for(let i=0;i<n;i++){
+    let a,b;
+    do{a=(Math.random()*6)|0;b=(Math.random()*6)|0;}while(a===b||a*6+b===last);
+    last=a*6+b;swaps.push([a,b]);
+  }
+  G.bonus={phase:'intro',t:1.6,good,slots:[0,1,2,3,4,5],shake:[0,1,2,3,4,5].filter(i=>i!==good),
+    si:0,swaps,wi:0,swapDur:Math.max(0.28,0.55-0.04*G.level),cur:2,pick:-1,
+    bx:SLOT_X[0],bdist:0,jig:-1,right:false,btx:SLOT_X[2],btdist:0};
+  showBanner('THE SODA SHAKE: FIVE ARE SHAKEN. KEEP YOUR EYE ON THE ONE THAT ISN\'T.');
+}
+function canX(i){
+  const B=G.bonus;
+  const s=B.slots[i];
+  if(B.phase==='shuffle'&&B.wi<B.swaps.length){
+    const[a,b]=B.swaps[B.wi];
+    const k=1-B.t/B.swapDur;
+    const e=k<0?0:k>1?1:k*k*(3-2*k);
+    if(s===a)return SLOT_X[a]+(SLOT_X[b]-SLOT_X[a])*e;
+    if(s===b)return SLOT_X[b]+(SLOT_X[a]-SLOT_X[b])*e;
+  }
+  return SLOT_X[s];
+}
+function canLift(i){
+  const B=G.bonus;
+  if(B.phase!=='shuffle'||B.wi>=B.swaps.length)return 0;
+  const[a,b]=B.swaps[B.wi];const s=B.slots[i];
+  const k=clamp(1-B.t/B.swapDur,0,1);
+  if(s===a)return -Math.sin(k*Math.PI)*14;
+  if(s===b)return Math.sin(k*Math.PI)*6;
+  return 0;
+}
+function bonusStep(dt){
+  const B=G.bonus;
+  G.t+=dt;
+  B.t-=dt;
+  if(B.phase==='intro'){
+    if(B.t<=0){B.phase='shake';B.t=0.62;B.si=0;}
+  }else if(B.phase==='shake'){
+    /* the bandit walks to each can in turn and shakes it */
+    const target=SLOT_X[B.slots.indexOf(B.shake[B.si])];
+    const d=target-B.bx;
+    if(Math.abs(d)>1){const v=Math.sign(d)*Math.min(Math.abs(d),110*dt);B.bx+=v;B.bdist+=Math.abs(v);B.jig=-1;B.t=0.62;}
+    else{
+      if(B.jig!==B.shake[B.si]){B.jig=B.shake[B.si];Snd.shake();}
+      if(B.t<=0){B.si++;B.jig=-1;B.t=0.62;
+        if(B.si>=B.shake.length){B.phase='shuffle';B.wi=0;B.t=B.swapDur;}}
+    }
+  }else if(B.phase==='shuffle'){
+    if(B.t<=0){
+      const[a,b]=B.swaps[B.wi];
+      B.slots=B.slots.map(s=>s===a?b:s===b?a:s);
+      B.wi++;B.t=B.swapDur;Snd.step();
+      if(B.wi>=B.swaps.length){B.phase='pick';B.t=12;showBanner('WHICH ONE? ◀ ▶ TO CHOOSE, POUR TO OPEN.');}
+    }
+  }else if(B.phase==='pick'){
+    const tx=SLOT_X[B.cur];const d=tx-B.btx;
+    if(Math.abs(d)>0.5){const v=Math.sign(d)*Math.min(Math.abs(d),RUNSPD*dt);B.btx+=v;B.btdist+=Math.abs(v);}
+    if(B.t<=0)bonusPick();
+  }else if(B.phase==='reveal'){
+    if(B.t<=0){
+      hideBanner();
+      nextLevel();
+    }
+  }
+}
+function bonusMove(d){
+  const B=G.bonus;
+  if(!B||B.phase!=='pick')return;
+  B.cur=clamp(B.cur+d,0,5);Snd.step();
+}
+function bonusPick(){
+  const B=G.bonus;
+  if(!B||B.phase!=='pick')return;
+  const at=B.slots.indexOf(B.good);
+  B.pick=B.cur;B.right=B.cur===at;B.btx=SLOT_X[B.cur];
+  B.phase='reveal';B.t=2.4;
+  if(B.right){G.stats.bonus++;addScore(SCORE.bonus,SLOT_X[B.cur]-8,150);Snd.good();
+    showBanner('THAT\'S THE ONE! '+SCORE.bonus);}
+  else{Snd.bad();showBanner('SHAKEN! IT WAS THAT ONE.');}
+}
+function nextLevel(){
+  G.bonus=null;
+  startLevel(G.level+1);
+  G.state='card';G.cardT=1.8;
+  showCard('LEVEL '+G.level,SCENES[cfg().scene].name);
+  Music.play(TUNES.start);
+  saveSlot();
+}
+
+/* ---------- the save slot ---------- */
+/* One slot, written as you play: every couple of seconds, when you pause, when
+ * the tab goes to the background and when the page is closed. It holds the
+ * whole bar - who is where, every mug on the counter - so resuming is resuming
+ * and not starting the level over. It is cleared when the game ends. */
+const SLOT='tapped.save';
+let saveClock=0;
+function autosave(dt){saveClock+=dt;if(saveClock>=2){saveClock=0;saveSlot();}}
+function snapshot(){
+  return{v:1,when:Date.now(),level:G.level,score:G.score,lives:G.lives,endless:G.endless,
+    noScore:G.noScore,spawned:G.spawned,total:G.total,spawnT:G.spawnT,nextId:G.nextId,
+    stats:Object.assign({},G.stats),
+    bt:{lane:G.bt.lane,x:G.bt.x,fill:G.bt.fill},
+    cust:G.cust.map(p=>({id:p.id,kind:p.kind,shirt:p.shirt,lane:p.lane,x:p.x,st:p.st,t:p.t,
+      dist:p.dist,push:p.push,mug:!!p.mug})),
+    mugs:G.mugs.map(m=>({lane:m.lane,x:m.x,v:m.v,full:m.full})),
+    tips:G.tips.map(t=>({lane:t.lane,x:t.x,t:t.t}))};
+}
+function saveSlot(over){
+  if(G.demo)return;
+  const s=snapshot();
+  /* a checkpoint between bars is a fresh bar, not this one's leftovers */
+  if(over&&over.level){s.level=over.level;s.cust=[];s.mugs=[];s.tips=[];s.spawned=0;
+    s.total=levelCfg(s.level).total;s.spawnT=0.6;s.bt={lane:0,x:TAP_X,fill:0};}
+  save(SLOT,JSON.stringify(s));
+}
+function readSlot(){
+  const s=loadJSON(SLOT,null);
+  if(!s||s.v!==1||!(s.level>=1)||typeof s.score!=='number')return null;
+  if(!s.endless&&!(s.lives>=1))return null;
+  return s;
+}
+function clearSlot(){drop(SLOT);}
+function resumeGame(){
+  const s=readSlot();
+  if(!s){newGame();return;}
+  G.demo=false;
+  startLevel(s.level);
+  G.score=s.score;G.lives=s.lives;G.endless=!!s.endless;G.noScore=!!s.noScore||G.endless;
+  G.spawned=s.spawned|0;G.total=s.total|0||cfg().total;G.spawnT=+s.spawnT||0.6;
+  G.nextId=s.nextId||1;
+  G.stats=Object.assign({served:0,empties:0,tips:0,bonus:0},s.stats||{});
+  G.bt.lane=clamp(s.bt&&s.bt.lane|0,0,3);G.bt.x=clamp(s.bt&&+s.bt.x||TAP_X,BX_MIN,TAP_X);
+  G.bt.fill=clamp(s.bt&&+s.bt.fill||0,0,1);
+  G.cust=(s.cust||[]).map(p=>Object.assign({phase:rnd(1)},p));
+  G.mugs=(s.mugs||[]).slice();G.tips=(s.tips||[]).slice();
+  hud();
+  Snd.boot();
+  /* back in paused, so a resumed bar never ambushes the player */
+  G.state='paused';showPause('Resumed at level '+G.level+'. Pour when you are ready.');
+}
+
+/* ---------- the initials ---------- */
+/* Three letters, the arcade's way: up and down turn the letter, left and right
+ * move between them, and a keyboard can simply type them. */
+const ABC='ABCDEFGHIJKLMNOPQRSTUVWXYZ.-';
+function qualifies(score){
+  if(G.noScore||score<=0)return false;
+  return G.table.length<TABLE_N||score>G.table[TABLE_N-1].s;
+}
+function insertScore(name,score,level){
+  const e={n:name,s:score,l:level,d:Date.now()};
+  const t=G.table.concat([e]).sort((a,b)=>b.s-a.s||a.d-b.d).slice(0,TABLE_N);
+  G.table=t;save('tapped.scores',JSON.stringify(t));
+  return t.indexOf(e);
+}
+function startInitials(){
+  const last=(load('tapped.initials','AAA')+'AAA').slice(0,3).toUpperCase();
+  G.ini={l:last.split('').map(ch=>Math.max(0,ABC.indexOf(ch))),pos:0};
+  G.state='initials';
+  paintInitials();
+}
+function iniMove(d){const I=G.ini;I.pos=clamp(I.pos+d,0,2);paintInitials();}
+function iniTurn(d,at){const I=G.ini;const p=at===undefined?I.pos:at;
+  I.l[p]=(I.l[p]+d+ABC.length)%ABC.length;I.pos=p;paintInitials();Snd.step();}
+function iniType(ch){const I=G.ini;const k=ABC.indexOf(ch.toUpperCase());if(k<0)return;
+  I.l[I.pos]=k;if(I.pos<2)I.pos++;paintInitials();Snd.step();}
+function iniName(){return G.ini.l.map(i=>ABC[i]).join('');}
+function iniDone(){
+  if(G.state!=='initials')return;
+  const name=iniName();
+  save('tapped.initials',name);
+  G.lastRank=insertScore(name,G.score,G.level);
+  G.ini=null;G.state='over';
+  showOver();
+}
+function paintInitials(){
+  const I=G.ini;
+  ov.className='card';
+  let cols='';
+  for(let i=0;i<3;i++)
+    cols+='<div class="col"><button class="step" type="button" data-i="'+i+'" data-d="1">▲</button>'+
+      '<div class="letter'+(i===I.pos?' cur':'')+'" data-i="'+i+'">'+esc(ABC[I.l[i]])+'</div>'+
+      '<button class="step" type="button" data-i="'+i+'" data-d="-1">▼</button></div>';
+  ov.innerHTML='<h1>NEW HIGH SCORE</h1><p class="sub">'+G.score+' — sign the wall.</p>'+
+    '<div class="ini">'+cols+'</div>'+
+    '<button class="menuitem sel" type="button" id="iniok">DONE</button>'+
+    '<small class="tip">▲ ▼ change a letter · ◀ ▶ move · type them · ENTER or POUR when done</small>';
+  menuItems=[];menuActions=[];
+  ov.querySelectorAll('.step').forEach(b=>b.addEventListener('click',()=>iniTurn(+b.dataset.d,+b.dataset.i)));
+  ov.querySelectorAll('.letter').forEach(b=>b.addEventListener('click',()=>{G.ini.pos=+b.dataset.i;paintInitials();}));
+  const ok=el('iniok');if(ok)ok.addEventListener('click',iniDone);
+}
+
+/* ---------- game over ---------- */
+function gameOver(){
+  G.state='over';
+  clearSlot();
+  G.demo=true;G.frozen=null;G.cust=[];G.mugs=[];G.tips=[];G.spawned=0;G.total=12;G.spawnT=0.3;
+  Music.play(TUNES.over);
+  if(qualifies(G.score))startInitials();
+  else{G.lastRank=-1;showOver();}
+}
+function tableHtml(mark){
+  if(!G.table.length)return '';
+  return '<div class="tally"><div class="h">BEST BARTENDERS</div>'+
+    G.table.map((e,i)=>'<div class="r'+(i===mark?' me':'')+'"><span>'+(i+1)+'. '+esc(e.n)+
+      ' · L'+(e.l|0)+'</span><span>'+e.s+'</span></div>').join('')+'</div>';
+}
+
+/* ---------- page furniture ---------- */
+function el(id){return document.getElementById(id);}
+const ov=el('overlay');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function hideOverlay(){ov.className='hidden';ov.innerHTML='';menuItems=[];menuActions=[];}
+function showCard(title,sub){
+  ov.className='card band';menuItems=[];menuActions=[];
+  ov.innerHTML='<h1>'+esc(title)+'</h1>'+(sub?'<p class="sub">'+esc(sub)+'</p>':'');
+}
+let banner='',bannerT=0;
+function showBanner(s){banner=s;bannerT=3;}
+function hideBanner(){banner='';bannerT=0;}
+
+let menuSel=0,menuItems=[],menuActions=[];
+function buildMenu(html,items,sel){
+  ov.innerHTML=html;
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));
+  menuActions=items;menuSel=sel||0;
+  menuItems.forEach((m,i)=>m.addEventListener('click',()=>{menuSel=i;paintMenu();items[i].go();}));
+  paintMenu();
+}
+function paintMenu(){menuItems.forEach((m,i)=>m.classList.toggle('sel',i===menuSel));}
+function menuNav(d){if(menuItems.length){menuSel=(menuSel+d+menuItems.length)%menuItems.length;paintMenu();}}
+function menuGo(){if(menuItems.length&&menuActions[menuSel])menuActions[menuSel].go();}
+
+function showSplash(){
+  G.state='splash';G.demo=true;
+  G.level=1;startLevel(1);G.total=12;G.spawnT=0.2;
+  /* a crowd already in, so the demo is a game from its first frame */
+  for(let i=0;i<4;i++){spawn(i);G.cust[i].x=20+rnd(70);}
+  G.lives=G.startLives;hud();
+  el('score').textContent=0;
+  ov.className='splash';
+  const s=readSlot();
+  const items=[],html=['<h1>TAPPED</h1>',
+    '<p class="sub">Four bars, one bartender, and every mug comes back.</p>'];
+  if(s){
+    html.push('<button class="menuitem" type="button">RESUME · LEVEL '+s.level+' · '+s.score+'</button>');
+    items.push({go:resumeGame});
+  }
+  html.push('<button class="menuitem" type="button">'+(s?'NEW GAME':'START')+'</button>');
+  items.push({go:newGame});
+  html.push('<button class="menuitem" type="button" id="mlives">'+livesLabel()+'</button>');
+  items.push({go:cycleLives});
+  html.push('<button class="menuitem" type="button">HOW TO PLAY · HIGH SCORES</button>');
+  items.push({go:showHelp});
+  html.push('<small class="tip">▲ ▼ change bar · ◀ ▶ run · hold SPACE to pour, let go to send</small>');
+  buildMenu(html.join(''),items,0);
+}
+/* Two positions, the cabinet's and the free one: the arcade's count of
+ * bartenders, or unlimited. */
+function livesLabel(){return 'BARTENDERS: '+(G.endless?'UNLIMITED':ARCADE_LIVES+' · ARCADE');}
+function cycleLives(){
+  setEndless(!G.endless);
+  const b=el('mlives');
+  if(b)b.textContent=livesLabel();
+}
+function setEndless(on){
+  G.endless=on;save('tapped.endless',on?'1':'0');
+  /* once a run has been unlimited it can never be a high score, and turning the
+   * switch back off does not launder it */
+  if(on&&G.state!=='splash')G.noScore=true;
+  hud();
+}
+function showHelp(){
+  ov.className='card';
+  buildMenu(
+    '<h1>HOW TO PLAY</h1>'+
+    '<div class="tally" style="text-align:left">'+
+    '<div class="r"><span>Customer pushed out of the door</span><span>'+SCORE.out+'</span></div>'+
+    '<div class="r"><span>Empty mug caught</span><span>'+SCORE.empty+'</span></div>'+
+    '<div class="r"><span>Tip picked up</span><span>'+SCORE.tip+'</span></div>'+
+    '<div class="r"><span>Right can in the Soda Shake</span><span>'+SCORE.bonus+'</span></div>'+
+    '</div>'+
+    '<small class="tip">Hold POUR at the tap to fill a mug; let go to slide it down the bar. '+
+    'A customer who catches it is shoved back; through the door and he is served. If not, he '+
+    'drinks and slides the empty back to you — be there. You lose a bartender when a customer '+
+    'reaches the taps, a full mug runs off the end, or an empty falls. Pick up a tip and the '+
+    'whole bar stops to watch the show. The game saves itself as you play: close the page and '+
+    'RESUME picks up where you were.</small>'+
+    (tableHtml(-1)||'<small class="tip">No high scores yet.</small>')+
+    '<button class="menuitem sel" type="button">BACK</button>',
+    [{go:showSplash}]);
+}
+function showOver(){
+  ov.className='card';
+  buildMenu('<h1>LAST CALL</h1>'+
+    '<div class="tally">'+
+    '<div class="r"><span>Score</span><span>'+G.score+'</span></div>'+
+    '<div class="r"><span>Level reached</span><span>'+G.level+'</span></div>'+
+    '<div class="r"><span>Customers served</span><span>'+G.stats.served+'</span></div>'+
+    '<div class="r"><span>Empties caught</span><span>'+G.stats.empties+'</span></div>'+
+    '<div class="r"><span>Tips</span><span>'+G.stats.tips+'</span></div>'+
+    '<div class="r"><span>Soda Shakes won</span><span>'+G.stats.bonus+'</span></div>'+
+    '</div>'+
+    (G.noScore?'<small class="tip">An unlimited run is not a high score.</small>':'')+
+    tableHtml(G.lastRank)+
+    '<button class="menuitem sel" type="button">PLAY AGAIN</button>'+
+    '<button class="menuitem" type="button">TITLE</button>',
+    [{go:newGame},{go:showSplash}]);
+}
+function showPause(note){
+  ov.className='card';
+  buildMenu(
+    '<h1>PAUSED</h1>'+
+    '<p class="sub">'+esc(note||(G.endless
+      ? 'Unlimited bartenders. This run will not become a high score.'
+      : 'Saved. P, or the button, to go back in.'))+'</p>'+
+    '<button class="menuitem sel" type="button">BACK IN</button>'+
+    '<button class="menuitem" type="button">BARTENDERS: '+(G.endless?'UNLIMITED':G.lives+' LEFT')+'</button>'+
+    '<button class="menuitem" type="button">SAVE AND QUIT</button>'+
+    '<button class="menuitem" type="button">END THIS RUN</button>',
+    [{go:togglePause},
+     {go:()=>{setEndless(!G.endless);if(!G.endless&&G.lives<1)G.lives=1;hud();saveSlot();showPause();}},
+     {go:()=>{saveSlot();Music.stop();showSplash();}},
+     {go:()=>{G.state='play';gameOver();}}]);
+}
+function togglePause(){
+  if(G.state==='play'){G.state='paused';saveSlot();showPause();Music.stop();}
+  else if(G.state==='paused'){G.state='play';hideOverlay();}
+}
+function newGame(){
+  G.demo=false;
+  clearSlot();
+  G.score=0;G.lives=G.startLives;G.noScore=G.endless;G.lastRank=-1;
+  G.stats={served:0,empties:0,tips:0,bonus:0};G.nextId=1;
+  startLevel(1);
+  G.state='card';G.cardT=1.8;
+  showCard('LEVEL 1',SCENES[0].name);
+  Snd.boot();
+  Music.play(TUNES.start);
+  saveSlot();
+}
+
+/* ---------- drawing ---------- */
+const cv=el('c'),g=cv.getContext('2d');
+g.imageSmoothingEnabled=false;
+function rect(x,y,w,h,c){g.fillStyle=c;g.fillRect(x|0,y|0,w|0,h|0);}
+function spr(img,x,y){g.drawImage(img,Math.round(x),Math.round(y));}
+
+function drawBack(sc){
+  rect(0,0,W,H,sc.wall);
+  /* wallpaper stripes, and each bar's own decoration */
+  for(let x=0;x<W;x+=16)rect(x,0,8,H,sc.wall2);
+  for(let i=0;i<LANES;i++){
+    const T=laneTop(i);
+    rect(0,T+36,W,24,sc.floor);                      /* the bartender's side */
+    rect(0,T+36,W,1,sc.trim);
+    if(sc===SCENES[0]){rect(96+i*20%60,T+2,12,14,'#e8d8b0');rect(98+i*20%60,T+4,8,6,'#8a6a40');}
+    if(sc===SCENES[1]){for(let k=0;k<3;k++){g.fillStyle=['#e03030','#3070e0','#f0c030'][k];
+      g.beginPath();g.moveTo(70+k*50+i*7,T+3);g.lineTo(90+k*50+i*7,T+7);g.lineTo(70+k*50+i*7,T+11);g.fill();}}
+    if(sc===SCENES[2]){for(let k=0;k<6;k++)rect(40+k*30+(i*11)%20,T+4+(k%2)*6,18,3,'#241428');
+      rect(150-i*13,T+6,20,3,'#40e0a0');}
+    if(sc===SCENES[3]){rect(110,T+1,64,17,'#04040c');
+      for(let k=0;k<8;k++){const tw=((G.t*2+k*0.37+i)%1)<0.5;
+        rect(112+((k*23+i*17)%60),T+3+((k*7+i*5)%13),1,1,tw?'#fff':'#8a8ab0');}}
+  }
+}
+function drawDoor(i,sc){
+  const T=laneTop(i);
+  rect(0,T-2,16,30,'#0a0604');
+  rect(15,T-4,3,32,sc.trim);
+  /* the swing doors open when somebody is in the doorway */
+  const busy=G.cust.some(p=>p.lane===i&&p.x<14&&p.x>-14);
+  const sw=busy?2:7;
+  rect(1,T+6,sw,12,'#8a5424');rect(1,T+6,sw,1,'#b0763a');
+}
+function drawBar(i,sc){
+  const T=laneTop(i);
+  rect(BAR_L,T+24,BAR_R-BAR_L,8,sc.top);
+  rect(BAR_L,T+24,BAR_R-BAR_L,1,'#fff3');
+  rect(BAR_L,T+30,BAR_R-BAR_L,2,sc.top2);
+  rect(BAR_L,T+32,BAR_R-BAR_L,5,sc.front);
+  for(let x=BAR_L+10;x<BAR_R;x+=42)rect(x,T+32,2,5,'#0004');
+  /* the tap, on the wall at the end of every bar */
+  rect(BAR_R+4,T+8,24,4,'#6a4a2a');
+  rect(W-12,T+2,10,20,'#8a5a2a');rect(W-12,T+6,10,2,'#c89a4a');rect(W-12,T+14,10,2,'#c89a4a');
+  rect(W-18,T+10,6,3,'#d8b048');rect(W-18,T+13,2,5,'#d8b048');
+  /* a drip, so the tap is never quite still */
+  for(const o of [0,0.5]){const dy=(G.t*1.3+i*0.31+o)%1;rect(W-18,T+18+dy*10,1,2,'#c87a32');}
+}
+function custSprite(p){
+  let torso='stand',legs='stand';
+  if(p.st==='walk'&&G.showT<=0){
+    const f=Math.floor(p.dist/3)%4;torso=ARMS[f];legs=WALK[f];
+  }else if(p.st==='slide')torso='hold';
+  else if(p.st==='drink')torso='drink';
+  else if(G.showT>0)torso=(Math.floor(p.phase*4)%2)?'cheer':'stand';
+  else if(p.st==='wait')torso=(Math.floor(p.phase*6)%2)?'bang1':'bang2';
+  return figure(p.kind,p.shirt,p.kind,torso,legs,false);
+}
+function drawCust(p){
+  const T=laneTop(p.lane);
+  const img=custSprite(p);
+  spr(img,p.x,T);
+  if(p.mug&&p.st==='slide')spr(SPR.mugFull,p.x+10,T+11);
+  /* a sip at a time: the mug comes up and goes down */
+  if(p.st==='drink')spr(SPR.mugFullL,p.x+8,T+1+(Math.floor(p.phase*5)%2));
+}
+function btSprite(){
+  const b=G.bt;
+  let torso='stand',legs='stand',flip=b.face<0;
+  if(G.state==='dying'){torso=(Math.floor(G.t*6)%2)?'cheer':'stand';flip=false;}
+  else if(b.holding&&atTap()){torso='pour';flip=false;}
+  else if(b.throwT>0){torso='throw';flip=true;}
+  else if(b.catchT>0){torso='hold';flip=false;}
+  else if(b.moving){const f=Math.floor(b.dist/4)%4;torso=ARMS[f];legs=WALK[f];}
+  else torso=(Math.floor(G.t*1.6)%2)?'stand':'fwd';
+  return figure('bartender','','bartender',torso,legs,flip);
+}
+function drawBartender(){
+  const b=G.bt,T=laneTop(b.lane);
+  spr(btSprite(),b.x-7,T+34);
+  if(b.fill>0&&atTap()){
+    /* the mug under the tap, filling from the bottom */
+    const mx=W-22,my=T+16;
+    rect(mx,my,5,7,'#c8dce8');
+    const h=Math.round(6*b.fill);
+    rect(mx+1,my+6-h,3,h,'#8a4412');
+    if(b.fill>=1)rect(mx,my-1,5,2,'#fff6dc');
+    if(b.holding&&b.fill<1)rect(W-18,T+13,1,my-T-13+6-h,'#c87a32');
+  }
+}
+function drawMug(m){
+  const T=laneTop(m.lane);
+  spr(m.full?SPR.mugFullL:SPR.mugEmpty,m.x-3,T+19);
+}
+function drawBonus(){
+  const B=G.bonus,sc=SCENES[cfg().scene];
+  rect(0,0,W,H,sc.wall);
+  for(let x=0;x<W;x+=16)rect(x,0,8,H,sc.wall2);
+  rect(0,150,W,98,sc.floor);
+  rect(20,128,216,8,sc.top);rect(20,134,216,2,sc.top2);rect(20,136,216,12,sc.front);
+  /* the bandit, behind the counter */
+  if(B.phase==='intro'||B.phase==='shake'){
+    const moving=B.phase==='shake'&&B.jig<0;
+    const f=Math.floor(B.bdist/3)%4;
+    const img=figure('bandit','','bandit',B.jig>=0?((Math.floor(G.t*14)%2)?'bang1':'bang2'):(moving?ARMS[f]:'stand'),
+      moving?WALK[f]:'stand',false);
+    spr(img,B.bx-7,100);
+  }
+  for(let i=0;i<6;i++){
+    let x=canX(i),y=113+canLift(i);
+    if(B.jig===i){x+=(Math.floor(G.t*30)%2)?1:-1;y-=(Math.floor(G.t*20)%2);}
+    spr(SPR.can,x-4,y);
+  }
+  if(B.phase==='pick'||B.phase==='reveal'){
+    const f=Math.floor(B.btdist/4)%4;const moving=Math.abs(SLOT_X[B.cur]-B.btx)>0.5;
+    spr(figure('bartender','','bartender',moving?ARMS[f]:((Math.floor(G.t*1.6)%2)?'stand':'fwd'),moving?WALK[f]:'stand',false),B.btx-7,150);
+    if(B.phase==='pick'){
+      /* the pointer bobs rather than blinks, so the choice is never off screen */
+      const ay=104+Math.floor(G.t*12)%3;
+      g.fillStyle='#f0b43c';g.beginPath();g.moveTo(SLOT_X[B.cur]-4,ay);g.lineTo(SLOT_X[B.cur]+4,ay);
+      g.lineTo(SLOT_X[B.cur],ay+5);g.fill();
+    }
+  }
+  if(B.phase==='reveal'){
+    const x=SLOT_X[B.pick];
+    if(B.right){for(let k=0;k<6;k++)rect(x-1+Math.sin(G.t*9+k)*4,108-k*5-((G.t*30)%5),2,2,'#f0c030');}
+    else{
+      const k=clamp((2.4-B.t)*2,0,1);
+      for(let j=0;j<18;j++){const a=-Math.PI/2+(j-9)*0.09;
+        rect(x+Math.cos(a)*38*k*(0.5+(j%3)*0.25),112+Math.sin(a)*48*k*(0.6+(j%4)*0.15),3,3,'#fff6dc');}
+      const gx=SLOT_X[B.slots.indexOf(B.good)];
+      g.strokeStyle='#f0b43c';g.strokeRect(gx-6.5,111.5,13,16);
+    }
+  }
+}
+function render(){
+  if(G.state==='bonus'&&G.bonus){drawBonus();drawOverlays();return;}
+  const sc=SCENES[cfg().scene];
+  drawBack(sc);
+  const cust=G.frozen?G.frozen.cust:G.cust,mugs=G.frozen?G.frozen.mugs:G.mugs;
+  for(let i=0;i<LANES;i++){
+    drawDoor(i,sc);
+    drawBar(i,sc);
+    for(const p of cust)if(p.lane===i)drawCust(p);
+    for(const t of G.tips)if(t.lane===i&&(t.t>2||Math.floor(t.t*6)%2))spr(SPR.coin,t.x-3,laneTop(i)+25);
+    for(const m of mugs)if(m.lane===i)drawMug(m);
+    if(G.bt.lane===i&&(G.state!=='dying'||Math.floor(G.t*8)%2))drawBartender();
+  }
+  drawOverlays();
+}
+function drawOverlays(){
+  for(const f of G.fx){
+    if(f.kind==='crash')for(const b of f.bits){
+      const d=b.v*f.t;
+      rect(f.x+Math.cos(b.a)*d,f.y+Math.sin(b.a)*d+60*f.t*f.t,b.s,b.s,b.c);
+    }
+  }
+  g.font='bold 7px ui-monospace,Menlo,Consolas,monospace';g.textAlign='center';
+  for(const p of G.pops){g.fillStyle='#000';g.fillText(p.n,p.x+1,p.y+1);g.fillStyle='#ffd98a';g.fillText(p.n,p.x,p.y);}
+  if(G.showT>0){
+    /* the show: a spotlight sweeps and the whole bar stops to watch */
+    const x=128+Math.sin(G.t*3)*90;
+    g.fillStyle='rgba(255,240,180,.16)';g.beginPath();g.moveTo(x-10,0);g.lineTo(x+10,0);
+    g.lineTo(x+40,H);g.lineTo(x-40,H);g.fill();
+    g.fillStyle='#ffd98a';g.font='bold 9px ui-monospace,Menlo,Consolas,monospace';
+    g.fillText('♪ SHOWTIME ♪',128,62+Math.sin(G.t*8)*2);
+  }
+  if(banner&&(G.state==='dying'||G.state==='bonus')){
+    g.font='bold 8px ui-monospace,Menlo,Consolas,monospace';
+    const w=Math.min(W-8,g.measureText(banner).width+10);
+    rect(128-w/2,H-16,w,12,'rgba(0,0,0,.75)');
+    g.fillStyle='#ffd98a';g.fillText(banner,128,H-7,W-12);
+  }
+}
+
+/* ---------- input ---------- */
+const dirHeld={d:0,t:null};
+function press(k,on){
+  if(on)Snd.boot();
+  if(G.state==='initials'){
+    if(!on)return;
+    if(k==='up')iniTurn(1);else if(k==='down')iniTurn(-1);
+    else if(k==='left')iniMove(-1);else if(k==='right')iniMove(1);
+    else if(k==='fire')iniDone();
+    return;
+  }
+  if(G.state==='bonus'){
+    if(!on)return;
+    if(k==='left')bonusMove(-1);else if(k==='right')bonusMove(1);else if(k==='fire')bonusPick();
+    return;
+  }
+  if(G.state!=='play'&&menuItems.length&&!ov.classList.contains('hidden')){
+    if(!on)return;
+    if(k==='up')menuNav(-1);else if(k==='down')menuNav(1);else if(k==='fire')menuGo();
+    return;
+  }
+  if(k==='up'||k==='down'){
+    const d=k==='up'?-1:1;
+    if(on){if(G.state==='play'){laneMove(d);dirHeld.d=d;dirHeld.t=0.32;}}
+    else if(dirHeld.d===d)dirHeld.t=null;
+    return;
+  }
+  keys[k]=on;
+}
+const KEYMAP={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',
+  ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',' ':'fire',z:'fire',Z:'fire'};
+document.addEventListener('keydown',ev=>{
+  const k=ev.key;
+  if(G.state==='initials'){
+    if(k==='Enter'){iniDone();ev.preventDefault();return;}
+    if(k==='Backspace'){iniMove(-1);ev.preventDefault();return;}
+    if(/^[a-zA-Z]$/.test(k)&&!ev.ctrlKey&&!ev.metaKey){iniType(k);ev.preventDefault();return;}
+    if(k==='ArrowUp'||k==='ArrowDown'||k==='ArrowLeft'||k==='ArrowRight'||k===' '){
+      press(KEYMAP[k],true);ev.preventDefault();}
+    return;
+  }
+  if(k==='p'||k==='P'||k==='Escape'){togglePause();return;}
+  if(k==='Enter'){menuGo();ev.preventDefault();return;}
+  const m=KEYMAP[k];
+  if(m){if(!ev.repeat||m==='left'||m==='right'||m==='fire')press(m,true);ev.preventDefault();}
+});
+document.addEventListener('keyup',ev=>{
+  const m=KEYMAP[ev.key];
+  if(m)press(m,false);
+});
+/* A held control stays held until the finger comes off it. Without capture a
+ * thumb that drifts a few pixels past the edge of the button raises
+ * pointerleave and the bartender stops dead mid-run. */
+function hold(id,k){
+  const b=el(id);
+  const on=e=>{
+    e.preventDefault();
+    try{b.setPointerCapture(e.pointerId);}catch(err){}
+    press(k,true);b.classList.add('on');
+  };
+  const off=e=>{
+    if(e){e.preventDefault();
+      try{if(b.hasPointerCapture(e.pointerId))b.releasePointerCapture(e.pointerId);}catch(err){}}
+    press(k,false);b.classList.remove('on');
+  };
+  b.addEventListener('pointerdown',on);
+  b.addEventListener('pointerup',off);
+  b.addEventListener('pointercancel',off);
+}
+hold('bf','fire');
+
+/* ---------- the joystick ---------- */
+/* One set of directions, fed by whatever is being pushed - the stick on the
+ * glass, or a real joystick through the Gamepad API - and turned into presses
+ * only when a direction changes, so a held stick is a held key and a flick up
+ * is one bar. */
+const DIRS=['up','down','left','right'];
+function stickDirs(x,y){
+  /* x, y from -1 to 1. Running needs less push than changing bar, and a bar
+   * change needs the stick to be more up than across, so running along a bar
+   * with a thumb that wanders does not throw you onto the next one. */
+  const ax=Math.abs(x),ay=Math.abs(y);
+  return{up:y<-0.55&&ay>ax,down:y>0.55&&ay>ax,
+    left:x<-0.35&&ax>=ay*0.6,right:x>0.35&&ax>=ay*0.6};
+}
+function feed(src,want){
+  for(const k of DIRS){
+    const on=!!want[k];
+    if(on!==!!src[k]){src[k]=on;press(k,on);}
+  }
+}
+const Stick={x:0,y:0,dirs:{},id:null};
+function stickAt(ev){
+  const box=el('stick').getBoundingClientRect();
+  const R=box.width*0.34;
+  let dx=ev.clientX-(box.left+box.width/2),dy=ev.clientY-(box.top+box.height/2);
+  const d=Math.hypot(dx,dy);if(d>R){dx*=R/d;dy*=R/d;}
+  Stick.x=dx/R;Stick.y=dy/R;
+  paintStick(dx,dy);
+  feed(Stick.dirs,stickDirs(Stick.x,Stick.y));
+}
+function paintStick(dx,dy){
+  el('knob').style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+  const sh=el('shaft'),len=Math.hypot(dx,dy);
+  sh.style.height=len.toFixed(1)+'px';
+  sh.style.transform='rotate('+(Math.atan2(dy,dx)*180/Math.PI-90).toFixed(1)+'deg)';
+}
+function stickOff(){
+  Stick.x=Stick.y=0;Stick.id=null;paintStick(0,0);el('stick').classList.remove('on');
+  feed(Stick.dirs,{});
+}
+(function(){
+  const s=el('stick');
+  s.addEventListener('pointerdown',e=>{
+    e.preventDefault();Stick.id=e.pointerId;
+    try{s.setPointerCapture(e.pointerId);}catch(err){}
+    s.classList.add('on');stickAt(e);
+  });
+  s.addEventListener('pointermove',e=>{if(Stick.id===e.pointerId){e.preventDefault();stickAt(e);}});
+  const up=e=>{if(Stick.id===e.pointerId){e.preventDefault();stickOff();}};
+  s.addEventListener('pointerup',up);
+  s.addEventListener('pointercancel',up);
+})();
+
+/* A real joystick or gamepad: the stick or d-pad moves, the first button pours,
+ * START pauses. Read once a frame; browsers do not send events for it. */
+const Pad={dirs:{},fire:false,start:false};
+function pollPads(){
+  let gp=null;
+  try{const all=navigator.getGamepads?navigator.getGamepads():[];
+    for(const p of all)if(p&&p.connected!==false){gp=p;break;}}catch(e){}
+  if(!gp){if(Pad.fire||Object.values(Pad.dirs).some(Boolean)){feed(Pad.dirs,{});if(Pad.fire){Pad.fire=false;press('fire',false);}}return;}
+  const b=i=>!!(gp.buttons[i]&&(gp.buttons[i].pressed||gp.buttons[i].value>0.5));
+  const want=stickDirs(gp.axes[0]||0,gp.axes[1]||0);
+  if(b(12))want.up=true;if(b(13))want.down=true;if(b(14))want.left=true;if(b(15))want.right=true;
+  feed(Pad.dirs,want);
+  const f=b(0)||b(1)||b(2)||b(3);
+  if(f!==Pad.fire){Pad.fire=f;press('fire',f);}
+  const st=b(9);
+  if(st&&!Pad.start){if(G.state==='play'||G.state==='paused')togglePause();else menuGo();}
+  Pad.start=st;
+}
+el('bp').addEventListener('click',togglePause);
+
+el('sound').addEventListener('click',()=>{
+  Snd.on=!Snd.on;save('tapped.sound',Snd.on?'1':'0');
+  if(!Snd.on)Music.stop();
+  el('soundstate').textContent=Snd.on?'on':'off';
+  if(Snd.on){Snd.boot();Snd.clink();}
+});
+el('soundstate').textContent=Snd.on?'on':'off';
+
+/* Going to the background pauses and saves: a phone call must not cost a bartender. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){if(G.state==='play')togglePause();else saveIfPlaying();}
+});
+window.addEventListener('pagehide',saveIfPlaying);
+function saveIfPlaying(){if(G.state==='play'||G.state==='paused')saveSlot();}
+
+/* ---------- boot ---------- */
+bakeAll();
+el('high').textContent=high();
+showSplash();
+
+let last=0;
+function frame(ts){
+  const t=ts/1000;
+  let dt=last?t-last:0;
+  last=t;
+  if(dt>0.1)dt=0.1;                   /* a backgrounded tab must not fast-forward */
+  if(bannerT>0&&G.state!=='bonus'&&G.state!=='dying')bannerT=0;
+  pollPads();
+  stepGame(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+<!-- no-zoom:start -->
+<script>
+/* ---- the pinch and the double tap ---- *
+ *
+ * iOS Safari has ignored `user-scalable=no` and `maximum-scale` in the viewport
+ * meta tag since iOS 10. Every one of these pages carried both and neither did
+ * anything, so a double tap anywhere - on the glass, on a control, on the black
+ * - zoomed the page, and a zoomed page puts the controls off the edge of the
+ * screen. In a game with a clock running that is not an inconvenience, it is a
+ * death, and full screen does not help because the zoom is applied to the
+ * visual viewport on top of whatever the layout is doing.
+ *
+ * Three things are needed and the meta tag is none of them:
+ *
+ *   1. gesturestart / gesturechange / gestureend. This is how WebKit offers a
+ *      pinch, and it exists on no other engine.
+ *   2. A non-passive touchend that eats the second tap of a double tap. It has
+ *      to be non-passive or preventDefault is ignored outright, and it has to
+ *      be touchend rather than dblclick, because the zoom is committed before
+ *      a dblclick is ever dispatched.
+ *   3. A way back for a player who is zoomed already, because neither of the
+ *      above can un-zoom a page that is. Rewriting the viewport meta is the
+ *      only lever a page has over WebKit's zoom, and it only fires on a real
+ *      change, so the content is toggled rather than re-set.
+ *
+ * This file is the one copy. tools/sync-nozoom.js writes it into each game
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  var D=document, W=window;
+  if(!D.addEventListener)return;
+  for(var i=0,g=["gesturestart","gesturechange","gestureend"];i<g.length;i++)
+    D.addEventListener(g[i],function(e){e.preventDefault();},{passive:false});
+  /* Eating the second tap of a double tap eats the click the browser makes
+   * out of it, and every game here has controls that listen for one - so on a
+   * control this would cost the player every second press of a fast mash,
+   * which in a game about pressing fire quickly is worse than the zoom. The
+   * controls do not need it: a button carrying touch-action none or
+   * manipulation is already exempt from double-tap zoom on every engine that
+   * honours it. So the guard leaves anything pressable alone and covers the
+   * rest of the page, which is where the zoom was coming from. */
+  var PRESSABLE="button,a,input,select,textarea,label,[data-cmd],[role=button]";
+  function pressable(t){
+    return !!(t&&t.closest&&t.closest(PRESSABLE));
+  }
+  var lastTap=0;
+  D.addEventListener("touchend",function(e){
+    var now=Date.now();
+    if(now-lastTap<=350&&e.cancelable&&!pressable(e.target))e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+  /* A second finger is a pinch wherever it lands, and no game here wants one. */
+  D.addEventListener("touchstart",function(e){
+    if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+  },{passive:false});
+
+  var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
+  if(!vv||!meta)return;
+  var base=meta.getAttribute("content"), fixing=false;
+  function unzoom(){
+    if(fixing||vv.scale<=1.01)return;
+    fixing=true;
+    meta.setAttribute("content",base+", minimum-scale=1");
+    W.setTimeout(function(){
+      meta.setAttribute("content",base);
+      fixing=false;
+      if(W.scrollTo)W.scrollTo(0,0);
+    },50);
+  }
+  vv.addEventListener("resize",unzoom);
+  vv.addEventListener("scroll",unzoom);
+  W.__unzoom=unzoom;                 // so a harness can ask for it directly
+})();
+</script>
+<!-- no-zoom:end -->
+</body>
+</html>
