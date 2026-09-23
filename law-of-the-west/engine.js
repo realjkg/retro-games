@@ -8,7 +8,7 @@
 
 const RULES={
   ROUNDS:3,
-  TELL_MIN:340, TELL_MAX:830,
+  TELL_MIN:470, TELL_MAX:940,
   /* How long a man takes between showing his hand and using it, and then how
    * long he takes over it. Measured against a person rather than guessed at,
    * twice now.
@@ -32,7 +32,7 @@ const RULES={
    *
    * The ceiling has not moved: the longest fight any of them can give is
    * still under a second and a half. tools/timing.js holds the other end. */
-  TELLS:{ambush:[340,600], delayed:[500,760], draw:[570,830]},
+  TELLS:{ambush:[470,730], delayed:[630,890], draw:[680,940]},
   FIRE_MIN:380, FIRE_MAX:520,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of

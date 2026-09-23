@@ -692,7 +692,12 @@ let spin=0;                           // radians, the hand about the wrist
  * The spin runs inside that: one whole turn, done while the arm is still
  * moving, so the flourish is part of the draw rather than a pose struck after
  * it. Holstering turns the other way, and finishes as the gun reaches leather. */
-const DRAW_MS=280, PUTUP_MS=420, TURN=Math.PI*2;
+/* And it is quick. A draw that takes better than a quarter second to play is
+ * a draw the player is waiting on rather than making - the shot has already
+ * gone off, because FIRE fires; what he is watching is the picture catching
+ * up with his own thumb. Putting it away was slower still and he spent most
+ * of half a second unable to see past his own arm. */
+const DRAW_MS=170, PUTUP_MS=240, TURN=Math.PI*2;
 let seqAt=-1e9, seqKind="", seqFrom=0;
 /* Starting from wherever the arm actually is, not from where it ought to be.
  * A sequence that assumes it begins at one end jumps on its first frame if the

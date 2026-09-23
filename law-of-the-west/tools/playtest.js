@@ -309,6 +309,10 @@ const RECORD=function(){
    * the end. For each one the same questions - did he walk in on his own feet,
    * did he stride or only slide, is he alive while he stands there, does the
    * scene answer what is pressed at it, and does he leave the way he came. */
+  /* How long the draw takes, read off the page rather than assumed, and read
+   * defensively: a build that predates this still has to be openable, because
+   * running against the build you are replacing is the point of the tool. */
+  const drawSpan=await page.evaluate(()=>typeof DRAW_MS==='number'?DRAW_MS:null);
   const met=new Set(), seams=[], scenes=new Map();
   const note=(id,k,v)=>{
     let r=scenes.get(id);
@@ -357,19 +361,25 @@ const RECORD=function(){
          * set off in opposite directions at once. */
         {
           const H=[],M=[];
-          for(let i=0;i<40;i++){
-            const v=await page.evaluate(SCISS,200000+i*140);
+          for(let i=0;i<22;i++){
+            const v=await page.evaluate(SCISS,200000+i*260);
             if(v){H.push(v[0]);M.push(v[1]);}
           }
-          let sc=0;
+          let sc=0, stirred=false;
           if(H.length){
             const h0=H.reduce((a,b)=>a+b,0)/H.length, m0=M.reduce((a,b)=>a+b,0)/M.length;
             for(let i=0;i<H.length;i++){
               const dh=H[i]-h0, dm=M[i]-m0;
               if(dh*dm<0)sc=Math.max(sc,Math.abs(dh)+Math.abs(dm));
             }
+            /* A figure that never moved at all scores a perfect nought, which
+             * is the same number a figure that moves properly scores. The kid
+             * came back 0.00 that way and was read as the best of them when he
+             * was simply not measured. So say whether he stirred. */
+            const rng=v=>Math.max.apply(null,v)-Math.min.apply(null,v);
+            stirred=rng(H)>0.5||rng(M)>0.5;
           }
-          note(s.who,'sciss',+sc.toFixed(2));
+          note(s.who,'sciss',stirred?+sc.toFixed(2):null);
         }
         await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
@@ -402,12 +412,37 @@ const RECORD=function(){
         :((who(G)&&who(G).id)||G.phase));
       const r=note(id);
       // a robbery and a stand-off are scenes too: is the man in them alive?
-      if(r.alive<0&&await page.evaluate(()=>!!who(G))){
+      /* And do not probe a scene until it has been seen to move. The probe
+       * costs a round trip a sample and the page keeps running while it works,
+       * so probing on arrival ate the robbers' walk-ins whole and reported
+       * three scenes that never moved when what never moved was the tool. */
+      const moved=r.arrived>0||r.left>0;
+      if(r.alive<0&&moved&&await page.evaluate(()=>!!who(G))){
         await page.evaluate(()=>{window.__probing=true;});
         const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
         r.alive=a1===a2?0:1;
         r.seam=Math.max(await page.evaluate(SEAM,0),await page.evaluate(SEAM,1300));
         r.trap=Math.max(await page.evaluate(TRAP,0),await page.evaluate(TRAP,1300));
+        /* A robber is a man the sheriff stands in front of too, and he was
+         * going through this branch and out the other side unmeasured. */
+        {
+          const H=[],M=[];
+          for(let i=0;i<22;i++){
+            const v=await page.evaluate(SCISS,200000+i*260);
+            if(v){H.push(v[0]);M.push(v[1]);}
+          }
+          let sc=0, stirred=false;
+          if(H.length){
+            const h0=H.reduce((a,b)=>a+b,0)/H.length, m0=M.reduce((a,b)=>a+b,0)/M.length;
+            for(let i=0;i<H.length;i++){
+              const dh=H[i]-h0, dm=M[i]-m0;
+              if(dh*dm<0)sc=Math.max(sc,Math.abs(dh)+Math.abs(dm));
+            }
+            const rng=v=>Math.max.apply(null,v)-Math.min.apply(null,v);
+            stirred=rng(H)>0.5||rng(M)>0.5;
+          }
+          r.sciss=stirred?+sc.toFixed(2):null;
+        }
         await page.evaluate(()=>{window.__probing=false;paint();});
       }
       const was=await page.evaluate(()=>G.phase+'/'+(G.interlude||''));
@@ -418,10 +453,10 @@ const RECORD=function(){
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs,ink,seams,rings,scenes);
+  report(log,errs,ink,seams,rings,scenes,drawSpan);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs,ink,seams,rings,scenes){
+function report(log,errs,ink,seams,rings,scenes,armSpan){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -460,11 +495,22 @@ function report(log,errs,ink,seams,rings,scenes){
   for(let i=1;i<sw.length;i++)
     if(sw[i]!==null&&sw[i-1]!==null)armJump=Math.max(armJump,Math.abs(sw[i]-sw[i-1]));
   const seen=new Set(sw.filter(v=>v!==null));
-  /* A quick draw is 280ms, so at thirty frames a second one frame is an eighth
-   * of it and the fast part of the curve fairly covers a third of the travel.
-   * What this is for is a draw that is a switch rather than a movement, so the
-   * bar is a third of it in one frame, not a tenth. */
-  const armOk=seen.size>5&&armJump<=0.5;
+  /* What this is for is a draw that is a SWITCH rather than a movement: one
+   * frame from leather to level. So the bar cannot be a constant - it is a
+   * share of the travel per frame, and that share depends on how long the draw
+   * takes. Written as 0.5 it was really "a third of the travel in one frame at
+   * 280ms", and the moment the draw was made quicker the number went on
+   * meaning the old speed and failed a draw that is simply faster.
+   *
+   * So it is derived: one frame at thirty a second is frame/DRAW_MS of the
+   * sequence, a cubic ease covers 1-(1-x)^3 of the travel in it, and a frame
+   * may be dropped under load, so allow half again. At 280ms that gives 0.47,
+   * which is the bar this replaces - the re-derivation is checked against the
+   * speed it was written for rather than fitted to the one it now meets. */
+  const drawMs=(typeof armSpan==='number'&&armSpan>0)?armSpan:280;
+  const perFrame=Math.min(1,33/drawMs);
+  const armBar=Math.min(0.9,1.5*(1-Math.pow(1-perFrame,3)));
+  const armOk=seen.size>5&&armJump<=armBar;
   if(!armOk)bad++;
   console.log(`\n${armOk?'  ok  ':'  BAD '} the arm moves: ${seen.size} distinct positions, `+
     `biggest one-frame change ${armJump.toFixed(2)}`);

@@ -1883,7 +1883,7 @@ const HITBOX=boxesFor(null);             // the default, for anything asking wit
 
 const RULES={
   ROUNDS:3,
-  TELL_MIN:340, TELL_MAX:830,
+  TELL_MIN:470, TELL_MAX:940,
   /* How long a man takes between showing his hand and using it, and then how
    * long he takes over it. Measured against a person rather than guessed at,
    * twice now.
@@ -1907,7 +1907,7 @@ const RULES={
    *
    * The ceiling has not moved: the longest fight any of them can give is
    * still under a second and a half. tools/timing.js holds the other end. */
-  TELLS:{ambush:[340,600], delayed:[500,760], draw:[570,830]},
+  TELLS:{ambush:[470,730], delayed:[630,890], draw:[680,940]},
   FIRE_MIN:380, FIRE_MAX:520,
   /* How long a man stands there with a gun in his face before he does something
    * about it, and what he does. It was one window and one answer for all of
@@ -3216,7 +3216,12 @@ let spin=0;                           // radians, the hand about the wrist
  * The spin runs inside that: one whole turn, done while the arm is still
  * moving, so the flourish is part of the draw rather than a pose struck after
  * it. Holstering turns the other way, and finishes as the gun reaches leather. */
-const DRAW_MS=280, PUTUP_MS=420, TURN=Math.PI*2;
+/* And it is quick. A draw that takes better than a quarter second to play is
+ * a draw the player is waiting on rather than making - the shot has already
+ * gone off, because FIRE fires; what he is watching is the picture catching
+ * up with his own thumb. Putting it away was slower still and he spent most
+ * of half a second unable to see past his own arm. */
+const DRAW_MS=170, PUTUP_MS=240, TURN=Math.PI*2;
 let seqAt=-1e9, seqKind="", seqFrom=0;
 /* Starting from wherever the arm actually is, not from where it ought to be.
  * A sequence that assumes it begins at one end jumps on its first frame if the

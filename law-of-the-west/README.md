@@ -582,7 +582,22 @@ the replies go dim. The pad moves the crosshair; down walks it back and, pulled
 past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
 a hidden reflex timer runs while yours is out and an armed man answers it — a
 frightened man in about 1.1 to 1.9 seconds, a hostile one in 1.4 to 2.2, a
-patient one not for 3 to 4.4.
+patient one not for 3 to 4.4. The draw itself is quick: 170ms to clear leather
+and come up level, 240ms to put it away, both with the gun turning over inside
+the move. FIRE fires — the sequence is the picture catching up with the thumb,
+never something the shot waits on.
+
+**Whose fight it is.** The windows were opened twice, both times because a
+player said the same thing: the CPU kept getting there first. An ambush now
+runs 850–1250ms end to end, a man who turns back on you 1010–1410, and one who
+squares up and gives warning 1060–1460 — the ceiling is still under a second
+and a half, so it is still a gunfight. `tools/timing.js` holds the standard at
+a **phone's** press cost rather than a desk's, because this is a phone game and
+a thumb on glass is slower than a key: the page's own share of a press is a
+measured 41ms, and the touch on top of it is an allowance, named in the tool
+rather than buried in a default. At that cost an ambush still costs a slow
+player something. On a desktop keyboard the same day is generous, and the tool
+prints that line too rather than letting a green run imply otherwise.
 
 **The shooting.** Weapon box and centre mass are separate and follow the drawn
 frames. Shooting the gun out of an armed man's hand disarms and arrests; centre
