@@ -39,6 +39,7 @@ jobs:
       - run: node --test drol/tests/*.test.cjs
       - run: node --test galaga/tests/*.test.cjs
       - run: node --test lode-runner/tests/*.test.cjs
+      - run: node --test tapped/tests/*.test.cjs
       - name: Install the Law of the West dev dependency
         run: npm --prefix law-of-the-west ci
       - run: node --test law-of-the-west/test/*.test.js
