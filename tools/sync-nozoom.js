@@ -24,7 +24,7 @@ const START='<!-- no-zoom:start -->', END='<!-- no-zoom:end -->';
 const check=process.argv.indexOf('--check')>0;
 
 const body=fs.readFileSync(SRC,'utf8').trimEnd();
-const block=START+'\n<script>\n'+body+'\n</script>\n'+END;
+const block=START+'\n<script data-shared="no-zoom">\n'+body+'\n</script>\n'+END;
 
 let bad=[], wrote=[];
 for(const rel of PAGES){

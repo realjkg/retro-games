@@ -36,12 +36,18 @@ function runtime(diff=2,seed=7,start=true,store){
   const body={classList:{toggle(n,on){on?cls.add(n):cls.delete(n);},add(n){cls.add(n)},
     remove(n){cls.delete(n)},contains:n=>cls.has(n)}};
   const box={console,setTimeout(){},localStorage,navigator:{userAgent:"node",maxTouchPoints:0},
-    document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},
+    document:{createElement:()=>el('made'),hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},
       querySelector(){return null},addEventListener(type){docEvents.push(type)}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
   box.window.__proto__=box;
-  vm.createContext(box);vm.runInContext(source,box);
+  vm.createContext(box);
+  /* The page loads the shared coin-op module before the game's own script,
+     so the harness does too: without it Arcade.init() at boot is a
+     ReferenceError and nothing in the game runs at all. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+  vm.runInContext(source,box);
   // The game uses Math.random for the things a seed should not have to carry.
   // A test that leaves that to chance passes most of the time, which is the
   // worst kind of test.

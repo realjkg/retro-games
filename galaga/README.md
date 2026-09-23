@@ -8,7 +8,8 @@ no assets fetched: open `index.html` from a `file://` URL and it plays.
     ← →  or A D     move
     SPACE or Z      fire — hold it down and it repeats
     P               pause
-    drag / FIRE     on a phone: drag anywhere on the playfield to steer
+    stick / FIRE    on a phone: a thumb stick and a button
+    drag            or drag anywhere on the playfield to steer
 
 The playfield is 224×288 logical pixels, which is the arcade's, drawn at
 whatever size the page has room for with `image-rendering: pixelated`. Every
@@ -47,6 +48,19 @@ are in here.
 **Challenging stages** every fourth stage (3, 7, 11, …). Forty pass through in
 formation flights, nothing takes a slot, nothing shoots back. Each is 100, and
 all forty is a flat 10,000.
+
+**The stick.** On a touch screen the two arrow buttons are gone and there is a
+thumb stick instead, the same one Choplifter has: a pad you drag rather than
+buttons you press, where **how far you push it is how fast the fighter goes**.
+A small push is a small correction, which is the whole reason for having one.
+It takes the pointer captive on the way down, so a thumb that slides off the pad
+mid-dodge keeps steering instead of letting go, and it is `touch-action: none`,
+so dragging it is never a scroll, a pull-to-refresh or the start of a pinch.
+
+Galaga's cabinet had a **two-way** stick — left and right, nothing else — so the
+knob runs in a gate across the middle of the pad and a push upwards does
+nothing. Three things can steer and they never fight: the stick while a thumb is
+on it, then a drag on the playfield, then the keyboard.
 
 **How it handles.** The fighter crosses the playfield in about one and a
 quarter seconds, so a tenth of a second on the control is worth one column of
@@ -109,7 +123,7 @@ you the arcade's shots-fired / hits / hit-miss ratio.
 
 Two things, and they ask different questions.
 
-    node --test tests/*.test.cjs                          # 42 tests, no browser
+    node --test tests/*.test.cjs                          # 48 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
@@ -181,6 +195,9 @@ four of those checks fail on the build they replaced.
   a few frames.
 * **No enemy ever fires from the formation**, which is right, but no enemy fires
   a *pair* of shots on a spread either, which the arcade does at higher stages.
+* **The stick's throw is short.** Forty-five pixels either way, because the knob
+  has to stay inside its own pad and the pad has to leave room for a fire
+  button. A real stick has more travel and more to push against.
 * **Endless is not a practice mode.** It removes the cost of dying and nothing
   else: there is no way to start at stage 12, no slow motion, and no way to
   summon a capture so you can practise getting the fighter back.

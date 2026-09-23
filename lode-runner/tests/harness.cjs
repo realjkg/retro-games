@@ -46,6 +46,11 @@ function runtime(file){
     addEventListener(){},requestAnimationFrame(){}};
   box.globalThis=box;
   vm.createContext(box);
+  /* The page loads the shared coin-op module before the game's own script,
+     so the harness does too: without it Arcade.init() at boot is a
+     ReferenceError and nothing in the game runs at all. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
   vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   return {run,notes,played,el,cls,docEvents,store,box};
