@@ -15,12 +15,17 @@
 const fs=require('fs'), path=require('path');
 const ROOT=path.join(__dirname,'..');
 const SRC=path.join(ROOT,'shared','arcade.js');
-/* law-of-the-west is assembled, so its copy goes into the source page; its
- * built index.html is refreshed by that game's own assemble step. */
+/* The pages that use it. A game is added here when it is wired, not before:
+ * this is eighteen kilobytes and it is copied into every page on the list, so
+ * a page that never calls Arcade should not be carrying it.
+ *
+ * law-of-the-west is the reason that rule is written down. It has no score to
+ * put on a table, it is the largest page here, and its assemble step holds it
+ * to a hard size budget which this pushed it straight through. Wire it and it
+ * goes back on the list — and whoever does will have to find the bytes. */
 const PAGES=['archon/index.html','aztec/index.html','bards-tale/index.html',
   'choplifter/index.html','drol/index.html','galaga/index.html',
-  'lode-runner/index.html','law-of-the-west/page.html',
-  'law-of-the-west/index.html'];
+  'lode-runner/index.html'];
 const START='<!-- arcade:start -->', END='<!-- arcade:end -->';
 const check=process.argv.indexOf('--check')>0;
 

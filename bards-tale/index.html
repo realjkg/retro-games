@@ -201,7 +201,13 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
   '.ac-ini{width:3.6em;letter-spacing:.18em}'+
   '.ac-sc{flex:1;text-align:right;font-weight:700}'+
   '.ac-x{width:7.5em;text-align:right;color:var(--dim,#9a8b76);font-size:11px}'+
-  '.ac-empty{color:var(--dim,#9a8b76);font-size:12px;padding:12px 0}';
+  '.ac-empty{color:var(--dim,#9a8b76);font-size:12px;padding:12px 0}'+
+  '.ac-slot{display:flex;width:100%;align-items:baseline;justify-content:space-between;'+
+    'gap:12px;margin-bottom:6px;text-align:left}'+
+  '.ac-slot .n{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;'+
+    'letter-spacing:.18em;font-weight:700;font-size:15px}'+
+  '.ac-slot .w{font-size:11px;opacity:.7;text-align:right}'+
+  '.ac-slot.on{border-color:var(--gold,#e8c63a)}';
 
   function styles(){
     if(document.getElementById('ac-style'))return;
@@ -214,7 +220,7 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
 
   var K={
     scores:function(){return 'arcade.'+cfg.game+'.scores';},
-    slot:function(){return 'arcade.'+cfg.game+'.slot';},
+    slots:function(){return 'arcade.'+cfg.game+'.slots';},
     last:function(){return 'arcade.'+cfg.game+'.initials';}
   };
 
@@ -245,6 +251,58 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
     put(K.scores(),JSON.stringify(t));
     put(K.last(),row.ini);
     return row;
+  }
+
+  /* ---- save slots, one per set of initials ----
+   * A table of saves the same shape as the table of scores: your three letters
+   * are the name on it, so two people can leave a game half finished on the
+   * same machine and each pick up their own. Oldest goes when it is full. */
+  function slots(){
+    var raw=readJSON(K.slots(),{});
+    if(!raw||typeof raw!=='object'||raw.length!==undefined)return[];
+    var out=[];
+    for(var k in raw){
+      if(!Object.prototype.hasOwnProperty.call(raw,k))continue;
+      var v=raw[k];
+      if(!v||v.state===undefined)continue;
+      out.push({ini:String(k).slice(0,3),at:v.at||0,
+        extra:v.extra===undefined?'':String(v.extra),state:v.state});
+    }
+    return out.sort(function(a,b){return b.at-a.at;});
+  }
+  function slotFor(ini){
+    ini=String(ini||'').toUpperCase().slice(0,3);
+    var all=slots();
+    for(var i=0;i<all.length;i++)if(all[i].ini===ini)return all[i];
+    return null;
+  }
+  function writeSlot(ini,state,extra){
+    ini=String(ini||'AAA').toUpperCase().slice(0,3);
+    var all=slots().filter(function(s){return s.ini!==ini;});
+    all.unshift({ini:ini,at:Date.now(),extra:extra===undefined?'':String(extra),state:state});
+    all=all.slice(0,cfg.slots);
+    var obj={};
+    all.forEach(function(s){obj[s.ini]={at:s.at,extra:s.extra,state:s.state};});
+    var ok=put(K.slots(),JSON.stringify(obj));
+    if(ok)put(K.last(),ini);
+    return ok?slotFor(ini):null;
+  }
+  function dropSlot(ini){
+    ini=String(ini||'').toUpperCase().slice(0,3);
+    var obj={};
+    slots().forEach(function(s){if(s.ini!==ini)obj[s.ini]={at:s.at,extra:s.extra,state:s.state};});
+    put(K.slots(),JSON.stringify(obj));
+  }
+  /* "3 minutes ago", near enough — a save slot wants to know how stale it is,
+   * not what the clock said. */
+  function ago(t){
+    var d=Math.max(0,Date.now()-t), m=Math.round(d/60000);
+    if(m<1)return'just now';
+    if(m<60)return m+(m===1?' minute':' minutes')+' ago';
+    var h=Math.round(m/60);
+    if(h<24)return h+(h===1?' hour':' hours')+' ago';
+    var dy=Math.round(h/24);
+    return dy+(dy===1?' day':' days')+' ago';
   }
 
   /* ---- the screens ---- */
@@ -321,24 +379,24 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
     return f;
   }
 
-  /* The entry screen. Three cells, the live one lit; the rest is one keydown
-   * handler taken at the capture phase so the game underneath never sees the
-   * letters being chosen. */
-  function entry(score,extra,then){
+  /* Three cells, the live one lit; one keydown handler taken at the capture
+   * phase so the game underneath never sees the letters being chosen. Both the
+   * high score entry and the save slot go through here, which is the point: a
+   * player enters their initials the same way whatever they are for. */
+  function letters(o,then){
     if(!buildable()){then(null);return null;}
     close();
     var f=frame();
-    var seed=(get(K.last(),'AAA')+'AAA').slice(0,3).toUpperCase();
+    var seed=((o.seed||get(K.last(),'AAA'))+'AAA').slice(0,3).toUpperCase();
     var idx=[0,1,2].map(function(i){
       var p=GLYPHS.indexOf(seed[i]);return p<0?0:p;
     });
     var at=0,fin=false;
 
     var h=document.createElement('p');h.className='ac-h';
-    h.textContent='NEW HIGH SCORE';
+    h.textContent=o.title||'ENTER YOUR INITIALS';
     var sub=document.createElement('p');sub.className='ac-sub';
-    sub.textContent=fmt(Math.floor(score))+(extra?'  ·  '+extra:'')+
-      '  —  enter your initials';
+    sub.textContent=o.sub||'';
     f.card.appendChild(h);f.card.appendChild(sub);
 
     var cells=document.createElement('div');cells.className='ac-cells';
@@ -370,9 +428,8 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
         var g=GLYPHS[i];return g===BLANK?' ':g;
       }).join('').replace(/\s+$/,'');
       if(!ini)ini='AAA';
-      var row=record(ini,score,extra);
       close();
-      then(row);
+      then(ini);
     }
 
     var pad=document.createElement('div');pad.className='ac-pad';
@@ -383,10 +440,12 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
     button(pad,'▶',function(){move(1);});
     button(pad,'ENTER',finish,'wide');
 
+    if(o.cancel)button(pad,'NEVER MIND',function(){close();then(null);},'wide');
     open={el:f.wrap,key:function(ev){
       var k=ev.key;
       var used=true;
-      if(k==='ArrowUp'||k==='w'||k==='W')turn(1);
+      if(k==='Escape'&&o.cancel){close();then(null);}
+      else if(k==='ArrowUp'||k==='w'||k==='W')turn(1);
       else if(k==='ArrowDown'||k==='s'||k==='S')turn(-1);
       else if(k==='ArrowLeft'||k==='a'||k==='A')move(-1);
       else if(k==='ArrowRight'||k==='d'||k==='D')move(1);
@@ -419,9 +478,13 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
     submit:function(score,extra,then){
       then=then||function(){};
       if(!qualifies(score)||!buildable()){then(null);return false;}
-      entry(score,extra,then);
+      letters({title:'NEW HIGH SCORE',
+        sub:fmt(Math.floor(score))+(extra?'  ·  '+extra:'')+'  —  enter your initials'},
+        function(ini){then(ini?record(ini,score,extra):null);});
       return true;
     },
+    /* the three-letter picker on its own, for anything else that wants one */
+    letters:function(o,then){return letters(o||{},then||function(){});},
     /* whether a screen can be put up here at all */
     canAsk:buildable,
     show:function(opts){show(opts);return this;},
@@ -430,23 +493,65 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
     /* for the tests and for a player who wants their table back */
     clear:function(){drop(K.scores());return this;},
     record:record,
-    /* ---- the save slot ----
-     * One per game. What goes in it is the game's business; all this does is
-     * keep it, namespaced, and admit when it could not. */
-    save:function(state){
-      try{return put(K.slot(),JSON.stringify({v:1,at:Date.now(),state:state}));}
-      catch(e){return false;}
+    /* ---- save slots ----
+     * What goes in one is the game's business; all this does is keep it under
+     * three letters, namespaced per game, and admit when it could not. */
+    slots:slots,
+    slotFor:slotFor,
+    writeSlot:writeSlot,
+    dropSlot:dropSlot,
+    hasSlots:function(){return slots().length>0;},
+    clearSlots:function(){drop(K.slots());return this;},
+    /* Ask for three letters, then keep the state under them. */
+    saveAs:function(state,extra,then){
+      then=then||function(){};
+      if(!buildable()){then(null);return false;}
+      letters({title:'SAVE',sub:'Three letters to keep it under',cancel:true},
+        function(ini){then(ini?writeSlot(ini,state,extra):null);});
+      return true;
     },
-    load:function(){
-      var s=readJSON(K.slot(),null);
-      return s&&s.state!==undefined?s.state:null;
-    },
-    savedAt:function(){
-      var s=readJSON(K.slot(),null);
-      return s&&s.at?s.at:0;
-    },
-    hasSave:function(){return this.load()!==null;},
-    clearSave:function(){drop(K.slot());return this;}
+    /* Show what is saved and hand back the one that is chosen. */
+    resume:function(then){
+      then=then||function(){};
+      var all=slots();
+      if(!all.length||!buildable()){then(null);return false;}
+      close();
+      var f=frame();
+      var h=document.createElement('p');h.className='ac-h';h.textContent='RESUME';
+      var sb=document.createElement('p');sb.className='ac-sub';
+      sb.textContent='Whose game?';
+      f.card.appendChild(h);f.card.appendChild(sb);
+      var list=document.createElement('div');list.className='ac-rows';
+      f.card.appendChild(list);
+      var pad=document.createElement('div');pad.className='ac-pad';
+      f.card.appendChild(pad);
+      var sel=0,rowEls=[];
+      all.forEach(function(sl){
+        var b=document.createElement('button');
+        b.type='button';b.className='ac-b ac-slot';
+        b.innerHTML='<span class="n"></span><span class="w"></span>';
+        b.querySelector('.n').textContent=sl.ini;
+        b.querySelector('.w').textContent=(sl.extra?sl.extra+'  ·  ':'')+ago(sl.at);
+        b.addEventListener('click',function(e){e.preventDefault();close();then(sl);});
+        list.appendChild(b);rowEls.push(b);
+      });
+      function paintSel(){
+        rowEls.forEach(function(b,i){b.className='ac-b ac-slot'+(i===sel?' on':'');});
+      }
+      button(pad,'NEVER MIND',function(){close();then(null);},'wide');
+      open={el:f.wrap,key:function(ev){
+        var k=ev.key,used=true;
+        if(k==='ArrowDown'||k==='s'||k==='S'){sel=(sel+1)%rowEls.length;paintSel();}
+        else if(k==='ArrowUp'||k==='w'||k==='W'){sel=(sel-1+rowEls.length)%rowEls.length;paintSel();}
+        else if(k==='Enter'||k===' '){close();then(all[sel]);}
+        else if(k==='Escape'){close();then(null);}
+        else used=false;
+        if(used){ev.preventDefault();ev.stopPropagation();}
+      }};
+      document.addEventListener('keydown',open.key,true);
+      paintSel();
+      return true;
+    }
   };
 })();
 </script>
@@ -1716,13 +1821,13 @@ function menuEnter(){const f=menuGo[menuSel];if(f)f();}
 
 /* ---------- title ---------- */
 function showSplash(){
-  const saved=!!load('bt.save',null);
+  const saved=Arcade.hasSlots();
   menu({cls:'splash',title:"THE BARD'S TALE",
     sub:'Skara Brae is three years into a winter Mangar made, and the only door '+
         'nobody has tried is the grate in the plaza.',
     items:[
       {label:'A NEW PARTY',go:()=>{newGame();}},
-      {label:'CONTINUE',right:saved?'saved':'',off:!saved,go:()=>{loadGame();}},
+      {label:'RESUME',right:saved?'saved':'',off:!saved,go:resumeMenu},
       {label:'HOW TO PLAY',go:showHelp}
     ],
     tip:'arrows or WASD to walk · C cast · B sing · U use · P party · ESC menu'});
@@ -1748,7 +1853,7 @@ function showDefeat(){
     sub:'What is left of them is somewhere on level '+P.depth+'. The Temple will '+
         'take gold for the ones you can carry out, if anybody could.',
     items:[
-      {label:'BACK TO THE TITLE',go:()=>{drop('bt.save');P.roster=[];showSplash();}}
+      {label:'BACK TO THE TITLE',go:()=>{P.roster=[];showSplash();}}
     ]});
 }
 
@@ -1775,7 +1880,7 @@ function guild(){
       {label:'MAKE A CHARACTER',off:full,go:createName},
       {label:'MARCHING ORDER',off:P.roster.length<2,go:orderScreen},
       {label:'DISBAND SOMEBODY',off:!P.roster.length,go:disbandScreen},
-      {label:'SAVE THE PARTY',off:!P.roster.length,go:()=>{saveGame();say('Saved.','ok');guild();}},
+      {label:'SAVE THE PARTY',off:!P.roster.length,go:()=>saveMenu(guild)},
       {label:'OUT INTO THE STREET',off:P.roster.length<2,go:()=>{hideOverlay();
         say('You step out into the snow.','dim');}}
     ],
@@ -2173,21 +2278,21 @@ function sheet(pc){
 function gameMenu(){
   menu({title:'MENU',sub:'Gold: '+P.gold+' · '+P.steps+' steps taken',
     items:[
-      {label:'SAVE',off:!P.roster.length,go:()=>{saveGame();say('Saved.','ok');hideOverlay();}},
-      {label:'LOAD THE SAVED PARTY',off:!load('bt.save',null),go:()=>{loadGame();}},
+      {label:'SAVE',off:!P.roster.length,go:()=>saveMenu(hideOverlay)},
+      {label:'RESUME A SAVED PARTY',off:!Arcade.hasSlots(),go:resumeMenu},
       {label:'BACK TO THE TITLE',go:showSplash},
       {label:'CLOSE',go:hideOverlay}]});
 }
 
 /* ---------- keeping it ---------- */
-function saveGame(){
-  save('bt.save',JSON.stringify({v:1,roster:P.roster,gold:P.gold,depth:P.depth,
-    x:P.x,y:P.y,dir:P.dir,light:P.light,found:P.found,flag:P.flag,steps:P.steps}));
+/* What a slot holds, and how it is put back. Kept apart from the screens that
+ * ask for the three letters, so a party can be packed and unpacked without a
+ * single button being pressed. */
+function packState(){
+  return{v:1,roster:P.roster,gold:P.gold,depth:P.depth,
+    x:P.x,y:P.y,dir:P.dir,light:P.light,found:P.found,flag:P.flag,steps:P.steps};
 }
-function loadGame(){
-  const raw=load('bt.save',null);
-  if(!raw)return false;
-  let s;try{s=JSON.parse(raw);}catch(e){return false;}
+function applyState(s){
   if(!s||!s.roster||!s.roster.length)return false;
   P.roster=s.roster;P.gold=s.gold|0;P.depth=s.depth|0;P.x=s.x|0;P.y=s.y|0;
   P.dir=s.dir|0;P.light=s.light|0;P.found=s.found||{};P.flag=s.flag||{madgod:false};
@@ -2197,6 +2302,30 @@ function loadGame(){
   say('You pick up where you left off.','say');
   hideOverlay();
   return true;
+}
+function whereNow(){
+  return (P.depth===0?'SKARA BRAE':'SEWERS '+P.depth)+' · '+P.roster.length+
+    (P.roster.length===1?' soul':' souls');
+}
+/* The slot is under three letters, so two people can leave a party halfway
+ * down the sewers on the same machine and each find their own again. */
+function saveGame(ini){
+  return !!Arcade.writeSlot(ini||'AAA',packState(),whereNow());
+}
+function loadGame(ini){
+  const sl=ini?Arcade.slotFor(ini):Arcade.slots()[0];
+  return sl?applyState(sl.state):false;
+}
+function saveMenu(back){
+  Arcade.saveAs(packState(),whereNow(),function(sl){
+    if(sl)say('Kept under '+sl.ini+'.','ok');
+    if(back)back();
+  });
+}
+function resumeMenu(){
+  Arcade.resume(function(sl){
+    if(sl&&applyState(sl.state))say('Welcome back, '+sl.ini+'.','say');
+  });
 }
 
 /* ---------- input ---------- */
@@ -2250,6 +2379,7 @@ el('sound').addEventListener('click',()=>{
 el('soundstate').textContent=Snd.on?'on':'off';
 
 /* ---------- boot ---------- */
+Arcade.init({game:'bards-tale',slots:8,title:"THE BARD'S TALE — SAVED PARTIES"});
 bakeMonsters();
 showSplash();
 paint();

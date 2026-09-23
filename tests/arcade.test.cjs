@@ -79,26 +79,61 @@ test('the extra column is kept with the score', ()=>{
   assert.equal(A.table()[0].extra,'STAGE 9');
 });
 
-test('the save slot keeps what it is given and gives it back', ()=>{
+test('a slot is kept under three letters and given back by them', ()=>{
   const {A}=load();
   A.init({game:'g'});
-  assert.equal(A.hasSave(),false);
-  assert.equal(A.load(),null);
-  assert.equal(A.save({stage:7,party:['a','b']}),true);
-  assert.equal(A.hasSave(),true);
-  assert.deepEqual(A.load(),{stage:7,party:['a','b']});
-  assert.ok(A.savedAt()>0,'the slot did not record when it was written');
-  A.clearSave();
-  assert.equal(A.hasSave(),false);
+  assert.equal(A.hasSlots(),false);
+  assert.equal(A.slotFor('BRN'),null);
+  const w=A.writeSlot('BRN',{stage:7,party:['a','b']},'STAGE 7');
+  assert.equal(w.ini,'BRN');
+  assert.equal(A.hasSlots(),true);
+  assert.deepEqual(A.slotFor('BRN').state,{stage:7,party:['a','b']});
+  assert.equal(A.slotFor('BRN').extra,'STAGE 7');
+  assert.ok(A.slotFor('BRN').at>0,'the slot did not record when it was written');
+  assert.equal(A.slotFor('brn').ini,'BRN','initials are matched case-insensitively');
 });
 
-test('the slot is per game too', ()=>{
+test('two players keep their own game on the same machine', ()=>{
+  // This is the whole reason the slot has a name on it.
   const {A}=load();
-  A.init({game:'one'}).save({n:1});
+  A.init({game:'g'});
+  A.writeSlot('ACE',{who:'ace'});
+  A.writeSlot('BRN',{who:'brn'});
+  assert.equal(A.slots().length,2);
+  assert.deepEqual(A.slotFor('ACE').state,{who:'ace'});
+  assert.deepEqual(A.slotFor('BRN').state,{who:'brn'});
+  A.dropSlot('ACE');
+  assert.equal(A.slotFor('ACE'),null);
+  assert.deepEqual(A.slotFor('BRN').state,{who:'brn'},'dropping one took the other');
+});
+
+test('saving again under the same letters replaces that slot, not the rest', ()=>{
+  const {A}=load();
+  A.init({game:'g'});
+  A.writeSlot('ACE',{n:1});
+  A.writeSlot('BRN',{n:2});
+  A.writeSlot('ACE',{n:3});
+  assert.equal(A.slots().length,2,'it kept two games for one set of initials');
+  assert.deepEqual(A.slotFor('ACE').state,{n:3});
+});
+
+test('the newest slot is first, and the oldest goes when it is full', ()=>{
+  const {A}=load();
+  A.init({game:'g',slots:3});
+  ['AAA','BBB','CCC','DDD'].forEach(i=>A.writeSlot(i,{i}));
+  const kept=A.slots().map(s=>s.ini);
+  assert.equal(kept.length,3,'it kept more slots than it has');
+  assert.equal(kept[0],'DDD','the newest is not first');
+  assert.ok(!kept.includes('AAA'),'the oldest survived a full table');
+});
+
+test('the slots are per game too', ()=>{
+  const {A}=load();
+  A.init({game:'one'});A.writeSlot('ACE',{n:1});
   A.init({game:'two'});
-  assert.equal(A.load(),null,'game two read game one\'s slot');
+  assert.equal(A.slotFor('ACE'),null,'game two read game one\'s slot');
   A.init({game:'one'});
-  assert.deepEqual(A.load(),{n:1});
+  assert.deepEqual(A.slotFor('ACE').state,{n:1});
 });
 
 test('storage that refuses to be written does not take the page with it', ()=>{
@@ -107,9 +142,21 @@ test('storage that refuses to be written does not take the page with it', ()=>{
   const {A}=load({readonly:true});
   A.init({game:'g'});
   assert.doesNotThrow(()=>A.record('ABC',100));
-  assert.equal(A.save({a:1}),false,'it claimed to have saved');
+  assert.equal(A.writeSlot('ABC',{a:1}),null,'it claimed to have saved');
   assert.deepEqual(A.table(),[]);
+  assert.deepEqual(A.slots(),[]);
   assert.equal(A.qualifies(10),true);
+});
+
+test('a corrupted slot store reads as no slots rather than throwing', ()=>{
+  const {A,store}=load();
+  A.init({game:'g'});
+  store.set('arcade.g.slots','{not json');
+  assert.deepEqual(A.slots(),[]);
+  store.set('arcade.g.slots','[1,2,3]');
+  assert.deepEqual(A.slots(),[]);
+  store.set('arcade.g.slots','{"ACE":{"at":1},"BRN":{"at":2,"state":{"n":1}}}');
+  assert.deepEqual(A.slots().map(s=>s.ini),['BRN'],'a slot with nothing in it got through');
 });
 
 test('a corrupted table reads as an empty one rather than throwing', ()=>{
