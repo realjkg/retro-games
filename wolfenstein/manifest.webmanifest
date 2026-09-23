@@ -1,0 +1,39 @@
+{
+  "name": "Castle Wolfenstein — The War Plans",
+  "short_name": "Wolfenstein",
+  "description": "A browser recreation of Muse Software's 1981 Apple II game Castle Wolfenstein: out of the cell, find the war plans, get out of the castle. With an impenetrable mode for endless castles.",
+  "id": "/retro-games/wolfenstein/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#06070f",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
