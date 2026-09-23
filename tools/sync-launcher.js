@@ -20,8 +20,7 @@ const SRC=path.join(ROOT,'shared','launcher.js');
 const PAGES=['archon/index.html','aztec/index.html','bards-tale/index.html',
   'choplifter/index.html','drol/index.html','galaga/index.html',
   'lode-runner/index.html','tapped/index.html',
-  'law-of-the-west/page.html',
-  'law-of-the-west/index.html'];
+  'law-of-the-west/page.html'];
 const START='<!-- launcher:start -->', END='<!-- launcher:end -->';
 const check=process.argv.indexOf('--check')>0;
 

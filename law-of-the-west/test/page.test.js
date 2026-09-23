@@ -89,6 +89,42 @@ function openPage(setup,cold,seed){
     key(k,extra){w.document.dispatchEvent(new w.KeyboardEvent("keydown",
       Object.assign({key:k,bubbles:true,cancelable:true},extra||{})));},
     keyup(k){w.document.dispatchEvent(new w.KeyboardEvent("keyup",{key:k,bubbles:true}));},
+    /* The four direction buttons are one stick now, so a test that used to
+     * press one pushes the gate instead. jsdom has no layout, so every
+     * getBoundingClientRect is zeros and the stick falls back to a 48px throw
+     * about the origin - which is all a push needs to be unambiguous.
+     *
+     * push() seats the thumb afresh and leaves it down, exactly as tap() left
+     * a button down: the tests about a held direction depend on that. Seating
+     * it afresh is what makes two pushes of the SAME direction two presses -
+     * a stick that is already over does not report an edge, and a thumb that
+     * wants to push down twice has to come back to the middle in between. */
+    push(dir){
+      const el=w.document.querySelector('.jstick');
+      assert.ok(el,'the page has no joystick to push');
+      if(w.document.querySelector('.jstick.on'))this.letGo();
+      const V={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0],
+        ul:[-0.7,-0.7],ur:[0.7,-0.7],dl:[-0.7,0.7],dr:[0.7,0.7]};
+      const v=V[dir]; assert.ok(v,'no such direction: '+dir);
+      const Ev=w.PointerEvent||w.MouseEvent||w.Event;
+      el.dispatchEvent(new Ev('pointerdown',{bubbles:true,cancelable:true,
+        clientX:v[0]*48,clientY:v[1]*48}));
+      return el;},
+    /* A thumb that slides while still down: the gate has the pointer captive,
+     * so this is a move, not a let-go. */
+    slide(dir){
+      const el=w.document.querySelector('.jstick');
+      const V={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0],mid:[0,0]};
+      const v=V[dir]||V.mid;
+      const Ev=w.PointerEvent||w.MouseEvent||w.Event;
+      el.dispatchEvent(new Ev('pointermove',{bubbles:true,cancelable:true,
+        clientX:v[0]*48,clientY:v[1]*48}));
+      return el;},
+    letGo(){
+      const el=w.document.querySelector('.jstick');
+      const Ev=w.PointerEvent||w.MouseEvent||w.Event;
+      el.dispatchEvent(new Ev('pointerup',{bubbles:true,cancelable:true}));
+      return el;},
     at(sel,type){const el=w.document.querySelector(sel);
       el.dispatchEvent(new (w.PointerEvent||w.Event)(type,{bubbles:true,cancelable:true}));
       return el;}};
@@ -121,7 +157,7 @@ test('8b. FIRE starts the day and each of the four lines is selectable and speak
   assert.ok(texts.every(t=>t.length>3),'a choice line is empty: '+JSON.stringify(texts));
   // the down control moves the cursor
   const before=p.ev('cursor');
-  p.tap('[data-cmd="down"]');
+  p.push('d');
   assert.notEqual(p.ev('cursor'),before,'down did not move the cursor');
   // each of the four reply lines, by tap and by number key, must advance a beat
   for(let i=0;i<4;i++){
@@ -145,12 +181,12 @@ test('8c. up draws, the crosshair moves, down holsters, fire shoots', {skip:jsdo
   const p=openPage();
   p.tap('[data-cmd="fire"]'); p.ready();
   assert.equal(p.G().mode,'talk');
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   assert.equal(p.G().mode,'gun','up did not draw');
   assert.equal(p.G().phase,'aiming');
   assert.match(p.el('mode').textContent,/\bGUN\b/);
   const aim={...p.G().aim};
-  p.tap('[data-cmd="left"]');
+  p.push('l');
   assert.notEqual(p.G().aim.x,aim.x,'left did not move the crosshair');
   p.press('ArrowUp');
   assert.notEqual(p.G().aim.y,aim.y,'up did not move the crosshair while drawn');
@@ -160,7 +196,7 @@ test('8c. up draws, the crosshair moves, down holsters, fire shoots', {skip:jsdo
   assert.equal(p.G().mode,'talk','holster did not put it away');
   assert.equal(p.G().phase,'dialogue');
   // draw again and shoot: aim at the weapon box and expect a resolved encounter
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   p.G().aim={...p.hit().weapon};
   p.tap('[data-cmd="fire"]');
   assert.ok(p.G().duel,'firing did not open a duel');
@@ -172,17 +208,17 @@ test('8c. up draws, the crosshair moves, down holsters, fire shoots', {skip:jsdo
 test('8d. down walks the crosshair down, and holsters only at the bottom', {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage();
   p.tap('[data-cmd="fire"]'); p.ready();
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   p.G().aim={x:0.5,y:0.5};
-  p.tap('[data-cmd="down"]');
+  p.push('d');
   assert.equal(p.G().mode,'gun','down from mid-screen should not holster');
   assert.ok(p.G().aim.y>0.5,'down did not move the crosshair down');
   p.G().aim={x:0.5,y:1};
-  p.tap('[data-cmd="down"]');
+  p.push('d');
   assert.equal(p.G().mode,'talk','down at the bottom edge should holster');
   assert.equal(p.G().phase,'dialogue','holstering did not hand the conversation back');
   // and the dedicated controls holster from anywhere
-  p.tap('[data-cmd="up"]'); p.G().aim={x:0.5,y:0.5};
+  p.push('u'); p.G().aim={x:0.5,y:0.5};
   p.press('Escape');
   assert.equal(p.G().mode,'talk','Escape did not holster');
 });
@@ -208,7 +244,7 @@ test('8f. a whole day can be played through to the summary and restarted', {skip
     if(ph==='dialogue'){p.press(String(1+(guard%4)));}
     else if(ph==='resolve'||ph==='interlude'){p.tap('[data-cmd="fire"]');}
     else if(ph==='tell'||ph==='duel'){
-      if(p.G().mode!=='gun')p.tap('[data-cmd="up"]');   // he telegraphed: draw
+      if(p.G().mode!=='gun')p.push('u');   // he telegraphed: draw
       p.G().aim={...p.hit().weapon};
       p.tap('[data-cmd="fire"]');}
     else if(ph==='aiming'){p.G().aim={...p.hit().weapon};p.tap('[data-cmd="fire"]');}
@@ -316,29 +352,32 @@ test('8k. a held control repeats, and nothing on the page is selectable', {skip:
   assert.equal(drag.defaultPrevented,true,'dragstart was not prevented');
 
   // While he is talking the directions are a menu, and a held one repeats
-  const dn=p.tap('[data-cmd="down"]');
+  const dn=p.push('d');
   assert.ok(p.ev('held'),'a held menu direction was not registered');
   assert.equal(p.ev('held').cmd,'down');
   dn.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
   assert.equal(p.ev('held'),null,'the hold did not clear on release');
 
   // With the gun out they are sights: they run on the loop, not on a repeat
-  // timer, and two held at once give a diagonal.
-  p.tap('[data-cmd="up"]');                       // draws the gun
+  // timer, and a corner of the gate gives a diagonal. This is the whole reason
+  // the stick is worth having here - the corner used to be the gap between two
+  // buttons, so a diagonal meant holding both and hoping.
+  p.push('u');                       // draws the gun
   assert.equal(p.G().mode,'gun');
-  const upEl=p.tap('[data-cmd="up"]');            // and now aims
+  p.push('u');                       // and now aims
   assert.equal(p.ev('held'),null,'the sights are still on the menu repeat timer');
   assert.equal(p.ev("pressed.has('up')"),true,'a held direction was not registered');
   const before={...p.G().aim};
   p.frame(1000); p.frame(1050);
   assert.ok(p.G().aim.y<before.y,'holding did not run the sights');
   const oneWay={...p.G().aim};
-  const leftEl=p.tap('[data-cmd="left"]');
+  p.push('ul');                      // one push, into the corner
+  assert.equal(p.ev("pressed.has('up')"),true,'the corner lost the up');
+  assert.equal(p.ev("pressed.has('left')"),true,'the corner lost the left');
   p.frame(1100); p.frame(1150);
   assert.ok(p.G().aim.y<oneWay.y&&p.G().aim.x<oneWay.x,
-    'two directions at once did not give a diagonal');
-  for(const el of [upEl,leftEl])
-    el.dispatchEvent(new (p.w.PointerEvent||p.w.Event)('pointerup',{bubbles:true}));
+    'a corner of the gate did not give a diagonal');
+  p.letGo();
   assert.equal(p.ev('pressed.size'),0,'the sights did not stop on release');
   const still={x:p.G().aim.x,y:p.G().aim.y};
   p.frame(1200); p.frame(1250);
@@ -398,7 +437,7 @@ test('8m. each caller arrives on his own theme and a drawn gun cuts it', {skip:j
   assert.ok(log.indexOf('door')<log.indexOf('step'),'he crossed the boardwalk first');
   assert.ok(log.indexOf('step')<log.indexOf('theme:'+want),'his theme beat him in');
   p.ready();
-  p.tap('[data-cmd="up"]');                      // draw
+  p.push('u');                      // draw
   assert.equal(p.G().mode,'gun');
   assert.ok(log.indexOf('cut')>log.indexOf('theme:'+want),
     'the theme played on over a drawn gun');
@@ -565,7 +604,7 @@ test('9a. touch and the keys make the same commands in the same order',
     return Array.from(p.ev('window.__cmds'));
   };
   const byTouch=run(p=>{p.tap('[data-cmd="fire"]');p.ready();
-    p.tap('[data-cmd="down"]');p.tap('[data-cmd="up"]');p.tap('[data-cmd="holster"]');});
+    p.push('d');p.push('u');p.tap('[data-cmd="holster"]');});
   const byKey=run(p=>{p.key('Enter');p.ready();
     p.key('ArrowDown');p.key('ArrowUp');p.key('Escape');});
   assert.deepEqual(byKey,byTouch,
@@ -589,7 +628,7 @@ test('9b. the browser key repeat cannot fire an action twice',
 test('9c. holding FIRE never shoots twice',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready();
-  p.tap('[data-cmd="up"]');                    // draw
+  p.push('u');                    // draw
   assert.equal(p.G().mode,'gun');
   const log=p.log();
   p.key(' ');                                  // one shot
@@ -609,8 +648,8 @@ test('9c. holding FIRE never shoots twice',
 test('9d. a held direction repeats only through the frame loop',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready();
-  p.tap('[data-cmd="up"]');                    // draw
-  p.tap('[data-cmd="left"]');                  // and hold the sights left
+  p.push('u');                    // draw
+  p.push('l');                  // and hold the sights left
   const held={...p.G().aim};
   assert.equal(p.ev("pressed.has('left')"),true,'the direction was not held');
   assert.equal(p.G().aim.x,held.x,'the sights moved with no frame');
@@ -618,29 +657,35 @@ test('9d. a held direction repeats only through the frame loop',
   assert.ok(p.G().aim.x<held.x,'the frame loop did not move the sights');
 });
 
-test('9e. a press survives the thumb sliding off the button',
+test('9e. a push survives the thumb sliding off the gate',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready();
-  p.tap('[data-cmd="up"]'); p.tap('[data-cmd="left"]');
+  p.push('u'); p.push('l');
   assert.equal(p.ev("pressed.has('left')"),true);
-  p.at('[data-cmd="left"]','pointerleave');    // the thumb wanders off the key
+  // the thumb wanders off the gate, still down: the pointer is captive, so
+  // this is a move and the sights keep running left
+  p.slide('l');
   assert.equal(p.ev("pressed.has('left')"),true,
-    'the press was handed back to the page mid-gesture');
-  p.at('[data-cmd="left"]','pointerup');       // only letting go ends it
+    'the push was handed back to the page mid-gesture');
+  p.letGo();                                   // only letting go ends it
   assert.equal(p.ev("pressed.has('left')"),false);
-  assert.match(p.w.document.querySelector('.dpad').outerHTML,/data-cmd/);
+  // and the control itself is a stick with a knob in it, not nine buttons
+  const st=p.w.document.querySelector('.jstick');
+  assert.ok(st&&st.querySelector('.jknob'),'the gate has no knob');
+  assert.equal(p.w.document.querySelector('.dpad'),null,
+    'the d-pad is still in the page behind the stick');
 });
 
 test('9f. blur and going away clear every held input',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready();
-  p.tap('[data-cmd="up"]'); p.tap('[data-cmd="left"]'); p.key('ArrowRight');
+  p.push('u'); p.push('l'); p.key('ArrowRight');
   assert.ok(p.ev('pressed.size')>=1,'nothing was held to begin with');
   p.w.dispatchEvent(new p.w.Event('blur'));
   assert.equal(p.ev('pressed.size'),0,'blur left a control down');
 
   const q=openPage(); q.tap('[data-cmd="fire"]'); q.ready();
-  q.tap('[data-cmd="up"]'); q.tap('[data-cmd="left"]');
+  q.push('u'); q.push('l');
   const log=q.log();
   Object.defineProperty(q.w.document,'hidden',{value:true,configurable:true});
   q.w.document.dispatchEvent(new q.w.Event('visibilitychange'));
@@ -662,7 +707,7 @@ test('9g. drawing cuts the visitor theme in the same frame',
   assert.ok(theme>=0,'no theme to cut: '+log.join(','));
   p.ready();
   const before=log.length;
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   assert.ok(log.indexOf('cut')>theme,'the theme was not cut');
   assert.ok(log.indexOf('cut')>=before,'the cut did not happen on the draw');
   assert.equal(p.G().mode,'gun');
@@ -672,14 +717,14 @@ test('9h. drawing is leather, then cock, then aim, once each',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready(); p.frame(0);
   const log=p.log();
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   for(let t=0;t<=400;t+=40)p.frame(t);
   const only=log.filter(c=>c==='leather'||c==='cock'||c==='aim'||c==='holster');
   assert.deepEqual(only,['leather','cock','aim'],
     'the draw sounded as '+log.join(','));
   // and pressing up again, with the gun already out, adds none of them
   const n=log.length;
-  p.tap('[data-cmd="up"]'); for(let t=440;t<=700;t+=40)p.frame(t);
+  p.push('u'); for(let t=440;t<=700;t+=40)p.frame(t);
   assert.deepEqual(log.slice(n).filter(c=>c==='leather'||c==='cock'||c==='aim'),[],
     'the draw sounded a second time');
 });
@@ -687,7 +732,7 @@ test('9h. drawing is leather, then cock, then aim, once each',
 test('9i. holstering is the holster cue and nothing else',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready(); p.frame(0);
-  p.tap('[data-cmd="up"]'); for(let t=0;t<=400;t+=40)p.frame(t);
+  p.push('u'); for(let t=0;t<=400;t+=40)p.frame(t);
   // the dedicated control
   let log=p.log();
   p.tap('[data-cmd="holster"]');
@@ -695,14 +740,14 @@ test('9i. holstering is the holster cue and nothing else',
   assert.equal(p.G().mode,'talk','HOL did not put the gun up');
   assert.deepEqual(log,['holster'],'HOL sounded as '+log.join(','));
   // Escape, the same
-  p.tap('[data-cmd="up"]'); for(let t=740;t<=1000;t+=40)p.frame(t);
+  p.push('u'); for(let t=740;t<=1000;t+=40)p.frame(t);
   log=p.log(); p.key('Escape');
   for(let t=1040;t<=1300;t+=40)p.frame(t);
   assert.equal(p.G().mode,'talk','Escape did not put the gun up');
   assert.deepEqual(log,['holster'],'Escape sounded as '+log.join(','));
   // and walking the sights off the bottom of the street, the same again
-  p.tap('[data-cmd="up"]'); for(let t=1340;t<=1600;t+=40)p.frame(t);
-  p.ev('G.aim.y=1;'); log=p.log(); p.tap('[data-cmd="down"]');
+  p.push('u'); for(let t=1340;t<=1600;t+=40)p.frame(t);
+  p.ev('G.aim.y=1;'); log=p.log(); p.push('d');
   assert.equal(p.G().mode,'talk','the lower boundary did not put the gun up');
   assert.deepEqual(log,['holster'],'the boundary sounded as '+log.join(','));
 });
@@ -764,10 +809,10 @@ test('9l. muting stops what is sounding and what is owed',
 test('9m. moving the sights makes no sound at all',
   {skip:jsdomMissing&&'jsdom not installed'}, ()=>{
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready(); p.frame(0);
-  p.tap('[data-cmd="up"]'); for(let t=0;t<=400;t+=40)p.frame(t);
+  p.push('u'); for(let t=0;t<=400;t+=40)p.frame(t);
   assert.equal(p.G().mode,'gun');
   const log=p.log();
-  for(const c of ['up','down','left','right'])p.tap('[data-cmd="'+c+'"]');
+  for(const d of ['u','d','l','r'])p.push(d);
   for(let t=440;t<=900;t+=40)p.frame(t);
   assert.deepEqual(log.filter(c=>c==='click'),[],
     'the sights clicked like a menu: '+log.join(','));
@@ -778,15 +823,15 @@ test('9n. the dialogue clicks once per selection that actually changed',
   const p=openPage(); p.tap('[data-cmd="fire"]'); p.ready();
   const log=p.log();
   const n=p.ev('beat().replies.length');
-  p.tap('[data-cmd="down"]');
+  p.push('d');
   assert.equal(log.filter(c=>c==='click').length,1,'one step, '+log.length+' clicks');
   const at=p.ev('cursor');
-  p.tap('[data-cmd="right"]');
+  p.push('r');
   assert.equal(log.filter(c=>c==='click').length,2);
   assert.notEqual(p.ev('cursor'),at,'the cursor did not move');
   // walking all the way round lands back where it started, one click a step
   const before=log.filter(c=>c==='click').length;
-  for(let i=0;i<n;i++)p.tap('[data-cmd="down"]');
+  for(let i=0;i<n;i++)p.push('d');
   assert.equal(log.filter(c=>c==='click').length,before+n,
     'a step made more than one click');
 });
@@ -1253,7 +1298,7 @@ test('9B. he draws quick and spins it on the way, and it is a gun that spins',
   /* Pressing up starts it. Before this the arm crept toward level on a lerp
    * and there was no draw to speak of - it was a dial being turned. */
   p.ev('swing=0;spin=0;seqKind="";');
-  p.tap('[data-cmd="up"]');
+  p.push('u');
   assert.equal(p.ev('seqKind'),'draw','up did not start a draw');
 
   const walk=(kind,span,from)=>{

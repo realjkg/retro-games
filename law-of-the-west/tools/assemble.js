@@ -13,7 +13,21 @@ const parts=['sid-audio.js','content.js','engine.js','ui.js']
   .map(f=>`/* ===== ${f} ===== */\n`+read(f).replace(/^#!.*\n/,''));
 const marker='/* SCRIPTS */';
 if(!shell.includes(marker))throw new Error('page.html has no '+marker);
-const out=shell.replace(marker,parts.join('\n\n'));
+let out=shell.replace(marker,parts.join('\n\n'));
+/* The shared modules - the zoom guard, the launcher, the joystick - are copied
+ * into every page in the collection, comments and all, and those comments are
+ * why anybody can tell what the code is defending against. They belong in
+ * shared/*.js and in page.html, which is where they are read.
+ *
+ * They do not belong three times over in the built artifact of the one page
+ * with a hard size limit. The joystick was what put this page 1.8 KB through
+ * the budget, and the note below says to find the bytes rather than raise the
+ * line: these are the bytes. The sources keep every word; the deliverable
+ * carries the code. Nothing outside the shared markers is touched, so the
+ * game's own comments are all still in the file a player downloads. */
+out=out.replace(/(<!-- (?:no-zoom|launcher|stick|arcade):start -->)([\s\S]*?)(<!-- (?:no-zoom|launcher|stick|arcade):end -->)/g,
+  (m,a,body,b)=>a+body.replace(/\n[ \t]*\/\*[\s\S]*?\*\//g,'')
+                      .replace(/\n[ \t]*\/\/[^\n]*/g,'')+b);
 fs.writeFileSync(path.join(ROOT,'index.html'),out);
 /* The budget is a real limit, not a number to print at somebody. The test suite
  * holds the same line (page.test.js, test 9p), but this is the script a person

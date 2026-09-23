@@ -6,11 +6,16 @@ crawler. One HTML file, no build step, nothing fetched: open `index.html` from a
 
 [Play it](https://realjkg.github.io/retro-games/bards-tale/)
 
-    ▲ / W / ↑      forward, one square
+    stick / ↑ / W   forward, one square — held, it keeps walking
     ← → / A D      turn
     ↓ / S          about face
     C B U P        cast · sing · use an item · the party's sheets
     ESC            menu, and saving
+
+On a phone the three walk buttons are one round stick: push it forward to walk,
+left or right to turn, back to turn about. Held, it keeps going — 380ms, then a
+square every 200ms — because a corridor is walked rather than tapped out one
+square at a time, and the sewers are long.
 
 The view is 256×176 logical pixels drawn with `image-rendering: pixelated`.
 
@@ -104,6 +109,8 @@ the playthrough:
 
 ## What is not fixed
 
+* **The party cannot back up.** Pulling the stick back turns them about, which
+  is two of the turns they could always make rather than a step backwards.
 * **This is the sewers, not the game.** There is no Mangar, no Harkyn's Castle,
   no Catacombs, no Kylearan's Tower, no snow that lifts at the end. The Mad God
   on the third level is the end of what is here.

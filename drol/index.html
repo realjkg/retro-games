@@ -43,7 +43,6 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #pads{margin-top:auto}
 .padrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);gap:4px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
@@ -60,9 +59,12 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
    player pans a little and the buttons are half off the wrong edge, still
    there, still ignoring a thumb that is now landing beside them. */
 @media (max-width:360px){
-  .dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px)}
   .abtn{width:60px;height:60px}
   .sbtn{width:60px;height:38px}
+  /* and the lettering with them, or a label sits wider than the button it is
+     on and reads as spilled ink rather than as a control. */
+  .abtn,.sbtn{font-size:10px;letter-spacing:0}
+  .btn small{font-size:8px}
 }
 #overlay{position:absolute;inset:0;background:rgba(6,9,20,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center;overflow-y:auto}
@@ -106,7 +108,13 @@ button{font:inherit;cursor:pointer}
    toolbar sliding in or out no longer resizes the game mid-play; the strip the
    bars vacate just stays dark. dvh and vh are there for older browsers. */
 body.fs{padding:0;height:100vh;height:100dvh;height:100svh;min-height:0;overflow:hidden;
-  background:#05070f;color:#e8eeff}
+  background:#05070f;color:#e8eeff;
+  /* Full screen paints the page dark whatever the system theme is, and the
+     way each of these games did that was to hardcode colours onto .btn.
+     The stick is not a .btn: in light mode it kept the light palette and
+     sat on the black as a white disc. Anything built from the palette
+     follows now, because the palette itself goes dark here. */
+  --panel2:#1d2745;--line:#2a3550;--dim:#94a3c8;--gold:#ffc24a}
 body.fs .btn{background:#141c33;border-color:#2a3550;color:#e8eeff}
 body.fs .btn:active,body.fs .btn.on{background:#ffc24a;color:#101426;border-color:#ffc24a}
 body.fs .btn.lit{border-color:#ffc24a;color:#ffc24a}
@@ -121,8 +129,9 @@ body.fs #stage{width:min(100%,calc(58svh * var(--ar,1.352)));max-width:100%;marg
   border-radius:0;border-left:0;border-right:0}
 body.fs canvas{object-fit:contain;background:#000}
 /* Controls grow with the screen but never past the edge of a narrow phone. */
-body.fs .dpad{grid-template-columns:repeat(3,clamp(48px,16vw,72px));
-  grid-template-rows:repeat(3,clamp(42px,13vw,62px))}
+body.fs .jstick{width:clamp(126px,40vw,182px);height:clamp(126px,40vw,182px)}
+body.fs .jstick .jknob{width:clamp(54px,17vw,78px);height:clamp(54px,17vw,78px);
+  margin:calc(clamp(54px,17vw,78px) / -2) 0 0 calc(clamp(54px,17vw,78px) / -2)}
 body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size:14px}
 body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
 body.fs .soundrow{margin:2px 0 0;gap:8px}
@@ -133,7 +142,9 @@ body.fs #audio-status{display:none}
   body.fs #wrap{flex-direction:row;align-items:center;justify-content:space-between;
     gap:6px;padding:4px 8px}
   body.fs #pads,body.fs .padrow{display:contents}
-  body.fs .dpad{order:1;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,48px)}
+  body.fs .jstickwrap{order:1}
+  body.fs .jstick{width:144px;height:144px}
+  body.fs .jstick .jknob{width:62px;height:62px;margin:-31px 0 0 -31px}
   body.fs #stage{order:2;width:min(64vw,calc((100svh - 12px) * var(--ar,1.352)));max-width:64vw;margin:0}
   body.fs .acts{order:3}
   body.fs .abtn{width:66px;height:66px}
@@ -151,6 +162,218 @@ body.fs #audio-status{display:none}
 </style>
 </head>
 <body>
+<!-- stick:start -->
+<script data-shared="stick">
+/* ---- the Apple IIe joystick, on the glass ---- *
+ *
+ * The machines these games came off had a stick, not a d-pad: two pots and two
+ * buttons, and the games were written for it. A three-by-three grid of buttons
+ * is a later idea from a different console, and on a phone it is the worse of
+ * the two - nine targets a thumb finds by feel, with hard edges between them,
+ * so a thumb drifting from the left button to the up one crosses the corner
+ * and stops the player dead mid-stride.
+ *
+ * This is the stick instead: one round gate, a knob that follows the thumb, and
+ * the pointer taken captive on the way down so a thumb that slides off the pad
+ * keeps steering instead of handing the gesture back to the page. That last
+ * part is also why it helps with the zoom - a captured pointer inside a
+ * touch-action:none gate is not a scroll, a pull-to-refresh, the first finger
+ * of a pinch, or a long press the browser can put a magnifier on top of. The
+ * guard in shared/no-zoom.js still does its half; this stops the control
+ * surface itself from ever starting one of those gestures.
+ *
+ * The games below still read directions, not angles, so the vector is turned
+ * back into up/down/left/right - four ways or eight - and handed over on the
+ * edge, when a direction is entered or left. A game wires it to the same key
+ * state its d-pad set and nothing else about the game changes.
+ *
+ * One copy. tools/sync-stick.js writes it into each page that uses it.
+ *
+ *   Stick.make({host:'#stickhost', ways:4, onDirs:function(now,was){...}})
+ *
+ * host  element or selector, the gate is built inside it | ways 4 or 8
+ * axes  'xy' (default), 'x' or 'y' | dead  deadzone 0..1, default .34
+ * label aria-label | unlock  called on the way down, for the audio unlock
+ * onDirs(now,was) only when the set changes | onMove(x,y,held) every move
+ *
+ * It returns {el,x,y,held,dirs,radius,release} and keeps x/y/held/dirs live.
+ */
+(function(root){
+  'use strict';
+  var D=root&&root.document;
+  var CSS=
+   '.jstick{position:relative;width:136px;height:136px;border-radius:50%;flex:0 0 auto;'+
+     'background:var(--panel2,#2a2f45);border:1px solid var(--line,#4a5170);'+
+     'touch-action:none;cursor:grab;-webkit-touch-callout:none;'+
+     '-webkit-user-select:none;user-select:none;-webkit-user-drag:none;'+
+     '-webkit-tap-highlight-color:transparent}'+
+   '.jstick .jring{position:absolute;inset:13px;border-radius:50%;'+
+     'border:1px dashed var(--line,#4a5170);opacity:.55;pointer-events:none}'+
+   '.jstick .jtick{position:absolute;background:var(--dim,#8a90ad);opacity:.5;'+
+     'pointer-events:none}'+
+   '.jstick .j-u,.jstick .j-d{left:50%;width:2px;height:7px;margin-left:-1px}'+
+   '.jstick .j-l,.jstick .j-r{top:50%;height:2px;width:7px;margin-top:-1px}'+
+   '.jstick .j-u{top:4px}.jstick .j-d{bottom:4px}'+
+   '.jstick .j-l{left:4px}.jstick .j-r{right:4px}'+
+   '.jstick .jknob{position:absolute;left:50%;top:50%;width:58px;height:58px;'+
+     'margin:-29px 0 0 -29px;border-radius:50%;'+
+     /* The knob has to read against the gate in nine different palettes, two
+      * of which flip for light mode. --dim is the one mid-tone every game
+      * defines and the only one that contrasts with --panel2 both ways round;
+      * a game that wants its own can set --knob. */
+     'background:var(--knob,var(--dim,#46537a));'+
+     'border:2px solid var(--line,#4a5170);pointer-events:none;'+
+     'box-shadow:0 2px 0 rgba(0,0,0,.35) inset;transition:background .08s linear}'+
+   '.jstick.on{cursor:grabbing}'+
+   '.jstick.on .jknob{background:var(--gold,#e8c06a);border-color:var(--gold,#e8c06a)}'+
+   /* The middle cell of the d-pad was never a direction in any of these games -
+    * it was WALK, HOVER, MENU, HOLSTER. A round gate has no middle cell to put
+    * it in, so it stands beside the stick instead of being quietly lost. */
+   '.jstickwrap{display:flex;flex-direction:column;align-items:center;gap:6px;'+
+     'flex:0 0 auto}'+
+   '.jstickwrap .jaside{display:flex;gap:6px;align-items:center}'+
+   '@media (max-width:360px){.jstick{width:116px;height:116px}'+
+     '.jstick .jknob{width:50px;height:50px;margin:-25px 0 0 -25px}}';
+
+  function css(){
+    if(!D||!D.head||D.getElementById('jstick-css'))return;
+    var st=D.createElement('style');
+    st.id='jstick-css';
+    st.appendChild(D.createTextNode(CSS));
+    D.head.appendChild(st);
+  }
+
+  function clamp(v,a,b){return v<a?a:v>b?b:v;}
+
+  /* Four-way is winner-takes-all: the bigger component wins, so a thumb that
+   * wanders off true never gives a diagonal a game cannot use. Eight-way calls
+   * a direction pushed once its component is better than a third of the throw,
+   * which puts the diagonal wedges at roughly the same width as the straights. */
+  function dirsOf(x,y,ways,dead){
+    var d={u:false,d:false,l:false,r:false};
+    var m=Math.sqrt(x*x+y*y);
+    if(m<dead)return d;
+    if(ways===8){
+      if(y<-0.38*m)d.u=true; else if(y>0.38*m)d.d=true;
+      if(x<-0.38*m)d.l=true; else if(x>0.38*m)d.r=true;
+    }else if(Math.abs(x)>=Math.abs(y)){
+      if(x<0)d.l=true; else d.r=true;
+    }else{
+      if(y<0)d.u=true; else d.d=true;
+    }
+    return d;
+  }
+  function same(a,b){return a.u===b.u&&a.d===b.d&&a.l===b.l&&a.r===b.r;}
+
+  /* The test harnesses run each game's script in a bare vm with a document
+   * stubbed down to what the game asks for, and none of them has a head to
+   * hang a stylesheet on. A control surface that cannot be built is not an
+   * error there - it is a page with no pads - so this refuses softly and the
+   * game runs on its keyboard. */
+  function buildable(){
+    return !!(D&&D.createElement&&D.head&&D.querySelector);
+  }
+
+  function make(o){
+    o=o||{};
+    if(!buildable())return null;
+    var host=null;
+    try{host=typeof o.host==='string'?D.querySelector(o.host):o.host;}catch(e){}
+    if(!host||!host.appendChild)return null;
+    css();
+    var axes=o.axes||'xy', ways=o.ways===8?8:4;
+    var dead=typeof o.dead==='number'?o.dead:0.34;
+
+    var el=D.createElement('div');
+    el.className='jstick';
+    el.setAttribute('role','application');
+    el.setAttribute('aria-label',o.label||'Joystick');
+    var html='<i class="jring" aria-hidden="true"></i>';
+    if(axes.indexOf('y')>=0)
+      html+='<i class="jtick j-u" aria-hidden="true"></i><i class="jtick j-d" aria-hidden="true"></i>';
+    if(axes.indexOf('x')>=0)
+      html+='<i class="jtick j-l" aria-hidden="true"></i><i class="jtick j-r" aria-hidden="true"></i>';
+    html+='<i class="jknob" aria-hidden="true"></i>';
+    el.innerHTML=html;
+    host.appendChild(el);
+    var knob=el.querySelector('.jknob');
+
+    var S={el:el,x:0,y:0,held:false,dirs:dirsOf(0,0,ways,dead),radius:radius,
+           release:release};
+
+    /* The throw is measured off the knob rather than guessed, because the gate
+     * and the knob are both sized in a media query and a guessed number let the
+     * knob ride out over its own rim. */
+    function radius(){
+      var r=el.getBoundingClientRect();
+      var kw=(knob&&knob.offsetWidth)||52;
+      if(!r||!r.width)return 48;
+      return Math.max(16,r.width/2-kw/2-3);
+    }
+    function paint(dx,dy){
+      if(knob)knob.style.transform='translate('+Math.round(dx)+'px,'+Math.round(dy)+'px)';
+    }
+    function settle(x,y,held){
+      S.x=x;S.y=y;S.held=held;
+      var next=dirsOf(x,y,ways,dead), was=S.dirs;
+      if(!same(next,was)){S.dirs=next; if(o.onDirs)o.onDirs(next,was);}
+      if(o.onMove)o.onMove(x,y,held);
+    }
+    function moveTo(ev){
+      var r=el.getBoundingClientRect(), R=radius();
+      var dx=axes.indexOf('x')>=0?ev.clientX-(r.left+r.width/2):0;
+      var dy=axes.indexOf('y')>=0?ev.clientY-(r.top+r.height/2):0;
+      var d=Math.sqrt(dx*dx+dy*dy);
+      if(d>R){dx=dx/d*R;dy=dy/d*R;}
+      paint(dx,dy);
+      settle(clamp(dx/R,-1,1),clamp(dy/R,-1,1),true);
+    }
+    function release(){
+      id=null;
+      el.classList.remove('on');
+      paint(0,0);
+      settle(0,0,false);
+    }
+
+    var id=null;
+    el.addEventListener('pointerdown',function(e){
+      if(e.preventDefault)e.preventDefault();
+      if(o.unlock)o.unlock();
+      try{el.setPointerCapture&&el.setPointerCapture(e.pointerId);}catch(err){}
+      id=e.pointerId; el.classList.add('on');
+      moveTo(e);
+    });
+    el.addEventListener('pointermove',function(e){
+      if(id!==e.pointerId)return;
+      if(e.preventDefault)e.preventDefault();
+      moveTo(e);
+    });
+    ['pointerup','pointercancel','lostpointercapture'].forEach(function(ev){
+      el.addEventListener(ev,function(e){ if(id===e.pointerId)release(); });
+    });
+    /* A pointer the page loses track of entirely - the tab going away mid-dive,
+     * a gesture the browser takes over - must still let go, or the player comes
+     * back to a character walking into a wall. */
+    if(root.addEventListener){
+      root.addEventListener('blur',function(){if(S.held)release();});
+      D.addEventListener('visibilitychange',function(){if(D.hidden&&S.held)release();});
+    }
+
+    /* A keyboard is a stick with four positions, and the knob has to say so or
+     * the player on a keyboard is looking at a control that never moves. */
+    S.showKeys=function(kx,ky){
+      if(S.held)return;
+      var R=radius();
+      paint(kx*R,ky*R);
+      el.classList.toggle('on',!!(kx||ky));
+    };
+    return S;
+  }
+
+  root.Stick={make:make,dirsOf:dirsOf,buildable:buildable,css:CSS};
+})(typeof window!=='undefined'?window:this);
+</script>
+<!-- stick:end -->
 <!-- arcade:start -->
 <script data-shared="arcade">
 /* ---- the coin-op bits every game here shares ----
@@ -592,10 +815,14 @@ body.fs #audio-status{display:none}
   <div id="stage"><canvas id="cv" width="346" height="194"></canvas><div id="overlay"></div></div>
   <div id="pads">
     <div class="padrow">
-      <div class="dpad">
-        <div></div><div class="btn" data-k="U">▲<small>jetpack</small></div><div></div>
-        <div class="btn" data-k="L">◀</div><div class="btn" id="hovbtn" data-k="HOLD">HOVER</div><div class="btn" data-k="R">▶</div>
-        <div></div><div class="btn" data-k="D">▼<small>walk</small></div><div></div>
+      <!-- A stick instead of nine buttons: shared/stick.js builds the gate into
+           #stickhost and hands directions back. HOVER was the middle cell and
+           was never a direction, so it stands under the stick. -->
+      <div class="jstickwrap">
+        <div id="stickhost"></div>
+        <div class="jaside">
+          <div class="btn sbtn" id="hovbtn" data-k="HOLD">HOVER</div>
+        </div>
       </div>
       <div class="acts">
         <div class="btn abtn" id="firebtn" data-k="FIRE">FIRE</div>
@@ -1659,6 +1886,26 @@ function bindKey(el,k){
 for(const ev of ["pointerup","pointercancel"])
  document.addEventListener(ev,e=>{const rel=held.get(e.pointerId);if(rel)rel(e);},true);
 document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
+/* The stick sets the same four keys the d-pad set and calls the same press(),
+ * so nothing downstream of it knows the difference. Only the edges are
+ * reported, so a held direction is a held key and the menu steps once per push
+ * rather than scrolling away under a resting thumb. */
+const DIRKEY={u:"U",d:"D",l:"L",r:"R"};
+const stick=(typeof Stick!=="undefined")&&Stick.make({
+  host:"#stickhost",ways:4,label:"Joystick: move, jetpack, walk",
+  unlock:unlockAudio,
+  onDirs(now,was){
+    for(const d in DIRKEY){
+      const k=DIRKEY[d];
+      if(now[d]&&!was[d]){keys[k]=true;press(k);}
+      else if(!now[d]&&was[d])keys[k]=false;
+    }
+  }});
+/* On a keyboard the arrows are the stick, and the knob has to say so or the
+ * player is looking at a control that never moves. */
+function showStick(){
+  if(stick)stick.showKeys((keys.R?1:0)-(keys.L?1:0),(keys.D?1:0)-(keys.U?1:0));
+}
 document.getElementById("sound").addEventListener("click",()=>{
  SOUND.enabled=!SOUND.enabled;unlockAudio();
  if(SOUND.master)SOUND.master.gain.value=SOUND.enabled?.18:0;
@@ -1744,6 +1991,7 @@ function updatePads(){
  label(hovBtn,"HOVER","");
  if(radarBtn&&radarBtn.classList)radarBtn.classList.toggle("lit",!!G.radar);
  if(hovBtn&&hovBtn.classList)hovBtn.classList.toggle("lit",!!keys.HOLD);
+ showStick();
 }
 
 /* ============ menus ============ */
@@ -2395,7 +2643,11 @@ fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
     var st=D.createElement("style");
     st.setAttribute("data-nozoom","press");
     st.appendChild(D.createTextNode(
-      PRESSABLE+",canvas,.menuitem{-webkit-touch-callout:none;"+
+      /* .stick/.jstick/#stick are the joysticks. They are plain divs, so
+       * nothing in PRESSABLE matched them - and a stick is the one control a
+       * player holds down for seconds at a time, which is precisely when iOS
+       * offers the callout. They were the biggest hole in this list. */
+      PRESSABLE+",canvas,.menuitem,.stick,.jstick,#stick{-webkit-touch-callout:none;"+
       "-webkit-user-select:none;user-select:none;"+
       "-webkit-user-drag:none;"+
       "-webkit-tap-highlight-color:transparent}"+

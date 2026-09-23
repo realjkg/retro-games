@@ -2399,6 +2399,7 @@ const pressed=new Set();
 let aimRun=0, aimTick=0;
 const aiming=()=>G.mode==="gun"&&G.phase!=="intro"&&screen!=="sound";
 function runAim(now){
+  showStick();
   if(!pressed.size||!aiming()){aimRun=0;aimTick=0;return;}
   let dx=0,dy=0;
   for(const c of pressed){const v=DIRV[c]; if(v){dx+=v[0];dy+=v[1];}}
@@ -2446,6 +2447,42 @@ document.querySelectorAll("[data-cmd]").forEach(el=>{
       if(held&&held.el===el)releaseHeld();
     });
 });
+/* ---- the stick ----
+ * The four direction buttons are one round gate now, eight ways. It matters
+ * most with the gun out: the sights integrate whatever directions are held, so
+ * a diagonal used to mean holding two buttons whose corner did not exist, and
+ * now it is one push of the thumb. Everything it does, it does by putting the
+ * same command names into the same places the buttons did - the repeat set,
+ * the held record, runCmd - so the duel is scored on the same clock as before.
+ */
+const STICKCMD={u:"up",d:"down",l:"left",r:"right"};
+const stick=(typeof Stick!=="undefined")&&Stick.make({
+  host:"#stickhost",ways:8,label:"Joystick: run the sights, step the choices",
+  onDirs(now,was){
+    // the first gesture is spent raising the music and nothing else
+    if(firstGesture()){paint();return;}
+    for(const d in STICKCMD){
+      const cmd=STICKCMD[d];
+      if(now[d]&&!was[d]){
+        runCmd(cmd,{dataset:{}});
+        pressed.add(cmd);
+        if(!aiming())held={cmd,el:null,next:clock()+REPEAT_DELAY};
+      }else if(!now[d]&&was[d]){
+        pressed.delete(cmd);
+        if(held&&held.cmd===cmd)releaseHeld();
+      }
+    }
+  }});
+/* On a keyboard the arrows are the stick, and the knob has to say so or the
+ * player is looking at a control that never moves. */
+function showStick(){
+  if(!stick)return;
+  let x=0,y=0;
+  for(const c of pressed){const v=DIRV[c]; if(v){x+=v[0];y+=v[1];}}
+  const m=Math.sqrt(x*x+y*y)||1;
+  stick.showKeys(x/m,y/m);
+}
+
 /* Nothing on this page is text to be selected or dragged. */
 document.addEventListener?.("selectstart",e=>{
   if(!e.target?.closest?.("input,textarea"))e.preventDefault?.();

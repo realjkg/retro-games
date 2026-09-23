@@ -37,6 +37,11 @@ function runtime(diff=3,seed=7){
      ReferenceError and nothing in the game runs at all. */
   vm.runInContext(require('node:fs').readFileSync(
     require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+  /* and the joystick, for the same reason: the game wires it as it boots. It
+     refuses softly here - this document has no head to build a gate in - and
+     the game runs on its keyboard, which is what the tests press. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/stick.js'),'utf8'),box);
   vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run(`newGame(${diff},${seed});`);

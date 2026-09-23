@@ -1754,8 +1754,14 @@ document.querySelectorAll(".btn").forEach(el=>bindKey(el,el.dataset.k));
 const stickEl=document.getElementById("stick"), knobEl=document.getElementById("knob");
 let stickId=null;
 function stickRadius(){
+ /* The throw has to be measured off the knob, not guessed at. Guessed at 14px
+  * it was 15px too long: the knob rode out over its own rim and sat half
+  * outside the gate at full deflection, which is a control that looks broken
+  * at exactly the moment the player is asking the most of it. */
  const r=stickEl?stickEl.getBoundingClientRect():null;
- return r&&r.width?r.width/2-14:52;
+ const kw=(knobEl&&knobEl.offsetWidth)||58;
+ if(!r||!r.width)return 52;
+ return Math.max(20,r.width/2-kw/2-3);
 }
 function moveStick(e){
  if(!stickEl)return;
@@ -2673,7 +2679,11 @@ fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
     var st=D.createElement("style");
     st.setAttribute("data-nozoom","press");
     st.appendChild(D.createTextNode(
-      PRESSABLE+",canvas,.menuitem{-webkit-touch-callout:none;"+
+      /* .stick/.jstick/#stick are the joysticks. They are plain divs, so
+       * nothing in PRESSABLE matched them - and a stick is the one control a
+       * player holds down for seconds at a time, which is precisely when iOS
+       * offers the callout. They were the biggest hole in this list. */
+      PRESSABLE+",canvas,.menuitem,.stick,.jstick,#stick{-webkit-touch-callout:none;"+
       "-webkit-user-select:none;user-select:none;"+
       "-webkit-user-drag:none;"+
       "-webkit-tap-highlight-color:transparent}"+

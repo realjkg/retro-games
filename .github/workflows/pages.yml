@@ -36,6 +36,8 @@ jobs:
       - run: node tools/sync-arcade.js --check
       # and the same way back to the collection from every one of them
       - run: node tools/sync-launcher.js --check
+      # and one joystick, in the five games that take it from the shared copy
+      - run: node tools/sync-stick.js --check
       - run: node --test tests/*.test.cjs
       - run: node --test archon/tests/combat.test.cjs
       - run: node --test bards-tale/tests/*.test.cjs

@@ -64,7 +64,21 @@ can, and only if somebody looks at the pixels first to know what to check.
     PW=$PWD/node_modules/playwright-core node tools/playtest.js
     PW=$PWD/node_modules/playwright-core node tools/playthrough.js
 
-`playtest.js` asks how it moved. `playthrough.js` asks what it said. Neither is
+From the repository root, across all nine games:
+
+    node tools/sync-nozoom.js --check       # and sync-arcade, sync-launcher,
+    node tools/sync-stick.js --check        #   one copy of each shared module
+    PW=$PWD/node_modules/playwright-core node tools/zoomguard.js
+    PW=$PWD/node_modules/playwright-core node tools/stickcheck.js
+
+`playtest.js` asks how it moved. `playthrough.js` asks what it said.
+`zoomguard.js` asks whether the browser can still take the controls away - by
+zooming the page, or by raising a callout over a control held down.
+`stickcheck.js` drags every game's joystick with a real pointer and asks whether
+the knob follows, stays inside its own rim, the game reads the push, the man
+moves, and everything stops when the thumb comes off. It is the only thing that
+looks at the control surface, and it found two knobs sitting outside their own
+gates that every test in the repository was green on. Neither is
 part of `npm test` — CI has no browser, and the game must stay playable from
 `file://` with nothing installed.
 

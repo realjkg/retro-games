@@ -1546,7 +1546,10 @@ function feed(src,want){
 const Stick={x:0,y:0,dirs:{},id:null};
 function stickAt(ev){
   const box=el('stick').getBoundingClientRect();
-  const R=box.width*0.34;
+  /* A third of the gate was a guess, and it was 5px too long: at full lean the
+     ball-top sat over the rim instead of against it. Measure it off the ball. */
+  const kw=(el('knob')&&el('knob').offsetWidth)||52;
+  const R=Math.max(16,box.width/2-kw/2-3);
   let dx=ev.clientX-(box.left+box.width/2),dy=ev.clientY-(box.top+box.height/2);
   const d=Math.hypot(dx,dy);if(d>R){dx*=R/d;dy*=R/d;}
   Stick.x=dx/R;Stick.y=dy/R;
@@ -1711,7 +1714,11 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
     var st=D.createElement("style");
     st.setAttribute("data-nozoom","press");
     st.appendChild(D.createTextNode(
-      PRESSABLE+",canvas,.menuitem{-webkit-touch-callout:none;"+
+      /* .stick/.jstick/#stick are the joysticks. They are plain divs, so
+       * nothing in PRESSABLE matched them - and a stick is the one control a
+       * player holds down for seconds at a time, which is precisely when iOS
+       * offers the callout. They were the biggest hole in this list. */
+      PRESSABLE+",canvas,.menuitem,.stick,.jstick,#stick{-webkit-touch-callout:none;"+
       "-webkit-user-select:none;user-select:none;"+
       "-webkit-user-drag:none;"+
       "-webkit-tap-highlight-color:transparent}"+

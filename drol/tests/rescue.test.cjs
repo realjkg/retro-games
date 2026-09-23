@@ -46,6 +46,11 @@ function runtime(diff=2,seed=7,start=true,store){
      ReferenceError and nothing in the game runs at all. */
   vm.runInContext(require('node:fs').readFileSync(
     require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+  /* and the joystick beside it: the game wires it as it boots. It refuses
+     softly here - this document has no head to build a gate in - and the
+     game runs on its keyboard, which is what the tests press. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/stick.js'),'utf8'),box);
   vm.runInContext(source,box);
   // The game uses Math.random for the things a seed should not have to carry -
   // when a scorpion next hops, which way a toy drifts. A test that leaves that

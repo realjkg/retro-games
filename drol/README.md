@@ -17,13 +17,15 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
 
 ## Controls
 
-- **▲ is the jetpack**: hold it and he flies. **▼ puts him back on his feet**, and on a floor
-  he walks — slower than flying, steadier, and it is also how you drop through a hole to the
-  storey below. **◀ ▶** move either way, **HOVER** (Shift/H) holds your height. A floor is
-  only passable where a gap is cut in it.
+- Move with the **stick** — a thumb pad you drag rather than four buttons you press — or the
+  arrow keys.
+- **Push up and the jetpack fires**: hold it and he flies. **Push down and he is back on his
+  feet**, and on a floor he walks — slower than flying, steadier, and it is also how you drop
+  through a hole to the storey below. **Left and right** move either way, **HOVER** (Shift/H)
+  holds your height. A floor is only passable where a gap is cut in it.
 - The big left button (Space/Z/Enter) is **FIRE**, and points the way you are facing.
-  The big right button (X/E) sends a ball **straight up**, or **straight down** while ▼ is
-  held. Three balls in the air at once, no more.
+  The big right button (X/E) sends a ball **straight up**, or **straight down** while the stick is
+  held back. Three balls in the air at once, no more.
 - **RADAR** (R) switches the panel along the top: the scope in the middle of it holds the
   whole maze at once — you, the child, the toy, the pet and everything hunting you — with the
   score, the robots you have left and the high score either side. Switching it off hands

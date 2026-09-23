@@ -14,7 +14,8 @@ diagonally, and no way at all to kill the guards who are already running at you.
 
 ## Controls
 
-- Move with the pad or the arrow keys. The original's own keys work too: **I J K L** to move,
+- Move with the **stick** or the arrow keys — the stick is a thumb pad you drag rather than
+  four buttons you press. The original's own keys work too: **I J K L** to move,
   **U** to dig left and **O** to dig right. WASD moves; Z and X also dig.
 - **DIG ◀** and **DIG ▶** take out the brick diagonally below you on that side. You cannot dig
   straight down, you cannot dig upwards, and you cannot dig at all from a rope or a ladder.

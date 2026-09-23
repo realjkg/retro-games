@@ -73,7 +73,11 @@
     var st=D.createElement("style");
     st.setAttribute("data-nozoom","press");
     st.appendChild(D.createTextNode(
-      PRESSABLE+",canvas,.menuitem{-webkit-touch-callout:none;"+
+      /* .stick/.jstick/#stick are the joysticks. They are plain divs, so
+       * nothing in PRESSABLE matched them - and a stick is the one control a
+       * player holds down for seconds at a time, which is precisely when iOS
+       * offers the callout. They were the biggest hole in this list. */
+      PRESSABLE+",canvas,.menuitem,.stick,.jstick,#stick{-webkit-touch-callout:none;"+
       "-webkit-user-select:none;user-select:none;"+
       "-webkit-user-drag:none;"+
       "-webkit-tap-highlight-color:transparent}"+

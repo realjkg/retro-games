@@ -15,7 +15,8 @@ generated fresh for every game, so no two raids are the same.
 
 ## Controls
 
-- Move with the pad or the arrow keys (also WASD). **JUMP** (up) also climbs the steps you are
+- Move with the **stick** or the arrow keys (also WASD). The stick is a thumb pad you drag:
+  push it and he goes that way, let go and he stops. **JUMP** (up) also climbs the steps you are
   standing on; **CRAWL** (down) slips under half-blocked walls and climbs back down.
 - The big left button (Space/Z/Enter) is the weapon in your hand and says which it is:
   **MACHETE**, **SHOOT 6** with the bullets left, **LIGHT 3** for dynamite, or **FISTS**.

@@ -167,10 +167,17 @@ test('Holding a control holds the control: nothing on the page is text to select
 });
 
 test('The page carries the controls it promises, and both dig buttons',()=>{
-  for(const id of ['k-up','k-down','k-left','k-right','k-digl','k-digr','k-restart','k-pause',
+  for(const id of ['k-digl','k-digr','k-restart','k-pause','k-menu',
     'sound','fs','palette','e-test','e-save','e-exit','slug']){
     assert.ok(PAGE.includes('id="'+id+'"'),'the page has #'+id);
   }
+  /* The four direction buttons were replaced by the stick, so what the page has
+     to carry now is the gate to build it in and the module that builds it. A
+     page with neither has no way to move on a phone at all. */
+  assert.ok(PAGE.includes('id="stickhost"'),'the page has somewhere to put the stick');
+  assert.ok(PAGE.includes('data-shared="stick"'),'the page carries the joystick module');
+  assert.ok(!/id="k-(up|down|left|right)"/.test(PAGE),
+    'the direction buttons are gone rather than left behind the stick');
   const r=runtime();
   // The original's own keys: I J K L to move, U and O to dig.
   for(const [k,m] of [['i','up'],['j','left'],['k','down'],['l','right'],['u','digL'],['o','digR'],

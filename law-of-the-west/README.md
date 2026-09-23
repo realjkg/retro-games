@@ -324,9 +324,11 @@ with one caller already come and gone while you were down and the man who did it
 loose to do one of the robberies. A robbery the sheriff is carried past still
 happens — the day waits for nobody, but it does not lose a job either.
 
-**Drawing.** The gun comes out on **up** — the arrow, `W`, keypad `8`, the pad's
-up, a swipe — which is how the joystick did it, and the crosshair then goes
-where up, down, left and right take it. `HOL`, `Escape` or walking the sights
+**Drawing.** The gun comes out on **up** — the arrow, `W`, keypad `8`, a push
+forward on the stick, a swipe — which is how the joystick did it, and the
+crosshair then goes where the stick takes it. Eight ways, so a diagonal is one
+push of the thumb: the four buttons that used to be here had no corner between
+them, and running the sights across meant holding two of them and hoping. `HOL`, `Escape` or walking the sights
 off the bottom of the street puts it away.
 
 **A gun in his face.** A caller who has a gun pointed at him **before he has
@@ -565,9 +567,9 @@ you, where you are in the day and how it is going live in a strip above it.
 
 ## How it plays
 
-**Two modes, one pad.** Up draws: the gun hand comes up, a crosshair appears and
-the replies go dim. The pad moves the crosshair; down walks it back and, pulled
-past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
+**Two modes, one stick.** Up draws: the gun hand comes up, a crosshair appears
+and the replies go dim. The stick moves the crosshair; down walks it back and,
+pulled past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
 a hidden reflex timer runs while yours is out and an armed man answers it — a
 frightened man in about 1.1 to 1.9 seconds, a hostile one in 1.4 to 2.2, a
 patient one not for 3 to 4.4.

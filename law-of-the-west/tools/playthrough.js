@@ -61,6 +61,25 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
     sndOn:SND.on, sndState:SND.state
   }));
   const tap=async sel=>{ await p.click(sel,{force:true}); await p.waitForTimeout(80); };
+  /* The four direction buttons are one stick now, so a direction is a push of
+   * the gate and a let-go, not a click on a button. Each push is its own
+   * gesture: a stick already held over does not report an edge, so stepping
+   * the replies twice means coming back to the middle in between - which is
+   * what a thumb does anyway. */
+  const push=async dir=>{
+    const V={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0]};
+    const v=V[dir]; if(!v)throw new Error('no such direction: '+dir);
+    const el=await p.$('.jstick');
+    if(!el)throw new Error('the page has no joystick to push');
+    const b=await el.boundingBox();
+    const cx=b.x+b.width/2, cy=b.y+b.height/2, R=b.width*0.32;
+    await p.mouse.move(cx,cy);
+    await p.mouse.down();
+    await p.mouse.move(cx+v[0]*R,cy+v[1]*R,{steps:3});
+    await p.waitForTimeout(60);
+    await p.mouse.up();
+    await p.waitForTimeout(80);
+  };
   const shot=async name=>p.screenshot({path:path.join(SHOTS,name+'.png')});
 
   /* Four passes through the day, each taking a different one of the four
@@ -148,7 +167,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
               e.id+': went from '+before.phase+' to '+after.phase+
               ' in six seconds while nobody touched the controls');
             /* and the gun comes out, aims, and goes away */
-            await tap('[data-cmd="up"]');
+            await push('u');
             const drawn=await state();
             ok(drawn.mode==='gun',e.id+': up did not draw (mode='+drawn.mode+')');
             await p.waitForTimeout(400);
@@ -163,7 +182,7 @@ const ok=(cond,msg)=>{ if(!cond)fail.push(msg); return cond; };
           const k=expected[s.enc].id+'/'+s.node;
           (heard[k]=heard[k]||new Set()).add(s.line);
         }
-        for(let k=0;k<branch;k++)await tap('[data-cmd="down"]');
+        for(let k=0;k<branch;k++)await push('d');
         await tap('[data-cmd="fire"]');
       }
       else if(s.phase==='aiming'){ await tap('[data-cmd="holster"]'); }
