@@ -151,3 +151,34 @@ test('the shuffle carries the good can to wherever the swaps say', ()=>{
   toPick(r);
   assert.equal(+r.run('G.bonus.slots[G.bonus.good]'),pos);
 });
+
+test('the switch has two positions: the arcade count of bartenders, or unlimited', ()=>{
+  const r=runtime();
+  r.store.delete('tapped.endless');
+  r.run(`setEndless(false);showSplash();`);
+  assert.equal(r.run('livesLabel()'),'BARTENDERS: '+r.run('ARCADE_LIVES')+' · ARCADE');
+  r.run(`cycleLives();`);
+  assert.equal(r.run('livesLabel()'),'BARTENDERS: UNLIMITED');
+  assert.equal(r.store.get('tapped.endless'),'1','the choice is not remembered');
+  r.run(`cycleLives();`);
+  assert.equal(r.run('livesLabel()'),'BARTENDERS: '+r.run('ARCADE_LIVES')+' · ARCADE','it did not come back round');
+});
+
+test('an arcade game starts with the arcade count, and loses one a death', ()=>{
+  const r=runtime();
+  r.run(`setEndless(false);newGame();hideOverlay();G.state='play';G.spawnT=1e9;`);
+  const n=+r.run('ARCADE_LIVES');
+  assert.equal(+r.run('G.lives'),n);
+  r.run(`G.mugs.push({lane:0,x:20,v:118,full:true});`);step(r,0.2);
+  assert.equal(+r.run('G.lives'),n-1);
+});
+
+test('an unlimited game shows infinity and never ends on a death', ()=>{
+  const r=runtime();
+  r.run(`setEndless(true);newGame();hideOverlay();G.state='play';G.spawnT=1e9;`);
+  assert.equal(r.el('lives').textContent,'∞');
+  for(let i=0;i<8;i++){r.run(`G.mugs.push({lane:0,x:20,v:118,full:true});`);step(r,2.2);
+    if(r.run('G.state')==='card')step(r,1.3);}
+  assert.equal(r.run('G.state'),'play');
+  assert.equal(r.run('String(G.noScore)'),'true');
+});

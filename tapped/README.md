@@ -85,9 +85,23 @@ is cleared at game over.
 A death is paid for in the slot the moment it happens. Closing the page while
 the bartender is falling does not bring him back.
 
-`BARTENDERS` on the title cycles 3, 5, 2, ENDLESS, the same switch as Galaga's,
-and the same rule: an endless run is never a high score, and switching it back
-off does not launder the run.
+### Bartenders: the arcade's count, or unlimited
+
+`BARTENDERS` on the title has two positions:
+
+* **3 · ARCADE**: the cabinet's game, and a high score if it's good enough.
+* **UNLIMITED**: free play. A lost bartender still costs you the bar you were
+  on, but never the game. The status bar shows **∞**, and an unlimited run is
+  never a high score. Switching it back off part-way doesn't launder the run.
+
+The choice is remembered between visits, and the pause menu has the same switch.
+
+The arcade count is one constant, `ARCADE_LIVES`. It is 3 because accounts of
+the cabinet say you "start with two", with the reserve shown as mugs, which reads
+as two in reserve and one at the taps. That reading is not confirmed against a
+cabinet or its operator manual. The MAME driver keeps the lives count in the
+game's own settings, not on its DIP switches, so the driver does not settle it
+either. If a cabinet disagrees, it is a one-line change.
 
 ### The attract demo
 
@@ -126,7 +140,7 @@ game was built against the list:
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 37 tests, no browser
+    node --test tests/*.test.cjs                              # 40 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
 
@@ -183,9 +197,10 @@ For eyes, not checks:
   dead-straight legs. The walk is drawn; standing is not.
 * **The show has no dancer.** A spotlight sweeps the bar and everybody cheers;
   the arcade had a dancing girl on a stage.
-* **No extra bartenders are awarded.** The arcade gave them. The threshold
-  wasn't known with enough confidence to write it down, so there are none
-  rather than a guessed one.
+* **No extra bartenders are awarded.** The arcade gave them for points. The
+  threshold wasn't known with enough confidence to write it down, so there are
+  none rather than a guessed one.
+* **The arcade count of 3 is a reading, not a confirmed setting**; see above.
 * **A customer who reaches the taps does not throw the bartender down the bar**,
   which is the arcade's best gag. The game stops and says what happened.
 * **The music is "Oh! Susanna"**, the arcade saloon's tune: Stephen Foster, 1848,

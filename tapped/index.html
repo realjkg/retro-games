@@ -172,6 +172,11 @@ const RUNSPD=140,FULLSPD=118,POURT=0.42,PUSH=58,SLIDESPD=96;
 /* The original's scoring. */
 const SCORE={out:50,empty:100,tip:1500,bonus:3000};
 const TABLE_N=5;
+/* The arcade's count of bartenders. Accounts of the cabinet say you "start with
+ * two", with the reserve shown as mugs; read as two in reserve and one at the
+ * taps, that is three. It is one number, here, so if the cabinet says
+ * otherwise it is one edit. */
+const ARCADE_LIVES=3;
 
 /* ---------- small helpers ---------- */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -604,14 +609,13 @@ function levelCfg(L){
 }
 
 /* ---------- game state ---------- */
-const G={state:'splash',level:1,score:0,lives:3,startLives:3,endless:false,noScore:false,
+const G={state:'splash',level:1,score:0,lives:ARCADE_LIVES,startLives:ARCADE_LIVES,endless:false,noScore:false,
   cust:[],mugs:[],tips:[],fx:[],pops:[],spawned:0,total:0,spawnT:0,showT:0,t:0,
   bt:{lane:0,x:TAP_X,fill:0,face:-1,dist:0,throwT:0,catchT:0,moving:false,holding:false},
   cardT:0,deathT:0,why:'',frozen:null,demo:false,nextId:1,
   stats:{served:0,empties:0,tips:0,bonus:0},bonus:null,ini:null,
   table:loadJSON('tapped.scores',[])};
 if(!Array.isArray(G.table))G.table=[];
-G.startLives=+load('tapped.lives',3)||3;
 G.endless=load('tapped.endless','0')==='1';
 function high(){return G.table.length?G.table[0].s:0;}
 function cfg(){return levelCfg(G.level);}
@@ -1182,27 +1186,24 @@ function showSplash(){
   }
   html.push('<button class="menuitem" type="button">'+(s?'NEW GAME':'START')+'</button>');
   items.push({go:newGame});
-  html.push('<button class="menuitem" type="button" id="mlives">BARTENDERS: '+
-    (G.endless?'ENDLESS':G.startLives)+'</button>');
+  html.push('<button class="menuitem" type="button" id="mlives">'+livesLabel()+'</button>');
   items.push({go:cycleLives});
   html.push('<button class="menuitem" type="button">HOW TO PLAY · HIGH SCORES</button>');
   items.push({go:showHelp});
   html.push('<small class="tip">▲ ▼ change bar · ◀ ▶ run · hold SPACE to pour, let go to send</small>');
   buildMenu(html.join(''),items,0);
 }
-/* Two, three, five, endless, and back to three - the same switch as Galaga's. */
+/* Two positions, the cabinet's and the free one: the arcade's count of
+ * bartenders, or unlimited. */
+function livesLabel(){return 'BARTENDERS: '+(G.endless?'UNLIMITED':ARCADE_LIVES+' · ARCADE');}
 function cycleLives(){
-  if(G.endless){setEndless(false);G.startLives=3;}
-  else if(G.startLives===3)G.startLives=5;
-  else if(G.startLives===5)G.startLives=2;
-  else setEndless(true);
-  save('tapped.lives',G.startLives);
+  setEndless(!G.endless);
   const b=el('mlives');
-  if(b)b.textContent='BARTENDERS: '+(G.endless?'ENDLESS':G.startLives);
+  if(b)b.textContent=livesLabel();
 }
 function setEndless(on){
   G.endless=on;save('tapped.endless',on?'1':'0');
-  /* once a run has been endless it can never be a high score, and turning the
+  /* once a run has been unlimited it can never be a high score, and turning the
    * switch back off does not launder it */
   if(on&&G.state!=='splash')G.noScore=true;
   hud();
@@ -1238,7 +1239,7 @@ function showOver(){
     '<div class="r"><span>Tips</span><span>'+G.stats.tips+'</span></div>'+
     '<div class="r"><span>Soda Shakes won</span><span>'+G.stats.bonus+'</span></div>'+
     '</div>'+
-    (G.noScore?'<small class="tip">An endless run is not a high score.</small>':'')+
+    (G.noScore?'<small class="tip">An unlimited run is not a high score.</small>':'')+
     tableHtml(G.lastRank)+
     '<button class="menuitem sel" type="button">PLAY AGAIN</button>'+
     '<button class="menuitem" type="button">TITLE</button>',
@@ -1249,10 +1250,10 @@ function showPause(note){
   buildMenu(
     '<h1>PAUSED</h1>'+
     '<p class="sub">'+esc(note||(G.endless
-      ? 'Endless bartenders. This run will not become a high score.'
+      ? 'Unlimited bartenders. This run will not become a high score.'
       : 'Saved. P, or the button, to go back in.'))+'</p>'+
     '<button class="menuitem sel" type="button">BACK IN</button>'+
-    '<button class="menuitem" type="button">BARTENDERS: '+(G.endless?'ENDLESS':G.lives)+'</button>'+
+    '<button class="menuitem" type="button">BARTENDERS: '+(G.endless?'UNLIMITED':G.lives+' LEFT')+'</button>'+
     '<button class="menuitem" type="button">SAVE AND QUIT</button>'+
     '<button class="menuitem" type="button">END THIS RUN</button>',
     [{go:togglePause},
