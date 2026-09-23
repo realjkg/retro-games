@@ -199,7 +199,7 @@ test('a guard with the gun on him puts his hands up and does not shoot', ()=>{
   assert.equal(r.j(`room().guards[0].st`),'hup','he lowered his hands with the gun still on him');
   assert.equal(r.j(`G.shots.length`),0,'a guard with his hands up fired');
   /* search him for his bullets */
-  r.run(`G.P.x=140;G.P.y=92;search();`);
+  r.run(`G.P.x=room().guards[0].x-10;G.P.y=room().guards[0].y;search();`);
   step(r,1.2);
   assert.equal(r.j(`room().guards[0].searched`),true);
   /* and look away: he goes for his gun */
@@ -217,20 +217,95 @@ test('the SS never surrender', ()=>{
   assert.notEqual(r.j(`room().guards[0].st`),'hup');
 });
 
-test('a uniform walks you past the guards, until you fire; not past the SS', ()=>{
+test('in a uniform you blend in, with the guards and the SS alike, until you fire', ()=>{
   const r=runtime();
   r.run(`G.impenetrable=true;`);
   bare(r,60,92);
-  guard(r,'guard',200,92);
-  r.run(`G.P.uniform=true;G.P.dir=2;room().guards[0].st='stand';`);
-  step(r,3);
-  assert.equal(r.j(`room().guards[0].st`),'stand','a guard saw through the uniform');
+  guard(r,'guard',200,92);guard(r,'ss',200,40);
+  r.run(`G.P.uniform=true;G.P.dir=2;room().guards.forEach(g=>g.st='stand');`);
+  step(r,4);
+  assert.deepEqual(r.j(`room().guards.map(g=>g.st)`),['stand','stand'],'someone saw through the uniform at a distance');
+  assert.equal(r.j('G.hunt.on'),false);
   r.run(`fire();`);step(r,0.1);
-  assert.equal(r.j(`room().guards[0].st`),'alert','firing did not give the uniform away');
-  bare(r,60,92);
-  guard(r,'ss',200,92);
-  step(r,0.2);
-  assert.equal(r.j(`room().guards[0].st`),'alert','the SS let a uniform by');
+  assert.deepEqual(r.j(`room().guards.map(g=>g.st)`),['alert','alert'],'firing did not give the uniform away');
+  assert.equal(r.j('G.hunt.on'),true,'an SS man saw a spy and raised no alarm');
+});
+
+test('the SS ask for your papers up close: stay and you are a spy, walk away and you pass', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);
+  guard(r,'ss',130,92);
+  r.run(`G.P.uniform=true;G.P.dir=2;`);
+  step(r,1.2);
+  assert.equal(r.j(`room().guards[0].st`),'inspect','he walked right past an SS man and was not looked at');
+  assert.match(r.j(`room().guards[0].say.text`),/PAPIERE|AUSWEIS/);
+  step(r,2.6);
+  assert.equal(r.j(`room().guards[0].st`),'alert','he stood there through the whole inspection and was not found out');
+  assert.equal(r.j('G.hunt.on'),true);
+  /* the same again, but he walks off */
+  bare(r,100,92);
+  guard(r,'ss',130,92);
+  r.run(`G.hunt.on=false;room().blown=false;`);
+  step(r,1.2);
+  assert.equal(r.j(`room().guards[0].st`),'inspect');
+  r.run(`keys.left=true;`);step(r,1.5);r.run(`keys.left=false;`);
+  step(r,1.5);
+  assert.equal(r.j(`room().guards[0].st`),'stand','walking away from the inspection did not end it');
+  assert.equal(r.j('G.hunt.on'),false);
+});
+
+test('the SS go in squads: never one alone', ()=>{
+  const r=runtime();
+  const squads=r.j(`(()=>{const out=[];for(let sd=1;sd<40;sd++){seed=sd*131;const C=makeCastle(3+sd%6);
+    for(const rm of C.rooms){const n=rm.guards.filter(g=>g.kind==='ss').length;if(n)out.push(n);}}return out;})()`);
+  assert.ok(squads.length>20,'hardly any SS at all: '+squads.length);
+  const alone=squads.filter(n=>n<2).length;
+  assert.ok(alone<=squads.length*0.05,alone+' of '+squads.length+' SS rooms have one SS man in them');
+  assert.ok(squads.some(n=>n>=3),'never a squad of three');
+});
+
+test('the alarm sends squads through the doors, walking in from off the screen', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  const res=r.j(`(()=>{
+    const C=G.castle;const i=C.rooms.findIndex(rm=>Object.values(rm.doors).filter(Boolean).length>=1&&C.rooms.indexOf(rm)!==C.start);
+    enterRoom(i);const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+    G.P.x=140;G.P.y=92;
+    raiseHunt();G.hunt.t=0.01;
+    const first=[];let n=0;
+    for(let k=0;k<180;k++){stepGame(1/60);
+      for(const g of room().guards)if(first.indexOf(g.id)<0){first.push(g.id);n++;
+        first.push({x:g.x,y:g.y});}}
+    return{pos:first.filter(v=>typeof v==='object'),n,st:room().guards.map(g=>g.st),kinds:room().guards.map(g=>g.kind)};})()`);
+  assert.ok(res.n>=2,'the alarm sent '+res.n+' SS');
+  assert.ok(res.kinds.every(k=>k==='ss'));
+  for(const p of res.pos)
+    assert.ok(p.x<0||p.x>280||p.y<8||p.y>168,'an SS man appeared inside the room at '+JSON.stringify(p));
+  assert.ok(res.st.every(s=>s==='alert'),'the squad came in and did not come for him: '+res.st);
+});
+
+test('the alarm goes quiet, and sooner in a uniform', ()=>{
+  const quiet=uniform=>{
+    const r=runtime();
+    bare(r,60,92);
+    r.run(`G.impenetrable=true;G.P.uniform=${uniform};raiseHunt();G.hunt.t=1e9;`);
+    let t=0;while(t<60&&r.j('G.hunt.on')){step(r,0.5);t+=0.5;}
+    return t;
+  };
+  const plain=quiet(false),dressed=quiet(true);
+  assert.ok(plain<60,'the alarm never went quiet');
+  assert.ok(dressed<plain/2,'the uniform did not quieten the hunt: '+dressed+'s against '+plain+'s');
+});
+
+test('a squad that comes in after a man in uniform does not know him', ()=>{
+  const r=runtime();
+  bare(r,140,92);
+  r.run(`G.impenetrable=true;G.P.uniform=true;room().blown=false;raiseHunt();G.hunt.t=0.01;`);
+  step(r,4);
+  const st=r.j(`room().guards.map(g=>g.st)`);
+  assert.ok(st.length>=2);
+  assert.ok(st.every(s=>s!=='alert'),'they came in and knew him at once: '+st);
 });
 
 test('picking a lock takes time, walking away gives it up, shooting it off is quick', ()=>{

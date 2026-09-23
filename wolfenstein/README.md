@@ -18,10 +18,31 @@ are only alive.
     G                  throw a grenade
     P                  pause, and the map
 
-**On a phone** the stick is on the glass: the same ball-top joystick as the
-other games here, eight ways. FIRE, AIM (hold it and push the stick to turn),
-SEARCH and THROW sit beside it. **A gamepad** works through the Gamepad API:
-A fires, B searches, X throws, a shoulder button aims, START pauses.
+**On a phone** the Apple IIe's own joystick is on the glass: the beige box,
+the black ball-topped stick standing in its well, and the two buttons in the
+top corners. **Button 0 fires, button 1 held is AIM.** FIRE, AIM, SEARCH and
+THROW are also beside it for the other thumb.
+
+The stick handles the way Galaga's does, the best of the sticks in this
+collection. You drag it, and **how far you push it is how fast he walks.**
+The Apple read its joystick through the paddle inputs, so it was analogue too,
+and a small push is a careful step. It takes the pointer captive on the way
+down, so a thumb that slides off the well keeps walking him. It lets go on
+`pointerup`, `pointercancel` and `lostpointercapture`, and at the document as
+well, so a gesture the browser swallows still stops him. The throw is measured
+from the well and the knob, not assumed, and it springs back to the middle.
+
+**Held sideways**, the stick goes to the left of the playfield and the buttons
+to the right, and the playfield takes what height is left. Nothing is drawn
+over the castle and nothing has to be scrolled to, either way up, on screens
+from 320 wide to a tablet (`tools/layout.js`). **A double or triple tap zooms
+nothing**, anywhere: the shared zoom guard eats the second and third tap
+everywhere that is not a control, and every control carries its own
+`touch-action`. A press that lands while the gun is cooling down is kept and
+goes off as soon as it can, so a triple tap on FIRE is three shots.
+
+**A gamepad** works through the Gamepad API, analogue as well: A fires,
+B searches, X throws, a shoulder button aims, START pauses.
 
 The playfield is 280×168 logical pixels, the Apple's own width, drawn at
 whatever size the page has room for with `image-rendering: pixelated`. Every
@@ -62,15 +83,36 @@ is on him, and a moment after. Look away and he goes for his gun again
 (*SCHWEINEHUND!*). A guard with his hands up, or a dead one, can be searched
 for bullets and grenades, and a dead guard sometimes for his uniform.
 
-**The SS** (violet) wear vests and take three bullets. They never surrender,
-see through any uniform, and **follow you**: leave a room with an SS man after
-you and a moment later he walks in through the same opening.
+**The SS** (violet) never go about alone. A room that has them has a squad,
+two men and from the fourth castle sometimes three, standing together. They
+wear vests and take three bullets each, and they never surrender. They
+**follow you**: leave a room with the SS after you and a moment later they
+walk in through the same opening, one after another.
+
+**The alarm** is the frightening part. An SS man who sees you for what you are
+raises it. A klaxon goes, the screen flares red, and from then on its edges
+beat red in time with a heartbeat under everything, faster when they are in
+the room with you. `ALARM` flashes in the status bar. Every so often **a squad
+comes through one of the doors** of whatever room you are in: boots, the
+klaxon again, `SS! THROUGH THE WEST DOOR`. They come from the far side of the
+room, and they walk in on their own feet from off the screen. The alarm goes
+quiet only when nobody has had you in their sights for half a minute.
 
 **Chests** are picked standing still. It takes a couple of seconds, and
 walking away gives it up. Shoot the lock off and it opens at once. They hold
 bullets, grenades, bulletproof vests, uniforms, and a great deal of sauerkraut
-and schnapps. **A uniform** walks you past the guards until you fire in front
-of them or walk into one (*WAS IST LOS?*). It never gets you past the SS.
+and schnapps.
+
+**In a German uniform you blend in**, with the guards and with the SS. Guards
+let you by until you fire in front of them or walk into one (*WAS IST LOS?*).
+The SS look closely. Come near one, or stay near him, and he stops you:
+*PAPIERE!* You have a couple of seconds. Walk away out of his sight and he
+lets it go (*WEITER.*). Still standing in front of him when he has looked, and
+you are a spy (*SPION!*), the room knows, and the alarm goes. A squad the
+alarm sends into a room where your uniform still holds does not know you
+either: they come in looking (*WO IST ER?*), and they have to find you out
+the same way. In a uniform the alarm goes quiet in twelve seconds instead of
+thirty. Firing, or throwing a grenade, gives it away to everyone in the room.
 
 **The war plans** are in a steel strongbox, grey, in a room at least half way
 from the cell. Bullets do not open it and grenades do not break it. It has to
@@ -109,9 +151,10 @@ you are impenetrable.
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 22 tests, no browser
+    node --test tests/*.test.cjs                              # 27 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
+    PW=... node tools/layout.js
 
 `tests/` runs the page's own script under a stub DOM and reads the game's
 numbers: every castle at several sizes and seeds can be walked from the cell to
@@ -121,12 +164,18 @@ bullet and a vest takes three; **impenetrable survives twenty seconds in front
 of an SS man and a grenade at his feet, and fourteen castles in a row, past
 the last rank**; an impenetrable run never reaches the record; hands up, the
 uniform, the SS following, picking and shooting locks, the strongbox, grenades
-and walls, the walk cycle, and storage that throws.
+and walls, the walk cycle, and storage that throws. The SS tests are
+**squads, never one alone**; **the alarm sends squads through the doors,
+walking in from off the screen**; **the alarm goes quiet, sooner in a
+uniform**; **the papers: stay and you are a spy, walk away and you pass**; and
+**a squad that comes in after a man in uniform does not know him**. All six
+fail on the build before them.
 
 `tools/playtest.js` asks **how it moved**. It opens the real page in Chromium
 and reads the canvas, one row per scene: the title demo, the cell, walking
 into the next room, a guard on his rounds, a guard who has seen you, hands up,
-an SS man walking in after you, picking a lock, a grenade, a uniform, a
+an SS man walking in after you, the alarm's first squad man and the second,
+the papers, picking a lock, a grenade, a uniform, a
 bulletproof prisoner under fire, a mortal one shot, the way out, a ninth
 castle and the pause card. The columns are the repository's questions: *walks
 in, strides, alive, answers, walks off, whole.* Read the rows.
@@ -151,7 +200,21 @@ ten real seconds in front of an SS man with the switch on and he is still
 standing; the pause card has the map and switching off part-way still leaves
 no record; walking out of the way out escapes and there is a next castle;
 mortal, one bullet ends it; on a phone the stick leans, walks him and springs
-back, and FIRE, THROW, SEARCH and AIM-with-the-stick all work with fingers.
+back, **a light push walks him slower than a full one**, button 0 on the box
+fires and button 1 held turns him without a step, and FIRE, THROW, SEARCH and
+AIM-with-the-stick all work with fingers.
+
+`tools/layout.js` asks **where the controls are**, on six screens from 320×568
+to an iPad, each way up, during play. Is any control over the playfield or over
+another control? Is everything on screen with nothing to scroll to? Is the
+playfield its own shape? Then, with fingers on a phone each way up, a triple
+tap on the playfield, the status bar, the space between, the stick, FIRE,
+button 0 and SEARCH: nothing zooms, the guard eats the second and third tap
+everywhere that is not a control, and a triple tap on FIRE or button 0 is
+three shots. Run against the build before this one it fails on every phone
+held sideways, where the playfield and buttons were off the bottom of the
+screen, and on the 320-wide phone upright. With the zoom guard taken out, the
+tap rows fail.
 
 For eyes, not checks:
 
@@ -176,6 +239,14 @@ For eyes, not checks:
 * **Standing legs are straight.** The walk is four drawn frames. Standing is
   five rows of dead-straight legs; the life in a standing figure is in the
   arms and the blink.
+* **The reference builds could not be looked at from here.** The DOS build on
+  retrogames.cz and the Atari 8-bit build on archive.org were both blocked by
+  this environment's network policy. What is here is from what is known of
+  Silas Warner's game, not from playing those builds side by side.
+* **The SS in a uniform are this game's.** The alarm, the squads sent through
+  the doors, the inspection for papers, and a uniform that gets you past the
+  SS at a distance were all asked for, as an enhancement, and are not a
+  reading of the 1981 disk.
 * **The numbers are this game's, not the Apple's.** Ten rounds and three
   grenades to start, three hits for a vest and three bullets for an SS man,
   the rank ladder, and the strongbox that grenades cannot break (so a castle

@@ -42,23 +42,48 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
 #status b{color:var(--gold)}
 #status .tag{font-size:10px;letter-spacing:.08em;padding:1px 5px;border-radius:5px;border:1px solid var(--line)}
 #status .tag.on{color:#0a0a0a;background:var(--hi);border-color:var(--hi)}
+#status .tag.alarm{color:#fff;background:#c01010;border-color:#c01010;animation:alarm .5s steps(1) infinite}
+@keyframes alarm{50%{background:#400;border-color:#400}}
+@media (prefers-reduced-motion:reduce){#status .tag.alarm{animation:none}}
 #status .tag.inv{color:#0a0a0a;background:var(--vio);border-color:var(--vio)}
 #stage{position:relative;width:100%;aspect-ratio:280/168;background:#000;border:1px solid var(--line);
   border-radius:12px;overflow:hidden;touch-action:none;flex:0 1 auto;min-height:0}
 canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
-#pads{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+#pads{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:6px}
 .stickwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
-/* The joystick is a round gate with a ball-top stick that follows the thumb,
-   the same one the other games here have. */
-#stick{position:relative;width:150px;height:150px;border-radius:50%;touch-action:none;
-  background:radial-gradient(circle at 50% 50%,#0c0e18 0 30%,#191c2e 31% 62%,#2a2f4a 63% 100%);
-  border:2px solid var(--line);box-shadow:inset 0 3px 10px rgba(0,0,0,.55)}
-#stick .gate{position:absolute;inset:18px;border-radius:50%;border:1px dashed rgba(20,207,253,.25)}
-#stick .shaft{position:absolute;left:50%;top:50%;width:14px;height:0;margin-left:-7px;
-  background:#15151a;border-radius:7px;transform-origin:50% 0}
-#knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
-  background:radial-gradient(circle at 36% 32%,#ff8a7a 0,#e02a1e 38%,#8a0e08 100%);
-  box-shadow:0 5px 8px rgba(0,0,0,.55);pointer-events:none;will-change:transform}
+/* The Apple IIe's own joystick, on the glass: a beige box, a black stick with
+   a ball on top standing in a square well, and the two buttons, 0 and 1, in
+   the top corners. It handles like Galaga's thumb stick: you drag it, how far
+   you push is how fast he walks, and it springs back when you let go. */
+#joy{position:relative;width:168px;height:168px;border-radius:16px;flex:0 0 auto;
+  background:linear-gradient(160deg,#efe6cc 0%,#d9ceb0 55%,#bfb291 100%);
+  border:1px solid #9c9072;box-shadow:0 6px 0 #8f8466,0 10px 14px rgba(0,0,0,.45),
+    inset 0 2px 0 rgba(255,255,255,.55)}
+/* the trim wheels, ridged, at the right and front edges */
+#joy .trim{position:absolute;background:repeating-linear-gradient(90deg,#6c6450 0 2px,#a39878 2px 4px);
+  border-radius:3px;pointer-events:none}
+#joy .trim.v{right:-4px;top:62px;width:8px;height:40px;
+  background:repeating-linear-gradient(0deg,#6c6450 0 2px,#a39878 2px 4px)}
+#joy .trim.h{bottom:-4px;left:62px;height:8px;width:40px}
+#joy .jb{position:absolute;top:10px;width:34px;height:34px;border-radius:50%;padding:0;
+  background:radial-gradient(circle at 40% 35%,#5a5a5a 0,#262626 60%,#111 100%);
+  border:3px solid #b3a785;box-shadow:0 3px 0 #1a1a1a;color:transparent;cursor:pointer;touch-action:none}
+#joy .jb.on,#joy .jb:active{transform:translateY(2px);box-shadow:0 1px 0 #1a1a1a;
+  background:radial-gradient(circle at 40% 35%,#ff9a3c 0,#c85a10 70%)}
+#joy #j0{left:10px}#joy #j1{right:10px}
+#joy .lbl{position:absolute;top:47px;font:700 8px/1 ui-monospace,Menlo,monospace;color:#5c5440;
+  letter-spacing:.06em;pointer-events:none}
+#joy .l0{left:8px}#joy .l1{right:8px;text-align:right}
+#stick{position:absolute;left:36px;top:60px;width:96px;height:96px;border-radius:12px;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#1b1b1b 0 20%,#2c2a25 21% 100%);
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.7);cursor:grab}
+#stick .boot{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+  border-radius:50%;background:radial-gradient(circle,#3a3a3a 0,#161616 70%);pointer-events:none}
+#stick .shaft{position:absolute;left:50%;top:50%;width:10px;height:0;margin-left:-5px;
+  background:linear-gradient(90deg,#000,#444 45%,#000);border-radius:5px;transform-origin:50% 0;pointer-events:none}
+#knob{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,#7a7a7a 0,#1e1e1e 45%,#000 100%);
+  box-shadow:0 4px 6px rgba(0,0,0,.6);pointer-events:none;will-change:transform}
 .stickwrap small{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font:inherit;font-size:13px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
@@ -111,12 +136,34 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
   .tally{font-size:11px;padding:4px 10px}
 }
 @media (pointer:fine){#pads{display:none}}
+/* A narrow phone: the box a little smaller, so stick and buttons share a row. */
+@media (max-width:370px){
+  #joy{transform:scale(.84);transform-origin:0 100%;margin:-27px -27px 0 0}
+  .abtn{width:74px;height:74px}.mbtn{width:56px}
+}
+/* A phone on its side. The controls go either side of the playfield and the
+   playfield takes what height is left, so nothing is ever drawn over the
+   castle and nothing has to be scrolled to during play. */
+@media (orientation:landscape) and (max-height:560px) and (pointer:coarse){
+  body{padding:env(safe-area-inset-top) max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left))}
+  #wrap{max-width:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-rows:auto minmax(0,1fr);column-gap:10px;row-gap:4px;
+    height:calc(100dvh - 44px - env(safe-area-inset-top));flex:none}
+  #status{grid-column:1/4;min-height:0;padding:3px 8px;font-size:11px}
+  #sound{height:22px}
+  #pads{display:contents}
+  .stickwrap{grid-column:1;grid-row:2;align-self:center}
+  .stickwrap small{display:none}
+  .right{grid-column:3;grid-row:2;align-self:center}
+  #stage{grid-column:2;grid-row:2;align-self:center;justify-self:center;
+    width:min(100%,calc((100dvh - 44px - 40px - env(safe-area-inset-top)) * 280 / 168));height:auto}
+}
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
    the click that a fast second press makes - and it does that on the
    understanding that a control is already exempt from double-tap zoom. */
 .menuitem,#sound,button,a{touch-action:manipulation}
-.btn,#stick{touch-action:none}
+.btn,#stick,#joy .jb{touch-action:none}
 </style>
 </head>
 <body>
@@ -133,10 +180,16 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
   </div>
   <div id="pads">
     <div class="stickwrap">
-      <div id="stick" role="button" aria-label="joystick: walk in eight directions">
-        <div class="gate"></div><div class="shaft" id="shaft"></div><div id="knob"></div>
+      <div id="joy">
+        <button class="jb" id="j0" type="button" aria-label="button 0: fire">0</button>
+        <button class="jb" id="j1" type="button" aria-label="button 1: hold to aim">1</button>
+        <span class="lbl l0">0 · FIRE</span><span class="lbl l1">1 · AIM</span>
+        <i class="trim v" aria-hidden="true"></i><i class="trim h" aria-hidden="true"></i>
+        <div id="stick" role="application" aria-label="joystick: push to walk, further to walk faster">
+          <i class="boot" aria-hidden="true"></i><i class="shaft" id="shaft"></i><i id="knob"></i>
+        </div>
       </div>
-      <small>walk · hold AIM to turn in place</small>
+      <small>push further · walk faster</small>
     </div>
     <div class="right">
       <button class="btn abtn" id="bf" type="button">FIRE</button>
@@ -260,6 +313,10 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
     v.forEach((s,i)=>{const f=base+((s.charCodeAt(0)*37)%90);
       this.tone('square',f,f*0.8,0.09,0.045,i*0.11);});
   },
+  /* the alarm: a two-tone siren, rising and falling */
+  klaxon(){for(let i=0;i<4;i++){this.tone('sawtooth',440,660,0.22,0.05,i*0.46);this.tone('sawtooth',660,440,0.22,0.05,i*0.46+0.23);}},
+  heart(){this.tone('sine',62,40,0.12,0.18);this.tone('sine',58,38,0.12,0.14,0.2);},
+  boots(){for(let i=0;i<6;i++)this.noise(0.05,0.12,160,i*0.16);},
   escape(){[392,523,659,784,1046].forEach((f,i)=>this.tone('square',f,f,0.12,0.06,i*0.11));},
   over(){[392,330,262,196].forEach((f,i)=>this.tone('square',f,f*0.97,0.22,0.06,i*0.24));}
 };
@@ -510,10 +567,20 @@ function makeRoom(cx,cy,doors,opts){
   /* the guards, never in the cell and never on top of a door */
   if(!opts.start){
     const d=opts.d;
-    const n=Math.min(4,ri(2)+(R()<0.35+0.08*d?1:0)+(d>=3&&R()<0.5?1:0));
-    const ssOdds=Math.min(0.5,0.06+0.07*(d-1));
-    for(const[x,y]of place(room,n,7))
-      room.guards.push(mkGuard(R()<ssOdds?'ss':'guard',x*T+4,(y+2)*T));
+    const n=Math.min(3,ri(2)+(R()<0.35+0.08*d?1:0)+(d>=3&&R()<0.5?1:0));
+    const spots=place(room,n+1,7);
+    for(const[x,y]of spots.slice(0,n))room.guards.push(mkGuard('guard',x*T+4,(y+2)*T));
+    /* The SS never go about alone. A room that has them has a squad: two, and
+     * from the fourth castle sometimes three, standing together. */
+    if(spots.length>n&&R()<Math.min(0.5,0.14+0.06*(d-1))){
+      const[x,y]=spots[n],size=2+(d>=4&&R()<0.4?1:0);
+      room.guards.push(mkGuard('ss',x*T+4,(y+2)*T));
+      for(let k=1;k<size;k++){
+        const near=[[x+2*k,y],[x-2*k,y],[x,y+2],[x,y-2],[x+2,y+2],[x-2,y-2]].find(([a,b])=>standT(room,a,b)&&
+          !room.guards.some(g=>Math.abs(g.x-(a*T+4))<8&&Math.abs(g.y-(b+2)*T)<8));
+        if(near)room.guards.push(mkGuard('ss',near[0]*T+4,(near[1]+2)*T));
+      }
+    }
   }
   return room;
 }
@@ -570,6 +637,7 @@ function makeCastle(d){
 /* ---------- state ---------- */
 const G={state:'splash',demo:true,impenetrable:load('wolfenstein.impenetrable','0')==='1',noRecord:false,
   castle:null,cur:0,P:null,shots:[],nades:[],booms:[],sparks:[],pursuers:[],msg:null,
+  hunt:{on:false,t:0,quiet:0,beat:0},dread:0,
   rank:0,castles:0,stats:null,t:0,dieT:0,escT:0,best:loadJSON('wolfenstein.best',null)};
 if(!G.best||typeof G.best.rank!=='number'||typeof G.best.castles!=='number')G.best={rank:0,castles:0};
 const keys={up:false,down:false,left:false,right:false,aim:false,fire:false};
@@ -615,7 +683,13 @@ function los(rm,x0,y0,x1,y1){
 }
 function dirTo(dx,dy){return(Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8;}
 function unit(d){const v=DIRS[d],n=Math.hypot(v[0],v[1]);return[v[0]/n,v[1]/n];}
-function say(e,text){e.say={text,t:1.5};Snd.speak(text,e.kind==='ss');}
+function say(e,text,force){
+  /* a squad shouts as one: if the man beside him has only just said it, he
+   * does not say it again over the top */
+  if(!force&&G.castle&&e!==G.P&&room().guards.some(o=>o!==e&&o.say&&o.say.t>0.6&&o.kind===e.kind&&
+    Math.hypot(o.x-e.x,o.y-e.y)<48))return;
+  e.say={text,t:1.5};Snd.speak(text,e.kind==='ss');
+}
 function message(text,col){G.msg={text,t:2.4,col:col||'#ffffff'};}
 function disguised(){return G.P.uniform&&!room().blown;}
 
@@ -625,7 +699,12 @@ function stepPlayer(dt){
   if(P.flash>0)P.flash-=dt;
   if(P.fireCool>0)P.fireCool-=dt;
   const inp=G.demo?demoInput(dt):keys;
-  const ix=(inp.right?1:0)-(inp.left?1:0),iy=(inp.down?1:0)-(inp.up?1:0);
+  /* the stick, if a thumb or a real stick is on it; the keys otherwise */
+  const an=G.demo?null:analog();
+  let ix,iy,push;
+  if(an){ix=an.x;iy=an.y;push=an.m;}
+  else{ix=(inp.right?1:0)-(inp.left?1:0);iy=(inp.down?1:0)-(inp.up?1:0);push=ix||iy?1:0;}
+  if(!push)ix=iy=0;
   P.moving=false;
   if(P.busy){
     /* searching takes time, and walking away gives it up */
@@ -635,17 +714,21 @@ function stepPlayer(dt){
       if(P.busy.t>=P.busy.dur){const b=P.busy;P.busy=null;finishSearch(b);}}
   }else if(ix||iy){
     P.dir=dirTo(ix,iy);
-    if(ix)P.face=ix;
+    if(Math.abs(ix)>0.3)P.face=ix>0?1:-1;
     if(!inp.aim){
-      const[ux,uy]=unit(P.dir);
-      const m=moveEnt(P,ux*WALK*dt,uy*WALK*dt,G.demo);
+      /* the keys walk the eight ways; the stick walks where it is pushed */
+      const[ux,uy]=an?[ix,iy]:unit(P.dir);
+      const m=moveEnt(P,ux*WALK*push*dt,uy*WALK*push*dt,G.demo);
       P.moving=m>0.01;
       if(P.moving&&Math.floor(P.dist/12)!==Math.floor((P.dist-m)/12))Snd.step();
     }
   }
   P.idle=P.moving?0:P.idle+dt;
   if(!G.demo){
-    if(taps.fire)fire();
+    /* a press the gun's cooldown turns away is kept, up to two, and goes off
+     * the moment it can: a fast triple tap is three shots, not two */
+    if(taps.fire)P.queued=Math.min(2,(P.queued||0)+1);
+    if(P.queued&&P.fireCool<=0&&!P.busy&&!P.dead){P.queued--;fire();}
     if(taps.gren)throwNade();
     if(taps.search)search();
   }
@@ -659,7 +742,7 @@ function fire(){
   const P=G.P;
   if(P.busy||P.fireCool>0||P.dead)return;
   if(P.ammo<=0){Snd.click();message('OUT OF BULLETS');P.fireCool=0.3;return;}
-  P.ammo--;P.fireCool=0.28;
+  P.ammo--;P.fireCool=0.2;
   const[ux,uy]=unit(P.dir);
   const pose=aimPose(P.dir);
   const my=pose==='U'?-14:pose==='D'?-9:-11;
@@ -757,6 +840,7 @@ function hitPlayer(how){
 }
 
 /* ---------- guards ---------- */
+const INSPECT_R=60,INSPECT_T=2.2;
 const HALT=['HALT!','ACHTUNG!','KOMMEN SIE HIER!','WER IST DA?','HALT! HALT!'];
 const SSHALT=['HALT! SS!','STEHENBLEIBEN!','ACHTUNG! SS!'];
 function live(g){return g.st!=='dying'&&g.st!=='dead';}
@@ -766,6 +850,55 @@ function alarm(g){
   /* a moment to react, shorter in each castle */
   g.fireT=Math.max(0.35,1.05-0.06*G.castle.d)+R()*0.4;
   say(g,pick(g.kind==='ss'?SSHALT:HALT));
+  if(g.kind==='ss'&&!G.demo)raiseHunt();
+}
+/* ---------- the hunt ----------
+ * An SS man who has seen you for what you are raises the alarm, and the alarm
+ * is the frightening part: a klaxon, the screen going red at the edges, a
+ * heartbeat under everything, and every so often a squad of SS coming through
+ * one of the openings of whatever room you are in, walking in on their own
+ * feet. It goes quiet only when nobody has had you in their sights for a
+ * while, and a uniform makes that a lot sooner. */
+function huntGap(){return Math.max(8,20-1.4*G.castle.d)+R()*6;}
+function raiseHunt(){
+  const h=G.hunt;h.quiet=0;
+  if(h.on)return;
+  h.on=true;h.t=huntGap();
+  G.dread=0.9;Snd.klaxon();
+  message('ALARM! THE SS ARE HUNTING YOU','#ff4a3a');
+  hud();
+}
+function stepHunt(dt){
+  const h=G.hunt;
+  if(G.dread>0)G.dread-=dt;
+  if(!h.on)return;
+  const rm=room(),P=G.P;
+  const hunting=rm.guards.filter(g=>g.kind==='ss'&&(g.st==='alert'||g.st==='enter'));
+  if(rm.guards.some(g=>g.st==='alert'&&g.kind==='ss'&&sees(g)))h.quiet=0;else h.quiet+=dt;
+  /* the heart, faster with them in the room */
+  h.beat-=dt;
+  if(h.beat<=0){Snd.heart();h.beat=hunting.length?0.55:0.95;}
+  if(h.quiet>(disguised()?12:30)){
+    h.on=false;message('THE ALARM GOES QUIET','#9aa0c0');hud();return;
+  }
+  if((h.t-=dt)<=0){h.t=huntGap();sendSquad();}
+}
+function sendSquad(){
+  const rm=room(),C=G.castle;
+  if(rm.guards.filter(g=>g.kind==='ss'&&live(g)).length>=4)return;
+  const P=G.P;
+  /* through an opening, and not the one he is standing in */
+  const sides=Object.keys(SIDES).filter(k=>rm.doors[k]).sort((a,b)=>{
+    const d=k=>{const[x,y]=ENTRY[k];return Math.hypot(x*T-P.x,y*T-P.y);};return d(b)-d(a);});
+  if(!sides.length)return;
+  const side=R()<0.7?sides[0]:pick(sides);
+  const n=2+(C.d>=4&&R()<0.5?1:0);
+  for(let i=0;i<n;i++){
+    const g=mkGuard('ss',0,0);
+    G.pursuers.push({g,from:null,to:G.cur,side,t:0.35*i,i});
+  }
+  G.dread=0.7;Snd.klaxon();Snd.boots();
+  message('SS! THROUGH THE '+{n:'NORTH',s:'SOUTH',e:'EAST',w:'WEST'}[side]+' DOOR','#ff4a3a');
 }
 function sees(g){
   const P=G.P;
@@ -800,10 +933,24 @@ function stepGuard(g,dt){
     const[ux,uy]=unit(g.dir);
     g.x+=ux*gSpeed(g)*dt;g.y+=uy*gSpeed(g)*dt;g.dist+=gSpeed(g)*dt;
     if(ux)g.face=ux>0?1:-1;
-    if(g.x>10&&g.x<W-10&&g.y>22&&g.y<H-6&&boxFree(rm,g.x,g.y,true)){g.st='alert';g.fireT=0.6;say(g,pick(SSHALT));}
+    if(g.x>10&&g.x<W-10&&g.y>22&&g.y<H-6&&boxFree(rm,g.x,g.y,true)){
+      if(g.hunter&&disguised()){g.st='patrol';g.t=0.8+R();say(g,pick(['WO IST ER?','SUCHT IHN!','SCHNELL!']));}
+      else{g.st='alert';g.fireT=0.6;say(g,pick(SSHALT));}
+    }
     return;
   }
   const canSee=!P.dead&&!G.demo&&sees(g);
+  if(g.st==='inspect'){
+    /* he stares; walk away out of his sight, or be found out */
+    g.face=dx>0?1:-1;
+    if(!canSee||d>INSPECT_R+10){g.t+=dt;if(g.t>INSPECT_T+0.6){g.st='stand';g.t=1+R();say(g,'WEITER.');}return;}
+    if((g.t-=dt)<=0){
+      room().blown=true;g.st='stand';alarm(g);
+      for(const o of room().guards)if(o!==g&&live(o)&&o.st!=='hup'){o.say=null;alarm(o);o.say=null;}
+      say(g,'SPION!',true);
+    }
+    return;
+  }
   if(g.st==='hup'){
     /* hands up for as long as the gun is on him, and a little after */
     if(aimedAt(g))g.hupT=2.4;
@@ -812,7 +959,14 @@ function stepGuard(g,dt){
   }
   if(g.st==='patrol'||g.st==='stand'){
     if(canSee){
-      if(!disguised()||g.kind==='ss')alarm(g);
+      if(!disguised())alarm(g);
+      else if(g.kind==='ss'){
+        /* The uniform passes, at a distance. The SS look at everyone, and a
+         * man who comes close, or stays close, is asked for his papers. */
+        if(d<INSPECT_R)g.susp+=dt*(d<26?1.8:1);else g.susp=Math.max(0,g.susp-dt*0.5);
+        if(g.susp>1.2){g.susp=0;g.st='inspect';g.t=INSPECT_T;g.face=dx>0?1:-1;
+          say(g,pick(['PAPIERE!','AUSWEIS, BITTE!','HALT. IHRE PAPIERE!']));}
+      }
       else if(d<14){
         /* a uniform will not stand being walked into */
         g.susp+=dt;if(g.susp>0.8){say(g,'WAS IST LOS?');room().blown=true;alarm(g);}
@@ -851,7 +1005,8 @@ function stepGuard(g,dt){
   /* close in, but not too close; round walls by a sidestep */
   g.walking=false;
   const tgt=canSee?[P.x,P.y]:g.lastSeen;
-  const keep=canSee?(g.kind==='ss'?40:74):4;
+  /* each keeps his own distance, so a squad fans out instead of piling up */
+  const keep=canSee?(g.kind==='ss'?36+(g.id%3)*16:74):4;
   if(tgt){
     const tx=tgt[0]-g.x,ty=tgt[1]-g.y,td=Math.hypot(tx,ty);
     if(td>keep){
@@ -866,6 +1021,18 @@ function stepGuard(g,dt){
 }
 
 /* ---------- shots, grenades, blasts ---------- */
+/* nobody stands inside anybody else: two guards closer than a body's width
+ * each give way a little, if there is floor to give way onto */
+function spread(dt){
+  const a=room().guards.filter(g=>live(g)&&g.st!=='enter');
+  for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++){
+    const p=a[i],q=a[j],dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy);
+    if(d>=10)continue;
+    const ux=d>0.01?dx/d:1,uy=d>0.01?dy/d:0,k=18*dt;
+    if(boxFree(room(),q.x+ux*k,q.y+uy*k,true)){q.x+=ux*k;q.y+=uy*k;}
+    if(boxFree(room(),p.x-ux*k,p.y-uy*k,true)){p.x-=ux*k;p.y-=uy*k;}
+  }
+}
 function stepShots(dt){
   const rm=room(),P=G.P;
   G.shots=G.shots.filter(s=>{
@@ -963,8 +1130,9 @@ function leave(side){
   }
   const from=G.cur,to=ny*C.CW+nx;
   /* the SS follow; they come in through the same opening a moment later */
+  let i=0;
   for(const g of rm.guards)
-    if(g.kind==='ss'&&g.st==='alert')G.pursuers.push({g,from,to,side:OPP[side],t:1.4+R()*1.6});
+    if(g.kind==='ss'&&g.st==='alert')G.pursuers.push({g,from,to,side:OPP[side],t:1.2+R()*0.8+0.35*i,i:i++});
   P.x-=dx*W;P.y-=dy*H;
   enterRoom(to);
 }
@@ -972,16 +1140,21 @@ function stepPursuers(dt){
   G.pursuers=G.pursuers.filter(p=>{
     if(G.cur!==p.to)return false;       /* you have moved on; he loses you */
     if((p.t-=dt)>0)return true;
-    const src=G.castle.rooms[p.from],g=p.g;
-    const k=src.guards.indexOf(g);if(k<0||!live(g))return false;
-    src.guards.splice(k,1);
-    /* outside the opening, off the screen, walking in */
-    if(p.side==='w'){g.x=-6;g.y=92;g.dir=0;}
-    else if(p.side==='e'){g.x=W+6;g.y=92;g.dir=4;}
-    else if(p.side==='n'){g.x=140;g.y=2;g.dir=2;}
-    else{g.x=140;g.y=H+12;g.dir=6;}
+    const g=p.g;
+    if(p.from!==null){
+      const src=G.castle.rooms[p.from];
+      const k=src.guards.indexOf(g);if(k<0||!live(g))return false;
+      src.guards.splice(k,1);
+    }
+    /* outside the opening, off the screen, walking in; a squad side by side */
+    const i=p.i||0,off=[0,-9,9][i%3];
+    if(p.side==='w'){g.x=-6;g.y=92+off;g.dir=0;}
+    else if(p.side==='e'){g.x=W+6;g.y=92+off;g.dir=4;}
+    else if(p.side==='n'){g.x=140+off;g.y=2;g.dir=2;}
+    else{g.x=140+off;g.y=H+12;g.dir=6;}
     g.face=g.dir===4?-1:g.dir===0?1:g.face;
-    g.st='enter';g.say=null;
+    g.st='enter';g.say=null;g.hunter=p.from===null;
+    Snd.boots();
     room().guards.push(g);
     return false;
   });
@@ -1005,7 +1178,7 @@ function startCastle(d){
   G.castle=makeCastle(d);
   const st=G.castle.rooms[G.castle.start];
   G.P=mkPlayer(st.start[0]*T+4,(st.start[1]+2)*T);
-  G.pursuers=[];G.msg=null;
+  G.pursuers=[];G.msg=null;G.hunt={on:false,t:0,quiet:0,beat:0};G.dread=0;
   enterRoom(G.castle.start);
   G.state='card';
   hud();
@@ -1032,6 +1205,8 @@ function stepGame(dt){
     if(G.state!=='play'&&G.state!=='dying')return;
     for(const g of room().guards.slice())stepGuard(g,dt);
     stepPursuers(dt);
+    stepHunt(dt);
+    spread(dt);
     stepShots(dt);
     stepNades(dt);
     return;
@@ -1154,11 +1329,13 @@ function showHelp(){
     '<small class="tip" style="text-align:left">'+
     'You start in a cell with a pistol. Walk out through the openings in the walls; the castle is a '+
     'grid of rooms. <b>Guards</b> (green) shout, then shoot. Point your gun at one and he may put his '+
-    'hands up: keep it on him and he keeps them there. The <b>SS</b> (violet) wear vests, take three '+
-    'bullets, never surrender and follow you from room to room.<br><br>'+
+    'hands up: keep it on him and he keeps them there. The <b>SS</b> (violet) go about in squads, wear '+
+    'vests, take three bullets each, never surrender and follow you from room to room. An SS man who '+
+    'sees you raises the <b>alarm</b>, and until it goes quiet more squads come through the doors.<br><br>'+
     '<b>Chests</b> take time to pick, standing still; shoot the lock off and it is quick. They hold '+
-    'bullets, grenades, bulletproof vests, uniforms, and a lot of sauerkraut. A <b>uniform</b> walks '+
-    'you past the guards until you fire, but never past the SS. The <b>war plans</b> are in a steel '+
+    'bullets, grenades, bulletproof vests, uniforms, and a lot of sauerkraut. In a <b>uniform</b> you '+
+    'blend in, even with the SS, until you fire. But the SS look closely: get near one and he asks for '+
+    'your papers, and if you are still in front of him when he has looked, you are a spy. The <b>war plans</b> are in a steel '+
     'strongbox. Search a body, or a guard with his hands up, for bullets.<br><br>'+
     'Find the way out, marked on its wall. Out with the plans, and you are promoted; out without them, '+
     'and you are only alive. <b>Grenades</b> bring down the inside walls, and anything else near them.'+
@@ -1237,6 +1414,7 @@ function hud(){
   if(P&&P.uniform&&!G.demo)tags.push('<span class="tag">UNIFORM</span>');
   if(P&&P.vest)tags.push('<span class="tag">VEST '+P.vest+'</span>');
   if(P&&P.plans)tags.push('<span class="tag on">PLANS</span>');
+  if(G.hunt&&G.hunt.on&&!G.demo)tags.push('<span class="tag alarm">ALARM</span>');
   if(G.impenetrable)tags.push('<span class="tag inv">IMPENETRABLE</span>');
   el('kit').innerHTML=tags.join(' ');
 }
@@ -1316,7 +1494,7 @@ function guardSprite(gd){
   const breath=(gd.phase|0)%2===1;
   if(gd.st==='hup')return figure(gd.kind,breath?'hup2':'hup','stand',flip,(gd.phase%1.8)>1.6);
   const walking=gd.st==='patrol'||gd.st==='enter'||(gd.st==='alert'&&gd.walking);
-  const armed=gd.st==='alert'||gd.st==='enter';
+  const armed=gd.st==='alert'||gd.st==='enter'||gd.st==='inspect';
   const torso=armed?(breath?'H2':'H'):(breath?'carry2':'carry');
   if(walking)return figure(gd.kind,armed?'H':'carry',WALKCYCLE[Math.floor(gd.dist/6)%4],flip);
   return figure(gd.kind,torso,'stand',flip,(gd.phase%2.2)>2.05);
@@ -1326,9 +1504,14 @@ function drawFig(img,x,y,flip){
   const w=img.width;
   spr(img,x-(w>11?8:flip?6:5),y-16);
 }
+let bubbles=[];
 function drawBubble(text,x,y,col){
   const w=txtW(text)+4;
-  const bx=clamp(Math.round(x-w/2),1,W-w-1),by=clamp(Math.round(y),1,H-9);
+  let bx=clamp(Math.round(x-w/2),1,W-w-1),by=clamp(Math.round(y),1,H-9);
+  /* a squad shouting at once: each shout above the last, not on top of it */
+  for(let n=0;n<6&&bubbles.some(b=>bx<b[0]+b[2]&&bx+w>b[0]&&by<b[1]+10&&by+10>b[1]);n++)
+    by=by-10<1?by+30:by-10;
+  bubbles.push([bx,by,w]);
   rect(bx,by,w,9,'#000');rect(bx,by,w,1,col);rect(bx,by+8,w,1,col);
   txt(text,bx+2,by+2,col);
 }
@@ -1367,13 +1550,31 @@ function render(){
     if(b.t<0.15)rect(b.x-6,b.y-12,12,12,'#ffffff');
   }
   for(const s of G.sparks){rect(s.x-2,s.y,5,1,s.c);rect(s.x,s.y-2,1,5,s.c);}
+  bubbles=[];
   /* what the guards are shouting, over their heads */
-  for(const gd of rm.guards)if(gd.say)drawBubble(gd.say.text,gd.x,gd.y-27,gd.kind==='ss'?'#e060f0':'#ffffff');
+  for(const gd of rm.guards)if(gd.say){
+    /* above everyone standing under it, not across the next man's face */
+    const half=txtW(gd.say.text)/2+4;
+    let top=gd.y;
+    for(const o of rm.guards.concat([P]))if(o.st!=='dead'&&Math.abs(o.x-gd.x)<half&&Math.abs(o.y-gd.y)<32)top=Math.min(top,o.y);
+    drawBubble(gd.say.text,gd.x,top-27,gd.kind==='ss'?'#e060f0':'#ffffff');
+  }
   if(P.busy){
     const w=16,f=clamp(P.busy.t/P.busy.dur,0,1);
     rect(P.x-8,P.y-22,w,3,'#000');rect(P.x-8,P.y-21,Math.round(w*f),1,'#ffd84a');
   }
   if(G.msg)drawBubble(G.msg.text,W/2,H-20,G.msg.col);
+  /* the alarm: the screen's edges beat red with the heart, and flare when it goes */
+  if(G.hunt&&(G.hunt.on||G.dread>0)&&!G.demo){
+    const k=G.dread>0?Math.min(1,G.dread*1.4):Math.max(0,1-G.hunt.beat*2.2)*0.8;
+    if(k>0.05){
+      g.globalAlpha=k;
+      const c='#d01010',b=G.dread>0?4:2;
+      rect(0,0,W,b,c);rect(0,H-b,W,b,c);rect(0,0,b,H,c);rect(W-b,0,b,H,c);
+      if(G.dread>0.5){g.globalAlpha=(G.dread-0.5)*0.5;rect(0,0,W,H,c);}
+      g.globalAlpha=1;
+    }
+  }
 }
 
 /* ---------- input ---------- */
@@ -1420,6 +1621,7 @@ function hold(id,k){
   b.addEventListener('pointercancel',off);
 }
 hold('bf','fire');hold('ba','aim');hold('bs','search');hold('bg','gren');
+hold('j0','fire');hold('j1','aim');
 
 /* ---------- the joystick ---------- */
 /* Eight ways, fed by whatever is being pushed: the stick on the glass, or a
@@ -1438,13 +1640,29 @@ function feed(src,want){
     if(on!==!!src[k]){src[k]=on;press(k,on);}
   }
 }
-const Stick={x:0,y:0,dirs:{},id:null};
+/* ---- the stick on the glass ----
+ * Galaga's handling, on the Apple's stick. It takes the pointer captive on the
+ * way down, so a thumb that slides off the well mid-dodge keeps walking
+ * instead of letting go; it is touch-action none, so a drag is never a
+ * scroll, a pull-to-refresh or the start of a pinch; and it is analogue, like
+ * the Apple's own, which read its stick through the paddle inputs: a small
+ * push is a slow step. Released, by any route, it springs back and he stops.
+ */
+const Stick={x:0,y:0,held:false,dirs:{},id:null};
+/* How far the knob may travel: the well's half-width less the knob's own,
+ * measured rather than assumed, so it never rides out over the rim. */
+function stickRadius(){
+  const r=el('stick').getBoundingClientRect(),k=el('knob');
+  const kw=(k&&k.offsetWidth)||30;
+  if(!r||!r.width)return 30;
+  return Math.max(16,r.width/2-kw/2-2);
+}
 function stickAt(ev){
   const box=el('stick').getBoundingClientRect();
-  const Rr=box.width*0.34;
+  const Rr=stickRadius();
   let dx=ev.clientX-(box.left+box.width/2),dy=ev.clientY-(box.top+box.height/2);
   const d=Math.hypot(dx,dy);if(d>Rr){dx*=Rr/d;dy*=Rr/d;}
-  Stick.x=dx/Rr;Stick.y=dy/Rr;
+  Stick.x=dx/Rr;Stick.y=dy/Rr;Stick.held=true;
   paintStick(dx,dy);
   feed(Stick.dirs,stickDirs(Stick.x,Stick.y));
 }
@@ -1455,32 +1673,48 @@ function paintStick(dx,dy){
   sh.style.transform='rotate('+(Math.atan2(dy,dx)*180/Math.PI-90).toFixed(1)+'deg)';
 }
 function stickOff(){
-  Stick.x=Stick.y=0;Stick.id=null;paintStick(0,0);
+  Stick.x=Stick.y=0;Stick.id=null;Stick.held=false;paintStick(0,0);
+  el('stick').classList.remove('on');
   feed(Stick.dirs,{});
 }
 (function(){
   const s=el('stick');
   s.addEventListener('pointerdown',e=>{
-    e.preventDefault();Stick.id=e.pointerId;
+    e.preventDefault();Snd.boot();Stick.id=e.pointerId;
     try{s.setPointerCapture(e.pointerId);}catch(err){}
-    stickAt(e);
+    s.classList.add('on');stickAt(e);
   });
   s.addEventListener('pointermove',e=>{if(Stick.id===e.pointerId){e.preventDefault();stickAt(e);}});
-  const up=e=>{if(Stick.id===e.pointerId){e.preventDefault();stickOff();}};
-  s.addEventListener('pointerup',up);
-  s.addEventListener('pointercancel',up);
+  for(const t of['pointerup','pointercancel','lostpointercapture'])
+    s.addEventListener(t,e=>{if(Stick.id===e.pointerId)stickOff();});
+  /* a gesture the browser swallows still lets go of the stick, or he walks on
+   * after the thumb has gone */
+  for(const t of['pointerup','pointercancel'])
+    document.addEventListener(t,e=>{if(Stick.id===e.pointerId)stickOff();},true);
 })();
+/* The analogue reading, from the stick on the glass or a real one: which way,
+ * and how hard. A dead zone in the middle, then the speed follows the push. */
+function analog(){
+  let x,y;
+  if(Stick.held){x=Stick.x;y=Stick.y;}
+  else if(Pad.held){x=Pad.x;y=Pad.y;}
+  else return null;
+  const l=Math.hypot(x,y);
+  if(l<0.2)return{x:0,y:0,m:0};
+  return{x:x/l,y:y/l,m:Math.min(1,(l-0.2)/0.65)};
+}
 
 /* A real joystick or gamepad: the stick or d-pad walks, A fires, B searches,
  * X throws, a shoulder button aims, START pauses. */
-const Pad={dirs:{},b:{},start:false};
+const Pad={dirs:{},b:{},start:false,x:0,y:0,held:false};
 function pollPads(){
   let gp=null;
   try{const all=navigator.getGamepads?navigator.getGamepads():[];
     for(const p of all)if(p&&p.connected!==false){gp=p;break;}}catch(e){}
-  if(!gp){feed(Pad.dirs,{});return;}
+  if(!gp){Pad.held=false;feed(Pad.dirs,{});return;}
   const b=i=>!!(gp.buttons[i]&&(gp.buttons[i].pressed||gp.buttons[i].value>0.5));
-  const want=stickDirs(gp.axes[0]||0,gp.axes[1]||0);
+  Pad.x=gp.axes[0]||0;Pad.y=gp.axes[1]||0;Pad.held=Math.hypot(Pad.x,Pad.y)>0.2;
+  const want=stickDirs(Pad.x,Pad.y);
   if(b(12))want.up=true;if(b(13))want.down=true;if(b(14))want.left=true;if(b(15))want.right=true;
   feed(Pad.dirs,want);
   const map={fire:b(0),search:b(1)||b(3),gren:b(2),aim:b(4)||b(5)||b(6)||b(7)};

@@ -3,11 +3,13 @@
  * to look at. Nothing is checked here; this is the tool for step one.
  *
  *   PW=... node tools/shots.js out.png
+ *   PW=... node tools/shots.js out.png --only="a squad in,papers"
  */
 'use strict';
 const path=require('path'),fs=require('fs');
 const pw=require(process.env.PW||'playwright-core');
 const OUT=path.resolve(process.argv[2]||'shots.png');
+const ONLY=(process.argv.find(a=>a.startsWith('--only='))||'').slice(7).split(',').filter(Boolean);
 const MOMENTS=[
   ['title demo',  `showSplash();sim(4)`],
   ['the cell',    `play();sim(0.5)`],
@@ -16,6 +18,12 @@ const MOMENTS=[
   ['hands up',    `play();bare(60,90);const g=put('guard',160,90);g.st='hup';g.hupT=9;sim(0.2)`],
   ['gunfight',    `play();bare(60,90);const g=put('guard',180,94);alarm(g);sim(1.6);fire();sim(0.05)`],
   ['ss follows',  `play();bare(20,92);put('ss',-6,92).st='enter';room().guards[0].dir=0;sim(0.35)`],
+  ['the alarm',   `play();G.impenetrable=true;bare(140,92);raiseHunt();sim(0.25)`],
+  ['a squad in',  `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(1.3)`],
+  ['the squad',   `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(3.4)`],
+  ['papers',      `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;const a=put('ss',130,92),b=put('ss',150,80);sim(1.5)`],
+  ['spion!',      `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;const a=put('ss',130,92),b=put('ss',150,80);sim(3.9)`],
+  ['ss squad room',`play(5);let i=G.castle.rooms.findIndex(r=>r.guards.filter(g=>g.kind==='ss').length>=2);visit(i);G.P.uniform=true;sim(1)`],
   ['picking',     `play();bare(60,90);room().chests.push({tx:12,ty:9,strong:false,state:'locked',item:{k:'vest'}});
                    G.P.x=108;G.P.y=100;search();sim(1)`],
   ['strongbox',   `play();bare(60,90);room().chests.push({tx:12,ty:9,strong:true,state:'locked',item:{k:'plans'}},
@@ -47,7 +55,7 @@ window.put=function(k,x,y){const g=mkGuard(k,x,y);g.st='stand';g.t=1e9;g.face=-1
   await pg.goto('file://'+path.join(__dirname,'..','index.html'));
   await pg.addScriptTag({content:PRELUDE});
   const shots=[];
-  for(const [name,setup] of MOMENTS){
+  for(const [name,setup] of MOMENTS.filter(m=>!ONLY.length||ONLY.includes(m[0]))){
     const url=await pg.evaluate(s=>{(0,eval)('(function(){'+s+'})()');
       return document.getElementById('c').toDataURL();},setup);
     shots.push([name,url]);

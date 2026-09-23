@@ -37,6 +37,12 @@ const SCENES=[
   ['hands up',    `play();bare(60,92);const g=put('guard',150,92);g.st='hup';g.hupT=1e9;G.P.dir=0;watch(g)`],
   ['ss walks in', `play();bare(200,50);G.impenetrable=true;const g=put('ss',-6,92);g.st='enter';g.dir=0;g.face=1;
                    watch(g);IN=true;STRIDE=true`],
+  ['the alarm',   `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(1/60);
+                   stepPursuers(0.01);const g=room().guards.find(g=>g.st==='enter');watch(g);IN=true;STRIDE=true`],
+  ['squad in',    `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(0.5);
+                   const g=room().guards.filter(g=>g.st==='enter')[1]||room().guards[1];watch(g);IN=true;STRIDE=true`],
+  ['papers',      `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;const g=put('ss',130,92);put('ss',150,74);
+                   sim(1.4);watch(g)`],
   ['picking',     `play();bare(108,98);room().chests.push({tx:12,ty:9,strong:false,state:'locked',item:{k:'vest'}});
                    search();sim(0.3);watch(G.P)`],
   ['grenade',     `play();bare(60,92);G.P.dir=0;throwNade();sim(0.2);watch(G.P)`],

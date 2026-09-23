@@ -124,12 +124,27 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await touch('touchEnd');await pp.waitForTimeout(150);
   check(await pp.evaluate('!keys.left&&!keys.up'),'letting go of it stops him');
   check(/translate\(0/.test(await pp.evaluate(()=>document.getElementById('knob').style.transform)),'and it springs back');
+  /* Galaga's handling: how far you push is how fast he walks */
+  const speed=async(frac)=>{
+    await pp.evaluate(()=>{const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+      G.P.x=60;G.P.y=92;});
+    const R=await pp.evaluate(()=>stickRadius());
+    const x0=await pp.evaluate('G.P.x');
+    await touch('touchStart',cx,cy);await touch('touchMove',cx+R*frac,cy);await pp.waitForTimeout(700);
+    const x1=await pp.evaluate('G.P.x');await touch('touchEnd');await pp.waitForTimeout(100);
+    return x1-x0;};
+  const soft=await speed(0.45),hard=await speed(1);
+  check(soft>2&&soft<hard*0.75,'a light push on the stick walks him slower than a full one',
+    Math.round(soft)+'px against '+Math.round(hard)+'px');
   const tapBtn=async id=>{const bb=await pp.locator(id).boundingBox();
     await touch('touchStart',bb.x+bb.width/2,bb.y+bb.height/2);await pp.waitForTimeout(60);await touch('touchEnd');
     await pp.waitForTimeout(60);};
   const f0=await pp.evaluate('G.P.ammo');
   await tapBtn('#bf');
   check(await pp.evaluate('G.P.ammo')===f0-1,'a finger on FIRE fires',f0+' → '+await pp.evaluate('G.P.ammo'));
+  const j0=await pp.evaluate('G.P.ammo');
+  await tapBtn('#j0');
+  check(await pp.evaluate('G.P.ammo')===j0-1,'button 0 on the joystick box fires',j0+' → '+await pp.evaluate('G.P.ammo'));
   await tapBtn('#bg');
   check(await pp.evaluate('G.P.gren')===2,'a finger on THROW throws',await pp.evaluate('G.P.gren'));
   await tapBtn('#bs');
@@ -144,6 +159,14 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   const r1=await pp.evaluate('[G.P.x,G.P.y,G.P.dir]');
   await touch('touchEnd');
   check(r1[2]===0&&Math.hypot(r1[0]-r0[0],r1[1]-r0[1])<0.5,'AIM held, the stick turns him and does not walk him',JSON.stringify(r1.map(Math.round)));
+  const j1=await pp.locator('#j1').boundingBox();
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:j1.x+j1.width/2,y:j1.y+j1.height/2,id:1}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:j1.x+j1.width/2,y:j1.y+j1.height/2,id:1},{x:cx,y:cy,id:2}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:j1.x+j1.width/2,y:j1.y+j1.height/2,id:1},{x:cx,y:cy+45,id:2}]});
+  await pp.waitForTimeout(400);
+  const r2=await pp.evaluate('[G.P.x,G.P.y,G.P.dir]');
+  await touch('touchEnd');
+  check(r2[2]===2&&Math.hypot(r2[0]-r1[0],r2[1]-r1[1])<0.5,'button 1 held does the same: turn, no step',JSON.stringify(r2.map(Math.round)));
 
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}
