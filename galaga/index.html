@@ -50,7 +50,25 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .btn small{font-size:9px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
 .btn:active,.btn.on{background:var(--gold);color:#16130a;border-color:var(--gold)}
 .btn:active small,.btn.on small{opacity:.8}
-.move{width:82px;height:66px;font-size:22px}
+/* The cabinet wanted a joystick, so this is one: a thumb pad you drag rather
+   than two buttons you press, and how far you push it is how fast the fighter
+   goes. Galaga's stick was two-way, left and right only, so the knob runs in a
+   gate across the middle and nothing happens if you push up. */
+.stick{position:relative;width:148px;height:148px;border-radius:50%;flex:0 0 auto;
+  background:var(--panel2);border:1px solid var(--line);touch-action:none;cursor:grab;
+  -webkit-user-select:none;user-select:none}
+.stick .ring{position:absolute;inset:12px;border-radius:50%;border:1px dashed var(--line);
+  opacity:.55;pointer-events:none}
+.stick .gate{position:absolute;left:14px;right:14px;top:50%;height:6px;margin-top:-3px;
+  border-radius:3px;background:rgba(0,0,0,.35);pointer-events:none}
+.stick .tick{position:absolute;background:var(--dim);opacity:.5;pointer-events:none;
+  top:50%;height:2px;width:8px;margin-top:-1px}
+.stick .t-l{left:4px}.stick .t-r{right:4px}
+.stick .knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
+  border-radius:50%;background:#46537a;border:2px solid var(--line);pointer-events:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.35) inset;transition:background .08s linear}
+.stick.on{cursor:grabbing}
+.stick.on .knob{background:var(--gold);border-color:var(--gold)}
 .abtn{width:92px;height:74px;border-radius:50%;font-size:12px;font-weight:700;letter-spacing:.04em}
 .sbtn{width:62px;height:32px;border-radius:9px;font-size:10px;font-weight:700}
 .tops{display:flex;gap:6px}
@@ -99,13 +117,16 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
   </div>
   <div id="pads">
     <div class="padrow">
-      <button class="btn move" id="bl" type="button">◀<small>left</small></button>
+      <div class="stick" id="stick" role="application" aria-label="Fighter stick">
+        <i class="ring" aria-hidden="true"></i>
+        <i class="tick t-l" aria-hidden="true"></i>
+        <i class="tick t-r" aria-hidden="true"></i>
+        <i class="gate" aria-hidden="true"></i>
+        <i class="knob" id="knob" aria-hidden="true"></i>
+      </div>
       <div class="tops">
         <button class="btn sbtn" id="bp" type="button">PAUSE</button>
       </div>
-      <button class="btn move" id="br" type="button">▶<small>right</small></button>
-    </div>
-    <div class="padrow" style="justify-content:center;margin-top:8px">
       <button class="btn abtn" id="bf" type="button">FIRE</button>
     </div>
   </div>
@@ -1186,13 +1207,18 @@ function stepGame(dt){
 function shipStep(dt){
   const s=G.ship;
   if(!s.alive)return;
+  /* Three ways to steer, in the order they take precedence: the stick if a
+   * thumb is on it, a drag on the playfield if one is in progress, and the
+   * keyboard otherwise. The stick is analogue — a small push is a small
+   * correction, which is the whole reason for having one. */
   let v=0;
-  if(keys.left)v-=1;
-  if(keys.right)v+=1;
-  if(touchX!==null){
+  if(stick.held)v=stick.x;
+  else if(touchX!==null){
     const d=touchX-s.x;
-    if(Math.abs(d)>1.2)v=clamp(d/6,-1,1);
-    else v=0;
+    v=Math.abs(d)>1.2?clamp(d/6,-1,1):0;
+  }else{
+    if(keys.left)v-=1;
+    if(keys.right)v+=1;
   }
   s.x=clamp(s.x+v*SHIPSPD*dt,s.dual?18:10,W-(s.dual?18:10));
   if(keys.autofire){
@@ -1453,7 +1479,7 @@ function showSplash(){
     '<button class="menuitem" type="button" id="mfight">FIGHTERS: '+
       (G.endless?'ENDLESS':G.startLives)+'</button>'+
     '<button class="menuitem" type="button">HOW TO PLAY</button>'+
-    '<small class="tip">← → move · SPACE fire · P pause · hold to autofire</small>',
+    '<small class="tip">← → or the stick to move · SPACE fire · P pause · hold to autofire</small>',
     [{go:newGame},{go:cycleLives},{go:showHelp}]);
 }
 /* Two, three, five, endless, and back to three. Endless is the fourth stop on
@@ -1564,6 +1590,8 @@ function newGame(){
 
 /* ---------- input ---------- */
 const keys={left:false,right:false,autofire:false};
+/* Where the stick is pushed, from -1 hard left to +1 hard right. */
+const stick={x:0,held:false};
 let touchX=null;
 function press(k,on){
   if(k==='fire'){
@@ -1615,7 +1643,61 @@ function hold(id,k){
   b.addEventListener('pointerup',off);
   b.addEventListener('pointercancel',off);
 }
-hold('bl','left');hold('br','right');hold('bf','fire');
+hold('bf','fire');
+
+/* ---- the stick ----
+ * It takes the pointer captive on the way down, so a thumb that slides off the
+ * pad mid-dodge keeps steering instead of letting go, and it is touch-action
+ * none, so dragging it is never a scroll, a pull-to-refresh or the start of a
+ * pinch. Released, it springs back to the middle and the fighter stops.
+ */
+const stickEl=el('stick'),knobEl=el('knob');
+let stickId=null;
+/* How far the knob may travel: the pad's radius less the knob's own, so it
+ * cannot ride out over the rim. The knob is measured rather than assumed where
+ * the page can measure it, because a throw worked out from a number that has
+ * drifted from the stylesheet is a knob half off its pad. */
+function stickRadius(){
+  const r=stickEl?stickEl.getBoundingClientRect():null;
+  const kw=(knobEl&&knobEl.offsetWidth)||52;
+  if(!r||!r.width)return 48;
+  return Math.max(20,r.width/2-kw/2-3);
+}
+function paintStick(dx){
+  if(knobEl)knobEl.style.transform='translateX('+Math.round(dx)+'px)';
+}
+function moveStick(ev){
+  if(!stickEl)return;
+  const r=stickEl.getBoundingClientRect(),R=stickRadius();
+  let dx=ev.clientX-(r.left+r.width/2);
+  if(dx>R)dx=R;else if(dx<-R)dx=-R;
+  stick.x=clamp(dx/R,-1,1);
+  stick.held=true;
+  paintStick(dx);
+}
+function releaseStick(){
+  stickId=null;stick.x=0;stick.held=false;
+  if(stickEl)stickEl.classList.remove('on');
+  paintStick(0);
+}
+if(stickEl){
+  stickEl.addEventListener('pointerdown',ev=>{
+    ev.preventDefault();Snd.boot();
+    try{stickEl.setPointerCapture(ev.pointerId);}catch(e){}
+    stickId=ev.pointerId;stickEl.classList.add('on');
+    moveStick(ev);
+  });
+  stickEl.addEventListener('pointermove',ev=>{
+    if(stickId!==ev.pointerId)return;
+    ev.preventDefault();moveStick(ev);
+  });
+  for(const t of['pointerup','pointercancel','lostpointercapture'])
+    stickEl.addEventListener(t,ev=>{if(stickId===ev.pointerId)releaseStick();});
+}
+/* A gesture the browser swallows outright still has to let go of the stick, or
+ * the fighter carries on across the screen after the thumb has gone. */
+for(const t of['pointerup','pointercancel'])
+  document.addEventListener(t,ev=>{if(stickId===ev.pointerId)releaseStick();},true);
 el('bp').addEventListener('click',togglePause);
 function togglePause(){
   if(G.state==='play'){G.state='paused';showPause();}

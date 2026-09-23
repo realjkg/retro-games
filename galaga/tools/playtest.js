@@ -45,6 +45,41 @@ window.diff=function(a,b){let n=0;for(let i=0;i<a.length;i+=4)
   if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>40)n++;return n;};
 `;
 
+/* The stick, measured in a real layout rather than in a stub that reports every
+ * element as the same size. What is checked is that the knob at full throw is
+ * still inside its own pad: it is a control, and a control that looks broken is
+ * not trusted even when it works. */
+async function checkStick(b,file){
+  /* The pad is hidden under @media (pointer:fine) — a keyboard has arrow keys
+   * and does not need a thumb stick — so it has no layout box at all on the
+   * desktop context the scenes run in. It gets a touch context of its own. */
+  const c=await b.newContext({viewport:{width:390,height:844},
+    isMobile:true,hasTouch:true,deviceScaleFactor:2});
+  const pg=await c.newPage();
+  await pg.goto('file://'+file);
+  await pg.waitForTimeout(300);
+  const out=await pg.evaluate(()=>{
+    const s=document.getElementById('stick'),k=document.getElementById('knob');
+    if(!s||!k)return{note:'no stick'};
+    const pr=s.getBoundingClientRect();
+    const at=frac=>{
+      moveStick({clientX:pr.left+pr.width/2+pr.width*frac,preventDefault(){}});
+      const kr=k.getBoundingClientRect();
+      return{l:kr.left-pr.left,r:pr.right-kr.right,x:stick.x};
+    };
+    const right=at(2),left=at(-2);
+    releaseStick();
+    const home=k.getBoundingClientRect();
+    return{pad:Math.round(pr.width),
+      inside:Math.min(right.r,left.l),
+      reads:right.x===1&&left.x===-1,
+      home:Math.abs((home.left+home.width/2)-(pr.left+pr.width/2))<1.5,
+      throwPx:Math.round(pr.width/2-k.offsetWidth/2-3)};
+  });
+  await c.close();
+  return out;
+}
+
 function row(name,cells){
   const pad=(s,n)=>String(s)+' '.repeat(Math.max(0,n-String(s).length));
   return pad(name,12)+cells.map(c=>pad(c.ok?'  yes':'  NO ',6)+pad(c.note||'',0)).join(' | ');
@@ -121,7 +156,14 @@ function row(name,cells){
     if(cells.some(c=>!c.ok))bad++;
     console.log(row(name,cells));
   }
+  const st=await checkStick(b,path.join(__dirname,'..','index.html'));
   console.log('-'.repeat(64));
+  console.log('stick  pad '+st.pad+'px  throw '+st.throwPx+'px  inside the rim by '+
+    (st.inside===undefined?'?':st.inside.toFixed(1)+'px')+
+    '  reads -1..+1 '+(st.reads?'yes':'NO')+'  springs home '+(st.home?'yes':'NO'));
+  if(!(st.inside>=0)){bad++;
+    console.log('  the knob rides '+Math.abs(st.inside).toFixed(1)+'px over its own rim');}
+  if(!st.reads||!st.home)bad++;
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));bad+=errs.length;}
   console.log(bad?bad+' scene(s) to look at':'every scene moved, answered and stayed whole');
   await b.close();
