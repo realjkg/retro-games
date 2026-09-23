@@ -20,7 +20,7 @@ const OUT=path.resolve(process.argv[2]||'sprites.png');
     const rows=[];
     for(const k of ['player','disguised','guard','ss']){
       const r=WALKCYCLE.map(f=>figure(k,'H',f,false))
-        .concat([['H','stand'],['H2','stand'],['U','stand'],['D','stand'],['carry','stand'],['carry2','stand'],
+        .concat([['hol','stand'],['hol2','stand'],['hol','a'],['hol','c'],['H','stand'],['H2','stand'],['U','stand'],['D','stand'],['carry','stand'],['carry2','stand'],
           ['hup','stand'],['rum1','stand'],['rum2','stand'],['H','kneel']].map(([t,l])=>figure(k,t,l,false)))
         .concat([figure(k,'H','stand',false,true),figure(k,'H','a',true),figure(k,'H','lying',false)]);
       rows.push(r);

@@ -16,12 +16,14 @@ are only alive.
     SPACE              fire
     E                  search: pick a chest's lock, or go through a guard's pockets
     G                  throw a grenade
-    P                  pause, and the map
+    H                  holster the gun, or draw it
+    P                  pause, the map, and your notebook
 
 **On a phone** the Apple IIe's own joystick is on the glass: the beige box,
 the black ball-topped stick standing in its well, and the two buttons in the
-top corners. **Button 0 fires, button 1 held is AIM.** FIRE, AIM, SEARCH and
-THROW are also beside it for the other thumb.
+top corners. **Button 0 fires, button 1 held is AIM.** FIRE, AIM, SEARCH,
+THROW and HOLSTER are beside it for the other thumb, and PAUSE is up in the
+status bar by SOUND.
 
 The stick handles the way Galaga's does, the best of the sticks in this
 collection. You drag it, and **how far you push it is how fast he walks.**
@@ -42,7 +44,7 @@ everywhere that is not a control, and every control carries its own
 goes off as soon as it can, so a triple tap on FIRE is three shots.
 
 **A gamepad** works through the Gamepad API, analogue as well: A fires,
-B searches, X throws, a shoulder button aims, START pauses.
+B searches, X throws, Y holsters, a shoulder button aims, START pauses.
 
 The playfield is 280×168 logical pixels, the Apple's own width, drawn at
 whatever size the page has room for with `image-rendering: pixelated`. Every
@@ -66,6 +68,75 @@ picture on the screen.
 An impenetrable run is never a record. Switching it off part-way does not
 launder the run. The status bar shows **IMPENETRABLE** while it is on, and the
 choice is remembered between visits.
+
+## It builds up
+
+The first version was too hard from the first room. Now one table,
+`tune(castle)`, eases every threat at the start and brings it up to full
+strength over six castles:
+
+| | castle 1 | castle 6 on |
+|---|---|---|
+| *HALT!* to the first shot | 1.8 s | 0.7 s |
+| between a guard's shots | 2.6 s | 1.3 s |
+| how far off he aims | ±18° | ±6° |
+| a guard's bullet | 86 px/s | 128 px/s |
+| SS | none | half of rooms have a squad |
+| alarm squads | none | every 12 s or so |
+| time to answer a question | 12 s | 7 s |
+
+In the first two castles, the first bullet that hits you only grazes you:
+`GRAZED! THE NEXT ONE WILL NOT MISS`. The first castle has at most two guards
+a room. What you are asked when questioned builds up the same way (below).
+
+**You always find a uniform.** In the first castle it is in a chest in the
+cell, and your cellmate tells you so. In every castle after, it is in a room
+next to the cell.
+
+## Holster the gun, and be questioned
+
+**H** (or HOLSTER) puts the gun away: his hands go to his sides and the
+holster shows on his belt. FIRE with the gun away draws it and does not shoot.
+A holstered gun holds nobody up.
+
+**In a German uniform you are stopped and questioned**, by a guard if you walk
+right up to him and by an SS man from further off. A drawn gun gets you
+stopped sooner, and the first thing you are asked is why it is out. The castle
+stops while you are questioned; the men in it stand and breathe. The question
+is on a card in German, with what it means underneath, and a clock. You pick
+one of three answers, each in German with its meaning. With the right answers
+he waves you on (*Gut. Weitermachen.*) and does not stop you again. One wrong
+answer (*Hmm... Seltsam.*) earns you another question. Two wrong answers, or
+too long thinking, and you are a spy: *Spion! Alarm!*
+
+What they ask builds up:
+
+* **Castle 1**: a guard asks one thing any soldier could answer. Where are
+  you going (*Wohin gehen Sie?*), which unit (*Welche Einheit?*), or where
+  that accent is from (*Woher kommen Sie?*).
+* **From castle 2**: your papers (*Ihre Papiere, bitte.*). There are papers
+  to find in a chest, and on the odd guard. Without them you can bluff, and a
+  bluff works half the time.
+* **From castle 3**: the SS want the password (*Die Parole!*) and your
+  commandant's name (*Wie heißt Ihr Kommandant?*). Both are on notes in
+  chests somewhere in the castle, a new password and name every castle. The
+  guards also let them slip, talking to each other in front of a man in
+  uniform they have already passed (*Die Parole heute ist Enzian.*). What you
+  know goes in your **notebook**: on the question card, on the pause card,
+  and as `PAPERS` and `NOTES` in the status bar.
+* The SS ask one question in the first castles, two from the third, three
+  from the fifth.
+
+**Every man speaks in his own voice, and every line has a mood.** Each guard
+is given a pitch and a pace of his own when the castle is made. The SS are
+lower. A line is said in one of eight moods: *bark* (orders: fast, loud,
+falling), *ask* (questions rise at the end), *cold* (*Ihre Papiere, bitte.*:
+low, slow, flat), *suspicious* (slow, the pitch wavering), *dismiss*
+(*Weitermachen.*: quick and falling), *plead* (*Kamerad!*: high), *scream*,
+and *chat* for the talk between guards. Where the browser has a German voice,
+the lines are spoken in German by it, with the man's pitch and the mood's
+pitch and pace. Where it does not, it is the square-wave voice: one syllable a
+vowel, on the pitch the mood puts it on.
 
 ## What it does
 
@@ -103,16 +174,12 @@ walking away gives it up. Shoot the lock off and it opens at once. They hold
 bullets, grenades, bulletproof vests, uniforms, and a great deal of sauerkraut
 and schnapps.
 
-**In a German uniform you blend in**, with the guards and with the SS. Guards
-let you by until you fire in front of them or walk into one (*WAS IST LOS?*).
-The SS look closely. Come near one, or stay near him, and he stops you:
-*PAPIERE!* You have a couple of seconds. Walk away out of his sight and he
-lets it go (*WEITER.*). Still standing in front of him when he has looked, and
-you are a spy (*SPION!*), the room knows, and the alarm goes. A squad the
-alarm sends into a room where your uniform still holds does not know you
-either: they come in looking (*WO IST ER?*), and they have to find you out
-the same way. In a uniform the alarm goes quiet in twelve seconds instead of
-thirty. Firing, or throwing a grenade, gives it away to everyone in the room.
+**In a German uniform you blend in**, with the guards and with the SS, at a
+distance; up close you are questioned (above). A squad the alarm sends into a
+room where your uniform still holds does not know you either: they come in
+looking (*Wo ist er?*). In a uniform the alarm goes quiet in twelve seconds
+instead of thirty. Firing, or throwing a grenade, gives it away to everyone
+in the room.
 
 **The war plans** are in a steel strongbox, grey, in a room at least half way
 from the cell. Bullets do not open it and grenades do not break it. It has to
@@ -151,7 +218,7 @@ you are impenetrable.
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 27 tests, no browser
+    node --test tests/*.test.cjs                              # 38 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
     PW=... node tools/layout.js
@@ -169,7 +236,17 @@ and walls, the walk cycle, and storage that throws. The SS tests are
 walking in from off the screen**; **the alarm goes quiet, sooner in a
 uniform**; **the papers: stay and you are a spy, walk away and you pass**; and
 **a squad that comes in after a man in uniform does not know him**. All six
-fail on the build before them.
+fail on the build before them. Then the build-up, the holster and the
+questions: **stopped and questioned in uniform** (and the castle waits);
+**the right answers and he waves you on for good**; **two wrong, or too
+slow, and you are a spy**; **the gun is asked about first, and sorry
+holsters it**; **what they ask builds up by castle**; **the password
+question holds the castle's password, and the notebook has it once found**;
+**the guards let slip the password and the name**; **the uniform is in the
+cell, then next door**; **castle one is gentle and it builds up**; **the
+first bullet grazes**; **FIRE draws a holstered gun and holds nobody up**;
+and **each man his own voice; a question rises where an order falls**. All
+twelve fail on the build before them.
 
 `tools/playtest.js` asks **how it moved**. It opens the real page in Chromium
 and reads the canvas, one row per scene: the title demo, the cell, walking
@@ -202,12 +279,21 @@ no record; walking out of the way out escapes and there is a next castle;
 mortal, one bullet ends it; on a phone the stick leans, walks him and springs
 back, **a light push walks him slower than a full one**, button 0 on the box
 fires and button 1 held turns him without a step, and FIRE, THROW, SEARCH and
-AIM-with-the-stick all work with fingers.
+AIM-with-the-stick all work with fingers. H holsters and SPACE draws without
+a shot. Walked up to an SS man in uniform he is questioned in German, and
+answered right by keyboard he waves you on; on a phone a finger on HOLSTER,
+then on the right answer, does the same. **The German voice**: this machine's
+browser has no speech voices, so the check puts a German one in its place and
+keeps every line handed to it. Every line goes to it in German, the SS at a
+lower pitch than a guard, an order faster than a question.
 
 `tools/layout.js` asks **where the controls are**, on six screens from 320×568
 to an iPad, each way up, during play. Is any control over the playfield or over
 another control? Is everything on screen with nothing to scroll to? Is the
-playfield its own shape? Then, with fingers on a phone each way up, a triple
+playfield its own shape? **Do the questions fit**: the question, the clock
+and all three answers inside the playfield with nothing to scroll? On a phone
+held sideways the stick and buttons step aside while you are questioned, since
+the answers are tapped. Then, with fingers on a phone each way up, a triple
 tap on the playfield, the status bar, the space between, the stick, FIRE,
 button 0 and SEARCH: nothing zooms, the guard eats the second and third tap
 everywhere that is not a control, and a triple tap on FIRE or button 0 is
@@ -243,6 +329,15 @@ For eyes, not checks:
   retrogames.cz and the Atari 8-bit build on archive.org were both blocked by
   this environment's network policy. What is here is from what is known of
   Silas Warner's game, not from playing those builds side by side.
+* **The German speech could not be heard here.** This machine's browser has
+  no speech voices, so what played here is the square-wave voice. The spoken
+  German is checked by what it is handed (language, pitch, pace), not by
+  listening. Whether it sounds right depends on the German voice your device
+  has, and some have none, in which case you get the square-wave voice too.
+* **The questions are this game's**, as are the holster, the notebook, the
+  password and commandant, the graze and the build-up table. None is from the
+  1981 disk. The German is plain textbook German and has not been checked by
+  a native speaker.
 * **The SS in a uniform are this game's.** The alarm, the squads sent through
   the doors, the inspection for papers, and a uniform that gets you past the
   SS at a distance were all asked for, as an enhancement, and are not a

@@ -68,6 +68,19 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
       [off.length===0&&m.sw<=m.iw&&m.sh<=m.ih+0.5,'on screen',off.join(' ')||(m.sw>m.iw?'scrolls sideways':m.sh>m.ih+0.5?'scrolls '+(m.sh-m.ih):'yes')],
       [Math.abs(shape-280/168)<0.03,'shape',shape.toFixed(3)],
       [m.stage.w>=0.55*Math.min(m.iw,640)||turn,'big enough',Math.round(m.stage.w)+'x'+Math.round(m.stage.h)]];
+    /* questioned: the whole card, the question, the clock and every answer,
+       inside the playfield, with nothing to scroll to */
+    const q=await pg.evaluate(()=>{
+      if(typeof startQuestions!=='function')return null;
+      const rm=room();rm.guards=[];G.P.uniform=true;G.P.holstered=false;
+      const g=mkGuard('ss',G.P.x+20,G.P.y);g.st='stand';rm.guards.push(g);
+      G.castle.d=5;startQuestions(g);
+      const st=document.getElementById('stage').getBoundingClientRect(),ov=document.getElementById('overlay');
+      const parts=[...ov.querySelectorAll('.qa,.qde,.qbar')].map(e=>e.getBoundingClientRect());
+      const out=parts.filter(r=>r.top<st.top-0.5||r.bottom>st.bottom+0.5||r.left<st.left-0.5||r.right>st.right+0.5).length;
+      return{out,n:parts.length,scroll:ov.scrollHeight-ov.clientHeight};
+    });
+    if(q)row.push([q.out===0&&q.scroll<=1&&q.n>=5,'questions fit',q.out?q.out+' of '+q.n+' parts outside':q.scroll>1?'scrolls '+q.scroll:'yes']);
     for(const [ok,what,got] of row)check(ok,label.padEnd(24)+what,got);
     if(OUT){fs.mkdirSync(OUT,{recursive:true});
       await pg.screenshot({path:path.join(OUT,label.replace(/\W+/g,'_')+'.png')});}

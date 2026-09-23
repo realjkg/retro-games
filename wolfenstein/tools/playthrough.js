@@ -43,10 +43,14 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   check(await read('G.state')==='play','ENTER again goes into the castle',await read('G.state'));
 
   /* walk */
+  /* the castle is a new one every time, and the cell's chest may stand on
+     either side of him: walk the way that has floor */
+  const way=await read('boxFree(room(),G.P.x-20,G.P.y)&&boxFree(room(),G.P.x-8,G.P.y)?-1:1');
   const p0=await read('[G.P.x,G.P.y]');
-  await pg.keyboard.down('ArrowLeft');await pg.waitForTimeout(500);await pg.keyboard.up('ArrowLeft');
+  const arrow=way<0?'ArrowLeft':'ArrowRight';
+  await pg.keyboard.down(arrow);await pg.waitForTimeout(500);await pg.keyboard.up(arrow);
   const p1=await read('[G.P.x,G.P.y]');
-  check(p1[0]<p0[0]-8,'holding ARROW LEFT walks him left',Math.round(p0[0])+' → '+Math.round(p1[0]));
+  check((p1[0]-p0[0])*way>8,'holding '+arrow.replace('Arrow','ARROW ').toUpperCase()+' walks him that way',Math.round(p0[0])+' → '+Math.round(p1[0]));
   /* turn in place */
   await pg.keyboard.down('x');await pg.keyboard.down('ArrowUp');await pg.waitForTimeout(300);
   await pg.keyboard.up('ArrowUp');await pg.keyboard.up('x');
@@ -60,6 +64,27 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   check(await read('G.P.gren')===2,'G throws a grenade',await read('G.P.gren'));
   await pg.waitForTimeout(1200);
   check(await read('G.state')==='play','and it does not end an impenetrable run, however close',await read('G.state'));
+
+  /* the gun away, and questioned: an SS man stood beside a man in uniform */
+  await pg.keyboard.press('h');await pg.waitForTimeout(60);
+  check(await read('G.P.holstered')===true,'H puts the gun away');
+  const a1=await read('G.P.ammo');
+  await pg.keyboard.press('Space');await pg.waitForTimeout(400);
+  check(await read('G.P.ammo')===a1&&await read('G.P.holstered')===false,'SPACE with the gun away draws it, no shot');
+  await pg.keyboard.press('h');await pg.waitForTimeout(400);
+  await read(`(()=>{G.P.uniform=true;G.P.papers=true;room().blown=false;const rm=room();rm.guards=[];
+    const g=mkGuard('ss',G.P.x+24,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);return 0;})()`);
+  await pg.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+  check(await read('G.state')==='question','walk up to an SS man in uniform and he questions you',await read('G.state'));
+  check(/„.+“/.test(await pg.innerText('#overlay')),'in German, on the card',(await pg.innerText('#overlay')).split('\n')[0]);
+  for(let n=0;n<6&&await read('G.state')==='question';n++){
+    const want=await read(`G.q.cur.a.findIndex(o=>o[2]==='good'||o[2]==='holster')`);
+    const at=await read('menuSel');
+    for(let k=0;k<(want-at+3)%3;k++)await pg.keyboard.press('ArrowDown');
+    await pg.keyboard.press('Enter');await pg.waitForTimeout(80);
+  }
+  check(await read('G.state')==='play'&&await read('room().guards[0].cleared'),'answered right by keyboard, he waves you on');
+  await read(`room().guards=[];0`);
 
   /* impenetrable, in real time: an SS man put in front of him, ten seconds */
   await read(`(()=>{const g=mkGuard('ss',G.P.x+60,G.P.y);room().guards.push(g);alarm(g);return 0;})()`);
@@ -97,7 +122,8 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   /* mortal, the other way: shot once, and it is over */
   await pg.keyboard.press('Enter');await pg.waitForTimeout(80);
   await pg.keyboard.press('p');await pg.keyboard.press('Escape');await pg.waitForTimeout(80);
-  await read(`G.state='play';setImpenetrable(false);hideOverlay();G.P.vest=0;
+  await read(`G.state='play';setImpenetrable(false);hideOverlay();G.P.vest=0;G.P.grazed=true;/* castle 2 grazes once */
+    room().guards=[];room().chests=[];room().g=room().g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);G.P.x=140;G.P.y=92;
     G.shots.push({x:G.P.x+6,y:G.P.y-8,vx:-GSHOT,vy:0,from:'g',life:3});0`);
   await pg.waitForFunction(()=>G.state==='over',null,{timeout:8000}).catch(()=>{});
   check(/KILLED/.test(await pg.innerText('#overlay')),'mortal, one bullet ends it',await read('G.state'));
@@ -167,6 +193,49 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   const r2=await pp.evaluate('[G.P.x,G.P.y,G.P.dir]');
   await touch('touchEnd');
   check(r2[2]===2&&Math.hypot(r2[0]-r1[0],r2[1]-r1[1])<0.5,'button 1 held does the same: turn, no step',JSON.stringify(r2.map(Math.round)));
+
+  /* a finger on HOLSTER, and a finger on an answer */
+  await pp.evaluate(()=>{G.P.holstered=false;G.P.busy=null;});
+  await tapBtn('#bh');
+  check(await pp.evaluate('G.P.holstered'),'a finger on HOLSTER puts the gun away');
+  await pp.evaluate(()=>{G.P.uniform=true;room().blown=false;const rm=room();rm.guards=[];
+    const g=mkGuard('guard',G.P.x+16,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);});
+  await pp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+  check(await pp.evaluate('G.state')==='question','a guard questions a man in uniform, on a phone too');
+  const good=await pp.evaluate(`G.q.cur.a.findIndex(o=>o[2]==='good'||o[2]==='holster')`);
+  const qb=await pp.locator('#overlay .qa').nth(good).boundingBox();
+  await touch('touchStart',qb.x+qb.width/2,qb.y+qb.height/2);await touch('touchEnd');await pp.waitForTimeout(150);
+  check(await pp.evaluate('G.state')==='play','a finger on the right answer, and he waves you on',await pp.evaluate('G.state'));
+
+  /* The German voice. This machine's browser has no speech voices, so a
+     German one is put in its place and every line handed to it is kept:
+     what is said, in which language, at what pitch and what pace. */
+  const vc=await b.newContext({viewport:{width:640,height:860}});
+  await vc.addInitScript(()=>{
+    window.__spoken=[];
+    const v={lang:'de-DE',name:'Deutsch (test)'};
+    window.SpeechSynthesisUtterance=function(t){this.text=t;};
+    Object.defineProperty(window,'speechSynthesis',{value:{pending:false,getVoices:()=>[v],
+      addEventListener(){},cancel(){},speak(u){window.__spoken.push({t:u.text,lang:u.lang,v:u.voice&&u.voice.lang,
+        p:u.pitch,r:u.rate});}}});
+  });
+  const vp=await vc.newPage();vp.on('pageerror',e=>errs.push(e.message));
+  await vp.goto(URL);await vp.waitForTimeout(300);
+  await vp.evaluate(()=>{newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
+    const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+    G.P.x=100;G.P.y=92;G.P.uniform=true;G.P.holstered=true;room().blown=false;
+    const a=mkGuard('ss',124,92);a.st='stand';a.t=1e9;rm.guards.push(a);});
+  await vp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+  await vp.waitForTimeout(700);
+  await vp.evaluate(()=>{const g=mkGuard('guard',0,0);say(g,'Halt!','bark',true);say(g,'Wohin gehen Sie?','ask',true);});
+  const said=await vp.evaluate(()=>__spoken);
+  check(said.length>=3&&said.every(u=>u.lang==='de-DE'&&u.v==='de-DE'),'with a German voice, every line is spoken in German',
+    said.map(u=>u.t).join(' / '));
+  const ssLine=said.find(u=>/Sie da|Moment/.test(u.t)),q=said[said.length-3]||said[1];
+  const bark=said[said.length-2],ask=said[said.length-1];
+  check(ssLine&&ssLine.p<bark.p*0.8,'the SS speak lower than a guard',ssLine&&(ssLine.p.toFixed(2)+' against '+bark.p.toFixed(2)));
+  check(bark.r>ask.r,'an order comes faster than a question',bark.r.toFixed(2)+' against '+ask.r.toFixed(2));
+  await vc.close();
 
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}
