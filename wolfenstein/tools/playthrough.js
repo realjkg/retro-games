@@ -65,6 +65,13 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pg.waitForTimeout(1200);
   check(await read('G.state')==='play','and it does not end an impenetrable run, however close',await read('G.state'));
 
+  /* The castle's own voice: the keys pressed so far have unlocked the sound,
+     and a guard's shout is played through it, not handed to the device */
+  check(await read('!!Snd.ctx&&Snd.ctx.state==="running"'),'a key unlocks the sound',await read('Snd.ctx&&Snd.ctx.state'));
+  const heard=await read(`(()=>{Voice.mode='castle';const n0=Snd.voices.length;const g=mkGuard('guard',0,0);
+    say(g,'Halt! Kommen Sie!','bark',true);return Snd.voices.length-n0;})()`);
+  check(heard===1,'a guard shouts in the castle\'s own voice: "Halt! Kommen Sie!"',heard+' playing');
+
   /* the gun away, and questioned: an SS man stood beside a man in uniform */
   await pg.keyboard.press('h');await pg.waitForTimeout(60);
   check(await read('G.P.holstered')===true,'H puts the gun away');
@@ -136,6 +143,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pp.tap('#overlay .menuitem.sel');
   await pp.waitForFunction(()=>G.state==='play',null,{timeout:8000}).catch(()=>{});
   check(await pp.evaluate('G.state')==='play','two taps and a finger is in the castle',await pp.evaluate('G.state'));
+  check(await pp.evaluate('!!Snd.ctx&&Snd.ctx.state==="running"'),'and the first tap unlocked the sound',await pp.evaluate('Snd.ctx&&Snd.ctx.state'));
   const cdp=await ph.newCDPSession(pp);
   const touch=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
   const sb=await pp.locator('#stick').boundingBox();
@@ -221,7 +229,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   });
   const vp=await vc.newPage();vp.on('pageerror',e=>errs.push(e.message));
   await vp.goto(URL);await vp.waitForTimeout(300);
-  await vp.evaluate(()=>{newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
+  await vp.evaluate(()=>{Voice.mode='device';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
     const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
     G.P.x=100;G.P.y=92;G.P.uniform=true;G.P.holstered=true;room().blown=false;
     const a=mkGuard('ss',124,92);a.st='stand';a.t=1e9;rm.guards.push(a);});

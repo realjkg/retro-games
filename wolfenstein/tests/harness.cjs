@@ -54,7 +54,7 @@ function runtime(seed,file){
   }
   const docEvents=[];
   const box={console,setTimeout(){},clearTimeout(){},Math,Date,JSON,Array,Object,String,
-    Number,Boolean,Promise,Float32Array,Uint8Array,isNaN,parseInt,parseFloat,
+    Number,Boolean,Promise,Float32Array,Uint8Array,Map,Set,isNaN,parseInt,parseFloat,
     document:{hidden:false,body:{classList:{add(){},remove(){},toggle(){},contains(){return false}}},
       documentElement:{},getElementById:el,createElement:()=>mkEl('new'),
       querySelectorAll(){return[]},addEventListener(type){docEvents.push(type);}},

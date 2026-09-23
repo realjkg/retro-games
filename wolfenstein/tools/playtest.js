@@ -37,6 +37,13 @@ const SCENES=[
   ['hands up',    `play();bare(60,92);const g=put('guard',150,92);g.st='hup';g.hupT=1e9;G.P.dir=0;watch(g)`],
   ['ss walks in', `play();bare(200,50);G.impenetrable=true;const g=put('ss',-6,92);g.st='enter';g.dir=0;g.face=1;
                    watch(g);IN=true;STRIDE=true`],
+  ['hunted',      `play(5);G.impenetrable=true;bare(140,92);const S=put('ss',200,92);alarm(S);G.hunt.t=1e9;
+                   const rm=room(),sd=Object.keys(SIDES).find(k=>rm.doors[k]);leave(sd);
+                   const r2=room();r2.guards=[];r2.chests=[];r2.g=r2.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+                   /* across the room from the door he will come in by, so he has a walk to do */
+                   const o={n:[140,150],s:[140,30],w:[250,92],e:[30,92]}[OPP[sd]];G.P.x=o[0];G.P.y=o[1];
+                   G.hunt.t=1e9;for(let k=0;k<600&&r2.guards.indexOf(S)<0;k++)stepGame(1/60);render();
+                   watch(S);IN=true;STRIDE=true`],
   ['the alarm',   `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(1/60);
                    stepPursuers(0.01);const g=room().guards.find(g=>g.st==='enter');watch(g);IN=true;STRIDE=true`],
   ['squad in',    `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(0.5);
@@ -72,7 +79,8 @@ const BREAKS={
     playerSprite=function(){const P=G.P;if(P.moving)return figure(P.uniform?'disguised':'player','H','stand',P.face<0);return _p();};
     guardSprite=function(g){if(g.st==='patrol'||g.st==='enter'||g.walking)return figure(g.kind,'H','stand',g.face<0);return _g(g);};`,
   /* the SS man put down inside the room instead of walking in */
-  appear:`const _e=stepGuard;stepGuard=function(g,dt){if(g.st==='enter'&&g.x<10){g.x=40;}return _e(g,dt);};
+  appear:`const _e=stepGuard;stepGuard=function(g,dt){if(g.st==='enter'){if(g.x<10)g.x=40;else if(g.x>W-10)g.x=W-40;
+      if(g.y<20)g.y=40;else if(g.y>H-4)g.y=H-30;}return _e(g,dt);};
     const _l=leave;leave=function(s){_l(s);if(G.P.x>W-12)G.P.x=W-60;else if(G.P.x<12)G.P.x=60;};`,
   /* a keyline across the middle: parts outlined separately */
   keyline:`const _d=drawFig;drawFig=function(img,x,y,f){_d(img,x,y,f);if(img.width<=11)rect(x-5,y-9,11,1,'#0b1a5c');};`,
@@ -191,9 +199,12 @@ function row(name,cells){
           if(f===G.P&&G.cur!==r0)crossed=true;
           if(!crossed)continue;
           const x=f.x;if(lastX!==null)jump=Math.max(jump,Math.abs(x-lastX));lastX=x;
-          const img=spriteOf(f),[ox]=origin(f,img);
-          if((ox<0||ox+img.width>W)&&wholeness(f)>0.3)seenEdge=true;
-          if(f.x>14&&f.x<W-14)arrived=true;
+          /* any of the four edges: a door in the top or bottom wall counts too.
+             The first version of this looked only left and right, and called an
+             SS man who walked in through the north door one who appeared. */
+          const img=spriteOf(f),[ox,oy]=origin(f,img);
+          if((ox<0||ox+img.width>W||oy<0||oy+img.height>H)&&wholeness(f)>0.3)seenEdge=true;
+          if(f.x>14&&f.x<W-14&&f.y>24&&f.y<H-4)arrived=true;
         }
         keys.right=false;
         out.walkIn={from:f===G.P?from-W:from,edge:seenEdge,arrived,jump:Math.round(jump*10)/10,crossed};
