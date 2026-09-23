@@ -40,7 +40,13 @@ function runtime(diff=2,seed=7,start=true,store){
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
   box.store=kept;
-  vm.createContext(box);vm.runInContext(source,box);
+  vm.createContext(box);
+  /* The page loads the shared coin-op module before the game's own script,
+     so the harness does too: without it Arcade.init() at boot is a
+     ReferenceError and nothing in the game runs at all. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+  vm.runInContext(source,box);
   // The game uses Math.random for the things a seed should not have to carry -
   // when a scorpion next hops, which way a toy drifts. A test that leaves that
   // to chance passes most of the time, which is the worst kind of test.

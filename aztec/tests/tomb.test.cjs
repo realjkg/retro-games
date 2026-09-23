@@ -31,7 +31,13 @@ function runtime(diff=3,seed=7){
       addEventListener(type){docEvents.push(type)}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
     addEventListener(){},requestAnimationFrame(){}};
-  vm.createContext(box);vm.runInContext(source,box);
+  vm.createContext(box);
+  /* The page loads the shared coin-op module before the game's own script,
+     so the harness does too: without it Arcade.init() at boot is a
+     ReferenceError and nothing in the game runs at all. */
+  vm.runInContext(require('node:fs').readFileSync(
+    require('node:path').join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+  vm.runInContext(source,box);
   const run=c=>vm.runInContext(c,box);
   run(`newGame(${diff},${seed});`);
   return {run,notes,el,cls,docEvents};

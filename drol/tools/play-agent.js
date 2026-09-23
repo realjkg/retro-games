@@ -29,11 +29,17 @@ function boot(seed){
    getBoundingClientRect(){return this.rect;},getContext(){return drawing;}});
   return els.get(id);};
  const box={console,setTimeout(){},
-  document:{hidden:false,body:{classList:{toggle(){},add(){},remove(){},contains:()=>false}},
+  document:{createElement:()=>el('made'),hidden:false,body:{classList:{toggle(){},add(){},remove(){},contains:()=>false}},
    documentElement:{},getElementById:el,querySelectorAll(){return[];},addEventListener(){}},
   window:{},performance:{now:()=>0},devicePixelRatio:1,
   addEventListener(){},requestAnimationFrame(){}};
- vm.createContext(box);vm.runInContext(source,box);
+ vm.createContext(box);
+ /* The page loads the shared coin-op module before the game's own script,
+    so this does too: without it Arcade.init() at boot is a ReferenceError
+    and nothing in the game runs at all. */
+ vm.runInContext(fs.readFileSync(
+   path.join(__dirname,'../../shared/arcade.js'),'utf8'),box);
+ vm.runInContext(source,box);
  // The game leans on Math.random for the things a seed should not have to carry -
  // when a scorpion next hops, which way a toy drifts. Give the context a seeded
  // one so a run of the agent is a run anybody can repeat.

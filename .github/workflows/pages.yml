@@ -32,6 +32,9 @@ jobs:
           node-version: '20'
       # every game carries its own copy of the zoom guard; they must not drift
       - run: node tools/sync-nozoom.js --check
+      # every game carries the same copy of the coin-op module too
+      - run: node tools/sync-arcade.js --check
+      - run: node --test tests/*.test.cjs
       - run: node --test archon/tests/combat.test.cjs
       - run: node --test bards-tale/tests/*.test.cjs
       - run: node --test aztec/tests/tomb.test.cjs
