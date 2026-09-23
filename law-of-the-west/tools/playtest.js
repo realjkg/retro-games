@@ -74,6 +74,7 @@ const SHED=0.02;                                   // of him, lost to a torn sea
 const KEYLINE=6;                                   // px of outline across his middle
 const RIGID=40;                                    // degrees of disagreement between rings
 const TRAPPED=16;                                  // px of street shut inside a caller
+const SCISSOR=3;                                   // px of top half sliding against bottom
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -155,6 +156,48 @@ const STILL=function(tm){
   for(let i=0;i<d.length;i+=16)h=(h*31+d[i]+d[i+1]*3+d[i+2]*7)|0;
   walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
   return String(h);
+};
+
+/* How far the top of a caller and the bottom of him pull apart at one moment.
+ *
+ * A body shifting its weight turns about itself, so the hips and the shoulders
+ * do go opposite ways - a little. Given a walk's numbers while standing still
+ * they went opposite ways a lot: three pixels of hip against two of shoulder
+ * and two of head, which measured five and a half pixels of top half sliding
+ * against bottom half on a forty-eight pixel figure, and read on the screen as
+ * two bodies moving at two separate speeds. A player said exactly that.
+ *
+ * Posed over a flat ground, and every band measured against HIS OWN top row,
+ * so a man who rises and falls does not come back as a man who slides. */
+const SCISS=function(tm){
+  const enc=who(G); if(!enc)return null;
+  const keep=[walkAt,leaving,reactAt];
+  walkAt=-1e9; leaving=null; reactAt=-1e9;
+  const g=document.getElementById('scene').getContext('2d');
+  const X0=130,Y0=10,W=180,H=200;
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#b0a898'; g.fillRect(X0,Y0,W,H); g.restore();
+  visitor(enc,'idle',tm);
+  const d=g.getImageData(X0,Y0,W,H).data;
+  const mid=[]; let top=-1,bot=-1;
+  for(let y=0;y<H;y++){
+    let lo=1e9,hi=-1e9;
+    for(let x=0;x<W;x++){
+      const q=((y*W)+x)*4;
+      if(Math.abs(d[q]-0xb0)+Math.abs(d[q+1]-0xa8)+Math.abs(d[q+2]-0x98)<=20)continue;
+      if(x<lo)lo=x; if(x>hi)hi=x;
+    }
+    if(hi<0){mid.push(null);continue;}
+    if(top<0)top=y; bot=y; mid.push((lo+hi)/2);
+  }
+  walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
+  if(top<0)return null;
+  const h=bot-top+1;
+  const band=function(a,z){var s=0,n=0;
+    for(var y=top+Math.round(a*h);y<=top+Math.round(z*h)&&y<mid.length;y++){
+      if(mid[y]==null)continue; s+=mid[y]; n++; }
+    return n?s/n:null; };
+  return [band(0,0.16),band(0.86,1.0)];            // his head, and his hem
 };
 
 /* Air that is inside the caller: background the outside cannot reach. */
@@ -270,7 +313,7 @@ const RECORD=function(){
   const note=(id,k,v)=>{
     let r=scenes.get(id);
     if(!r){r={id:id,arrived:0,beats:new Set(),alive:-1,answered:false,left:0,
-              seam:null,trap:null};scenes.set(id,r);}
+              seam:null,trap:null,sciss:null};scenes.set(id,r);}
     if(k)r[k]=v;
     return r;
   };
@@ -310,6 +353,24 @@ const RECORD=function(){
          * the same picture: a caller who holds one pose is a cut-out. */
         const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
         note(s.who,'alive',a1===a2?0:1);
+        /* And is he one body? Standing still, his head and his hem must not
+         * set off in opposite directions at once. */
+        {
+          const H=[],M=[];
+          for(let i=0;i<40;i++){
+            const v=await page.evaluate(SCISS,200000+i*140);
+            if(v){H.push(v[0]);M.push(v[1]);}
+          }
+          let sc=0;
+          if(H.length){
+            const h0=H.reduce((a,b)=>a+b,0)/H.length, m0=M.reduce((a,b)=>a+b,0)/M.length;
+            for(let i=0;i<H.length;i++){
+              const dh=H[i]-h0, dm=M[i]-m0;
+              if(dh*dm<0)sc=Math.max(sc,Math.abs(dh)+Math.abs(dm));
+            }
+          }
+          note(s.who,'sciss',+sc.toFixed(2));
+        }
         await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
@@ -455,7 +516,7 @@ function report(log,errs,ink,seams,rings,scenes){
    * in, or a scene that does not answer what is pressed at it, is a scene a
    * player will meet. */
   if(scenes&&scenes.size){
-    console.log('\n  scene        walked in   strode        alive  answers  walked off');
+    console.log('\n  scene        walked in   strode        alive  answers  walked off  one body');
     let sceneBad=0;
     const all=[...scenes.values()].filter(r=>r.id!=='summary'&&r.id!=='intro');
     const last=all.length?all[all.length-1].id:null;
@@ -470,6 +531,7 @@ function report(log,errs,ink,seams,rings,scenes){
       if(!r.answered&&!ending)fail.push('no answer');
       if(r.seam!=null&&r.seam>KEYLINE)fail.push('torn');
       if(r.trap!=null&&r.trap>TRAPPED)fail.push('slotted');
+      if(r.sciss!=null&&r.sciss>SCISSOR)fail.push('scissors');
       if(fail.length)sceneBad++;
       console.log(`  ${fail.length?'BAD ':'ok  '} ${r.id.padEnd(11)}`+
         `${String(r.arrived||'-').padStart(6)}px  `+
@@ -477,11 +539,12 @@ function report(log,errs,ink,seams,rings,scenes){
         `${r.alive<0?'  -  ':(r.alive?' yes ':' NO  ')}  `+
         `${r.answered?' yes ':' NO  '}  `+
         `${String(r.left||'-').padStart(6)}px`+
+        `${String(r.sciss==null?'-':r.sciss.toFixed(2)+'px').padStart(9)}`+
         (fail.length?'   <- '+fail.join(', '):''));
     }
     if(sceneBad)bad++;
     console.log(sceneBad?`\n  ${sceneBad} scene(s) a player would meet and find wrong.`
-                        :'\n  Every scene walked, strode, lived, answered and left.');
+                        :'\n  Every scene walked, strode, lived, answered, left and held together.');
   }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');

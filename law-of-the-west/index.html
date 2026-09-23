@@ -3007,15 +3007,40 @@ function visitor(enc,pose,now){
    * without that opposition is a man being carried along upright. */
   const SWAY=1.15;                                   // rad/s: a shift every few seconds
   const legPh=gait!=null?gait*Math.PI*STRIDE:null;
-  const w=legPh!=null?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
-  const wLag=legPh!=null?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
-  const hipX=Math.round(w*3);
-  const shoX=-Math.round(w*2);                       // the counter-turn
-  const headX=-Math.round(wLag*2);
+  const going=legPh!=null;
+  const w=going?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
+  const wLag=going?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
+  /* Standing and walking are not the same gesture and cannot be given the same
+   * numbers, which is what they had. A walk throws the hips over the planted
+   * leg and brings the shoulders back hard the other way; that is a walk and
+   * it is right. A man standing still does none of it. His pelvis eases onto
+   * one leg, his spine takes most of that back, and his head stays over his
+   * feet - staying over your feet is what standing IS.
+   *
+   * On the walk's numbers he came apart: three pixels of hip one way against
+   * two of shoulder and two of head the other, which on a forty-eight pixel
+   * figure is five and a half pixels of top half and bottom half sliding past
+   * each other, measured. A player watched that and said the callers looked
+   * like two bodies moving at two separate speeds, which is exactly what it
+   * is. Worse, |w| reaches 1 standing and only 0.72 walking, so a caller stood
+   * at his post swayed HARDER than one crossing the street.
+   *
+   * So the hips ease rather than throw, the shoulders answer with a fraction
+   * rather than a counterweight, and the head goes the way the hips went - a
+   * little, and late - instead of against them. */
+  const hipX=Math.round(w*(going?3:2));
+  const shoX=-Math.round(w*(going?2:0.8));           // the counter-turn
+  const headX=going?-Math.round(wLag*2)              // walking, the head counters too
+                   :Math.round(wLag*0.6);            // standing, it stays over the feet
   // planted, he stands tall on that leg; caught between, he settles a little
   const settle=Math.round((1-Math.abs(w))*1.4);
-  // and the head keeps a slower time of its own
-  const headY=Math.round(Math.sin(t*0.71+ph*1.7)*1.2);
+  /* And the head nods on the body's clock. It used to keep a slower time of
+   * its own - 0.71 rad/s against a body swaying at 1.15, an 8.8 second nod
+   * over a 5.5 second sway - so the two drifted in and out of phase forever
+   * and never agreed twice. A head that never agrees with the shoulders under
+   * it is not a man breathing; it is a second animal. Same clock, later phase:
+   * a head still arrives last, it just arrives on the same beat. */
+  const headY=Math.round(Math.sin(going?legPh-0.9:t*SWAY+ph-0.9)*1.2);
   const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
   // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
   // he leans into it and comes upright as he arrives

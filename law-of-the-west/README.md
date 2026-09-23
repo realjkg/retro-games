@@ -565,6 +565,18 @@ you, where you are in the day and how it is going live in a strip above it.
 
 ## How it plays
 
+**They stand as one body.** A caller waiting for you shifts his weight, and
+the hips and the shoulders do go opposite ways — a little. They used to go
+opposite ways a lot: standing still, a caller was given the numbers a walk
+uses, three pixels of hip against two of shoulder and two of head, and the top
+half and the bottom half slid past each other by five and a half pixels on a
+figure forty-eight wide. The head made it worse by nodding on a clock of its
+own — 0.71 rad/s against a body swaying at 1.15, so the two drifted in and out
+of phase and never agreed twice. On the screen that is two bodies moving at two
+separate speeds, and a player said so. Standing now eases rather than throws,
+the head stays over the feet, and every clock on a caller is the same clock.
+`playtest.js` measures it per scene and fails over three pixels.
+
 **Two modes, one pad.** Up draws: the gun hand comes up, a crosshair appears and
 the replies go dim. The pad moves the crosshair; down walks it back and, pulled
 past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
