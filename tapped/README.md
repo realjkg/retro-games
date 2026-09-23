@@ -6,11 +6,26 @@ from a `file://` URL and it plays.
 
 [Play it](https://realjkg.github.io/retro-games/tapped/)
 
-    ↑ ↓  or W S       change bar (straight to its tap, and it wraps)
-    ← →  or A D       run along the bar
-    SPACE or Z        hold to pour, let go to send the mug
-    P / ESC           pause (and save)
-    on a phone        the cross and the POUR button under the playfield
+The arcade cabinet had a joystick and a tap handle, so that is what this has.
+
+    joystick ▲ ▼       change bar (straight to its tap, and it wraps)
+    joystick ◀ ▶       run along the bar
+    POUR               hold to pour, let go to send the mug
+    PAUSE              pause (and save)
+
+**On a phone** the joystick is on the glass: a red ball-top stick in a round
+gate that leans the way your thumb pushes it and springs back to the middle
+when you let go. Running needs a lighter push than changing bar, and a bar
+change needs the stick more up than across, so a thumb that wanders while you
+run does not drop you onto the next bar.
+
+**A real joystick or gamepad** works too, USB or Bluetooth, through the
+browser's Gamepad API: the stick or d-pad moves, any face button pours, START
+pauses and chooses on the menus. Nothing to set up; move it once and it is
+there.
+
+**A keyboard** still works for anyone at a desk without one: arrows or WASD,
+SPACE or Z to pour, P to pause.
 
 The playfield is 256×248 logical pixels, drawn at whatever size the page has
 room for with `image-rendering: pixelated`. Every figure is a grid of letters
@@ -111,7 +126,7 @@ game was built against the list:
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 32 tests, no browser
+    node --test tests/*.test.cjs                              # 37 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
 
@@ -143,7 +158,8 @@ walk-in check was skipped when nobody was at the door, so a customer who
 simply appeared passed it. Scenes that should show a walk-in now require one.
 
 `tools/playthrough.js` asks **what a player gets**, using only the keyboard and
-touch: START starts, holding SPACE sends a mug, a reload offers RESUME and
+touch: START starts, holding SPACE sends a mug, a thumb on the joystick
+changes bar and runs and the stick springs back when let go, a reload offers RESUME and
 brings the same bar back paused, typed letters go on the wall and survive a
 reload, and a finger on POUR works the same as a key.
 
@@ -172,8 +188,9 @@ For eyes, not checks:
   rather than a guessed one.
 * **A customer who reaches the taps does not throw the bartender down the bar**,
   which is the arcade's best gag. The game stops and says what happened.
-* **The music is not Tapper's.** It is "Oh! Susanna" (1848, public domain), which
-  is the kind of tune a saloon piano played.
+* **The music is "Oh! Susanna"**, the arcade saloon's tune: Stephen Foster, 1848,
+  an American classic in the public domain, so no licence is needed. The
+  arrangement is this game's own and is not a transcription of the arcade's.
 * **One save slot per browser.** It lives in `localStorage`, so it does not
   follow you to another device, and a private window forgets it.
 * **The double-tap zoom fix is unverified on iOS**, as in every other game

@@ -85,8 +85,24 @@ const check=(ok,what,got)=>{results.push([ok,what,got]);};
   await at('touchStart');await pp.waitForTimeout(650);await at('touchEnd');await pp.waitForTimeout(80);
   const pm=await pp.evaluate('G.mugs.filter(m=>m.full).length+G.cust.filter(p=>p.st==="slide").length');
   check(pm>=1,'holding POUR with a finger and letting go sends a mug',pm);
-  await pp.tap('#bd');await pp.waitForTimeout(60);
-  check(await pp.evaluate('G.bt.lane')===1,'a tap on DOWN BAR moves one bar',await pp.evaluate('G.bt.lane'));
+  /* the joystick, with a thumb: push down, come back, push left, let go */
+  const sb=await pp.locator('#stick').boundingBox();
+  const cx=sb.x+sb.width/2,cy=sb.y+sb.height/2;
+  const touch=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
+  const lane0=await pp.evaluate('G.bt.lane');
+  await touch('touchStart',cx,cy);await touch('touchMove',cx,cy+50);await pp.waitForTimeout(60);
+  await touch('touchMove',cx,cy);
+  check(await pp.evaluate('G.bt.lane')===(lane0+1)%4,'a push down on the joystick moves one bar',await pp.evaluate('G.bt.lane'));
+  const x0=await pp.evaluate('G.bt.x');
+  await touch('touchMove',cx-50,cy);await pp.waitForTimeout(400);
+  const x1=await pp.evaluate('G.bt.x');
+  check(x1<x0-20,'holding the joystick left runs down the bar',Math.round(x0)+' → '+Math.round(x1));
+  const knob=await pp.evaluate(()=>document.getElementById('knob').style.transform);
+  check(/translate\(-/.test(knob),'the stick on the glass leans the way it is pushed',knob);
+  await touch('touchEnd');await pp.waitForTimeout(200);
+  const x2=await pp.evaluate('G.bt.x');
+  check(Math.abs(x2-x1-0)<30&&await pp.evaluate('keys.left')===false,'letting go of it stops him',Math.round(x2));
+  check(/translate\(0/.test(await pp.evaluate(()=>document.getElementById('knob').style.transform)),'and it springs back to the middle','');
 
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}
