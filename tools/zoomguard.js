@@ -28,7 +28,9 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
   for(const g of GAMES){
     const file=path.join(ROOT,g,'index.html');
     if(!fs.existsSync(file)){fail.push(g+': no page');continue;}
-    const c=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,
+    /* 320px is the narrowest phone still in use, and the width the pads did
+     * not fit on. Checking at 390 only is how the overflow went unseen. */
+    const c=await b.newContext({viewport:{width:320,height:640},deviceScaleFactor:2,
       isMobile:true,hasTouch:true});
     const p=await c.newPage();
     await p.goto('file://'+file);
@@ -73,6 +75,38 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
         if(ta!=='none'&&ta!=='manipulation')
           out.bare.push((el.id||el.className||el.tagName)+'='+ta);
       });
+      // The other half of the same report: a control held down raises iOS's
+      // callout - magnifier, selection handles, the copy bubble, an image's
+      // drag ghost - and while it is up the control has stopped answering.
+      // There is no event to cancel, so this is CSS or nothing.
+      // -webkit-touch-callout is the one property here Blink does not
+      // implement at all: it is dropped at parse time, so it is absent from
+      // getComputedStyle AND from the CSSOM, and asking either would fail on
+      // a fixed page as loudly as on a broken one. So the rule is read out of
+      // the guard's own stylesheet as text, and each control is asked whether
+      // that selector matches it. Chromium can still answer that honestly.
+      out.press=[];
+      let calloutSel='';
+      const gst=document.querySelector('style[data-nozoom="press"]');
+      if(gst){
+        const m=/([^{}]+)\{[^{}]*-webkit-touch-callout:\s*none/.exec(gst.textContent||'');
+        if(m)calloutSel=m[1].trim();
+      }
+      document.querySelectorAll('button,[role=button],[data-cmd],a,label,.menuitem')
+        .forEach(el=>{
+          const s=getComputedStyle(el), miss=[];
+          let covered=false;
+          try{covered=!!calloutSel&&el.matches(calloutSel);}catch(e){}
+          if(!covered)miss.push('callout');
+          if(s.webkitUserSelect!=='none'&&s.userSelect!=='none')miss.push('select');
+          if(s.webkitUserDrag!=='none')miss.push('drag');
+          if(miss.length)out.press.push((el.id||el.className||el.tagName)+':'+miss.join('+'));
+        });
+      // and the pads must not ask for a wider page than the phone has: a page
+      // that scrolls sideways is a page whose buttons can be half off the
+      // wrong edge while the thumb lands where they were drawn.
+      const de=document.documentElement;
+      out.over=de.scrollWidth-de.clientWidth;
       // a page that is zoomed already must be put back
       const meta=document.querySelector('meta[name="viewport"]');
       out.meta=!!meta;
@@ -93,7 +127,9 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
       ' | pinch '+(r.pinch?'blocked':'THROUGH')+
       ' | gesture '+(r.gesture?'blocked':'THROUGH')+
       ' | un-zoom '+(r.rewrote?'yes':'NO')+
-      ' | controls exempt '+(r.bare.length?'NO ('+r.bare.length+')':'yes'));
+      ' | controls exempt '+(r.bare.length?'NO ('+r.bare.length+')':'yes')+
+      ' | long press '+(r.press.length?'OPEN ('+r.press.length+')':'guarded')+
+      ' | sideways '+(r.over>0?'PANS '+r.over+'px':'no'));
     ok(!r.single,g+': a single tap is being swallowed, so nothing can be pressed');
     ok(r.second,g+': the second tap of a double tap goes through - this is the zoom');
     ok(r.mash!==true,g+': mashing a control loses every second press');
@@ -103,6 +139,10 @@ const ok=(c,m)=>{ if(!c)fail.push(m); };
     ok(r.rewrote,g+': a zoomed page is not put back');
     ok(!r.bare.length,g+': pressable controls with no touch-action of their own, '+
       'which the guard steps aside for: '+r.bare.slice(0,4).join(' '));
+    ok(!r.press.length,g+': controls a long press can take away from the player, '+
+      'for want of callout/select/drag suppression: '+r.press.slice(0,4).join(' '));
+    ok(r.over<=0,g+': the page scrolls sideways by '+r.over+'px, so the pads '+
+      'can sit off the edge of the screen');
     await c.close();
   }
   await b.close();

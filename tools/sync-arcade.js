@@ -22,7 +22,13 @@ const SRC=path.join(ROOT,'shared','arcade.js');
  * law-of-the-west is the reason that rule is written down. It has no score to
  * put on a table, it is the largest page here, and its assemble step holds it
  * to a hard size budget which this pushed it straight through. Wire it and it
- * goes back on the list — and whoever does will have to find the bytes. */
+ * goes back on the list — and whoever does will have to find the bytes.
+ *
+ * tapped is off the list for the opposite reason: it arrived with a high-score
+ * table, a three-letter picker and resume slots of its own, written out in the
+ * page rather than taken from here. It is not missing the feature, it is
+ * carrying a second copy of it, and folding it onto this module is a change to
+ * that game rather than a line on this list. */
 const PAGES=['archon/index.html','aztec/index.html','bards-tale/index.html',
   'choplifter/index.html','drol/index.html','galaga/index.html',
   'lode-runner/index.html'];

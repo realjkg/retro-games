@@ -2286,6 +2286,37 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
     if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
   },{passive:false});
 
+  /* ---- the long press ---- *
+   *
+   * The other half of the same complaint. Holding a control down - which is
+   * what a player does with FIRE, and what a stuck thumb does with a d-pad -
+   * raises iOS's own callout: the magnifier, the selection handles, the
+   * copy/define bubble, the drag-out ghost of an image. While that is up the
+   * page has stopped receiving the press, so the control is dead until the
+   * player lets go and taps somewhere to dismiss it. There is no event to
+   * cancel; it is suppressed with CSS or not at all, and no game here had a
+   * single one of these four properties set on a single control.
+   *
+   * This goes in first in the head rather than last, so it is a default a
+   * page can still override - the joystick pads ask for touch-action:none
+   * and must keep it. Inputs are left out of the selection rules: the only
+   * typing in the collection is the three-letter initials, and a field the
+   * player cannot select is a field they cannot correct. */
+  var head=D.head||D.getElementsByTagName("head")[0];
+  if(head){
+    var st=D.createElement("style");
+    st.setAttribute("data-nozoom","press");
+    st.appendChild(D.createTextNode(
+      PRESSABLE+",canvas,.menuitem{-webkit-touch-callout:none;"+
+      "-webkit-user-select:none;user-select:none;"+
+      "-webkit-user-drag:none;"+
+      "-webkit-tap-highlight-color:transparent}"+
+      "input,textarea{-webkit-user-select:auto;user-select:auto}"+
+      "button,a,label,[data-cmd],[role=button],.menuitem{touch-action:manipulation}"+
+      "img{-webkit-user-drag:none}"));
+    head.insertBefore(st,head.firstChild);
+  }
+
   var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
   if(!vv||!meta)return;
   var base=meta.getAttribute("content"), fixing=false;
