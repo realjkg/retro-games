@@ -96,6 +96,29 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .sbtn{width:62px;height:30px;border-radius:9px;font-size:10px;font-weight:700}
 .right{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
 .right .abtn{grid-row:span 2}
+.tops{display:flex;gap:6px;margin-left:auto}
+#status #bp{height:28px;width:56px}
+@media (pointer:fine){#status #bp{display:none}}
+/* questioned: who is asking, what, and how long you have */
+#overlay.ask{background:rgba(4,5,12,.95);gap:4px;padding:6px 10px}
+.qwho{font-size:10px;letter-spacing:.12em;color:#9aa0c0;margin:0}
+.qwho.ss b{color:#e060f0}
+h1.qde{font-size:16px;letter-spacing:.02em;color:#fff;text-transform:none;line-height:1.15}
+.qpre{color:#e060f0;font-style:italic;font-size:11px;margin:0}
+.qbar{width:min(300px,80%);height:4px;background:#2a2f4a;border-radius:2px;overflow:hidden;flex:none}
+.qbar i{display:block;height:100%;width:100%;background:#ff9a3c}
+.menuitem.qa{display:flex;flex-direction:column;gap:0;text-transform:none;padding:4px 6px;font-size:12.5px;line-height:1.2}
+.menuitem.qa small{font-size:10px;opacity:.72}
+#overlay.ask small.tip{font-size:10px;line-height:1.25}
+/* a small playfield: the question, the clock and the answers, and no more */
+@media (max-width:430px){
+  #overlay.ask{gap:3px;padding:4px 8px}
+  h1.qde{font-size:13px}
+  .qwho{font-size:9px}.qpre{font-size:9.5px}
+  .menuitem.qa{padding:2px 6px;font-size:11px}
+  .menuitem.qa small{font-size:9px}
+  #overlay.ask small.tip{font-size:8.5px}
+}
 #overlay{position:absolute;inset:0;background:rgba(4,5,12,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:7px;padding:12px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
@@ -157,6 +180,18 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
   .right{grid-column:3;grid-row:2;align-self:center}
   #stage{grid-column:2;grid-row:2;align-self:center;justify-self:center;
     width:min(100%,calc((100dvh - 44px - 40px - env(safe-area-inset-top)) * 280 / 168));height:auto}
+  /* questioned, on its side: the answers are tapped, so the stick and the
+     buttons step out of the way and the questions get the whole width */
+  body.asking .stickwrap,body.asking .right{display:none}
+  body.asking #wrap{grid-template-columns:0 minmax(0,1fr) 0}
+}
+@media (orientation:landscape) and (max-height:420px){
+  #overlay.ask{gap:3px;padding:4px 8px}
+  h1.qde{font-size:13px}
+  .qwho{font-size:9px}.qpre{font-size:9.5px}
+  .menuitem.qa{padding:2px 6px;font-size:11px}
+  .menuitem.qa small{font-size:9px}
+  #overlay.ask small.tip{font-size:8.5px}
 }
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
@@ -172,7 +207,8 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
     <span id="hud">RANK <b id="rank">PRIVATE</b> · CASTLE <b id="castle">1</b></span>
     <span id="hud2">BULLETS <b id="ammo">10</b> · GRENADES <b id="gren">3</b> <span id="kit"></span></span>
     <!-- up here, not on the glass, where it would sit on the castle wall -->
-    <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button>
+    <span class="tops"><button class="btn sbtn" id="bp" type="button">PAUSE</button>
+    <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button></span>
   </div>
   <div id="stage">
     <canvas id="c" width="280" height="168"></canvas>
@@ -196,7 +232,7 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
       <button class="btn mbtn" id="ba" type="button">AIM<small>hold</small></button>
       <button class="btn mbtn" id="bs" type="button">SEARCH<small>chest · body</small></button>
       <button class="btn mbtn" id="bg" type="button">THROW<small>grenade</small></button>
-      <button class="btn sbtn" id="bp" type="button">PAUSE</button>
+      <button class="btn mbtn" id="bh" type="button">HOLSTER<small>gun away · out</small></button>
     </div>
   </div>
 </div>
@@ -242,6 +278,27 @@ const RANKS=['PRIVATE','CORPORAL','SERGEANT','LIEUTENANT','CAPTAIN','MAJOR','COL
 const DIRS=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
 const SIDES={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]};
 const OPP={n:'s',s:'n',e:'w',w:'e'};
+
+/* ---------- how hard, castle by castle ----------
+ * One table, so the build-up can be read in one place. Everything a castle
+ * throws at you starts gentle and comes up to full strength by the sixth:
+ * the first castle has no SS at all, guards who take their time and miss,
+ * and a uniform in the cell. The alarm's squads start with the second. */
+function tune(d){
+  const k=Math.max(0,Math.min(1,(d-1)/5));
+  return{
+    react:1.8-1.1*k,            /* HALT! to the first shot, seconds */
+    fireGap:2.6-1.3*k,          /* between shots */
+    jitter:0.32-0.22*k,         /* how far off, radians either way */
+    gshot:86+42*k,              /* a guard's bullet, px/s */
+    ssOdds:d<2?0:Math.min(0.5,0.12+0.07*(d-2)),
+    squad3:d>=4,
+    guardsMax:d<2?2:3,
+    huntGap:36-24*k,            /* between squads on the alarm */
+    qTime:12-5*k,               /* to answer a question */
+    graze:d<=2                  /* the first bullet only grazes him */
+  };
+}
 
 /* ---------- small helpers ---------- */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -305,13 +362,20 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
   die(){this.tone('sawtooth',400,60,0.5,0.06);},
   hit(){this.tone('square',220,90,0.12,0.06);},
   step(){this.tone('square',90,90,0.012,0.02);},
-  /* A guard's shout is a burst of square-wave syllables, one per vowel, which
-   * is about as much speech as the Apple's speaker could do without a card. */
-  speak(text,low){
-    const v=(text.match(/[AEIOU]+/g)||['A']).slice(0,6);
-    const base=low?150:200;
-    v.forEach((s,i)=>{const f=base+((s.charCodeAt(0)*37)%90);
-      this.tone('square',f,f*0.8,0.09,0.045,i*0.11);});
+  /* Speech with no speech synthesiser: one square-wave syllable per vowel,
+   * which is about as much as the Apple's speaker could do without a card,
+   * but each on the pitch the mood puts it on, so a question rises at the
+   * end, an order falls, and a suspicious man drags it out and wavers. */
+  intone(text,mood,who){
+    const M=MOODS[mood]||MOODS.bark;
+    const v=(text.toUpperCase().match(/[AEIOUÄÖÜY]+/g)||['A']).slice(0,10);
+    const base=(who&&who.kind==='ss'?122:188)*((who&&who.pitch)||1);
+    const rate=(who&&who.rate)||1,syl=M.syl/rate;
+    v.forEach((s,i)=>{
+      const p=v.length>1?i/(v.length-1):1;
+      const f=base*M.shape(p);
+      this.tone('square',f,f*M.fall,syl*0.9,M.g,i*syl);
+    });
   },
   /* the alarm: a two-tone siren, rising and falling */
   klaxon(){for(let i=0;i<4;i++){this.tone('sawtooth',440,660,0.22,0.05,i*0.46);this.tone('sawtooth',660,440,0.22,0.05,i*0.46+0.23);}},
@@ -320,6 +384,56 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
   escape(){[392,523,659,784,1046].forEach((f,i)=>this.tone('square',f,f,0.12,0.06,i*0.11));},
   over(){[392,330,262,196].forEach((f,i)=>this.tone('square',f,f*0.97,0.22,0.06,i*0.24));}
 };
+
+/* The moods a line is said in. p and r are the pitch and rate given to a
+ * speech synthesiser; shape is the pitch across the line for the square-wave
+ * voice, from its first syllable (0) to its last (1). */
+const MOODS={
+  bark:      {p:1.15,r:1.25,v:1,  syl:0.075,g:0.06, fall:0.85,shape:q=>1.3-0.45*q},
+  ask:       {p:1.05,r:1.0, v:0.9,syl:0.10, g:0.045,fall:1.05,shape:q=>0.92+0.6*q*q},
+  cold:      {p:0.72,r:0.8, v:0.8,syl:0.15, g:0.04, fall:0.98,shape:q=>0.8},
+  suspicious:{p:0.9, r:0.76,v:0.85,syl:0.16,g:0.04, fall:1.0, shape:q=>1+0.28*Math.sin(q*Math.PI*2.2)},
+  dismiss:   {p:1.0, r:1.2, v:0.8,syl:0.08, g:0.04, fall:0.9, shape:q=>1.12-0.4*q},
+  plead:     {p:1.45,r:1.15,v:0.9,syl:0.09, g:0.045,fall:0.95,shape:q=>1.45-0.25*q},
+  scream:    {p:1.7, r:1.4, v:1,  syl:0.12, g:0.06, fall:0.6, shape:q=>1.8-0.9*q},
+  chat:      {p:1.0, r:1.0, v:0.6,syl:0.09, g:0.03, fall:1.0, shape:q=>1+0.12*Math.sin(q*9)}
+};
+/* The voice: the browser's own German speech where it has a German voice,
+ * given each man's pitch and pace and the line's mood; the square-wave voice
+ * otherwise, and always under a test. */
+const Voice={
+  synth:null,de:null,
+  init(){
+    try{
+      if(typeof speechSynthesis==='undefined'||typeof SpeechSynthesisUtterance==='undefined')return;
+      this.synth=speechSynthesis;
+      const find=()=>{try{const vs=this.synth.getVoices()||[];
+        this.de=vs.find(v=>/^de(-|_|$)/i.test(v.lang))||null;}catch(e){}};
+      find();
+      try{this.synth.addEventListener('voiceschanged',find);}catch(e){}
+    }catch(e){this.synth=null;}
+  },
+  say(text,mood,who){
+    if(!Snd.on||G.demo)return;
+    const M=MOODS[mood]||MOODS.bark;
+    if(this.synth&&this.de){
+      try{
+        const u=new SpeechSynthesisUtterance(text);
+        u.lang='de-DE';u.voice=this.de;
+        u.pitch=clamp(((who&&who.pitch)||1)*M.p*(who&&who.kind==='ss'?0.6:1),0.1,2);
+        u.rate=clamp(((who&&who.rate)||1)*M.r,0.5,1.8);u.volume=M.v;
+        /* a shout cuts across whatever was being said; talk waits its turn */
+        if(mood==='bark'||mood==='scream'||this.synth.pending)this.synth.cancel();
+        this.synth.speak(u);
+        return;
+      }catch(e){}
+    }
+    Snd.intone(text,mood,who);
+  }
+};
+/* what the bubbles can draw: capitals, and no umlauts */
+function plain(s){return String(s).replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/Ä/g,'AE')
+  .replace(/Ö/g,'OE').replace(/Ü/g,'UE').replace(/ß/g,'ss').replace(/[„“”]/g,'').toUpperCase();}
 
 /* ---------- the lettering ---------- */
 /* A three-by-five pixel font, so that what the guards shout is drawn at the
@@ -378,6 +492,9 @@ const TORSOS={
   /* both arms up: the arms themselves are drawn up past the head by hup() */
   hup:  ['.c.cccc.c..','.cccccccc..','..cccccc...','..cccccc...','..cccccc...','..bbbbbb...'],
   hup2: ['.c.cccc.c..','.cccccccc..','..cccccc...','..cccccc...','..cccccc...','..bbbbbb...'],
+  /* the gun in its holster: hands at his sides, and the holster on the belt */
+  hol:  ['...cccc....','..cccccc...','..cccccc...','..cccccc...','..sccccs...','..bbbbkb...'],
+  hol2: ['...cccc....','..cccccc...','..cccccc...','..cccccc...','..cccccc...','..sbbbks...'],
   /* hands busy at a lock or a pocket */
   rum1: ['...cccc....','..cccccc...','..ccccccs..','..cccccccs.','..cccccc...','..bbbbbb...'],
   rum2: ['...cccc....','..cccccc...','..cccccc...','..ccccccss.','..ccccccs..','..bbbbbb...']
@@ -535,6 +652,8 @@ function place(room,n,far){
   }
   return out;
 }
+const PAROLEN=['Edelweiß','Enzian','Lorelei','Adlerhorst','Wintersonne','Blauer Mond','Feuervogel','Schwarzwald'];
+const CHIEFS=['Brandt','Kessler','Vogel','Hartmann','Richter','Krause','Lindner','Wolff'];
 const JUNK=['SAUERKRAUT','SCHNAPPS','WURST','KARTOFFELN','LIEDERKRANZ','AN IRON CROSS','LETTERS FROM HOME',
   'A CUCKOO CLOCK','SOCKS','STOLLEN'];
 function chestItem(){
@@ -547,33 +666,39 @@ function chestItem(){
 }
 function makeRoom(cx,cy,doors,opts){
   let room;
+  const items=opts.items||[];
   for(let attempt=0;attempt<40;attempt++){
     room={cx,cy,doors,exit:opts.exit||null,start:opts.start?[17,9]:null,chests:[],guards:[],
       seen:false,blown:false,g:null};
     room.g=blankGrid(room);
     if(attempt<35)furnish(room);
     /* chests stand on the floor, two tiles wide, reachable from a door */
-    const n=opts.strong?1+ri(2):ri(3);
+    const n=Math.max(opts.strong?1+ri(2):ri(3),items.length+(opts.strong?1:0));
     for(let i=0;i<n;i++){
       const x=3+ri(COLS-7),y=3+ri(ROWS-6);
       if(!openT(room,x,y)||!openT(room,x+1,y))continue;
       if(room.chests.some(c=>Math.abs(c.tx-x)<4&&Math.abs(c.ty-y)<3))continue;
       const strong=opts.strong&&!room.chests.some(c=>c.strong);
-      room.chests.push({tx:x,ty:y,strong,state:'locked',item:strong?{k:'plans'}:chestItem()});
+      const plainOnes=room.chests.filter(c=>!c.strong).length;
+      room.chests.push({tx:x,ty:y,strong,state:'locked',
+        item:strong?{k:'plans'}:plainOnes<items.length?items[plainOnes]:chestItem()});
     }
     if(opts.strong&&!room.chests.some(c=>c.strong))continue;
+    /* what has to be found here, the uniform or a note, has to be here */
+    if(room.chests.filter(c=>!c.strong).length<items.length)continue;
     if(roomOk(room))break;
   }
   /* the guards, never in the cell and never on top of a door */
   if(!opts.start){
     const d=opts.d;
-    const n=Math.min(3,ri(2)+(R()<0.35+0.08*d?1:0)+(d>=3&&R()<0.5?1:0));
+    const TN=tune(d);
+    const n=Math.min(TN.guardsMax,ri(2)+(R()<0.25+0.08*d?1:0)+(d>=3&&R()<0.5?1:0));
     const spots=place(room,n+1,7);
     for(const[x,y]of spots.slice(0,n))room.guards.push(mkGuard('guard',x*T+4,(y+2)*T));
     /* The SS never go about alone. A room that has them has a squad: two, and
      * from the fourth castle sometimes three, standing together. */
-    if(spots.length>n&&R()<Math.min(0.5,0.14+0.06*(d-1))){
-      const[x,y]=spots[n],size=2+(d>=4&&R()<0.4?1:0);
+    if(spots.length>n&&R()<TN.ssOdds){
+      const[x,y]=spots[n],size=2+(TN.squad3&&R()<0.4?1:0);
       room.guards.push(mkGuard('ss',x*T+4,(y+2)*T));
       for(let k=1;k<size;k++){
         const near=[[x+2*k,y],[x-2*k,y],[x,y+2],[x,y-2],[x+2,y+2],[x-2,y-2]].find(([a,b])=>standT(room,a,b)&&
@@ -588,7 +713,9 @@ let guardId=1;
 function mkGuard(kind,x,y){
   return{id:guardId++,kind,x,y,dir:ri(8),face:R()<0.5?1:-1,dist:0,st:'stand',t:0.3+R(),
     fireT:1,hp:kind==='ss'?SS_HP:1,searched:false,say:null,lastSeen:null,noLos:0,detour:0,
-    detourDir:0,phase:R()*2,dying:0,hupT:0,susp:0};
+    detourDir:0,phase:R()*2,dying:0,hupT:0,susp:0,cleared:false,
+    /* every man his own voice: a pitch and a pace of his own */
+    voice:{kind,pitch:0.85+R()*0.3,rate:0.9+R()*0.2}};
 }
 function makeCastle(d){
   const[CW,CH]=castleSize(d);
@@ -627,11 +754,25 @@ function makeCastle(d){
   /* the plans: somewhere at least half way out, and not in the cell */
   const far=[];for(let i=0;i<CW*CH;i++)if(i!==start&&dist[i]>=Math.max(1,Math.floor(max/2)))far.push(i);
   const plansRoom=far.length?pick(far):exitRoom;
+  /* What you will be asked, and where to find the answers. The uniform is
+   * always close: in the first castle it is in a chest in the cell, after
+   * that in a room next to it. From the second castle there are papers to
+   * find, and from the third a note with the password and one with the
+   * commandant's name, which the guards also let slip if you stand near
+   * them in the uniform. */
+  const parole=pick(PAROLEN),chief=pick(CHIEFS);
+  const items={};const add=(i,it)=>{(items[i]=items[i]||[]).push(it);};
+  const next=[];for(let i=0;i<CW*CH;i++)if(dist[i]===1)next.push(i);
+  const uniformRoom=d===1||!next.length?start:pick(next);
+  add(uniformRoom,{k:'uniform'});
+  const mid=[];for(let i=0;i<CW*CH;i++)if(i!==start&&i!==plansRoom)mid.push(i);
+  if(d>=2&&mid.length)add(pick(mid),{k:'papers'});
+  if(d>=3&&mid.length){add(pick(mid),{k:'note',what:'parole'});add(pick(mid),{k:'note',what:'chief'});}
   const rooms=[];
   for(let i=0;i<CW*CH;i++)
     rooms.push(makeRoom(i%CW,(i/CW)|0,doors[i],
-      {d,start:i===start,exit:i===exitRoom?exitSide:null,strong:i===plansRoom}));
-  return{d,CW,CH,rooms,start,exitRoom,exitSide,plansRoom};
+      {d,start:i===start,exit:i===exitRoom?exitSide:null,strong:i===plansRoom,items:items[i]||[]}));
+  return{d,CW,CH,rooms,start,exitRoom,exitSide,plansRoom,parole,chief,uniformRoom};
 }
 
 /* ---------- state ---------- */
@@ -641,12 +782,13 @@ const G={state:'splash',demo:true,impenetrable:load('wolfenstein.impenetrable','
   rank:0,castles:0,stats:null,t:0,dieT:0,escT:0,best:loadJSON('wolfenstein.best',null)};
 if(!G.best||typeof G.best.rank!=='number'||typeof G.best.castles!=='number')G.best={rank:0,castles:0};
 const keys={up:false,down:false,left:false,right:false,aim:false,fire:false};
-const taps={fire:false,gren:false,search:false};
+const taps={fire:false,gren:false,search:false,holster:false};
 function room(){return G.castle.rooms[G.cur];}
 function rankName(r){return r<RANKS.length?RANKS[r]:RANKS[RANKS.length-1]+' *'+(r-RANKS.length+2);}
 function mkPlayer(x,y){
   return{x,y,dir:0,face:1,dist:0,t:0,ammo:START_BULLETS,gren:START_GRENADES,uniform:false,vest:0,
-    plans:false,busy:null,fireCool:0,flash:0,dead:false,idle:0,moving:false};
+    plans:false,busy:null,fireCool:0,flash:0,dead:false,idle:0,moving:false,
+    holstered:false,papers:false,knows:{parole:false,chief:false},grazed:false};
 }
 
 /* ---------- the world ---------- */
@@ -683,12 +825,15 @@ function los(rm,x0,y0,x1,y1){
 }
 function dirTo(dx,dy){return(Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8;}
 function unit(d){const v=DIRS[d],n=Math.hypot(v[0],v[1]);return[v[0]/n,v[1]/n];}
-function say(e,text,force){
+/* say(man, the line in German, its mood, force). The bubble shows it in the
+ * bubble's capitals; the voice says it as written, in the mood given. */
+function say(e,text,mood,force){
   /* a squad shouts as one: if the man beside him has only just said it, he
    * does not say it again over the top */
   if(!force&&G.castle&&e!==G.P&&room().guards.some(o=>o!==e&&o.say&&o.say.t>0.6&&o.kind===e.kind&&
     Math.hypot(o.x-e.x,o.y-e.y)<48))return;
-  e.say={text,t:1.5};Snd.speak(text,e.kind==='ss');
+  e.say={text:plain(text),t:Math.max(1.5,0.08*text.length)};
+  Voice.say(text,mood||'bark',e.voice);
 }
 function message(text,col){G.msg={text,t:2.4,col:col||'#ffffff'};}
 function disguised(){return G.P.uniform&&!room().blown;}
@@ -731,16 +876,25 @@ function stepPlayer(dt){
     if(P.queued&&P.fireCool<=0&&!P.busy&&!P.dead){P.queued--;fire();}
     if(taps.gren)throwNade();
     if(taps.search)search();
+    if(taps.holster)holster();
   }
-  taps.fire=taps.gren=taps.search=false;
+  taps.fire=taps.gren=taps.search=taps.holster=false;
   if(G.demo)return;
   /* through an opening: the next room, or out */
   const cy=P.y-6;
   if(P.x<0)leave('w');else if(P.x>=W)leave('e');else if(cy<0)leave('n');else if(cy>=H)leave('s');
 }
+function holster(){
+  const P=G.P;
+  if(P.busy||P.dead)return;
+  P.holstered=!P.holstered;P.fireCool=Math.max(P.fireCool,0.3);P.queued=0;
+  message(P.holstered?'GUN AWAY':'GUN OUT');Snd.click();hud();
+}
 function fire(){
   const P=G.P;
   if(P.busy||P.fireCool>0||P.dead)return;
+  /* FIRE with the gun away draws it: that is all it does */
+  if(P.holstered){holster();P.queued=0;return;}
   if(P.ammo<=0){Snd.click();message('OUT OF BULLETS');P.fireCool=0.3;return;}
   P.ammo--;P.fireCool=0.2;
   const[ux,uy]=unit(P.dir);
@@ -803,10 +957,12 @@ function finishSearch(b){
     const found=[];
     if(R()<0.75)found.push({k:'bullets',n:1+ri(6)});
     if(R()<0.22)found.push({k:'grenades',n:1});
-    if(gd.st==='dead'&&gd.kind==='guard'&&!G.P.uniform&&R()<0.4)found.push({k:'uniform'});
+    if(gd.st==='dead'&&gd.kind==='guard'&&!G.P.uniform&&R()<0.5)found.push({k:'uniform'});
+    if(!G.P.papers&&G.castle.d>=2&&R()<0.2)found.push({k:'papers'});
+    if(G.castle.d>=3&&R()<0.2)found.push({k:'note',what:R()<0.5?'parole':'chief'});
     if(!found.length)message('NOTHING ON HIM');
     for(const it of found)give(it);
-    if(gd.st==='hup')say(gd,'KAMERAD!');
+    if(gd.st==='hup')say(gd,'Kamerad! Bitte!','plead');
   }
   hud();
 }
@@ -816,7 +972,13 @@ function give(it){
   switch(it.k){
     case'bullets':P.ammo=Math.min(MAX_AMMO,P.ammo+it.n);message('BULLETS: '+it.n);Snd.item();break;
     case'grenades':P.gren=Math.min(MAX_GREN,P.gren+it.n);message('GRENADES: '+it.n);Snd.item();break;
-    case'uniform':P.uniform=true;room().blown=false;message('A UNIFORM. YOU PUT IT ON','#14f53c');Snd.item();break;
+    case'uniform':P.uniform=true;room().blown=false;
+      message(P.holstered?'A UNIFORM. YOU PUT IT ON':'A UNIFORM. NOW PUT THE GUN AWAY (H)','#14f53c');Snd.item();break;
+    case'papers':P.papers=true;message('SOMEBODY ELSE\'S PAPERS','#14f53c');Snd.item();break;
+    case'note':{const C=G.castle;
+      if(it.what==='parole'){P.knows.parole=true;message('A NOTE: PAROLE '+plain(C.parole),'#ffd84a');}
+      else{P.knows.chief=true;message('A NOTE: KOMMANDANT '+plain(C.chief),'#ffd84a');}
+      Snd.item();break;}
     case'vest':P.vest=VEST_HITS;message('A BULLETPROOF VEST','#14cffd');Snd.item();break;
     case'plans':P.plans=true;message('THE WAR PLANS!','#ff9a3c');Snd.plans();break;
     default:message(it.name||'NOTHING USEFUL');Snd.open();
@@ -832,6 +994,10 @@ function hitPlayer(how){
     G.sparks.push({x:P.x,y:P.y-8,t:0.25,c:'#e060f0'});
     return;
   }
+  if(tune(G.castle.d).graze&&!P.grazed){
+    /* the first castles give you one: a graze, and a warning */
+    P.grazed=true;P.flash=0.5;Snd.hit();message('GRAZED! THE NEXT ONE WILL NOT MISS','#ff9a3c');return;
+  }
   if(P.vest>0){P.vest--;P.flash=0.35;Snd.hit();message(P.vest?'THE VEST TAKES IT':'THE VEST IS FINISHED','#14cffd');hud();return;}
   P.dead=true;P.busy=null;
   G.state='dying';G.dieT=0;
@@ -840,16 +1006,16 @@ function hitPlayer(how){
 }
 
 /* ---------- guards ---------- */
-const INSPECT_R=60,INSPECT_T=2.2;
-const HALT=['HALT!','ACHTUNG!','KOMMEN SIE HIER!','WER IST DA?','HALT! HALT!'];
-const SSHALT=['HALT! SS!','STEHENBLEIBEN!','ACHTUNG! SS!'];
+const INSPECT_R=60;
+const HALT=['Halt!','Achtung!','Kommen Sie her!','Wer ist da?','Halt! Halt!'];
+const SSHALT=['Halt! SS!','Stehenbleiben!','Achtung! SS!'];
 function live(g){return g.st!=='dying'&&g.st!=='dead';}
 function alarm(g){
   if(!live(g)||g.st==='alert'||g.st==='enter'||g.st==='hup')return;
   g.st='alert';
   /* a moment to react, shorter in each castle */
-  g.fireT=Math.max(0.35,1.05-0.06*G.castle.d)+R()*0.4;
-  say(g,pick(g.kind==='ss'?SSHALT:HALT));
+  g.fireT=tune(G.castle.d).react+R()*0.4;
+  say(g,pick(g.kind==='ss'?SSHALT:HALT),'bark');
   if(g.kind==='ss'&&!G.demo)raiseHunt();
 }
 /* ---------- the hunt ----------
@@ -859,7 +1025,7 @@ function alarm(g){
  * one of the openings of whatever room you are in, walking in on their own
  * feet. It goes quiet only when nobody has had you in their sights for a
  * while, and a uniform makes that a lot sooner. */
-function huntGap(){return Math.max(8,20-1.4*G.castle.d)+R()*6;}
+function huntGap(){return tune(G.castle.d).huntGap+R()*6;}
 function raiseHunt(){
   const h=G.hunt;h.quiet=0;
   if(h.on)return;
@@ -892,7 +1058,7 @@ function sendSquad(){
     const d=k=>{const[x,y]=ENTRY[k];return Math.hypot(x*T-P.x,y*T-P.y);};return d(b)-d(a);});
   if(!sides.length)return;
   const side=R()<0.7?sides[0]:pick(sides);
-  const n=2+(C.d>=4&&R()<0.5?1:0);
+  const n=2+(tune(C.d).squad3&&R()<0.5?1:0);
   for(let i=0;i<n;i++){
     const g=mkGuard('ss',0,0);
     G.pursuers.push({g,from:null,to:G.cur,side,t:0.35*i,i});
@@ -910,14 +1076,15 @@ function aimedAt(g){
   const dx=g.x-P.x,dy=(g.y-8)-(P.y-8),d=Math.hypot(dx,dy);
   if(d>130||d<4)return false;
   const[ux,uy]=unit(P.dir);
-  return (dx*ux+dy*uy)/d>0.9&&sees(g);
+  /* a gun in its holster is not pointed at anybody */
+  return !P.holstered&&(dx*ux+dy*uy)/d>0.9&&sees(g);
 }
 function gShoot(g){
   const P=G.P;
   const sx=g.x+g.face*6,sy=g.y-11;
-  const jit=Math.max(0.07,0.2-0.012*G.castle.d);
-  const a=Math.atan2(P.y-7-sy,P.x-sx)+(R()-0.5)*2*jit;
-  G.shots.push({x:sx,y:sy,vx:Math.cos(a)*GSHOT,vy:Math.sin(a)*GSHOT,from:'g',life:3});
+  const TN=tune(G.castle.d);
+  const a=Math.atan2(P.y-7-sy,P.x-sx)+(R()-0.5)*2*TN.jitter;
+  G.shots.push({x:sx,y:sy,vx:Math.cos(a)*TN.gshot,vy:Math.sin(a)*TN.gshot,from:'g',life:3.5});
   Snd.gshot();
 }
 function gSpeed(g){return g.st==='alert'||g.st==='enter'?(g.kind==='ss'?40:32):22;}
@@ -934,43 +1101,32 @@ function stepGuard(g,dt){
     g.x+=ux*gSpeed(g)*dt;g.y+=uy*gSpeed(g)*dt;g.dist+=gSpeed(g)*dt;
     if(ux)g.face=ux>0?1:-1;
     if(g.x>10&&g.x<W-10&&g.y>22&&g.y<H-6&&boxFree(rm,g.x,g.y,true)){
-      if(g.hunter&&disguised()){g.st='patrol';g.t=0.8+R();say(g,pick(['WO IST ER?','SUCHT IHN!','SCHNELL!']));}
-      else{g.st='alert';g.fireT=0.6;say(g,pick(SSHALT));}
+      if(g.hunter&&disguised()){g.st='patrol';g.t=0.8+R();
+        const l=pick([['Wo ist er?','ask'],['Sucht ihn!','bark'],['Schnell!','bark']]);say(g,l[0],l[1]);}
+      else{g.st='alert';g.fireT=Math.max(0.6,tune(G.castle.d).react*0.6);say(g,pick(SSHALT),'bark');}
     }
     return;
   }
   const canSee=!P.dead&&!G.demo&&sees(g);
-  if(g.st==='inspect'){
-    /* he stares; walk away out of his sight, or be found out */
-    g.face=dx>0?1:-1;
-    if(!canSee||d>INSPECT_R+10){g.t+=dt;if(g.t>INSPECT_T+0.6){g.st='stand';g.t=1+R();say(g,'WEITER.');}return;}
-    if((g.t-=dt)<=0){
-      room().blown=true;g.st='stand';alarm(g);
-      for(const o of room().guards)if(o!==g&&live(o)&&o.st!=='hup'){o.say=null;alarm(o);o.say=null;}
-      say(g,'SPION!',true);
-    }
-    return;
-  }
   if(g.st==='hup'){
     /* hands up for as long as the gun is on him, and a little after */
     if(aimedAt(g))g.hupT=2.4;
-    else if((g.hupT-=dt)<=0){g.st='alert';g.fireT=0.8;say(g,'SCHWEINEHUND!');}
+    else if((g.hupT-=dt)<=0){g.st='alert';g.fireT=0.8;say(g,'Schweinehund!','bark');}
     return;
   }
   if(g.st==='patrol'||g.st==='stand'){
     if(canSee){
       if(!disguised())alarm(g);
-      else if(g.kind==='ss'){
-        /* The uniform passes, at a distance. The SS look at everyone, and a
-         * man who comes close, or stays close, is asked for his papers. */
-        if(d<INSPECT_R)g.susp+=dt*(d<26?1.8:1);else g.susp=Math.max(0,g.susp-dt*0.5);
-        if(g.susp>1.2){g.susp=0;g.st='inspect';g.t=INSPECT_T;g.face=dx>0?1:-1;
-          say(g,pick(['PAPIERE!','AUSWEIS, BITTE!','HALT. IHRE PAPIERE!']));}
+      else if(!g.cleared){
+        /* The uniform passes, at a distance. Come close, or stay close, and
+         * you are stopped and questioned: by an SS man from further off and
+         * sooner, and by anyone at all sooner still if your gun is out. */
+        const reach=g.kind==='ss'?INSPECT_R:30,drawn=!G.P.holstered;
+        if(d<reach)g.susp+=dt*(d<26?1.8:1)*(drawn?2:1);else g.susp=Math.max(0,g.susp-dt*0.5);
+        if(g.susp>(g.kind==='ss'?1.2:1.0)){g.susp=0;g.face=dx>0?1:-1;startQuestions(g);return;}
       }
-      else if(d<14){
-        /* a uniform will not stand being walked into */
-        g.susp+=dt;if(g.susp>0.8){say(g,'WAS IST LOS?');room().blown=true;alarm(g);}
-      }else g.susp=Math.max(0,g.susp-dt);
+      /* a man in uniform who has been questioned and passed talks shop */
+      if(disguised()&&d<80)chatter(g,dt);
     }
     if(g.st==='alert')return;
     g.t-=dt;
@@ -991,12 +1147,12 @@ function stepGuard(g,dt){
     if(g.kind==='guard'&&aimedAt(g)){
       /* you have the drop on him */
       g.susp+=dt;
-      if(g.susp>0.35){g.susp=0;if(R()<0.55){g.st='hup';g.hupT=2.4;say(g,'KAMERAD!');return;}}
+      if(g.susp>0.35){g.susp=0;if(R()<0.55){g.st='hup';g.hupT=2.4;say(g,'Kamerad! Nicht schießen!','plead');return;}}
     }
     g.fireT-=dt;
     if(g.fireT<=0){
       gShoot(g);
-      g.fireT=Math.max(0.65,1.7-0.09*G.castle.d)*(g.kind==='ss'?0.8:1)+R()*0.5;
+      g.fireT=tune(G.castle.d).fireGap*(g.kind==='ss'?0.8:1)+R()*0.5;
     }
   }else if(g.lastSeen){
     g.noLos+=dt;
@@ -1017,6 +1173,164 @@ function stepGuard(g,dt){
       if(!canSee&&ux)g.face=ux>0?1:-1;
       if(m<s*0.4&&g.detour<=0){g.detour=0.5+R()*0.5;g.dir=(g.dir+(R()<0.5?2:6))%8;}
     }
+  }
+}
+
+/* ---------- questioned ----------
+ * In a uniform, a man who stops you asks you things, in German, and you
+ * answer from what you have. Each question is said in its own mood; the
+ * choices are German, each with what it means underneath. A right answer
+ * and he waves you on. Two wrong and you are a spy. Hesitate too long and
+ * that counts as wrong.
+ *
+ * What he asks builds up with the castle. In the first a guard asks where
+ * you are going; any soldier could answer. From the second they want your
+ * papers, which you have to have found. From the third the SS want the
+ * password and your commandant's name, which are on notes in the castle and
+ * in what the guards say to each other when they think you are one of them. */
+const QUESTIONS={
+  gun:{de:'Warum ist Ihre Waffe gezogen?',en:'Why is your gun drawn?',mood:'suspicious',
+    a:()=>[['Verzeihung! Ich stecke sie weg.','Sorry! I will put it away.','holster'],
+           ['Ich habe etwas gehört.','I heard something.','bluff'],
+           ['Das geht Sie nichts an.','That is none of your business.','bad']]},
+  where:{de:'Wohin gehen Sie?',en:'Where are you going?',mood:'ask',
+    a:()=>[['Zur Wachablösung.','To the changing of the guard.','good'],
+           ['Nach draußen, spazieren.','Outside, for a walk.','bad'],
+           ['Ich weiß es nicht.','I do not know.','bad']]},
+  unit:{de:'Welche Einheit?',en:'Which unit?',mood:'bark',
+    a:()=>[['Wachkompanie, zweiter Zug.','Guard company, second platoon.','good'],
+           ['Die Marine.','The navy.','bad'],
+           ['Äh... die Einheit.','Er... the unit.','bad']]},
+  accent:{de:'Sie haben einen komischen Akzent. Woher kommen Sie?',en:'You have a funny accent. Where are you from?',mood:'suspicious',
+    a:()=>[['Aus Bayern.','From Bavaria.','good'],
+           ['Aus... Ohio.','From... Ohio.','bad'],
+           ['Ich bin erkältet.','I have a cold.','bluff']]},
+  papers:{de:'Ihre Papiere, bitte.',en:'Your papers, please.',mood:'cold',
+    a:()=>[['Hier, bitte.','Here you are.',G.P.papers?'good':'nopapers'],
+           ['Die sind beim Kommandanten.','The commandant has them.','bluff'],
+           ['Ich habe keine.','I have none.','bad']]},
+  chief:{de:'Wie heißt Ihr Kommandant?',en:'What is your commandant\'s name?',mood:'suspicious',
+    a:()=>names(G.castle.chief,CHIEFS).map(n=>['Kommandant '+n+'.','Commandant '+n+'.',n===G.castle.chief?'good':'bad'])},
+  parole:{de:'Die Parole!',en:'The password!',mood:'bark',
+    a:()=>names(G.castle.parole,PAROLEN).map(n=>[n+'.','"'+n+'"',n===G.castle.parole?'good':'bad'])}
+};
+function names(right,all){
+  const o=[right];while(o.length<3){const n=pick(all);if(o.indexOf(n)<0)o.push(n);}
+  return o.sort(()=>R()-0.5);
+}
+/* which questions, and how many, by castle and by who is asking */
+function questionPlan(g){
+  const d=G.castle.d,ss=g.kind==='ss';
+  const pool=['where','unit','accent'];
+  if(d>=2)pool.push('papers');
+  if(d>=3&&ss)pool.push('chief','parole','chief','parole');
+  const n=ss?(d<=2?1:d<=4?2:3):1;
+  const plan=[];
+  if(!G.P.holstered)plan.push('gun');
+  while(plan.length<n+(G.P.holstered?0:1)){const q=pick(pool);if(plan.indexOf(q)<0)plan.push(q);}
+  return plan;
+}
+function startQuestions(g){
+  G.state='question';
+  G.P.busy=null;G.P.moving=false;
+  for(const k in keys)keys[k]=false;
+  G.q={g,plan:questionPlan(g),wrong:0,t:0,cur:null,line:''};
+  asking(true);
+  const open=g.kind==='ss'?['Halt. Sie da.','cold']:['Moment mal.','ask'];
+  say(g,open[0],open[1],true);
+  nextQuestion();
+}
+function asking(on){try{document.body.classList.toggle('asking',!!on);}catch(e){}}
+function nextQuestion(pre){
+  const Q=G.q,key=Q.plan.shift();
+  if(!key){passed();return;}
+  const q=QUESTIONS[key];
+  Q.cur={key,q,a:q.a()};Q.t=tune(G.castle.d).qTime;Q.tmax=Q.t;
+  /* the question, in his voice, after whatever he said first */
+  setTimeout(()=>{if(G.q===Q)say(Q.g,q.de,q.mood,true);},pre?900:450);
+  paintQuestion(pre);
+}
+function paintQuestion(pre){
+  const Q=G.q,P=G.P,C=G.castle;
+  const who=Q.g.kind==='ss'?'SS':'WACHE';
+  const notes=[];
+  if(P.papers)notes.push('papers in your pocket');
+  if(P.knows.parole)notes.push('password: '+C.parole);
+  if(P.knows.chief)notes.push('commandant: '+C.chief);
+  ov.className='card band ask';
+  buildMenu((pre?'<p class="sub qpre">„'+esc(pre)+'“</p>':'')+
+    '<h1 class="qde">„'+esc(Q.cur.q.de)+'“</h1>'+
+    '<p class="qwho '+(Q.g.kind==='ss'?'ss':'')+'"><b>'+who+'</b> · '+esc(Q.cur.q.en)+'</p>'+
+    '<div class="qbar"><i id="qbar"></i></div>'+
+    Q.cur.a.map(o=>'<button class="menuitem qa" type="button">'+esc(o[0])+'<small>'+esc(o[1])+'</small></button>').join('')+
+    (notes.length?'<small class="tip">Notebook: '+esc(notes.join(' · '))+'</small>':''),
+    Q.cur.a.map((o,i)=>({go:()=>answer(i)})),0);
+}
+function answer(i){
+  const Q=G.q;if(!Q||G.state!=='question')return;
+  const o=Q.cur.a[i];let ok=false;
+  if(o){
+    if(o[2]==='good')ok=true;
+    else if(o[2]==='holster'){ok=true;if(!G.P.holstered)holster();}
+    else if(o[2]==='bluff')ok=R()<0.5;
+  }
+  G.stats.asked=(G.stats.asked||0)+1;
+  if(ok&&!Q.plan.length){passed();return;}
+  if(ok){nextQuestion();return;}
+  Q.wrong++;
+  if(Q.wrong>=2){spy();return;}
+  const why=!o?'Na? Antworten Sie!':o[2]==='nopapers'?'Sie haben ja gar keine Papiere...':'Hmm... Seltsam.';
+  say(Q.g,why,'suspicious',true);
+  /* one wrong answer earns one more question */
+  if(!Q.plan.length){const extra=['where','unit','accent'].filter(k=>k!==Q.cur.key);Q.plan.push(pick(extra));}
+  nextQuestion(why);
+}
+function passed(){
+  const Q=G.q;G.q=null;
+  Q.g.cleared=true;Q.g.susp=0;
+  say(Q.g,Q.g.kind==='ss'?pick(['Gut. Weitermachen.','In Ordnung. Gehen Sie.']):pick(['Alles klar. Weiter.','Na gut. Weiter.']),'dismiss',true);
+  G.stats.passed=(G.stats.passed||0)+1;
+  hideOverlay();asking(false);G.state='play';Snd.item();
+}
+function spy(){
+  const Q=G.q,g=Q.g;G.q=null;
+  hideOverlay();asking(false);G.state='play';
+  room().blown=true;
+  for(const o of room().guards)if(live(o)&&o.st!=='hup'){alarm(o);o.say=null;}
+  if(g.kind==='ss')raiseHunt();
+  say(g,'Spion! Alarm!','scream',true);
+  g.fireT=Math.max(g.fireT,0.9);
+}
+function stepQuestion(dt){
+  const Q=G.q;if(!Q)return;
+  /* the world waits, but nobody in it turns to stone: they breathe, blink */
+  for(const g of room().guards){if(g.say&&(g.say.t-=dt)<=0)g.say=null;g.phase+=dt;}
+  G.P.idle+=dt;
+  Q.t-=dt;
+  const b=el('qbar');if(b&&b.style)b.style.width=Math.max(0,100*Q.t/Q.tmax).toFixed(1)+'%';
+  if(Q.t<=0)answer(-1);
+}
+/* ---------- what the guards say to each other ----------
+ * Once you are in a uniform and have passed, they talk in front of you, and
+ * some of what they say is worth writing down. */
+function chatter(g,dt){
+  if(G.state!=='play'||!g.cleared&&g.kind==='ss')return;
+  G.chatT=(G.chatT||0)-dt;
+  if(G.chatT>0||R()>dt*0.35||g.say)return;
+  G.chatT=5+R()*4;
+  const C=G.castle,P=G.P,lines=[
+    ['Noch zwei Stunden Wache.'],['Ich habe Hunger.'],['Hast du Feuer?'],['Das Wetter ist schrecklich.'],
+    ['Die Suppe heute... furchtbar.']];
+  if(C.d>=3){
+    lines.push(['Die Parole heute ist '+C.parole+'.','parole'],['Die Parole heute ist '+C.parole+'.','parole']);
+    lines.push(['Kommandant '+C.chief+' ist heute schlecht gelaunt.','chief'],['Kommandant '+C.chief+' ist heute schlecht gelaunt.','chief']);
+  }
+  const l=pick(lines);
+  say(g,l[0],'chat',true);
+  if(l[1]&&!P.knows[l[1]]){
+    P.knows[l[1]]=true;
+    message(l[1]==='parole'?'OVERHEARD: THE PASSWORD':'OVERHEARD: THE COMMANDANT\'S NAME','#ffd84a');
+    hud();
   }
 }
 
@@ -1073,7 +1387,7 @@ function hitGuard(g,blast){
     return;
   }
   g.st='dying';g.dying=0;g.say=null;
-  if(R()<0.7)say(g,pick(['AAGH!','ARGH!','OOF!']));
+  if(R()<0.7)say(g,pick(['Aaah!','Argh!','Ooh!']),'scream');
   Snd.die();G.stats.kills++;
   for(const o of room().guards)if(o!==g&&live(o))alarm(o);
 }
@@ -1174,7 +1488,7 @@ function newGame(sd){
   startCastle(1);
 }
 function startCastle(d){
-  guardId=1;
+  guardId=1;G.q=null;asking(false);
   G.castle=makeCastle(d);
   const st=G.castle.rooms[G.castle.start];
   G.P=mkPlayer(st.start[0]*T+4,(st.start[1]+2)*T);
@@ -1184,7 +1498,9 @@ function startCastle(d){
   hud();
   const intro=d===1
     ?'Your cellmate is dying. He presses a pistol into your hand: '+START_BULLETS+' rounds, and '+
-      START_GRENADES+' grenades he had hidden in the straw. The war plans are somewhere in this castle.'
+      START_GRENADES+' grenades he had hidden in the straw. And in the chest by the wall, he says, is a '+
+      'guard\'s uniform. Put it on, put the gun away, and they may take you for one of them. The war plans '+
+      'are somewhere in this castle.'
     :'Caught again, and a new castle. '+START_BULLETS+' rounds, '+START_GRENADES+' grenades, and the plans somewhere in it.';
   showCard('CASTLE '+d+' · '+rankName(G.rank),intro,'INTO THE CASTLE',()=>{hideOverlay();G.state='play';});
 }
@@ -1211,6 +1527,7 @@ function stepGame(dt){
     stepNades(dt);
     return;
   }
+  if(G.state==='question'){stepQuestion(dt);return;}
   if(G.state==='dying'){
     G.dieT+=dt;
     for(const g of room().guards)if(g.say&&(g.say.t-=dt)<=0)g.say=null;
@@ -1286,7 +1603,7 @@ function demoInput(dt){
   return demoK;
 }
 function showSplash(){
-  G.state='splash';G.demo=true;
+  G.state='splash';G.demo=true;G.q=null;asking(false);
   seed=1981;guardId=1;
   G.castle=makeCastle(3);
   /* a room with company in it */
@@ -1356,6 +1673,7 @@ function showPause(){
   buildMenu('<h1>PAUSED</h1>'+
     '<canvas id="map" width="'+(G.castle.CW*8+2)+'" height="'+(G.castle.CH*8+2)+'" style="width:'+
       (G.castle.CW*16+4)+'px;height:'+(G.castle.CH*16+4)+'px"></canvas>'+
+    notebookHtml()+
     '<p class="sub">'+(G.impenetrable?'Impenetrable. Nothing can kill you; this run is not a record.'
       :'Mortal. One bullet ends it'+(G.P.vest?', unless the vest takes it':'')+'.')+'</p>'+
     '<button class="menuitem sel" type="button">BACK IN</button>'+
@@ -1363,6 +1681,13 @@ function showPause(){
     '<button class="menuitem" type="button">QUIT TO TITLE</button>',
     [{go:togglePause},{go:()=>{setImpenetrable(!G.impenetrable);showPause();}},{go:showSplash}]);
   drawMap();
+}
+function notebookHtml(){
+  const P=G.P,C=G.castle,r=[];
+  r.push('Uniform: '+(P.uniform?'yes, gun '+(P.holstered?'away':'out'):'not yet'));
+  if(C.d>=2)r.push('Papers: '+(P.papers?'yes':'not yet'));
+  if(C.d>=3){r.push('Password: '+(P.knows.parole?esc(C.parole):'?'));r.push('Commandant: '+(P.knows.chief?esc(C.chief):'?'));}
+  return '<small class="tip">'+r.join(' · ')+'</small>';
 }
 function togglePause(){
   if(G.state==='play'){G.state='paused';showPause();}
@@ -1414,6 +1739,9 @@ function hud(){
   if(P&&P.uniform&&!G.demo)tags.push('<span class="tag">UNIFORM</span>');
   if(P&&P.vest)tags.push('<span class="tag">VEST '+P.vest+'</span>');
   if(P&&P.plans)tags.push('<span class="tag on">PLANS</span>');
+  if(P&&P.uniform&&!G.demo)tags.push('<span class="tag">'+(P.holstered?'GUN AWAY':'GUN OUT')+'</span>');
+  if(P&&P.papers&&!G.demo)tags.push('<span class="tag">PAPERS</span>');
+  if(P&&(P.knows.parole||P.knows.chief)&&!G.demo)tags.push('<span class="tag">NOTES '+((P.knows.parole?1:0)+(P.knows.chief?1:0))+'</span>');
   if(G.hunt&&G.hunt.on&&!G.demo)tags.push('<span class="tag alarm">ALARM</span>');
   if(G.impenetrable)tags.push('<span class="tag inv">IMPENETRABLE</span>');
   el('kit').innerHTML=tags.join(' ');
@@ -1479,6 +1807,10 @@ function playerSprite(){
     return figure(kind,'H',legs,flip);
   }
   if(P.busy)return figure(kind,(G.t*5|0)%2?'rum1':'rum2','stand',flip);
+  if(P.holstered){
+    if(P.moving)return figure(kind,'hol',WALKCYCLE[Math.floor(P.dist/6)%4],flip);
+    return figure(kind,(P.idle|0)%2===1?'hol2':'hol','stand',flip,(P.idle%2.6)>2.45);
+  }
   const pose=aimPose(P.dir);
   if(P.moving)return figure(kind,pose,WALKCYCLE[Math.floor(P.dist/6)%4],flip);
   /* standing still he breathes: the gun sinks and rises once a second, and
@@ -1493,8 +1825,9 @@ function guardSprite(gd){
   if(gd.st==='dying')return figure(gd.kind,'H',gd.dying<0.25?'kneel':'lying',flip);
   const breath=(gd.phase|0)%2===1;
   if(gd.st==='hup')return figure(gd.kind,breath?'hup2':'hup','stand',flip,(gd.phase%1.8)>1.6);
-  const walking=gd.st==='patrol'||gd.st==='enter'||(gd.st==='alert'&&gd.walking);
-  const armed=gd.st==='alert'||gd.st==='enter'||gd.st==='inspect';
+  /* while someone is questioned nobody walks: they stand and breathe */
+  const walking=G.state!=='question'&&(gd.st==='patrol'||gd.st==='enter'||(gd.st==='alert'&&gd.walking));
+  const armed=gd.st==='alert'||gd.st==='enter';
   const torso=armed?(breath?'H2':'H'):(breath?'carry2':'carry');
   if(walking)return figure(gd.kind,armed?'H':'carry',WALKCYCLE[Math.floor(gd.dist/6)%4],flip);
   return figure(gd.kind,torso,'stand',flip,(gd.phase%2.2)>2.05);
@@ -1551,8 +1884,9 @@ function render(){
   }
   for(const s of G.sparks){rect(s.x-2,s.y,5,1,s.c);rect(s.x,s.y-2,1,5,s.c);}
   bubbles=[];
-  /* what the guards are shouting, over their heads */
-  for(const gd of rm.guards)if(gd.say){
+  /* what the guards are shouting, over their heads; not while one is
+   * questioning him, when it is on the card instead */
+  if(G.state!=='question')for(const gd of rm.guards)if(gd.say){
     /* above everyone standing under it, not across the next man's face */
     const half=txtW(gd.say.text)/2+4;
     let top=gd.y;
@@ -1585,18 +1919,18 @@ function press(k,on){
     if(k==='up')menuNav(-1);else if(k==='down')menuNav(1);else if(k==='fire'||k==='search')menuGo();
     return;
   }
-  if(k==='fire'||k==='gren'||k==='search'){if(on&&G.state==='play')taps[k]=true;if(k==='fire')keys.fire=on;return;}
+  if(k==='fire'||k==='gren'||k==='search'||k==='holster'){if(on&&G.state==='play')taps[k]=true;if(k==='fire')keys.fire=on;return;}
   keys[k]=on;
 }
 const KEYMAP={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',
   ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',' ':'fire',
-  x:'aim',X:'aim',Shift:'aim',e:'search',E:'search',g:'gren',G:'gren'};
+  x:'aim',X:'aim',Shift:'aim',e:'search',E:'search',g:'gren',G:'gren',h:'holster',H:'holster'};
 document.addEventListener('keydown',ev=>{
   const k=ev.key;
   if(k==='p'||k==='P'||k==='Escape'){togglePause();ev.preventDefault();return;}
   if(k==='Enter'){if(G.state!=='play')menuGo();ev.preventDefault();return;}
   const m=KEYMAP[k];
-  if(m){if(!ev.repeat||(m!=='fire'&&m!=='gren'&&m!=='search'))press(m,true);ev.preventDefault();}
+  if(m){if(!ev.repeat||(m!=='fire'&&m!=='gren'&&m!=='search'&&m!=='holster'))press(m,true);ev.preventDefault();}
 });
 document.addEventListener('keyup',ev=>{
   const m=KEYMAP[ev.key];
@@ -1620,7 +1954,7 @@ function hold(id,k){
   b.addEventListener('pointerup',off);
   b.addEventListener('pointercancel',off);
 }
-hold('bf','fire');hold('ba','aim');hold('bs','search');hold('bg','gren');
+hold('bf','fire');hold('ba','aim');hold('bs','search');hold('bg','gren');hold('bh','holster');
 hold('j0','fire');hold('j1','aim');
 
 /* ---------- the joystick ---------- */
@@ -1717,7 +2051,7 @@ function pollPads(){
   const want=stickDirs(Pad.x,Pad.y);
   if(b(12))want.up=true;if(b(13))want.down=true;if(b(14))want.left=true;if(b(15))want.right=true;
   feed(Pad.dirs,want);
-  const map={fire:b(0),search:b(1)||b(3),gren:b(2),aim:b(4)||b(5)||b(6)||b(7)};
+  const map={fire:b(0),search:b(1),gren:b(2),holster:b(3),aim:b(4)||b(5)||b(6)||b(7)};
   for(const k in map)if(map[k]!==!!Pad.b[k]){Pad.b[k]=map[k];press(k,map[k]);}
   const st=b(9);
   if(st&&!Pad.start){if(G.state==='play'||G.state==='paused')togglePause();else menuGo();}
@@ -1738,6 +2072,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 /* ---------- boot ---------- */
+Voice.init();
 showSplash();
 
 let last=0;

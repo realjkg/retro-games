@@ -41,8 +41,15 @@ const SCENES=[
                    stepPursuers(0.01);const g=room().guards.find(g=>g.st==='enter');watch(g);IN=true;STRIDE=true`],
   ['squad in',    `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(0.5);
                    const g=room().guards.filter(g=>g.st==='enter')[1]||room().guards[1];watch(g);IN=true;STRIDE=true`],
-  ['papers',      `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;const g=put('ss',130,92);put('ss',150,74);
-                   sim(1.4);watch(g)`],
+  ['frozen round',`play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
+                   const w=put('guard',200,60);w.st='patrol';w.dir=4;w.t=1e9;put('ss',130,92);sim(1.6);watch(w)`],
+  ['questioned',  `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
+                   const g=put('ss',130,92);put('ss',150,74);sim(1.6);watch(g)`],
+  ['answered',    `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;G.P.papers=true;
+                   const g=put('ss',130,92);sim(1.6);let n=0;
+                   while(G.state==='question'&&n++<6)answer(G.q.cur.a.findIndex(o=>o[2]==='good'||o[2]==='holster'));
+                   sim(0.1);watch(G.P);STRIDE=true`],
+  ['holstered',   `play();G.impenetrable=true;bare(60,92);G.P.holstered=true;watch(G.P);STRIDE=true;OFF=true`],
   ['picking',     `play();bare(108,98);room().chests.push({tx:12,ty:9,strong:false,state:'locked',item:{k:'vest'}});
                    search();sim(0.3);watch(G.P)`],
   ['grenade',     `play();bare(60,92);G.P.dir=0;throwNade();sim(0.2);watch(G.P)`],
@@ -52,7 +59,8 @@ const SCENES=[
   ['shot',        `play();G.impenetrable=false;bare(60,92);const g=put('guard',150,92);alarm(g);g.fireT=0;
                    G.P.dir=2;sim(0.5);watch(null)`],
   ['the way out', `play();visit(G.castle.exitRoom);toExit();watch(G.P);STRIDE=true;OFF=true`],
-  ['castle 9',    `play(9);visit(busiest());G.P.uniform=true;G.impenetrable=true;const g=regular();rounds(g);watch(g);STRIDE=true`],
+  ['castle 9',    `play(9);visit(busiest());G.P.uniform=true;G.P.holstered=true;G.impenetrable=true;
+                   room().guards.forEach(o=>o.cleared=true);const g=regular();rounds(g);watch(g);STRIDE=true`],
   ['paused',      `play();sim(0.2);togglePause()`],
 ];
 

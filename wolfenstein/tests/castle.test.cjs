@@ -65,7 +65,7 @@ test('a bullet kills a guard; an SS man takes three', ()=>{
 
 test('one bullet kills a mortal prisoner, and the run is over', ()=>{
   const r=runtime();
-  r.run(`G.impenetrable=false;`);
+  r.run(`G.impenetrable=false;G.P.grazed=true;`);
   bare(r,60,92);
   guard(r,'guard',140,92);
   r.run(`G.P.dir=4;G.P.face=-1;G.shots.push({x:120,y:81,vx:-GSHOT,vy:0,from:'g',life:3});`);
@@ -77,7 +77,7 @@ test('one bullet kills a mortal prisoner, and the run is over', ()=>{
 
 test('a vest takes three bullets and then it is gone', ()=>{
   const r=runtime();
-  r.run(`G.impenetrable=false;`);
+  r.run(`G.impenetrable=false;G.P.grazed=true;`);
   bare(r,60,92);
   r.run(`G.P.vest=VEST_HITS;`);
   for(let i=0;i<3;i++){r.run(`hitPlayer('shot')`);}
@@ -231,28 +231,180 @@ test('in a uniform you blend in, with the guards and the SS alike, until you fir
   assert.equal(r.j('G.hunt.on'),true,'an SS man saw a spy and raised no alarm');
 });
 
-test('the SS ask for your papers up close: stay and you are a spy, walk away and you pass', ()=>{
+test('in uniform, come close and you are stopped and questioned in German', ()=>{
   const r=runtime();
   r.run(`G.impenetrable=true;`);
   bare(r,100,92);
   guard(r,'ss',130,92);
-  r.run(`G.P.uniform=true;G.P.dir=2;`);
-  step(r,1.2);
-  assert.equal(r.j(`room().guards[0].st`),'inspect','he walked right past an SS man and was not looked at');
-  assert.match(r.j(`room().guards[0].say.text`),/PAPIERE|AUSWEIS/);
-  step(r,2.6);
-  assert.equal(r.j(`room().guards[0].st`),'alert','he stood there through the whole inspection and was not found out');
-  assert.equal(r.j('G.hunt.on'),true);
-  /* the same again, but he walks off */
-  bare(r,100,92);
-  guard(r,'ss',130,92);
-  r.run(`G.hunt.on=false;room().blown=false;`);
-  step(r,1.2);
-  assert.equal(r.j(`room().guards[0].st`),'inspect');
-  r.run(`keys.left=true;`);step(r,1.5);r.run(`keys.left=false;`);
+  r.run(`G.P.uniform=true;G.P.holstered=true;G.P.dir=2;`);
   step(r,1.5);
-  assert.equal(r.j(`room().guards[0].st`),'stand','walking away from the inspection did not end it');
-  assert.equal(r.j('G.hunt.on'),false);
+  assert.equal(r.j('G.state'),'question','he walked right up to an SS man and was not stopped');
+  const q=r.j('G.q.cur.q');
+  assert.ok(q.de&&q.en,'a question with no German or no English');
+  assert.equal(r.j('G.q.cur.a.length'),3,'not three answers to choose from');
+  /* the world waits while he is questioned */
+  const x=r.j('room().guards[0].x');step(r,1);
+  assert.equal(r.j('room().guards[0].x'),x);
+});
+
+test('the right answers and he waves you on, and does not stop you again', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'ss',130,92);
+  r.run(`G.P.uniform=true;G.P.holstered=true;G.P.papers=true;G.P.dir=2;`);
+  step(r,1.5);
+  let n=0;
+  while(r.j('G.state')==='question'&&n++<6)
+    r.run(`answer(G.q.cur.a.findIndex(o=>o[2]==='good'||o[2]==='holster'))`);
+  assert.equal(r.j('G.state'),'play');
+  assert.equal(r.j('room().guards[0].cleared'),true);
+  assert.equal(r.j('G.hunt.on'),false,'right answers raised the alarm');
+  step(r,5);
+  assert.equal(r.j('G.state'),'play','he was stopped again by a man who had passed him');
+});
+
+test('two wrong answers and you are a spy; hesitating counts as wrong', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'ss',130,92);
+  r.run(`G.P.uniform=true;G.P.holstered=true;G.P.dir=2;`);
+  step(r,1.5);
+  r.run(`answer(G.q.cur.a.findIndex(o=>o[2]==='bad'))`);
+  assert.equal(r.j('G.state'),'question','one wrong answer ended it');
+  const left=r.j('G.q.t');
+  step(r,left+0.1);                       /* and then say nothing at all */
+  assert.equal(r.j('G.state'),'play');
+  assert.equal(r.j('room().blown'),true);
+  assert.equal(r.j('room().guards[0].st'),'alert');
+  assert.equal(r.j('G.hunt.on'),true);
+  assert.equal(r.j('room().guards[0].say.text'),'SPION! ALARM!');
+});
+
+test('with the gun out he asks about the gun first, and saying sorry holsters it', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'ss',140,92);
+  r.run(`G.P.uniform=true;G.P.holstered=false;G.P.dir=2;`);
+  step(r,1);
+  assert.equal(r.j('G.state'),'question','the gun did not hurry him');
+  assert.equal(r.j('G.q.cur.key'),'gun');
+  r.run(`answer(G.q.cur.a.findIndex(o=>o[2]==='holster'))`);
+  assert.equal(r.j('G.P.holstered'),true);
+});
+
+test('what they ask builds up: easy in the first castle, the password and the commandant later', ()=>{
+  const r=runtime();
+  const asked=d=>r.j(`(()=>{startCastle(${d});hideOverlay();G.state='play';const o={};
+    for(let i=0;i<60;i++){G.P.holstered=true;for(const k of questionPlan(mkGuard('ss',0,0)))o[k]=1;
+      for(const k of questionPlan(mkGuard('guard',0,0)))o[k]=1;}return Object.keys(o).sort();})()`);
+  const one=asked(1),five=asked(5);
+  assert.deepEqual(one,['accent','unit','where'],'the first castle asks '+one);
+  assert.ok(five.includes('parole')&&five.includes('chief')&&five.includes('papers'),'castle five asks only '+five);
+  const n=r.j(`[1,4,6].map(d=>{startCastle(d);G.P.holstered=true;return questionPlan(mkGuard('ss',0,0)).length;})`);
+  assert.deepEqual(n,[1,2,3],'the SS do not ask more as the castles go on');
+});
+
+test('the password question has the castle\'s password among its answers, and the notebook has it once found', ()=>{
+  const r=runtime();
+  r.run(`startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;`);
+  bare(r,100,92);
+  const res=r.j(`(()=>{const a=QUESTIONS.parole.a();return{a:a.map(o=>o[0]),good:a.filter(o=>o[2]==='good').map(o=>o[0]),p:G.castle.parole};})()`);
+  assert.equal(res.good.length,1);
+  assert.equal(res.good[0],res.p+'.');
+  r.run(`give({k:'note',what:'parole'})`);
+  assert.equal(r.j('G.P.knows.parole'),true);
+  assert.match(r.j('notebookHtml()'),new RegExp(res.p));
+});
+
+test('in uniform the guards let slip the password and the commandant\'s name', ()=>{
+  const r=runtime();
+  r.run(`startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;`);
+  bare(r,100,92);
+  guard(r,'guard',150,92);
+  r.run(`G.P.uniform=true;G.P.holstered=true;room().guards[0].cleared=true;G.P.dir=2;`);
+  let t=0;
+  while(t<240&&!(r.j('G.P.knows.parole')&&r.j('G.P.knows.chief'))){step(r,1);t++;}
+  assert.ok(r.j('G.P.knows.parole'),'never overheard the password in '+t+'s');
+  assert.ok(r.j('G.P.knows.chief'),'never overheard the commandant in '+t+'s');
+});
+
+test('the uniform is always close: in the cell in castle one, next door after', ()=>{
+  const r=runtime();
+  for(const d of [1,2,3,5,9])for(const sd of [3,8,13]){
+    const res=r.j(`(()=>{seed=${sd*31+d};const C=makeCastle(${d});
+      const where=C.rooms.findIndex(rm=>rm.chests.some(c=>c.item&&c.item.k==='uniform'));
+      const cell=C.rooms[C.start],u=C.rooms[C.uniformRoom];
+      return{d:Math.abs(cell.cx-u.cx)+Math.abs(cell.cy-u.cy),inU:u.chests.some(c=>c.item&&c.item.k==='uniform'),
+        start:C.uniformRoom===C.start,ok:roomOk(u)};})()`);
+    assert.ok(res.inU,`castle ${d}: no uniform in the room it was put in`);
+    assert.ok(res.ok,`castle ${d}: the uniform's chest cannot be reached`);
+    if(d===1)assert.ok(res.start,'castle one: the uniform is not in the cell');
+    else assert.ok(res.d<=1,`castle ${d}: the uniform is ${res.d} rooms away`);
+  }
+});
+
+test('the first castle is the gentle one, and it builds up', ()=>{
+  const r=runtime();
+  const T=r.j(`[1,2,3,6,9].map(tune)`);
+  for(let i=1;i<T.length;i++){
+    assert.ok(T[i].react<=T[i-1].react&&T[i].fireGap<=T[i-1].fireGap&&T[i].jitter<=T[i-1].jitter,
+      'castle '+[1,2,3,6,9][i]+' is easier than the one before it');
+  }
+  assert.ok(T[0].react>=1.5&&T[0].jitter>=0.3&&T[0].gshot<=90,'castle one is not gentle: '+JSON.stringify(T[0]));
+  const ss=r.j(`(()=>{let n=0;for(let sd=1;sd<30;sd++){seed=sd;const C=makeCastle(1);
+    n+=C.rooms.reduce((a,rm)=>a+rm.guards.filter(g=>g.kind==='ss').length,0);}return n;})()`);
+  assert.equal(ss,0,'there are SS in the first castle');
+});
+
+test('the first bullet in the first castles only grazes him', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=false;`);
+  bare(r,60,92);
+  r.run(`hitPlayer('shot')`);
+  assert.equal(r.j('G.P.dead'),false,'the first bullet of castle one killed him');
+  r.run(`hitPlayer('shot')`);
+  assert.equal(r.j('G.P.dead'),true,'the second did not');
+  r.run(`startCastle(3);G.state='play';G.impenetrable=false;`);
+  r.run(`hitPlayer('shot')`);
+  assert.equal(r.j('G.P.dead'),true,'castle three still grazes');
+});
+
+test('the gun holstered: FIRE draws it and does not shoot, and a guard is not held up by it', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,60,92);
+  r.run(`holster();`);
+  assert.equal(r.j('G.P.holstered'),true);
+  const a=r.j('G.P.ammo');
+  r.run(`G.P.fireCool=0;fire();`);
+  assert.equal(r.j('G.P.ammo'),a,'a holstered gun went off');
+  assert.equal(r.j('G.P.holstered'),false,'FIRE did not draw it');
+  r.run(`holster();`);
+  guard(r,'guard',150,92);
+  r.run(`alarm(room().guards[0]);G.P.dir=0;`);
+  step(r,4);
+  assert.notEqual(r.j('room().guards[0].st'),'hup','he put his hands up for a gun in its holster');
+  assert.notEqual(r.j('figRows("player","hol","stand").join()'),r.j('figRows("player","H","stand").join()'),
+    'holstered, he looks the same');
+});
+
+test('each man has his own voice, and a question rises where an order falls', ()=>{
+  const r=runtime();
+  const sing=(text,mood,who)=>{r.notes.length=0;r.run(`Snd.on=true;Snd.intone(${JSON.stringify(text)},'${mood}',${JSON.stringify(who)})`);
+    return r.notes.filter((f,i)=>i%1===0).slice();};
+  const guard={kind:'guard',pitch:1,rate:1},ss={kind:'ss',pitch:1,rate:1};
+  const ask=sing('Wohin gehen Sie?','ask',guard),bark=sing('Halt! Stehenbleiben!','bark',guard);
+  assert.ok(ask.length>=3&&bark.length>=3);
+  assert.ok(ask[ask.length-1]>ask[0]*1.2,'a question does not rise: '+ask.map(Math.round));
+  assert.ok(bark[bark.length-1]<bark[0]*0.8,'an order does not fall: '+bark.map(Math.round));
+  const cold=sing('Ihre Papiere, bitte.','cold',ss);
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  assert.ok(avg(cold)<avg(sing('Ihre Papiere, bitte.','cold',guard))*0.8,'the SS do not sound lower');
+  const sus=sing('Sie haben einen komischen Akzent.','suspicious',guard);
+  const ups=sus.slice(1).filter((f,i)=>f>sus[i]).length,downs=sus.slice(1).filter((f,i)=>f<sus[i]).length;
+  assert.ok(ups>0&&downs>0,'suspicion does not waver');
+  const voices=r.j(`[mkGuard('guard',0,0),mkGuard('guard',0,0),mkGuard('guard',0,0)].map(g=>g.voice.pitch)`);
+  assert.ok(new Set(voices).size===3,'the guards all sound the same');
 });
 
 test('the SS go in squads: never one alone', ()=>{
