@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Castle Wolfenstein — The War Plans</title>
+<meta name="description" content="Castle Wolfenstein: a browser recreation of Muse Software's 1981 Apple II game. Break out of the cell, find the war plans, get out of the castle. With an impenetrable mode for endless castles.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%B0%3C/text%3E%3C/svg%3E">
+<!-- Installed to the home screen the game runs with no browser chrome at all,
+     which is the only way to stop iOS sliding its toolbars over a game in play. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#06070f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wolfenstein">
+<style>
+:root{--bg:#06070f;--panel:#10121f;--panel2:#191c2e;--ink:#eceefa;--dim:#9aa0c0;--gold:#ff9a3c;
+  --line:#2a2f4a;--hi:#14f53c;--vio:#e060f0}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#e9eaf2;--panel:#fff;--panel2:#f2f3f8;--ink:#12131c;
+    --dim:#555a78;--line:#cfd2e2}
+}
+:root[data-theme="dark"]{--bg:#06070f;--panel:#10121f;--panel2:#191c2e;--ink:#eceefa;--dim:#9aa0c0;
+  --line:#2a2f4a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Nothing here is text to select: a long press on a control should hold the
+   control, not raise iOS Safari's selection handles and its Copy callout. */
+html,body,.btn,.menuitem,#status,#overlay,#sound,canvas{
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  overscroll-behavior:none;touch-action:manipulation}
+body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;
+  padding:env(safe-area-inset-top) 8px calc(env(safe-area-inset-bottom) + 6px)}
+#wrap{width:100%;max-width:640px;display:flex;flex-direction:column;gap:6px;flex:1}
+#status{font-size:12px;line-height:1.35;min-height:34px;padding:6px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:4px 10px;
+  flex-wrap:wrap;align-items:center}
+#status b{color:var(--gold)}
+#status .tag{font-size:10px;letter-spacing:.08em;padding:1px 5px;border-radius:5px;border:1px solid var(--line)}
+#status .tag.on{color:#0a0a0a;background:var(--hi);border-color:var(--hi)}
+#status .tag.alarm{color:#fff;background:#c01010;border-color:#c01010;animation:alarm .5s steps(1) infinite}
+@keyframes alarm{50%{background:#400;border-color:#400}}
+@media (prefers-reduced-motion:reduce){#status .tag.alarm{animation:none}}
+#status .tag.inv{color:#0a0a0a;background:var(--vio);border-color:var(--vio)}
+#stage{position:relative;width:100%;aspect-ratio:280/168;background:#000;border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;touch-action:none;flex:0 1 auto;min-height:0}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#pads{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:6px}
+.stickwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+/* The Apple IIe's own joystick, on the glass: a beige box, a black stick with
+   a ball on top standing in a square well, and the two buttons, 0 and 1, in
+   the top corners. It handles like Galaga's thumb stick: you drag it, how far
+   you push is how fast he walks, and it springs back when you let go. */
+#joy{position:relative;width:168px;height:168px;border-radius:16px;flex:0 0 auto;
+  background:linear-gradient(160deg,#efe6cc 0%,#d9ceb0 55%,#bfb291 100%);
+  border:1px solid #9c9072;box-shadow:0 6px 0 #8f8466,0 10px 14px rgba(0,0,0,.45),
+    inset 0 2px 0 rgba(255,255,255,.55)}
+/* the trim wheels, ridged, at the right and front edges */
+#joy .trim{position:absolute;background:repeating-linear-gradient(90deg,#6c6450 0 2px,#a39878 2px 4px);
+  border-radius:3px;pointer-events:none}
+#joy .trim.v{right:-4px;top:62px;width:8px;height:40px;
+  background:repeating-linear-gradient(0deg,#6c6450 0 2px,#a39878 2px 4px)}
+#joy .trim.h{bottom:-4px;left:62px;height:8px;width:40px}
+#joy .jb{position:absolute;top:10px;width:34px;height:34px;border-radius:50%;padding:0;
+  background:radial-gradient(circle at 40% 35%,#5a5a5a 0,#262626 60%,#111 100%);
+  border:3px solid #b3a785;box-shadow:0 3px 0 #1a1a1a;color:transparent;cursor:pointer;touch-action:none}
+#joy .jb.on,#joy .jb:active{transform:translateY(2px);box-shadow:0 1px 0 #1a1a1a;
+  background:radial-gradient(circle at 40% 35%,#ff9a3c 0,#c85a10 70%)}
+#joy #j0{left:10px}#joy #j1{right:10px}
+#joy .lbl{position:absolute;top:47px;font:700 8px/1 ui-monospace,Menlo,monospace;color:#5c5440;
+  letter-spacing:.06em;pointer-events:none}
+#joy .l0{left:8px}#joy .l1{right:8px;text-align:right}
+#stick{position:absolute;left:36px;top:60px;width:96px;height:96px;border-radius:12px;touch-action:none;
+  background:radial-gradient(circle at 50% 50%,#1b1b1b 0 20%,#2c2a25 21% 100%);
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.7);cursor:grab}
+#stick .boot{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;
+  border-radius:50%;background:radial-gradient(circle,#3a3a3a 0,#161616 70%);pointer-events:none}
+#stick .shaft{position:absolute;left:50%;top:50%;width:10px;height:0;margin-left:-5px;
+  background:linear-gradient(90deg,#000,#444 45%,#000);border-radius:5px;transform-origin:50% 0;pointer-events:none}
+#knob{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,#7a7a7a 0,#1e1e1e 45%,#000 100%);
+  box-shadow:0 4px 6px rgba(0,0,0,.6);pointer-events:none;will-change:transform}
+.stickwrap small{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  font:inherit;font-size:13px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
+.btn small{font-size:8px;font-weight:600;letter-spacing:.03em;opacity:.65;text-transform:uppercase}
+.btn:active,.btn.on{background:var(--gold);color:#140a02;border-color:var(--gold)}
+.btn:active small,.btn.on small{opacity:.8}
+.abtn{width:84px;height:84px;border-radius:50%;font-weight:800;letter-spacing:.05em}
+.mbtn{width:62px;height:48px;border-radius:12px;font-weight:700;font-size:11px}
+.sbtn{width:62px;height:30px;border-radius:9px;font-size:10px;font-weight:700}
+.right{display:grid;grid-template-columns:auto auto;gap:8px;align-items:center;justify-items:center}
+.right .abtn{grid-row:span 2}
+#overlay{position:absolute;inset:0;background:rgba(4,5,12,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:7px;padding:12px;text-align:center;overflow-y:auto}
+#overlay.hidden{display:none}
+/* Centred when it fits and scrolled from the top when it does not: plain
+   centring in a short stage pushes the title off the top, out of reach. */
+#overlay,#overlay.card{justify-content:flex-start}
+#overlay>:first-child{margin-top:auto}
+#overlay>:last-child{margin-bottom:auto}
+#overlay.splash>:last-child{margin-bottom:0}
+/* Over the attract demo the overlay is only a scrim, so the castle shows through. */
+#overlay.splash{background:linear-gradient(rgba(0,0,0,.5) 0%,rgba(0,0,0,.15) 30%,rgba(0,0,0,.9) 64%);
+  justify-content:flex-end;gap:6px;padding:10px 12px 12px}
+#overlay.splash h1{font-size:22px;text-shadow:0 2px 4px #000}
+#overlay.splash .menuitem{width:min(330px,88%);padding:7px;background:rgba(16,18,31,.92);color:#eceefa;
+  border-color:#3a4060}
+#overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#140a02}
+#overlay.splash .sub,#overlay.splash small.tip{color:#c8cce0;text-shadow:0 1px 2px #000}
+#overlay.card{background:linear-gradient(rgba(4,5,12,.72),rgba(4,5,12,.95) 58%)}
+#overlay.card.band{background:linear-gradient(rgba(4,5,12,0) 20%,rgba(4,5,12,.9) 32%,rgba(4,5,12,.9) 68%,rgba(4,5,12,0) 80%)}
+h1{font-size:20px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
+.sub{font-size:12px;color:#c8cce0;margin:0 0 4px;max-width:440px;line-height:1.45}
+.menuitem{width:min(340px,90%);padding:9px;border:1px solid #3a4060;border-radius:10px;
+  background:#191c2e;font:inherit;font-size:13px;cursor:pointer;color:#eceefa}
+.menuitem.sel{border-color:var(--gold);background:var(--gold);color:#140a02;font-weight:700}
+small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
+.tally{font-size:12px;color:#eceefa;line-height:1.6;background:rgba(16,18,31,.85);
+  border:1px solid #3a4060;border-radius:10px;padding:6px 14px;min-width:min(300px,86%)}
+.tally .r{display:flex;justify-content:space-between;gap:18px}
+.tally .r span:last-child{color:var(--gold);font-weight:700}
+#map{image-rendering:pixelated;border:1px solid #3a4060;border-radius:6px;background:#000}
+#sound{height:28px;width:56px}
+@media (max-width:520px){
+  #overlay{gap:5px;padding:8px}
+  h1,#overlay.splash h1{font-size:15px}
+  .sub{font-size:10.5px;margin:0}
+  .menuitem,#overlay.splash .menuitem{padding:6px;font-size:11.5px}
+  small.tip{font-size:10px}
+  .tally{font-size:11px;padding:4px 10px}
+}
+@media (pointer:fine){#pads{display:none}}
+/* A narrow phone: the box a little smaller, so stick and buttons share a row. */
+@media (max-width:370px){
+  #joy{transform:scale(.84);transform-origin:0 100%;margin:-27px -27px 0 0}
+  .abtn{width:74px;height:74px}.mbtn{width:56px}
+}
+/* A phone on its side. The controls go either side of the playfield and the
+   playfield takes what height is left, so nothing is ever drawn over the
+   castle and nothing has to be scrolled to during play. */
+@media (orientation:landscape) and (max-height:560px) and (pointer:coarse){
+  body{padding:env(safe-area-inset-top) max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left))}
+  #wrap{max-width:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-rows:auto minmax(0,1fr);column-gap:10px;row-gap:4px;
+    height:calc(100dvh - 44px - env(safe-area-inset-top));flex:none}
+  #status{grid-column:1/4;min-height:0;padding:3px 8px;font-size:11px}
+  #sound{height:22px}
+  #pads{display:contents}
+  .stickwrap{grid-column:1;grid-row:2;align-self:center}
+  .stickwrap small{display:none}
+  .right{grid-column:3;grid-row:2;align-self:center}
+  #stage{grid-column:2;grid-row:2;align-self:center;justify-self:center;
+    width:min(100%,calc((100dvh - 44px - 40px - env(safe-area-inset-top)) * 280 / 168));height:auto}
+}
+/* Every pressable control carries its own touch-action. The shared zoom
+   guard below steps aside for anything pressable - it has to, or it eats
+   the click that a fast second press makes - and it does that on the
+   understanding that a control is already exempt from double-tap zoom. */
+.menuitem,#sound,button,a{touch-action:manipulation}
+.btn,#stick,#joy .jb{touch-action:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status">
+    <span id="hud">RANK <b id="rank">PRIVATE</b> · CASTLE <b id="castle">1</b></span>
+    <span id="hud2">BULLETS <b id="ammo">10</b> · GRENADES <b id="gren">3</b> <span id="kit"></span></span>
+    <!-- up here, not on the glass, where it would sit on the castle wall -->
+    <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button>
+  </div>
+  <div id="stage">
+    <canvas id="c" width="280" height="168"></canvas>
+    <div id="overlay" class="splash"></div>
+  </div>
+  <div id="pads">
+    <div class="stickwrap">
+      <div id="joy">
+        <button class="jb" id="j0" type="button" aria-label="button 0: fire">0</button>
+        <button class="jb" id="j1" type="button" aria-label="button 1: hold to aim">1</button>
+        <span class="lbl l0">0 · FIRE</span><span class="lbl l1">1 · AIM</span>
+        <i class="trim v" aria-hidden="true"></i><i class="trim h" aria-hidden="true"></i>
+        <div id="stick" role="application" aria-label="joystick: push to walk, further to walk faster">
+          <i class="boot" aria-hidden="true"></i><i class="shaft" id="shaft"></i><i id="knob"></i>
+        </div>
+      </div>
+      <small>push further · walk faster</small>
+    </div>
+    <div class="right">
+      <button class="btn abtn" id="bf" type="button">FIRE</button>
+      <button class="btn mbtn" id="ba" type="button">AIM<small>hold</small></button>
+      <button class="btn mbtn" id="bs" type="button">SEARCH<small>chest · body</small></button>
+      <button class="btn mbtn" id="bg" type="button">THROW<small>grenade</small></button>
+      <button class="btn sbtn" id="bp" type="button">PAUSE</button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* Castle Wolfenstein — The War Plans
+ *
+ * After Silas Warner's Castle Wolfenstein, Muse Software, 1981, for the Apple
+ * II. You are a prisoner in the castle. A dying cellmate has given you a
+ * pistol. Somewhere in one of the chests are the war plans; find them and get
+ * out through the castle's one way out, and you are promoted. Get out without
+ * them and you are only alive.
+ *
+ * The castle is a grid of rooms seen from above, one room at a time. Guards
+ * patrol; they shout, then shoot. Point your gun at one and he may put his
+ * hands up. The SS wear bulletproof vests, never surrender, and follow you
+ * from room to room. Chests take time to pick; shooting the lock is quicker.
+ * A guard's uniform gets you past the guards, but not past the SS.
+ *
+ * IMPENETRABLE is this game's own addition: a switch on the title and the pause
+ * menu that makes the prisoner bulletproof. Bullets ring off him and grenades
+ * do not knock him down, so a run never ends; the castles keep coming, each a
+ * little worse than the last, for as long as you care to keep escaping them.
+ * An impenetrable run is never a record.
+ *
+ * The playfield is 280x168 logical pixels, the Apple's own width, drawn at
+ * whatever size the page has room for with image-rendering:pixelated. Every
+ * figure is a grid of letters in this file, so the picture in the source is
+ * the picture on the screen.
+ */
+const W=280,H=168,T=8,COLS=35,ROWS=21;
+/* The openings between rooms: five tiles wide in the middle of each wall. */
+const DOOR_X0=15,DOOR_X1=19,DOOR_Y0=8,DOOR_Y1=12;
+const FLOOR=0,OUTER=1,INNER=2,RUBBLE=3;
+/* How it feels, in one place.
+ *   WALK     the prisoner crosses a room in about six seconds
+ *   PSHOT    a bullet of yours is fast; GSHOT, a guard's, can be stepped out of
+ *   REACH    how close you have to be to a chest or a body to search it */
+const WALK=46,PSHOT=210,GSHOT=128,REACH=7;
+const START_BULLETS=10,START_GRENADES=3,VEST_HITS=3,SS_HP=3,MAX_AMMO=99,MAX_GREN=9;
+const RANKS=['PRIVATE','CORPORAL','SERGEANT','LIEUTENANT','CAPTAIN','MAJOR','COLONEL','GENERAL','FIELD MARSHAL'];
+/* Eight directions, east first and clockwise, the way the screen's y runs. */
+const DIRS=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+const SIDES={n:[0,-1],s:[0,1],e:[1,0],w:[-1,0]};
+const OPP={n:'s',s:'n',e:'w',w:'e'};
+
+/* ---------- small helpers ---------- */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+/* One seeded generator for everything, so a castle is its seed and a test can
+ * ask for the same castle twice. */
+let seed=1;
+function R(){seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^(seed>>>15),1|seed);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;}
+function ri(n){return Math.floor(R()*n);}
+function pick(a){return a[ri(a.length)];}
+/* localStorage is absent in a file:// sandbox on some browsers and throws on
+ * read in private mode on others, so every touch of it is guarded. */
+function load(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,String(v));}catch(e){}}
+function loadJSON(k,d){try{const v=JSON.parse(load(k,'null'));return v===null?d:v;}catch(e){return d;}}
+
+/* ---------- sound ---------- */
+/* Every sound is built from oscillators at call time; nothing is fetched. The
+ * Apple had one speaker and a click, so these are clicks and buzzes. */
+const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
+  boot(){
+    if(this.ctx)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();}catch(e){this.ctx=null;}
+  },
+  live(){
+    if(!this.on)return null;this.boot();const c=this.ctx;if(!c)return null;
+    try{if(c.state==='suspended')c.resume();}catch(e){}
+    return c;
+  },
+  tone(type,f0,f1,dur,gain,delay){
+    const c=this.live();if(!c)return;
+    const t=c.currentTime+(delay||0);
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(f0,t);
+    if(f1&&f1!==f0)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(gain,t+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur+0.02);
+  },
+  noise(dur,gain,f,delay){
+    const c=this.live();if(!c)return;
+    const n=Math.max(1,Math.floor(c.sampleRate*dur));
+    const buf=c.createBuffer(1,n,c.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=buf;
+    const bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f||900;
+    const g=c.createGain();g.gain.value=gain;
+    s.connect(bp);bp.connect(g);g.connect(c.destination);s.start(c.currentTime+(delay||0));
+  },
+  shot(){this.noise(0.12,0.2,1800);this.tone('square',180,60,0.08,0.05);},
+  gshot(){this.noise(0.14,0.14,1100);},
+  click(){this.tone('square',1400,1400,0.02,0.04);},
+  ping(){this.tone('triangle',2400,1500,0.18,0.06);this.tone('square',3100,2200,0.08,0.02);},
+  clang(){this.tone('square',620,610,0.12,0.05);this.tone('square',930,900,0.1,0.03);},
+  boom(){this.noise(0.7,0.35,300);this.tone('sawtooth',120,30,0.6,0.08);},
+  tick(){this.tone('square',300+Math.random()*200,0,0.025,0.03);},
+  open(){this.tone('square',200,420,0.14,0.05);},
+  item(){[523,784,1046].forEach((f,i)=>this.tone('square',f,f,0.07,0.05,i*0.06));},
+  plans(){[523,659,784,1046,1318,1568].forEach((f,i)=>this.tone('square',f,f,0.1,0.06,i*0.08));},
+  die(){this.tone('sawtooth',400,60,0.5,0.06);},
+  hit(){this.tone('square',220,90,0.12,0.06);},
+  step(){this.tone('square',90,90,0.012,0.02);},
+  /* A guard's shout is a burst of square-wave syllables, one per vowel, which
+   * is about as much speech as the Apple's speaker could do without a card. */
+  speak(text,low){
+    const v=(text.match(/[AEIOU]+/g)||['A']).slice(0,6);
+    const base=low?150:200;
+    v.forEach((s,i)=>{const f=base+((s.charCodeAt(0)*37)%90);
+      this.tone('square',f,f*0.8,0.09,0.045,i*0.11);});
+  },
+  /* the alarm: a two-tone siren, rising and falling */
+  klaxon(){for(let i=0;i<4;i++){this.tone('sawtooth',440,660,0.22,0.05,i*0.46);this.tone('sawtooth',660,440,0.22,0.05,i*0.46+0.23);}},
+  heart(){this.tone('sine',62,40,0.12,0.18);this.tone('sine',58,38,0.12,0.14,0.2);},
+  boots(){for(let i=0;i<6;i++)this.noise(0.05,0.12,160,i*0.16);},
+  escape(){[392,523,659,784,1046].forEach((f,i)=>this.tone('square',f,f,0.12,0.06,i*0.11));},
+  over(){[392,330,262,196].forEach((f,i)=>this.tone('square',f,f*0.97,0.22,0.06,i*0.24));}
+};
+
+/* ---------- the lettering ---------- */
+/* A three-by-five pixel font, so that what the guards shout is drawn at the
+ * same pixel size as the guards. Fifteen bits a letter, row by row. */
+const FONT={
+  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',
+  E:'111100110100111',F:'111100110100100',G:'011100101101011',H:'101101111101101',
+  I:'111010010010111',J:'001001001101010',K:'101101110101101',L:'100100100100111',
+  M:'101111111101101',N:'110101101101101',O:'010101101101010',P:'110101110100100',
+  Q:'010101101110011',R:'110101110101101',S:'011100010001110',T:'111010010010010',
+  U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',
+  Y:'101101010010010',Z:'111001010100111',
+  0:'111101101101111',1:'010110010010111',2:'110001010100111',3:'110001010001110',
+  4:'101101111001001',5:'111100110001110',6:'011100111101111',7:'111001010010010',
+  8:'111101111101111',9:'111101111001110',
+  '!':'010010010000010','?':'110001010000010','.':'000000000000010',',':'000000000010100',
+  "'":'010010000000000','-':'000000111000000',':':'000010000010000','/':'001001010100100',
+  '+':'000010111010000','*':'101010111010101'
+};
+function txtW(s){return s.length*4-1;}
+function txt(s,x,y,col){
+  g.fillStyle=col;
+  for(let i=0;i<s.length;i++){
+    const f=FONT[s[i].toUpperCase()];if(!f)continue;
+    for(let b=0;b<15;b++)if(f[b]==='1')g.fillRect((x+i*4+b%3)|0,(y+((b/3)|0))|0,1,1);
+  }
+}
+
+/* ---------- sprites ---------- */
+/* A figure is eleven columns by sixteen rows: a head of four, a torso of six
+ * and legs of six, written as letters and put together BEFORE they are drawn,
+ * so there is no seam between the parts. Everything faces right; the
+ * left-facing copies are mirrors baked on first use.
+ *
+ * Two leg colours, near and far, so that the two halves of the stride are two
+ * different pictures and the walk cycle is four frames, not two. */
+const HEADS={
+  player:['...hhhh....','..hhhhhh...','..hssse....','...ssss....'],
+  guard: ['...gggg....','..gggggg...','.gggsse....','...ssss....'],
+  ss:    ['...GGGG....','..GGGGGG...','.GGGsse....','...ssss....']
+};
+/* the same heads with the eyes shut, for the blink */
+const BLINK={};
+for(const k in HEADS)BLINK[k]=HEADS[k].map(r=>r.replace('e','s'));
+const TORSOS={
+  /* the gun held level, raised, lowered; and carried, for a guard at ease */
+  H:    ['...cccc....','..cccccsskk','..cccccc...','..cccccc...','..cccccc...','..bbbbbb...'],
+  H2:   ['...cccc....','..cccccc...','..cccccsskk','..cccccc...','..cccccc...','..bbbbbb...'],
+  U:    ['...cccc..kk','..ccccccsk.','..ccccccs..','..cccccc...','..cccccc...','..bbbbbb...'],
+  D:    ['...cccc....','..ccccccc..','..cccccccs.','..cccccc.kk','..cccccc...','..bbbbbb...'],
+  /* the same three a breath later: the gun sinks a pixel */
+  U2:   ['...cccc....','..cccccc.kk','..ccccccsk.','..ccccccs..','..cccccc...','..bbbbbb...'],
+  D2:   ['...cccc....','..cccccc...','..ccccccc..','..cccccccs.','..cccccc.kk','..bbbbbb...'],
+  carry:['...cccc....','..cccccc...','..cccccsk..','..cccccck..','..ccccc.k..','..bbbbbb...'],
+  carry2:['...cccc....','..cccccc...','..cccccc...','..cccccsk..','..cccccck..','..bbbbbb.k.'],
+  /* both arms up: the arms themselves are drawn up past the head by hup() */
+  hup:  ['.c.cccc.c..','.cccccccc..','..cccccc...','..cccccc...','..cccccc...','..bbbbbb...'],
+  hup2: ['.c.cccc.c..','.cccccccc..','..cccccc...','..cccccc...','..cccccc...','..bbbbbb...'],
+  /* hands busy at a lock or a pocket */
+  rum1: ['...cccc....','..cccccc...','..ccccccs..','..cccccccs.','..cccccc...','..bbbbbb...'],
+  rum2: ['...cccc....','..cccccc...','..cccccc...','..ccccccss.','..ccccccs..','..bbbbbb...']
+};
+const LEGS={
+  stand:['...qqpp....','...qq.pp...','...qq.pp...','...qq.pp...','...qq.pp...','..ooo.ooo..'],
+  a:    ['...qqppp...','...qq..pp..','..qq....pp.','..qq....pp.','.qq......pp','.oo......oo'],
+  b:    ['...qqppp...','...qqqpp...','..qq..pp...','.qq...pp...','.q....pp...','o....ooo...'],
+  c:    ['...ppqqq...','...pp..qq..','..pp....qq.','..pp....qq.','.pp......qq','.oo......oo'],
+  d:    ['...ppqqq...','...pppqq...','..pp..qq...','.pp...qq...','.p....qq...','o....ooo...']
+};
+const WALKCYCLE=['a','b','c','d'];
+const PAL={
+  player:{h:'#c8843a',s:'#f2b98a',e:'#1a1a1a',c:'#f2f2f2',b:'#6a6a7a',k:'#9aa0b0',
+    p:'#b8bcc8',q:'#7c8090',o:'#8a5a2a'},
+  /* the same prisoner in a guard's coat; the hair shows, so you can find him */
+  disguised:{h:'#c8843a',s:'#f2b98a',e:'#1a1a1a',c:'#14c83c',b:'#0a3a14',k:'#9aa0b0',
+    p:'#0e9a2c',q:'#08661c',o:'#8a5a2a'},
+  guard:{g:'#0b8a24',s:'#f2b98a',e:'#1a1a1a',c:'#14c83c',b:'#0a3a14',k:'#9aa0b0',
+    p:'#0e9a2c',q:'#08661c',o:'#8a5a2a'},
+  ss:{G:'#b8b8c8',s:'#f2b98a',e:'#1a1a1a',c:'#c040e0',b:'#1a1a1a',k:'#9aa0b0',
+    p:'#8a2aa8',q:'#5c1a78',o:'#3a3a48'}
+};
+/* Lying down, head to the right. Sixteen wide. */
+const LYING=['................','................','................','................',
+  '................','................','................','................',
+  '................','................','................','................',
+  '..............h.','ooqqqqcccccccshh','oopppppccccccsse','.......bb.....s.'];
+const KNEEL_LEGS=['..qqqpppp..','..qq...pp..','.ooo...ooo.'];
+
+const SPR={};
+function bake(rows,pal,flip){
+  const w=rows[0].length,h=rows.length;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){
+    const ch=rows[j][flip?w-1-i:i];
+    if(ch==='.'||!pal[ch])continue;
+    x.fillStyle=pal[ch];x.fillRect(i,j,1,1);
+  }
+  return c;
+}
+function hup(rows,low){
+  /* the arms go up either side of the head; and sag a row, and go up again */
+  return rows.map((r,j)=>{
+    if(j>3||(low&&j===0))return r;
+    const top=low?1:0;
+    const a=r.split('');a[1]=j===top?'s':'c';a[8]=j===top?'s':'c';return a.join('');
+  });
+}
+/* kind: player|guard|ss   torso: a TORSOS key   legs: a LEGS key or 'kneel'|'lying' */
+function figRows(kind,torso,legs,blink){
+  if(legs==='lying')return LYING.map(r=>r.replace(/h/g,kind==='player'?'h':kind==='ss'?'G':'g'));
+  const head=(blink?BLINK:HEADS)[kind==='disguised'?'player':kind];
+  if(legs==='kneel'){
+    const up=head.concat(TORSOS[torso]);
+    return ['...........','...........','...........'].concat(up,KNEEL_LEGS);
+  }
+  let rows=head.concat(TORSOS[torso],LEGS[legs]);
+  if(torso==='hup'||torso==='hup2')rows=hup(rows,torso==='hup2');
+  return rows;
+}
+function figure(kind,torso,legs,flip,blink){
+  const key=kind+'|'+torso+'|'+legs+'|'+(flip?1:0)+(blink?'b':'');
+  if(!SPR[key])SPR[key]=bake(figRows(kind,torso,legs,blink),PAL[kind],flip);
+  return SPR[key];
+}
+
+/* ---------- the castle ---------- */
+/* A castle is a grid of rooms, joined by openings. The grid grows with each
+ * castle you escape, up to six by five. The rooms are joined as a maze, so
+ * every room can be reached, and then a few more openings are cut so it is
+ * not only a maze. One room on the outside has the way out. The war plans
+ * are in a steel strongbox in a room a long way from the cell. */
+function castleSize(d){return[Math.min(3+Math.floor((d+1)/2),6),Math.min(2+Math.floor((d+1)/2),5)];}
+/* the standing places: a box one tile wide and two tall, all floor */
+function openT(room,tx,ty){
+  if(tx<0||tx>=COLS||ty<0||ty>=ROWS)return false;
+  const t=room.g[ty*COLS+tx];
+  if(t===OUTER||t===INNER)return false;
+  for(const c of room.chests)if(ty===c.ty&&(tx===c.tx||tx===c.tx+1))return false;
+  return true;
+}
+function standT(room,tx,ty){return openT(room,tx,ty)&&openT(room,tx,ty+1);}
+const ENTRY={n:[17,1],s:[17,ROWS-3],w:[1,9],e:[COLS-2,9]};
+function reach(room,from){
+  const seen=new Uint8Array(COLS*ROWS),q=[from];
+  if(!standT(room,from[0],from[1]))return seen;
+  seen[from[1]*COLS+from[0]]=1;
+  while(q.length){
+    const[x,y]=q.pop();
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS||seen[ny*COLS+nx]||!standT(room,nx,ny))continue;
+      seen[ny*COLS+nx]=1;q.push([nx,ny]);
+    }
+  }
+  return seen;
+}
+/* can a player stand next to this chest, from somewhere the doors reach? */
+function chestReachable(seen,c){
+  const spots=[[c.tx,c.ty+1],[c.tx+1,c.ty+1],[c.tx,c.ty-2],[c.tx+1,c.ty-2],
+    [c.tx-1,c.ty-1],[c.tx-1,c.ty],[c.tx+2,c.ty-1],[c.tx+2,c.ty]];
+  return spots.some(([x,y])=>x>=0&&y>=0&&x<COLS&&y<ROWS&&seen[y*COLS+x]);
+}
+function roomOk(room){
+  const sides=Object.keys(room.doors).filter(k=>room.doors[k]);
+  if(room.exit)sides.push(room.exit);
+  const from=sides.length?ENTRY[sides[0]]:room.start;
+  if(!from)return true;
+  const seen=reach(room,from);
+  for(const s of sides){const[x,y]=ENTRY[s];if(!seen[y*COLS+x])return false;}
+  if(room.start&&!seen[room.start[1]*COLS+room.start[0]])return false;
+  for(const c of room.chests)if(!chestReachable(seen,c))return false;
+  return true;
+}
+function blankGrid(room){
+  const g=new Array(COLS*ROWS).fill(FLOOR);
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)
+    if(x===0||y===0||x===COLS-1||y===ROWS-1)g[y*COLS+x]=OUTER;
+  const cut=side=>{
+    if(side==='n'||side==='s'){const y=side==='n'?0:ROWS-1;for(let x=DOOR_X0;x<=DOOR_X1;x++)g[y*COLS+x]=FLOOR;}
+    else{const x=side==='w'?0:COLS-1;for(let y=DOOR_Y0;y<=DOOR_Y1;y++)g[y*COLS+x]=FLOOR;}
+  };
+  for(const k in room.doors)if(room.doors[k])cut(k);
+  if(room.exit)cut(room.exit);
+  return g;
+}
+/* walls inside a room: a few runs of brick, and the odd pillar */
+function furnish(room){
+  const g=room.g;
+  const runs=ri(4),pillars=ri(3);
+  for(let i=0;i<runs;i++){
+    const len=5+ri(8);
+    if(R()<0.5){const y=3+ri(ROWS-6),x0=3+ri(COLS-6-len);
+      for(let x=x0;x<x0+len;x++)g[y*COLS+x]=INNER;}
+    else{const x=3+ri(COLS-6),y0=3+ri(Math.max(1,ROWS-6-Math.min(len,10)));
+      for(let y=y0;y<Math.min(y0+Math.min(len,10),ROWS-3);y++)g[y*COLS+x]=INNER;}
+  }
+  for(let i=0;i<pillars;i++){
+    const x=4+ri(COLS-9),y=4+ri(ROWS-9);
+    g[y*COLS+x]=g[y*COLS+x+1]=g[(y+1)*COLS+x]=g[(y+1)*COLS+x+1]=INNER;
+  }
+}
+function place(room,n,far){
+  /* n free standing places, at least `far` tiles from every door and each other */
+  const out=[];
+  const avoid=Object.keys(SIDES).filter(k=>room.doors[k]||room.exit===k).map(k=>ENTRY[k]);
+  if(room.start)avoid.push(room.start);
+  for(let tries=0;tries<400&&out.length<n;tries++){
+    const x=2+ri(COLS-4),y=2+ri(ROWS-5);
+    if(!standT(room,x,y))continue;
+    if(avoid.concat(out).some(([ax,ay])=>Math.abs(ax-x)+Math.abs(ay-y)<far))continue;
+    out.push([x,y]);
+  }
+  return out;
+}
+const JUNK=['SAUERKRAUT','SCHNAPPS','WURST','KARTOFFELN','LIEDERKRANZ','AN IRON CROSS','LETTERS FROM HOME',
+  'A CUCKOO CLOCK','SOCKS','STOLLEN'];
+function chestItem(){
+  const r=R();
+  if(r<0.34)return{k:'bullets',n:3+ri(7)};
+  if(r<0.52)return{k:'grenades',n:1+ri(3)};
+  if(r<0.62)return{k:'uniform'};
+  if(r<0.70)return{k:'vest'};
+  return{k:'junk',name:pick(JUNK)};
+}
+function makeRoom(cx,cy,doors,opts){
+  let room;
+  for(let attempt=0;attempt<40;attempt++){
+    room={cx,cy,doors,exit:opts.exit||null,start:opts.start?[17,9]:null,chests:[],guards:[],
+      seen:false,blown:false,g:null};
+    room.g=blankGrid(room);
+    if(attempt<35)furnish(room);
+    /* chests stand on the floor, two tiles wide, reachable from a door */
+    const n=opts.strong?1+ri(2):ri(3);
+    for(let i=0;i<n;i++){
+      const x=3+ri(COLS-7),y=3+ri(ROWS-6);
+      if(!openT(room,x,y)||!openT(room,x+1,y))continue;
+      if(room.chests.some(c=>Math.abs(c.tx-x)<4&&Math.abs(c.ty-y)<3))continue;
+      const strong=opts.strong&&!room.chests.some(c=>c.strong);
+      room.chests.push({tx:x,ty:y,strong,state:'locked',item:strong?{k:'plans'}:chestItem()});
+    }
+    if(opts.strong&&!room.chests.some(c=>c.strong))continue;
+    if(roomOk(room))break;
+  }
+  /* the guards, never in the cell and never on top of a door */
+  if(!opts.start){
+    const d=opts.d;
+    const n=Math.min(3,ri(2)+(R()<0.35+0.08*d?1:0)+(d>=3&&R()<0.5?1:0));
+    const spots=place(room,n+1,7);
+    for(const[x,y]of spots.slice(0,n))room.guards.push(mkGuard('guard',x*T+4,(y+2)*T));
+    /* The SS never go about alone. A room that has them has a squad: two, and
+     * from the fourth castle sometimes three, standing together. */
+    if(spots.length>n&&R()<Math.min(0.5,0.14+0.06*(d-1))){
+      const[x,y]=spots[n],size=2+(d>=4&&R()<0.4?1:0);
+      room.guards.push(mkGuard('ss',x*T+4,(y+2)*T));
+      for(let k=1;k<size;k++){
+        const near=[[x+2*k,y],[x-2*k,y],[x,y+2],[x,y-2],[x+2,y+2],[x-2,y-2]].find(([a,b])=>standT(room,a,b)&&
+          !room.guards.some(g=>Math.abs(g.x-(a*T+4))<8&&Math.abs(g.y-(b+2)*T)<8));
+        if(near)room.guards.push(mkGuard('ss',near[0]*T+4,(near[1]+2)*T));
+      }
+    }
+  }
+  return room;
+}
+let guardId=1;
+function mkGuard(kind,x,y){
+  return{id:guardId++,kind,x,y,dir:ri(8),face:R()<0.5?1:-1,dist:0,st:'stand',t:0.3+R(),
+    fireT:1,hp:kind==='ss'?SS_HP:1,searched:false,say:null,lastSeen:null,noLos:0,detour:0,
+    detourDir:0,phase:R()*2,dying:0,hupT:0,susp:0};
+}
+function makeCastle(d){
+  const[CW,CH]=castleSize(d);
+  const doors=[];for(let i=0;i<CW*CH;i++)doors.push({n:false,s:false,e:false,w:false});
+  const idx=(x,y)=>y*CW+x;
+  const join=(x,y,side)=>{const[dx,dy]=SIDES[side];doors[idx(x,y)][side]=true;doors[idx(x+dx,y+dy)][OPP[side]]=true;};
+  /* the maze: a depth-first walk, so every room is joined to every other */
+  const seen=new Uint8Array(CW*CH),stack=[[ri(CW),ri(CH)]];
+  seen[idx(stack[0][0],stack[0][1])]=1;
+  while(stack.length){
+    const[x,y]=stack[stack.length-1];
+    const opts=Object.keys(SIDES).filter(s=>{const[dx,dy]=SIDES[s];const nx=x+dx,ny=y+dy;
+      return nx>=0&&ny>=0&&nx<CW&&ny<CH&&!seen[idx(nx,ny)];});
+    if(!opts.length){stack.pop();continue;}
+    const s=pick(opts),[dx,dy]=SIDES[s];
+    join(x,y,s);seen[idx(x+dx,y+dy)]=1;stack.push([x+dx,y+dy]);
+  }
+  /* and a few more openings, so there is more than one way round */
+  for(let i=0;i<Math.floor(CW*CH/4);i++){
+    const x=ri(CW),y=ri(CH),s=pick(['e','s']);const[dx,dy]=SIDES[s];
+    if(x+dx<CW&&y+dy<CH)join(x,y,s);
+  }
+  /* distance from the cell, through the openings */
+  const start=ri(CW*CH),dist=new Array(CW*CH).fill(-1),q=[start];dist[start]=0;
+  while(q.length){const i=q.shift(),x=i%CW,y=(i/CW)|0;
+    for(const s in SIDES)if(doors[i][s]){const[dx,dy]=SIDES[s],j=idx(x+dx,y+dy);
+      if(dist[j]<0){dist[j]=dist[i]+1;q.push(j);}}}
+  const max=Math.max(...dist);
+  /* the way out: the farthest room from the cell that has an outside wall */
+  const outside=i=>{const x=i%CW,y=(i/CW)|0;const s=[];
+    if(y===0)s.push('n');if(y===CH-1)s.push('s');if(x===0)s.push('w');if(x===CW-1)s.push('e');return s;};
+  let exitRoom=-1;
+  for(let i=0;i<CW*CH;i++)if(i!==start&&outside(i).length&&(exitRoom<0||dist[i]>dist[exitRoom]))exitRoom=i;
+  if(exitRoom<0)exitRoom=start;
+  const exitSide=pick(outside(exitRoom));
+  /* the plans: somewhere at least half way out, and not in the cell */
+  const far=[];for(let i=0;i<CW*CH;i++)if(i!==start&&dist[i]>=Math.max(1,Math.floor(max/2)))far.push(i);
+  const plansRoom=far.length?pick(far):exitRoom;
+  const rooms=[];
+  for(let i=0;i<CW*CH;i++)
+    rooms.push(makeRoom(i%CW,(i/CW)|0,doors[i],
+      {d,start:i===start,exit:i===exitRoom?exitSide:null,strong:i===plansRoom}));
+  return{d,CW,CH,rooms,start,exitRoom,exitSide,plansRoom};
+}
+
+/* ---------- state ---------- */
+const G={state:'splash',demo:true,impenetrable:load('wolfenstein.impenetrable','0')==='1',noRecord:false,
+  castle:null,cur:0,P:null,shots:[],nades:[],booms:[],sparks:[],pursuers:[],msg:null,
+  hunt:{on:false,t:0,quiet:0,beat:0},dread:0,
+  rank:0,castles:0,stats:null,t:0,dieT:0,escT:0,best:loadJSON('wolfenstein.best',null)};
+if(!G.best||typeof G.best.rank!=='number'||typeof G.best.castles!=='number')G.best={rank:0,castles:0};
+const keys={up:false,down:false,left:false,right:false,aim:false,fire:false};
+const taps={fire:false,gren:false,search:false};
+function room(){return G.castle.rooms[G.cur];}
+function rankName(r){return r<RANKS.length?RANKS[r]:RANKS[RANKS.length-1]+' *'+(r-RANKS.length+2);}
+function mkPlayer(x,y){
+  return{x,y,dir:0,face:1,dist:0,t:0,ammo:START_BULLETS,gren:START_GRENADES,uniform:false,vest:0,
+    plans:false,busy:null,fireCool:0,flash:0,dead:false,idle:0,moving:false};
+}
+
+/* ---------- the world ---------- */
+function solidPx(rm,px,py){
+  if(px<0||py<0||px>=W||py>=H)return false;
+  const t=rm.g[((py/T)|0)*COLS+((px/T)|0)];
+  return t===OUTER||t===INNER;
+}
+function chestRect(c){return[c.tx*T,c.ty*T,16,8];}
+/* a figure's feet box: six wide, twelve tall, standing on (x,y) */
+function boxFree(rm,x,y,inside){
+  const x0=Math.floor(x-3),x1=Math.floor(x+2),y0=Math.floor(y-12),y1=Math.floor(y-1);
+  if(inside&&(x0<1||x1>W-2||y0<1||y1>H-2))return false;
+  for(const px of[x0,x1])for(const py of[y0,y0+6,y1])if(solidPx(rm,px,py))return false;
+  for(const c of rm.chests){const[cx,cy,cw,ch]=chestRect(c);
+    if(x0<cx+cw&&x1>=cx&&y0<cy+ch&&y1>=cy)return false;}
+  return true;
+}
+/* move a figure, one axis at a time so it slides along walls; the legs only
+ * move when the figure does, so nothing ever slides without a step */
+function moveEnt(e,dx,dy,inside){
+  const rm=room(),x0=e.x,y0=e.y;
+  if(dx&&boxFree(rm,e.x+dx,e.y,inside))e.x+=dx;
+  if(dy&&boxFree(rm,e.x,e.y+dy,inside))e.y+=dy;
+  /* the ground covered, not the sum of the axes: a diagonal is not a faster walk */
+  const moved=Math.hypot(e.x-x0,e.y-y0);
+  e.dist+=moved;
+  return moved;
+}
+function los(rm,x0,y0,x1,y1){
+  const d=Math.hypot(x1-x0,y1-y0),n=Math.ceil(d/4);
+  for(let i=1;i<n;i++){const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n;if(solidPx(rm,x|0,y|0))return false;}
+  return true;
+}
+function dirTo(dx,dy){return(Math.round(Math.atan2(dy,dx)/(Math.PI/4))+8)%8;}
+function unit(d){const v=DIRS[d],n=Math.hypot(v[0],v[1]);return[v[0]/n,v[1]/n];}
+function say(e,text,force){
+  /* a squad shouts as one: if the man beside him has only just said it, he
+   * does not say it again over the top */
+  if(!force&&G.castle&&e!==G.P&&room().guards.some(o=>o!==e&&o.say&&o.say.t>0.6&&o.kind===e.kind&&
+    Math.hypot(o.x-e.x,o.y-e.y)<48))return;
+  e.say={text,t:1.5};Snd.speak(text,e.kind==='ss');
+}
+function message(text,col){G.msg={text,t:2.4,col:col||'#ffffff'};}
+function disguised(){return G.P.uniform&&!room().blown;}
+
+/* ---------- the prisoner ---------- */
+function stepPlayer(dt){
+  const P=G.P;
+  if(P.flash>0)P.flash-=dt;
+  if(P.fireCool>0)P.fireCool-=dt;
+  const inp=G.demo?demoInput(dt):keys;
+  /* the stick, if a thumb or a real stick is on it; the keys otherwise */
+  const an=G.demo?null:analog();
+  let ix,iy,push;
+  if(an){ix=an.x;iy=an.y;push=an.m;}
+  else{ix=(inp.right?1:0)-(inp.left?1:0);iy=(inp.down?1:0)-(inp.up?1:0);push=ix||iy?1:0;}
+  if(!push)ix=iy=0;
+  P.moving=false;
+  if(P.busy){
+    /* searching takes time, and walking away gives it up */
+    if(ix||iy){P.busy=null;message('STOPPED');}
+    else{P.busy.t+=dt;
+      if(Math.random()<dt*9)Snd.tick();
+      if(P.busy.t>=P.busy.dur){const b=P.busy;P.busy=null;finishSearch(b);}}
+  }else if(ix||iy){
+    P.dir=dirTo(ix,iy);
+    if(Math.abs(ix)>0.3)P.face=ix>0?1:-1;
+    if(!inp.aim){
+      /* the keys walk the eight ways; the stick walks where it is pushed */
+      const[ux,uy]=an?[ix,iy]:unit(P.dir);
+      const m=moveEnt(P,ux*WALK*push*dt,uy*WALK*push*dt,G.demo);
+      P.moving=m>0.01;
+      if(P.moving&&Math.floor(P.dist/12)!==Math.floor((P.dist-m)/12))Snd.step();
+    }
+  }
+  P.idle=P.moving?0:P.idle+dt;
+  if(!G.demo){
+    /* a press the gun's cooldown turns away is kept, up to two, and goes off
+     * the moment it can: a fast triple tap is three shots, not two */
+    if(taps.fire)P.queued=Math.min(2,(P.queued||0)+1);
+    if(P.queued&&P.fireCool<=0&&!P.busy&&!P.dead){P.queued--;fire();}
+    if(taps.gren)throwNade();
+    if(taps.search)search();
+  }
+  taps.fire=taps.gren=taps.search=false;
+  if(G.demo)return;
+  /* through an opening: the next room, or out */
+  const cy=P.y-6;
+  if(P.x<0)leave('w');else if(P.x>=W)leave('e');else if(cy<0)leave('n');else if(cy>=H)leave('s');
+}
+function fire(){
+  const P=G.P;
+  if(P.busy||P.fireCool>0||P.dead)return;
+  if(P.ammo<=0){Snd.click();message('OUT OF BULLETS');P.fireCool=0.3;return;}
+  P.ammo--;P.fireCool=0.2;
+  const[ux,uy]=unit(P.dir);
+  const pose=aimPose(P.dir);
+  const my=pose==='U'?-14:pose==='D'?-9:-11;
+  G.shots.push({x:P.x+P.face*5+ux*2,y:P.y+my,vx:ux*PSHOT,vy:uy*PSHOT,from:'p',life:2});
+  Snd.shot();
+  /* a shot gives a uniform away, to everyone in the room */
+  room().blown=true;
+  for(const g of room().guards)if(live(g)&&g.st!=='hup')alarm(g);
+  hud();
+}
+function throwNade(){
+  const P=G.P;
+  if(P.busy||P.dead)return;
+  if(P.gren<=0){Snd.click();message('NO GRENADES');return;}
+  P.gren--;
+  const[ux,uy]=unit(P.dir);
+  G.nades.push({x:P.x+ux*4,y:P.y-2+uy*2,vx:ux*96,vy:uy*96,z:10,vz:70,fuse:-1});
+  Snd.tone('triangle',500,900,0.15,0.04);
+  hud();
+}
+/* what is there to search, within reach: a chest, a body, a guard with his hands up */
+function searchTarget(){
+  const P=G.P,rm=room();
+  const x0=P.x-3,x1=P.x+3,y0=P.y-12,y1=P.y;
+  let best=null,bd=1e9;
+  for(const c of rm.chests){
+    if(c.state==='open'||c.state==='wrecked')continue;
+    const[cx,cy,cw,ch]=chestRect(c);
+    const dx=Math.max(cx-x1,0,x0-(cx+cw)),dy=Math.max(cy-y1,0,y0-(cy+ch));
+    const d=Math.max(dx,dy);
+    if(d<=REACH&&d<bd){bd=d;best={kind:'chest',c};}
+  }
+  for(const g of rm.guards){
+    if(g.searched)continue;
+    if(g.st!=='dead'&&g.st!=='hup')continue;
+    const d=Math.hypot(g.x-P.x,g.y-P.y);
+    if(d<=18&&d<bd+8){bd=d;best={kind:'guard',g};}
+  }
+  return best;
+}
+function search(){
+  const P=G.P;
+  if(P.busy||P.dead)return;
+  const t=searchTarget();
+  if(!t){message('NOTHING HERE');return;}
+  const dur=t.kind==='chest'?(t.c.state==='unlocked'?0.5:t.c.strong?3.2:2.4):1.0;
+  P.busy={kind:t.kind,c:t.c,g:t.g,t:0,dur};
+  if(t.kind==='chest'&&t.c.state==='locked')message(t.c.strong?'PICKING A STEEL LOCK':'PICKING THE LOCK');
+  else message('SEARCHING');
+  if(t.kind==='chest')P.face=(t.c.tx*T+8)>P.x?1:-1;else P.face=t.g.x>P.x?1:-1;
+}
+function finishSearch(b){
+  if(b.kind==='chest'){
+    const c=b.c;c.state='open';Snd.open();G.stats.chests++;
+    give(c.item);c.item=null;
+  }else{
+    const gd=b.g;gd.searched=true;
+    const found=[];
+    if(R()<0.75)found.push({k:'bullets',n:1+ri(6)});
+    if(R()<0.22)found.push({k:'grenades',n:1});
+    if(gd.st==='dead'&&gd.kind==='guard'&&!G.P.uniform&&R()<0.4)found.push({k:'uniform'});
+    if(!found.length)message('NOTHING ON HIM');
+    for(const it of found)give(it);
+    if(gd.st==='hup')say(gd,'KAMERAD!');
+  }
+  hud();
+}
+function give(it){
+  const P=G.P;
+  if(!it){message('EMPTY');return;}
+  switch(it.k){
+    case'bullets':P.ammo=Math.min(MAX_AMMO,P.ammo+it.n);message('BULLETS: '+it.n);Snd.item();break;
+    case'grenades':P.gren=Math.min(MAX_GREN,P.gren+it.n);message('GRENADES: '+it.n);Snd.item();break;
+    case'uniform':P.uniform=true;room().blown=false;message('A UNIFORM. YOU PUT IT ON','#14f53c');Snd.item();break;
+    case'vest':P.vest=VEST_HITS;message('A BULLETPROOF VEST','#14cffd');Snd.item();break;
+    case'plans':P.plans=true;message('THE WAR PLANS!','#ff9a3c');Snd.plans();break;
+    default:message(it.name||'NOTHING USEFUL');Snd.open();
+  }
+  hud();
+}
+function hitPlayer(how){
+  const P=G.P;
+  if(P.dead)return;
+  if(G.impenetrable||G.demo){
+    /* impenetrable: it rings off him, and that is all */
+    P.flash=0.35;Snd.ping();
+    G.sparks.push({x:P.x,y:P.y-8,t:0.25,c:'#e060f0'});
+    return;
+  }
+  if(P.vest>0){P.vest--;P.flash=0.35;Snd.hit();message(P.vest?'THE VEST TAKES IT':'THE VEST IS FINISHED','#14cffd');hud();return;}
+  P.dead=true;P.busy=null;
+  G.state='dying';G.dieT=0;
+  Snd.die();
+  message(how==='blast'?'CAUGHT IN THE BLAST':'YOU HAVE BEEN SHOT','#ff5a4a');
+}
+
+/* ---------- guards ---------- */
+const INSPECT_R=60,INSPECT_T=2.2;
+const HALT=['HALT!','ACHTUNG!','KOMMEN SIE HIER!','WER IST DA?','HALT! HALT!'];
+const SSHALT=['HALT! SS!','STEHENBLEIBEN!','ACHTUNG! SS!'];
+function live(g){return g.st!=='dying'&&g.st!=='dead';}
+function alarm(g){
+  if(!live(g)||g.st==='alert'||g.st==='enter'||g.st==='hup')return;
+  g.st='alert';
+  /* a moment to react, shorter in each castle */
+  g.fireT=Math.max(0.35,1.05-0.06*G.castle.d)+R()*0.4;
+  say(g,pick(g.kind==='ss'?SSHALT:HALT));
+  if(g.kind==='ss'&&!G.demo)raiseHunt();
+}
+/* ---------- the hunt ----------
+ * An SS man who has seen you for what you are raises the alarm, and the alarm
+ * is the frightening part: a klaxon, the screen going red at the edges, a
+ * heartbeat under everything, and every so often a squad of SS coming through
+ * one of the openings of whatever room you are in, walking in on their own
+ * feet. It goes quiet only when nobody has had you in their sights for a
+ * while, and a uniform makes that a lot sooner. */
+function huntGap(){return Math.max(8,20-1.4*G.castle.d)+R()*6;}
+function raiseHunt(){
+  const h=G.hunt;h.quiet=0;
+  if(h.on)return;
+  h.on=true;h.t=huntGap();
+  G.dread=0.9;Snd.klaxon();
+  message('ALARM! THE SS ARE HUNTING YOU','#ff4a3a');
+  hud();
+}
+function stepHunt(dt){
+  const h=G.hunt;
+  if(G.dread>0)G.dread-=dt;
+  if(!h.on)return;
+  const rm=room(),P=G.P;
+  const hunting=rm.guards.filter(g=>g.kind==='ss'&&(g.st==='alert'||g.st==='enter'));
+  if(rm.guards.some(g=>g.st==='alert'&&g.kind==='ss'&&sees(g)))h.quiet=0;else h.quiet+=dt;
+  /* the heart, faster with them in the room */
+  h.beat-=dt;
+  if(h.beat<=0){Snd.heart();h.beat=hunting.length?0.55:0.95;}
+  if(h.quiet>(disguised()?12:30)){
+    h.on=false;message('THE ALARM GOES QUIET','#9aa0c0');hud();return;
+  }
+  if((h.t-=dt)<=0){h.t=huntGap();sendSquad();}
+}
+function sendSquad(){
+  const rm=room(),C=G.castle;
+  if(rm.guards.filter(g=>g.kind==='ss'&&live(g)).length>=4)return;
+  const P=G.P;
+  /* through an opening, and not the one he is standing in */
+  const sides=Object.keys(SIDES).filter(k=>rm.doors[k]).sort((a,b)=>{
+    const d=k=>{const[x,y]=ENTRY[k];return Math.hypot(x*T-P.x,y*T-P.y);};return d(b)-d(a);});
+  if(!sides.length)return;
+  const side=R()<0.7?sides[0]:pick(sides);
+  const n=2+(C.d>=4&&R()<0.5?1:0);
+  for(let i=0;i<n;i++){
+    const g=mkGuard('ss',0,0);
+    G.pursuers.push({g,from:null,to:G.cur,side,t:0.35*i,i});
+  }
+  G.dread=0.7;Snd.klaxon();Snd.boots();
+  message('SS! THROUGH THE '+{n:'NORTH',s:'SOUTH',e:'EAST',w:'WEST'}[side]+' DOOR','#ff4a3a');
+}
+function sees(g){
+  const P=G.P;
+  return los(room(),g.x,g.y-10,P.x,P.y-8);
+}
+/* is the prisoner's gun pointing at him? */
+function aimedAt(g){
+  const P=G.P;
+  const dx=g.x-P.x,dy=(g.y-8)-(P.y-8),d=Math.hypot(dx,dy);
+  if(d>130||d<4)return false;
+  const[ux,uy]=unit(P.dir);
+  return (dx*ux+dy*uy)/d>0.9&&sees(g);
+}
+function gShoot(g){
+  const P=G.P;
+  const sx=g.x+g.face*6,sy=g.y-11;
+  const jit=Math.max(0.07,0.2-0.012*G.castle.d);
+  const a=Math.atan2(P.y-7-sy,P.x-sx)+(R()-0.5)*2*jit;
+  G.shots.push({x:sx,y:sy,vx:Math.cos(a)*GSHOT,vy:Math.sin(a)*GSHOT,from:'g',life:3});
+  Snd.gshot();
+}
+function gSpeed(g){return g.st==='alert'||g.st==='enter'?(g.kind==='ss'?40:32):22;}
+function stepGuard(g,dt){
+  const P=G.P,rm=room();
+  if(g.say&&(g.say.t-=dt)<=0)g.say=null;
+  g.phase+=dt;
+  if(g.st==='dead')return;
+  if(g.st==='dying'){g.dying+=dt;if(g.dying>=0.5)g.st='dead';return;}
+  const dx=P.x-g.x,dy=P.y-g.y,d=Math.hypot(dx,dy);
+  if(g.st==='enter'){
+    /* an SS man following you in: he walks through the opening on his own feet */
+    const[ux,uy]=unit(g.dir);
+    g.x+=ux*gSpeed(g)*dt;g.y+=uy*gSpeed(g)*dt;g.dist+=gSpeed(g)*dt;
+    if(ux)g.face=ux>0?1:-1;
+    if(g.x>10&&g.x<W-10&&g.y>22&&g.y<H-6&&boxFree(rm,g.x,g.y,true)){
+      if(g.hunter&&disguised()){g.st='patrol';g.t=0.8+R();say(g,pick(['WO IST ER?','SUCHT IHN!','SCHNELL!']));}
+      else{g.st='alert';g.fireT=0.6;say(g,pick(SSHALT));}
+    }
+    return;
+  }
+  const canSee=!P.dead&&!G.demo&&sees(g);
+  if(g.st==='inspect'){
+    /* he stares; walk away out of his sight, or be found out */
+    g.face=dx>0?1:-1;
+    if(!canSee||d>INSPECT_R+10){g.t+=dt;if(g.t>INSPECT_T+0.6){g.st='stand';g.t=1+R();say(g,'WEITER.');}return;}
+    if((g.t-=dt)<=0){
+      room().blown=true;g.st='stand';alarm(g);
+      for(const o of room().guards)if(o!==g&&live(o)&&o.st!=='hup'){o.say=null;alarm(o);o.say=null;}
+      say(g,'SPION!',true);
+    }
+    return;
+  }
+  if(g.st==='hup'){
+    /* hands up for as long as the gun is on him, and a little after */
+    if(aimedAt(g))g.hupT=2.4;
+    else if((g.hupT-=dt)<=0){g.st='alert';g.fireT=0.8;say(g,'SCHWEINEHUND!');}
+    return;
+  }
+  if(g.st==='patrol'||g.st==='stand'){
+    if(canSee){
+      if(!disguised())alarm(g);
+      else if(g.kind==='ss'){
+        /* The uniform passes, at a distance. The SS look at everyone, and a
+         * man who comes close, or stays close, is asked for his papers. */
+        if(d<INSPECT_R)g.susp+=dt*(d<26?1.8:1);else g.susp=Math.max(0,g.susp-dt*0.5);
+        if(g.susp>1.2){g.susp=0;g.st='inspect';g.t=INSPECT_T;g.face=dx>0?1:-1;
+          say(g,pick(['PAPIERE!','AUSWEIS, BITTE!','HALT. IHRE PAPIERE!']));}
+      }
+      else if(d<14){
+        /* a uniform will not stand being walked into */
+        g.susp+=dt;if(g.susp>0.8){say(g,'WAS IST LOS?');room().blown=true;alarm(g);}
+      }else g.susp=Math.max(0,g.susp-dt);
+    }
+    if(g.st==='alert')return;
+    g.t-=dt;
+    if(g.st==='stand'){
+      if(g.t<=0){g.st='patrol';g.dir=ri(8);g.t=0.8+R()*1.8;}
+    }else{
+      const[ux,uy]=unit(g.dir),s=gSpeed(g)*dt;
+      const m=moveEnt(g,ux*s,uy*s,true);
+      if(ux)g.face=ux>0?1:-1;
+      if(m<s*0.5||g.t<=0){g.st='stand';g.t=0.5+R()*1.4;}
+    }
+    return;
+  }
+  /* alert */
+  if(canSee){
+    g.lastSeen=[P.x,P.y];g.noLos=0;
+    g.face=dx>0?1:-1;
+    if(g.kind==='guard'&&aimedAt(g)){
+      /* you have the drop on him */
+      g.susp+=dt;
+      if(g.susp>0.35){g.susp=0;if(R()<0.55){g.st='hup';g.hupT=2.4;say(g,'KAMERAD!');return;}}
+    }
+    g.fireT-=dt;
+    if(g.fireT<=0){
+      gShoot(g);
+      g.fireT=Math.max(0.65,1.7-0.09*G.castle.d)*(g.kind==='ss'?0.8:1)+R()*0.5;
+    }
+  }else if(g.lastSeen){
+    g.noLos+=dt;
+    if(g.noLos>5&&g.kind==='guard'){g.st='patrol';g.t=1;g.lastSeen=null;return;}
+  }
+  /* close in, but not too close; round walls by a sidestep */
+  g.walking=false;
+  const tgt=canSee?[P.x,P.y]:g.lastSeen;
+  /* each keeps his own distance, so a squad fans out instead of piling up */
+  const keep=canSee?(g.kind==='ss'?36+(g.id%3)*16:74):4;
+  if(tgt){
+    const tx=tgt[0]-g.x,ty=tgt[1]-g.y,td=Math.hypot(tx,ty);
+    if(td>keep){
+      if(g.detour>0){g.detour-=dt;}else g.dir=dirTo(tx,ty);
+      const[ux,uy]=unit(g.dir),s=gSpeed(g)*dt;
+      const m=moveEnt(g,ux*s,uy*s,true);
+      g.walking=m>0.01;
+      if(!canSee&&ux)g.face=ux>0?1:-1;
+      if(m<s*0.4&&g.detour<=0){g.detour=0.5+R()*0.5;g.dir=(g.dir+(R()<0.5?2:6))%8;}
+    }
+  }
+}
+
+/* ---------- shots, grenades, blasts ---------- */
+/* nobody stands inside anybody else: two guards closer than a body's width
+ * each give way a little, if there is floor to give way onto */
+function spread(dt){
+  const a=room().guards.filter(g=>live(g)&&g.st!=='enter');
+  for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++){
+    const p=a[i],q=a[j],dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy);
+    if(d>=10)continue;
+    const ux=d>0.01?dx/d:1,uy=d>0.01?dy/d:0,k=18*dt;
+    if(boxFree(room(),q.x+ux*k,q.y+uy*k,true)){q.x+=ux*k;q.y+=uy*k;}
+    if(boxFree(room(),p.x-ux*k,p.y-uy*k,true)){p.x-=ux*k;p.y-=uy*k;}
+  }
+}
+function stepShots(dt){
+  const rm=room(),P=G.P;
+  G.shots=G.shots.filter(s=>{
+    s.life-=dt;if(s.life<=0)return false;
+    const n=Math.max(1,Math.ceil(Math.hypot(s.vx,s.vy)*dt/2));
+    for(let k=0;k<n;k++){
+      s.x+=s.vx*dt/n;s.y+=s.vy*dt/n;
+      if(s.x<0||s.y<0||s.x>=W||s.y>=H)return false;
+      if(solidPx(rm,s.x|0,s.y|0)){G.sparks.push({x:s.x,y:s.y,t:0.12,c:'#ffffff'});return false;}
+      for(const c of rm.chests){
+        const[cx,cy,cw,ch]=chestRect(c);
+        if(s.x>=cx&&s.x<cx+cw&&s.y>=cy&&s.y<cy+ch){
+          if(s.from==='p'&&c.state==='locked'){
+            if(c.strong){Snd.clang();message('STEEL. IT WILL HAVE TO BE PICKED');}
+            else{c.state='unlocked';Snd.clang();message('THE LOCK IS SHOT OFF');}
+          }
+          G.sparks.push({x:s.x,y:s.y,t:0.12,c:'#ff9a3c'});
+          return false;
+        }
+      }
+      if(s.from==='p'){
+        for(const g of rm.guards){
+          if(!live(g))continue;
+          if(s.x>=g.x-4&&s.x<=g.x+4&&s.y>=g.y-16&&s.y<=g.y){hitGuard(g);return false;}
+        }
+      }else if(!P.dead&&s.x>=P.x-3&&s.x<=P.x+3&&s.y>=P.y-15&&s.y<=P.y){
+        hitPlayer('shot');return false;
+      }
+    }
+    return true;
+  });
+}
+function hitGuard(g,blast){
+  if(g.kind==='ss'&&!blast&&--g.hp>0){
+    /* the vest takes it, and he is angrier */
+    Snd.clang();G.sparks.push({x:g.x,y:g.y-9,t:0.15,c:'#c040e0'});
+    if(g.st!=='alert')alarm(g);
+    return;
+  }
+  g.st='dying';g.dying=0;g.say=null;
+  if(R()<0.7)say(g,pick(['AAGH!','ARGH!','OOF!']));
+  Snd.die();G.stats.kills++;
+  for(const o of room().guards)if(o!==g&&live(o))alarm(o);
+}
+function stepNades(dt){
+  const rm=room();
+  G.nades=G.nades.filter(n=>{
+    if(n.fuse<0){
+      n.vz-=240*dt;n.z+=n.vz*dt;
+      const nx=n.x+n.vx*dt,ny=n.y+n.vy*dt;
+      if(solidPx(rm,nx|0,n.y|0))n.vx=-n.vx*0.4;else n.x=nx;
+      if(solidPx(rm,n.x|0,ny|0))n.vy=-n.vy*0.4;else n.y=ny;
+      if(n.z<=0){n.z=0;n.fuse=0.4;n.vx=n.vy=0;}
+      return true;
+    }
+    n.fuse-=dt;
+    if(n.fuse<=0){explode(n.x,n.y);return false;}
+    return true;
+  });
+}
+function explode(x,y){
+  const rm=room(),P=G.P;
+  G.booms.push({x,y,t:0});Snd.boom();
+  /* the inside walls come down; the castle's own walls do not */
+  for(let ty=1;ty<ROWS-1;ty++)for(let tx=1;tx<COLS-1;tx++){
+    if(rm.g[ty*COLS+tx]!==INNER)continue;
+    if(Math.hypot(tx*T+4-x,ty*T+4-y)<18)rm.g[ty*COLS+tx]=RUBBLE;
+  }
+  for(const c of rm.chests){
+    if(c.strong||c.state==='wrecked'||c.state==='open')continue;
+    if(Math.hypot(c.tx*T+8-x,c.ty*T+4-y)<22){c.state='wrecked';c.item=null;}
+  }
+  for(const g of rm.guards)if(live(g)&&Math.hypot(g.x-x,g.y-6-y)<26)hitGuard(g,true);
+  if(Math.hypot(P.x-x,P.y-6-y)<22)hitPlayer('blast');
+  rm.blown=true;
+  for(const g of rm.guards)if(live(g)&&g.st!=='hup')alarm(g);
+}
+
+/* ---------- rooms, and the way out ---------- */
+function enterRoom(i){
+  G.cur=i;const rm=room();rm.seen=true;
+  G.shots=[];G.nades=[];G.booms=[];G.sparks=[];
+  /* the guards here did not see you come in; they are where they were */
+  for(const g of rm.guards)if(g.st==='alert'&&g.kind==='guard'){g.st='stand';g.t=0.4;g.lastSeen=null;}
+  if(G.P.uniform)rm.blown=false;
+}
+function leave(side){
+  const C=G.castle,rm=room(),P=G.P;
+  if(C.exitRoom===G.cur&&C.exitSide===side){escape(side);return;}
+  const[dx,dy]=SIDES[side];
+  const nx=rm.cx+dx,ny=rm.cy+dy;
+  if(nx<0||ny<0||nx>=C.CW||ny>=C.CH){
+    /* not an opening after all: put him back */
+    P.x=clamp(P.x,0,W-1);P.y=clamp(P.y,6,H+5);return;
+  }
+  const from=G.cur,to=ny*C.CW+nx;
+  /* the SS follow; they come in through the same opening a moment later */
+  let i=0;
+  for(const g of rm.guards)
+    if(g.kind==='ss'&&g.st==='alert')G.pursuers.push({g,from,to,side:OPP[side],t:1.2+R()*0.8+0.35*i,i:i++});
+  P.x-=dx*W;P.y-=dy*H;
+  enterRoom(to);
+}
+function stepPursuers(dt){
+  G.pursuers=G.pursuers.filter(p=>{
+    if(G.cur!==p.to)return false;       /* you have moved on; he loses you */
+    if((p.t-=dt)>0)return true;
+    const g=p.g;
+    if(p.from!==null){
+      const src=G.castle.rooms[p.from];
+      const k=src.guards.indexOf(g);if(k<0||!live(g))return false;
+      src.guards.splice(k,1);
+    }
+    /* outside the opening, off the screen, walking in; a squad side by side */
+    const i=p.i||0,off=[0,-9,9][i%3];
+    if(p.side==='w'){g.x=-6;g.y=92+off;g.dir=0;}
+    else if(p.side==='e'){g.x=W+6;g.y=92+off;g.dir=4;}
+    else if(p.side==='n'){g.x=140+off;g.y=2;g.dir=2;}
+    else{g.x=140+off;g.y=H+12;g.dir=6;}
+    g.face=g.dir===4?-1:g.dir===0?1:g.face;
+    g.st='enter';g.say=null;g.hunter=p.from===null;
+    Snd.boots();
+    room().guards.push(g);
+    return false;
+  });
+}
+function escape(side){
+  G.state='escaping';G.escT=0;G.escSide=side;
+  G.P.busy=null;
+  Snd.escape();
+}
+
+/* ---------- the run ---------- */
+function newGame(sd){
+  G.demo=false;
+  seed=(sd===undefined?(Date.now()^(Math.random()*1e9))|0:sd|0);
+  G.rank=0;G.castles=0;G.noRecord=G.impenetrable;
+  G.stats={kills:0,chests:0,plans:0,castles:0};
+  startCastle(1);
+}
+function startCastle(d){
+  guardId=1;
+  G.castle=makeCastle(d);
+  const st=G.castle.rooms[G.castle.start];
+  G.P=mkPlayer(st.start[0]*T+4,(st.start[1]+2)*T);
+  G.pursuers=[];G.msg=null;G.hunt={on:false,t:0,quiet:0,beat:0};G.dread=0;
+  enterRoom(G.castle.start);
+  G.state='card';
+  hud();
+  const intro=d===1
+    ?'Your cellmate is dying. He presses a pistol into your hand: '+START_BULLETS+' rounds, and '+
+      START_GRENADES+' grenades he had hidden in the straw. The war plans are somewhere in this castle.'
+    :'Caught again, and a new castle. '+START_BULLETS+' rounds, '+START_GRENADES+' grenades, and the plans somewhere in it.';
+  showCard('CASTLE '+d+' · '+rankName(G.rank),intro,'INTO THE CASTLE',()=>{hideOverlay();G.state='play';});
+}
+function stepGame(dt){
+  G.t+=dt;
+  if(G.msg&&(G.msg.t-=dt)<=0)G.msg=null;
+  for(const s of G.sparks)s.t-=dt;
+  G.sparks=G.sparks.filter(s=>s.t>0);
+  for(const b of G.booms)b.t+=dt;
+  G.booms=G.booms.filter(b=>b.t<0.5);
+  if(G.state==='splash'){
+    stepPlayer(dt);
+    for(const g of room().guards)stepGuard(g,dt);
+    return;
+  }
+  if(G.state==='play'){
+    stepPlayer(dt);
+    if(G.state!=='play'&&G.state!=='dying')return;
+    for(const g of room().guards.slice())stepGuard(g,dt);
+    stepPursuers(dt);
+    stepHunt(dt);
+    spread(dt);
+    stepShots(dt);
+    stepNades(dt);
+    return;
+  }
+  if(G.state==='dying'){
+    G.dieT+=dt;
+    for(const g of room().guards)if(g.say&&(g.say.t-=dt)<=0)g.say=null;
+    stepShots(dt);
+    if(G.dieT>=1.8)gameOver();
+    return;
+  }
+  if(G.state==='escaping'){
+    /* he walks off the way he was going, on his own feet */
+    const P=G.P;G.escT+=dt;
+    const[dx,dy]=SIDES[G.escSide];
+    P.x+=dx*WALK*dt;P.y+=dy*WALK*dt;P.dist+=WALK*dt;P.moving=true;
+    if(dx)P.face=dx;P.dir=dirTo(dx,dy);
+    if(G.escT>=1.1)escaped();
+  }
+}
+function escaped(){
+  const P=G.P;
+  G.castles++;G.stats.castles++;
+  const promoted=P.plans;
+  if(promoted){G.rank++;G.stats.plans++;}
+  record();
+  G.state='card';
+  showCard(promoted?'ESCAPED, WITH THE PLANS':'ESCAPED',
+    promoted?'The plans are in the right hands. You are promoted to '+rankName(G.rank)+'.'
+            :'You got out, but without the war plans. No promotion. Rank: '+rankName(G.rank)+'.',
+    'NEXT CASTLE',()=>startCastle(G.castle.d+1));
+}
+function record(){
+  if(G.noRecord)return;
+  const b=G.best;
+  if(G.rank>b.rank||(G.rank===b.rank&&G.castles>b.castles)){
+    G.best={rank:G.rank,castles:G.castles};
+    save('wolfenstein.best',JSON.stringify(G.best));
+  }
+}
+function gameOver(){
+  record();
+  G.state='over';
+  Snd.over();
+  ov.className='card';
+  buildMenu('<h1>KILLED</h1>'+
+    '<p class="sub">Shot in '+G.castle.CW*G.castle.CH+'-room castle '+G.castle.d+'.</p>'+
+    '<div class="tally">'+
+    '<div class="r"><span>Rank</span><span>'+esc(rankName(G.rank))+'</span></div>'+
+    '<div class="r"><span>Castles escaped</span><span>'+G.stats.castles+'</span></div>'+
+    '<div class="r"><span>War plans delivered</span><span>'+G.stats.plans+'</span></div>'+
+    '<div class="r"><span>Chests opened</span><span>'+G.stats.chests+'</span></div>'+
+    '<div class="r"><span>Guards</span><span>'+G.stats.kills+'</span></div>'+
+    '</div>'+bestHtml()+
+    '<button class="menuitem sel" type="button">PLAY AGAIN</button>'+
+    '<button class="menuitem" type="button">TITLE</button>',
+    [{go:()=>newGame()},{go:showSplash}]);
+}
+function bestHtml(){
+  const b=G.best;
+  if(!b||(!b.rank&&!b.castles))return '';
+  return '<small class="tip">Best: '+esc(rankName(b.rank))+' · '+b.castles+' castle'+(b.castles===1?'':'s')+' escaped</small>';
+}
+
+/* ---------- the attract demo ---------- */
+/* The title is the castle carrying on without you: the guards walk their
+ * rounds and the prisoner, in a borrowed uniform, walks his. */
+let demoT=0,demoK={};
+function demoInput(dt){
+  demoT-=dt;
+  const P=G.P;
+  if(demoT<=0||(!P.moving&&demoT<1.2&&!demoK.aim)){
+    const d=ri(8),[dx,dy]=DIRS[d];
+    demoK={right:dx>0,left:dx<0,down:dy>0,up:dy<0,aim:R()<0.15};
+    demoT=0.8+R()*1.6;
+  }
+  return demoK;
+}
+function showSplash(){
+  G.state='splash';G.demo=true;
+  seed=1981;guardId=1;
+  G.castle=makeCastle(3);
+  /* a room with company in it */
+  let i=0;for(let k=0;k<G.castle.rooms.length;k++)
+    if(G.castle.rooms[k].guards.length>G.castle.rooms[i].guards.length)i=k;
+  const rm=G.castle.rooms[i];
+  const spot=place(rm,1,4)[0]||[17,9];
+  G.P=mkPlayer(spot[0]*T+4,(spot[1]+2)*T);G.P.uniform=true;
+  G.stats={kills:0,chests:0,plans:0,castles:0};
+  enterRoom(i);
+  G.rank=0;G.castles=0;
+  hud();
+  ov.className='splash';
+  const html=['<h1>CASTLE WOLFENSTEIN</h1>',
+    '<p class="sub">Out of the cell. Find the war plans. Get out of the castle.</p>'];
+  html.push('<button class="menuitem" type="button">START</button>');
+  html.push('<button class="menuitem" type="button" id="minv">'+invLabel()+'</button>');
+  html.push('<button class="menuitem" type="button">HOW TO PLAY</button>');
+  html.push('<small class="tip">arrows walk · SPACE fire · hold X to aim · E search · G grenade'+
+    (G.best.rank||G.best.castles?' · best '+esc(rankName(G.best.rank)):'')+'</small>');
+  buildMenu(html.join(''),[{go:()=>newGame()},{go:toggleInv},{go:showHelp}],0);
+}
+/* Two positions: the game as it was, where one bullet ends it, and the one
+ * this collection added, where nothing does. */
+function invLabel(){return 'IMPENETRABLE: '+(G.impenetrable?'ON · ENDLESS':'OFF · MORTAL');}
+function toggleInv(){
+  setImpenetrable(!G.impenetrable);
+  const b=el('minv');if(b)b.textContent=invLabel();
+}
+function setImpenetrable(on){
+  G.impenetrable=on;save('wolfenstein.impenetrable',on?'1':'0');
+  /* once a run has been impenetrable it is never a record, and switching it
+   * back off does not launder it */
+  if(on&&!G.demo)G.noRecord=true;
+  hud();
+}
+function showHelp(){
+  ov.className='card';
+  buildMenu('<h1>HOW TO PLAY</h1>'+
+    '<small class="tip" style="text-align:left">'+
+    'You start in a cell with a pistol. Walk out through the openings in the walls; the castle is a '+
+    'grid of rooms. <b>Guards</b> (green) shout, then shoot. Point your gun at one and he may put his '+
+    'hands up: keep it on him and he keeps them there. The <b>SS</b> (violet) go about in squads, wear '+
+    'vests, take three bullets each, never surrender and follow you from room to room. An SS man who '+
+    'sees you raises the <b>alarm</b>, and until it goes quiet more squads come through the doors.<br><br>'+
+    '<b>Chests</b> take time to pick, standing still; shoot the lock off and it is quick. They hold '+
+    'bullets, grenades, bulletproof vests, uniforms, and a lot of sauerkraut. In a <b>uniform</b> you '+
+    'blend in, even with the SS, until you fire. But the SS look closely: get near one and he asks for '+
+    'your papers, and if you are still in front of him when he has looked, you are a spy. The <b>war plans</b> are in a steel '+
+    'strongbox. Search a body, or a guard with his hands up, for bullets.<br><br>'+
+    'Find the way out, marked on its wall. Out with the plans, and you are promoted; out without them, '+
+    'and you are only alive. <b>Grenades</b> bring down the inside walls, and anything else near them.'+
+    '<br><br><b>IMPENETRABLE</b> makes you bulletproof. Bullets and blasts ring off you, the castles '+
+    'keep coming, and the run is endless. It is never a record.</small>'+
+    '<div class="tally" style="text-align:left">'+
+    '<div class="r"><span>Walk</span><span>arrows · WASD</span></div>'+
+    '<div class="r"><span>Turn in place</span><span>hold X or SHIFT</span></div>'+
+    '<div class="r"><span>Fire</span><span>SPACE</span></div>'+
+    '<div class="r"><span>Search</span><span>E</span></div>'+
+    '<div class="r"><span>Grenade</span><span>G</span></div>'+
+    '<div class="r"><span>Pause · map</span><span>P</span></div></div>'+
+    '<button class="menuitem sel" type="button">BACK</button>',
+    [{go:showSplash}]);
+}
+function showPause(){
+  ov.className='card';
+  buildMenu('<h1>PAUSED</h1>'+
+    '<canvas id="map" width="'+(G.castle.CW*8+2)+'" height="'+(G.castle.CH*8+2)+'" style="width:'+
+      (G.castle.CW*16+4)+'px;height:'+(G.castle.CH*16+4)+'px"></canvas>'+
+    '<p class="sub">'+(G.impenetrable?'Impenetrable. Nothing can kill you; this run is not a record.'
+      :'Mortal. One bullet ends it'+(G.P.vest?', unless the vest takes it':'')+'.')+'</p>'+
+    '<button class="menuitem sel" type="button">BACK IN</button>'+
+    '<button class="menuitem" type="button">'+invLabel()+'</button>'+
+    '<button class="menuitem" type="button">QUIT TO TITLE</button>',
+    [{go:togglePause},{go:()=>{setImpenetrable(!G.impenetrable);showPause();}},{go:showSplash}]);
+  drawMap();
+}
+function togglePause(){
+  if(G.state==='play'){G.state='paused';showPause();}
+  else if(G.state==='paused'){G.state='play';hideOverlay();}
+}
+function drawMap(){
+  const m=el('map');if(!m||!m.getContext)return;
+  const x=m.getContext('2d'),C=G.castle;
+  x.fillStyle='#000';x.fillRect(0,0,m.width,m.height);
+  C.rooms.forEach((r,i)=>{
+    if(!r.seen)return;
+    const px=1+r.cx*8,py=1+r.cy*8;
+    x.fillStyle=i===G.cur?'#ff9a3c':'#1d3fb8';x.fillRect(px+1,py+1,6,6);
+    x.fillStyle='#1d3fb8';
+    if(r.doors.e)x.fillRect(px+7,py+3,2,2);
+    if(r.doors.s)x.fillRect(px+3,py+7,2,2);
+    if(i===C.exitRoom){x.fillStyle='#14f53c';x.fillRect(px+3,py+3,2,2);}
+  });
+}
+
+/* ---------- page furniture ---------- */
+function el(id){return document.getElementById(id);}
+const ov=el('overlay');
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function hideOverlay(){ov.className='hidden';ov.innerHTML='';menuItems=[];menuActions=[];}
+function showCard(title,sub,go,fn){
+  ov.className='card band';
+  buildMenu('<h1>'+esc(title)+'</h1>'+(sub?'<p class="sub">'+esc(sub)+'</p>':'')+
+    '<button class="menuitem sel" type="button">'+esc(go)+'</button>',[{go:fn}],0);
+}
+let menuSel=0,menuItems=[],menuActions=[];
+function buildMenu(html,items,sel){
+  ov.innerHTML=html;
+  menuItems=Array.from(ov.querySelectorAll('.menuitem'));
+  menuActions=items;menuSel=sel||0;
+  menuItems.forEach((m,i)=>m.addEventListener('click',()=>{menuSel=i;paintMenu();items[i].go();}));
+  paintMenu();
+}
+function paintMenu(){menuItems.forEach((m,i)=>m.classList.toggle('sel',i===menuSel));}
+function menuNav(d){if(menuItems.length){menuSel=(menuSel+d+menuItems.length)%menuItems.length;paintMenu();}}
+function menuGo(){if(menuItems.length&&menuActions[menuSel])menuActions[menuSel].go();}
+function hud(){
+  const P=G.P;
+  el('rank').textContent=rankName(G.rank);
+  el('castle').textContent=G.castle&&!G.demo?G.castle.d:1;
+  el('ammo').textContent=P?P.ammo:START_BULLETS;
+  el('gren').textContent=P?P.gren:START_GRENADES;
+  const tags=[];
+  if(P&&P.uniform&&!G.demo)tags.push('<span class="tag">UNIFORM</span>');
+  if(P&&P.vest)tags.push('<span class="tag">VEST '+P.vest+'</span>');
+  if(P&&P.plans)tags.push('<span class="tag on">PLANS</span>');
+  if(G.hunt&&G.hunt.on&&!G.demo)tags.push('<span class="tag alarm">ALARM</span>');
+  if(G.impenetrable)tags.push('<span class="tag inv">IMPENETRABLE</span>');
+  el('kit').innerHTML=tags.join(' ');
+}
+
+/* ---------- drawing ---------- */
+const cv=el('c'),g=cv.getContext('2d');
+g.imageSmoothingEnabled=false;
+function rect(x,y,w,h,c){g.fillStyle=c;g.fillRect(x|0,y|0,w|0,h|0);}
+function spr(img,x,y){g.drawImage(img,Math.round(x),Math.round(y));}
+const WALLC='#1d3fb8',WALLHI='#4f7dff',MORTAR='#0b1a5c';
+function drawRoom(rm){
+  rect(0,0,W,H,'#000');
+  for(let ty=0;ty<ROWS;ty++)for(let tx=0;tx<COLS;tx++){
+    const t=rm.g[ty*COLS+tx],x=tx*T,y=ty*T;
+    if(t===OUTER||t===INNER){
+      /* brick: two courses a tile, the joints staggered */
+      rect(x,y,T,T,t===OUTER?WALLC:'#2a4ad0');
+      rect(x,y,T,1,WALLHI);
+      rect(x,y+3,T,1,MORTAR);rect(x,y+7,T,1,MORTAR);
+      rect(x+((tx+ty)%2?1:5),y,1,3,MORTAR);rect(x+((tx+ty)%2?5:1),y+4,1,3,MORTAR);
+    }else if(t===RUBBLE){
+      const h=(tx*31+ty*17)%7;
+      rect(x+h%5,y+1+h%3,2,1,'#3a4a8a');rect(x+(h*3)%6,y+5,1,1,'#2a3670');rect(x+5,y+(h%4)+2,2,2,'#26305f');
+    }
+  }
+  /* the way out: daylight in the opening, and a sign */
+  const C=G.castle;
+  if(C&&rm===C.rooms[C.exitRoom]){
+    const s=C.exitSide,blink=(G.t*2|0)%2;
+    const tiles=[];
+    if(s==='n'||s==='s'){for(let x=DOOR_X0;x<=DOOR_X1;x++)tiles.push([x,s==='n'?0:ROWS-1]);}
+    else for(let y=DOOR_Y0;y<=DOOR_Y1;y++)tiles.push([s==='w'?0:COLS-1,y]);
+    for(const[tx,ty]of tiles){rect(tx*T,ty*T,T,T,'#0a3a14');
+      for(let i=0;i<3;i++)rect(tx*T+((i*3+tx+ty)%7),ty*T+i*3+1,1,2,'#14f53c');}
+    const lx=s==='w'?12:s==='e'?W-28:DOOR_X0*T+6,ly=s==='n'?12:s==='s'?H-18:DOOR_Y0*T-8;
+    if(blink)txt('EXIT',lx,ly,'#14f53c');
+  }
+}
+function drawChest(c){
+  const x=c.tx*T,y=c.ty*T;
+  if(c.state==='wrecked'){
+    rect(x+1,y+5,4,2,'#7a3a12');rect(x+7,y+4,3,3,'#8a4a1a');rect(x+12,y+5,3,2,'#6a2a0a');
+    rect(x+5,y+6,2,1,'#b06020');return;
+  }
+  const body=c.strong?'#8a90a8':'#c05a18',dark=c.strong?'#4a5068':'#6a2a08',lid=c.strong?'#b8bed0':'#ff6a3c';
+  if(c.state==='open'){
+    rect(x,y+3,16,5,body);rect(x+1,y+4,14,2,'#000');rect(x,y+7,16,1,dark);
+    rect(x+1,y,14,3,lid);rect(x+1,y+2,14,1,dark);
+    return;
+  }
+  rect(x,y+1,16,7,body);rect(x,y+1,16,2,lid);rect(x,y+3,16,1,dark);rect(x,y+7,16,1,dark);
+  if(c.strong){rect(x+1,y+2,1,1,dark);rect(x+14,y+2,1,1,dark);rect(x+1,y+6,1,1,dark);rect(x+14,y+6,1,1,dark);}
+  /* the lock: gold, or a splintered hole where it was shot off */
+  if(c.state==='unlocked')rect(x+7,y+4,2,2,'#000');
+  else{rect(x+7,y+3,2,3,'#ffd84a');rect(x+7,y+5,2,1,'#6a4a0a');}
+}
+function aimPose(d){return d===0||d===4?'H':d===5||d===6||d===7?'U':'D';}
+function playerSprite(){
+  const P=G.P,kind=P.uniform?'disguised':'player',flip=P.face<0;
+  if(P.dead){
+    const legs=G.dieT<0.35?'kneel':'lying';
+    return figure(kind,'H',legs,flip);
+  }
+  if(P.busy)return figure(kind,(G.t*5|0)%2?'rum1':'rum2','stand',flip);
+  const pose=aimPose(P.dir);
+  if(P.moving)return figure(kind,pose,WALKCYCLE[Math.floor(P.dist/6)%4],flip);
+  /* standing still he breathes: the gun sinks and rises once a second, and
+   * now and then he blinks */
+  const breath=(P.idle|0)%2===1;
+  const blink=(P.idle%2.6)>2.45;
+  return figure(kind,breath?pose+'2':pose,'stand',flip,blink);
+}
+function guardSprite(gd){
+  const flip=gd.face<0;
+  if(gd.st==='dead')return figure(gd.kind,'H','lying',flip);
+  if(gd.st==='dying')return figure(gd.kind,'H',gd.dying<0.25?'kneel':'lying',flip);
+  const breath=(gd.phase|0)%2===1;
+  if(gd.st==='hup')return figure(gd.kind,breath?'hup2':'hup','stand',flip,(gd.phase%1.8)>1.6);
+  const walking=gd.st==='patrol'||gd.st==='enter'||(gd.st==='alert'&&gd.walking);
+  const armed=gd.st==='alert'||gd.st==='enter'||gd.st==='inspect';
+  const torso=armed?(breath?'H2':'H'):(breath?'carry2':'carry');
+  if(walking)return figure(gd.kind,armed?'H':'carry',WALKCYCLE[Math.floor(gd.dist/6)%4],flip);
+  return figure(gd.kind,torso,'stand',flip,(gd.phase%2.2)>2.05);
+}
+function drawFig(img,x,y,flip){
+  /* figures are anchored on their feet; lying bodies are wider */
+  const w=img.width;
+  spr(img,x-(w>11?8:flip?6:5),y-16);
+}
+let bubbles=[];
+function drawBubble(text,x,y,col){
+  const w=txtW(text)+4;
+  let bx=clamp(Math.round(x-w/2),1,W-w-1),by=clamp(Math.round(y),1,H-9);
+  /* a squad shouting at once: each shout above the last, not on top of it */
+  for(let n=0;n<6&&bubbles.some(b=>bx<b[0]+b[2]&&bx+w>b[0]&&by<b[1]+10&&by+10>b[1]);n++)
+    by=by-10<1?by+30:by-10;
+  bubbles.push([bx,by,w]);
+  rect(bx,by,w,9,'#000');rect(bx,by,w,1,col);rect(bx,by+8,w,1,col);
+  txt(text,bx+2,by+2,col);
+}
+function render(){
+  if(!G.castle)return;
+  const rm=room(),P=G.P;
+  drawRoom(rm);
+  for(const c of rm.chests)drawChest(c);
+  /* bodies on the floor first, then everyone standing, back to front */
+  for(const gd of rm.guards)if(gd.st==='dead')drawFig(guardSprite(gd),gd.x,gd.y,gd.face<0);
+  const figs=rm.guards.filter(gd=>gd.st!=='dead').map(gd=>({y:gd.y,img:guardSprite(gd),x:gd.x,f:gd.face<0,gd}));
+  if(G.state!=='escaping'||G.escT<1.1)figs.push({y:P.y,img:playerSprite(),x:P.x,f:P.face<0,me:true});
+  figs.sort((a,b)=>a.y-b.y);
+  for(const f of figs){
+    if(f.me&&P.flash>0&&(G.t*30|0)%2){
+      /* hit, and still standing: he flashes, violet if nothing can hurt him */
+      const tint=G.impenetrable||G.demo?'#e060f0':'#14cffd';
+      const img=f.img;drawFig(img,f.x,f.y,f.f);
+      const bx=f.x-(f.f?6:5);
+      rect(bx-1,f.y-17,13,1,tint);rect(bx-1,f.y,13,1,tint);
+      rect(bx-1,f.y-17,1,18,tint);rect(bx+11,f.y-17,1,18,tint);
+      continue;
+    }
+    drawFig(f.img,f.x,f.y,f.f);
+  }
+  for(const s of G.shots)rect(s.x-1,s.y-1,2,2,s.from==='p'?'#ffffff':'#ffd84a');
+  for(const n of G.nades){
+    rect(n.x-1,n.y,3,1,'#222a44');
+    rect(n.x-1,n.y-n.z-3,3,3,'#3a7a2a');rect(n.x,n.y-n.z-4,1,1,'#bbbbbb');
+    if(n.fuse>=0&&(G.t*16|0)%2)rect(n.x,n.y-4,1,1,'#ff5a4a');
+  }
+  for(const b of G.booms){
+    const r=4+b.t*48;
+    for(let i=0;i<24;i++){const a=i/24*Math.PI*2+b.t*3;
+      rect(b.x+Math.cos(a)*r,b.y-6+Math.sin(a)*r*0.7,2,2,i%3?'#ff9a3c':'#ffffff');}
+    if(b.t<0.15)rect(b.x-6,b.y-12,12,12,'#ffffff');
+  }
+  for(const s of G.sparks){rect(s.x-2,s.y,5,1,s.c);rect(s.x,s.y-2,1,5,s.c);}
+  bubbles=[];
+  /* what the guards are shouting, over their heads */
+  for(const gd of rm.guards)if(gd.say){
+    /* above everyone standing under it, not across the next man's face */
+    const half=txtW(gd.say.text)/2+4;
+    let top=gd.y;
+    for(const o of rm.guards.concat([P]))if(o.st!=='dead'&&Math.abs(o.x-gd.x)<half&&Math.abs(o.y-gd.y)<32)top=Math.min(top,o.y);
+    drawBubble(gd.say.text,gd.x,top-27,gd.kind==='ss'?'#e060f0':'#ffffff');
+  }
+  if(P.busy){
+    const w=16,f=clamp(P.busy.t/P.busy.dur,0,1);
+    rect(P.x-8,P.y-22,w,3,'#000');rect(P.x-8,P.y-21,Math.round(w*f),1,'#ffd84a');
+  }
+  if(G.msg)drawBubble(G.msg.text,W/2,H-20,G.msg.col);
+  /* the alarm: the screen's edges beat red with the heart, and flare when it goes */
+  if(G.hunt&&(G.hunt.on||G.dread>0)&&!G.demo){
+    const k=G.dread>0?Math.min(1,G.dread*1.4):Math.max(0,1-G.hunt.beat*2.2)*0.8;
+    if(k>0.05){
+      g.globalAlpha=k;
+      const c='#d01010',b=G.dread>0?4:2;
+      rect(0,0,W,b,c);rect(0,H-b,W,b,c);rect(0,0,b,H,c);rect(W-b,0,b,H,c);
+      if(G.dread>0.5){g.globalAlpha=(G.dread-0.5)*0.5;rect(0,0,W,H,c);}
+      g.globalAlpha=1;
+    }
+  }
+}
+
+/* ---------- input ---------- */
+function press(k,on){
+  if(on)Snd.boot();
+  if(G.state!=='play'&&menuItems.length&&!ov.classList.contains('hidden')){
+    if(!on)return;
+    if(k==='up')menuNav(-1);else if(k==='down')menuNav(1);else if(k==='fire'||k==='search')menuGo();
+    return;
+  }
+  if(k==='fire'||k==='gren'||k==='search'){if(on&&G.state==='play')taps[k]=true;if(k==='fire')keys.fire=on;return;}
+  keys[k]=on;
+}
+const KEYMAP={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',
+  ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',' ':'fire',
+  x:'aim',X:'aim',Shift:'aim',e:'search',E:'search',g:'gren',G:'gren'};
+document.addEventListener('keydown',ev=>{
+  const k=ev.key;
+  if(k==='p'||k==='P'||k==='Escape'){togglePause();ev.preventDefault();return;}
+  if(k==='Enter'){if(G.state!=='play')menuGo();ev.preventDefault();return;}
+  const m=KEYMAP[k];
+  if(m){if(!ev.repeat||(m!=='fire'&&m!=='gren'&&m!=='search'))press(m,true);ev.preventDefault();}
+});
+document.addEventListener('keyup',ev=>{
+  const m=KEYMAP[ev.key];
+  if(m)press(m,false);
+});
+/* A held control stays held until the finger comes off it; without capture a
+ * thumb that drifts past the edge of AIM lets go of it. */
+function hold(id,k){
+  const b=el(id);
+  const on=e=>{
+    e.preventDefault();
+    try{b.setPointerCapture(e.pointerId);}catch(err){}
+    press(k,true);b.classList.add('on');
+  };
+  const off=e=>{
+    if(e){e.preventDefault();
+      try{if(b.hasPointerCapture(e.pointerId))b.releasePointerCapture(e.pointerId);}catch(err){}}
+    press(k,false);b.classList.remove('on');
+  };
+  b.addEventListener('pointerdown',on);
+  b.addEventListener('pointerup',off);
+  b.addEventListener('pointercancel',off);
+}
+hold('bf','fire');hold('ba','aim');hold('bs','search');hold('bg','gren');
+hold('j0','fire');hold('j1','aim');
+
+/* ---------- the joystick ---------- */
+/* Eight ways, fed by whatever is being pushed: the stick on the glass, or a
+ * real one through the Gamepad API. A direction is pressed and released only
+ * when it changes, so a held stick is a held key. */
+const DIRKEYS=['up','down','left','right'];
+function stickDirs(x,y){
+  const d=Math.hypot(x,y);
+  if(d<0.3)return{};
+  const a=Math.atan2(y,x),o=dirTo(Math.cos(a),Math.sin(a)),[dx,dy]=DIRS[o];
+  return{up:dy<0,down:dy>0,left:dx<0,right:dx>0};
+}
+function feed(src,want){
+  for(const k of DIRKEYS){
+    const on=!!want[k];
+    if(on!==!!src[k]){src[k]=on;press(k,on);}
+  }
+}
+/* ---- the stick on the glass ----
+ * Galaga's handling, on the Apple's stick. It takes the pointer captive on the
+ * way down, so a thumb that slides off the well mid-dodge keeps walking
+ * instead of letting go; it is touch-action none, so a drag is never a
+ * scroll, a pull-to-refresh or the start of a pinch; and it is analogue, like
+ * the Apple's own, which read its stick through the paddle inputs: a small
+ * push is a slow step. Released, by any route, it springs back and he stops.
+ */
+const Stick={x:0,y:0,held:false,dirs:{},id:null};
+/* How far the knob may travel: the well's half-width less the knob's own,
+ * measured rather than assumed, so it never rides out over the rim. */
+function stickRadius(){
+  const r=el('stick').getBoundingClientRect(),k=el('knob');
+  const kw=(k&&k.offsetWidth)||30;
+  if(!r||!r.width)return 30;
+  return Math.max(16,r.width/2-kw/2-2);
+}
+function stickAt(ev){
+  const box=el('stick').getBoundingClientRect();
+  const Rr=stickRadius();
+  let dx=ev.clientX-(box.left+box.width/2),dy=ev.clientY-(box.top+box.height/2);
+  const d=Math.hypot(dx,dy);if(d>Rr){dx*=Rr/d;dy*=Rr/d;}
+  Stick.x=dx/Rr;Stick.y=dy/Rr;Stick.held=true;
+  paintStick(dx,dy);
+  feed(Stick.dirs,stickDirs(Stick.x,Stick.y));
+}
+function paintStick(dx,dy){
+  el('knob').style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+  const sh=el('shaft'),len=Math.hypot(dx,dy);
+  sh.style.height=len.toFixed(1)+'px';
+  sh.style.transform='rotate('+(Math.atan2(dy,dx)*180/Math.PI-90).toFixed(1)+'deg)';
+}
+function stickOff(){
+  Stick.x=Stick.y=0;Stick.id=null;Stick.held=false;paintStick(0,0);
+  el('stick').classList.remove('on');
+  feed(Stick.dirs,{});
+}
+(function(){
+  const s=el('stick');
+  s.addEventListener('pointerdown',e=>{
+    e.preventDefault();Snd.boot();Stick.id=e.pointerId;
+    try{s.setPointerCapture(e.pointerId);}catch(err){}
+    s.classList.add('on');stickAt(e);
+  });
+  s.addEventListener('pointermove',e=>{if(Stick.id===e.pointerId){e.preventDefault();stickAt(e);}});
+  for(const t of['pointerup','pointercancel','lostpointercapture'])
+    s.addEventListener(t,e=>{if(Stick.id===e.pointerId)stickOff();});
+  /* a gesture the browser swallows still lets go of the stick, or he walks on
+   * after the thumb has gone */
+  for(const t of['pointerup','pointercancel'])
+    document.addEventListener(t,e=>{if(Stick.id===e.pointerId)stickOff();},true);
+})();
+/* The analogue reading, from the stick on the glass or a real one: which way,
+ * and how hard. A dead zone in the middle, then the speed follows the push. */
+function analog(){
+  let x,y;
+  if(Stick.held){x=Stick.x;y=Stick.y;}
+  else if(Pad.held){x=Pad.x;y=Pad.y;}
+  else return null;
+  const l=Math.hypot(x,y);
+  if(l<0.2)return{x:0,y:0,m:0};
+  return{x:x/l,y:y/l,m:Math.min(1,(l-0.2)/0.65)};
+}
+
+/* A real joystick or gamepad: the stick or d-pad walks, A fires, B searches,
+ * X throws, a shoulder button aims, START pauses. */
+const Pad={dirs:{},b:{},start:false,x:0,y:0,held:false};
+function pollPads(){
+  let gp=null;
+  try{const all=navigator.getGamepads?navigator.getGamepads():[];
+    for(const p of all)if(p&&p.connected!==false){gp=p;break;}}catch(e){}
+  if(!gp){Pad.held=false;feed(Pad.dirs,{});return;}
+  const b=i=>!!(gp.buttons[i]&&(gp.buttons[i].pressed||gp.buttons[i].value>0.5));
+  Pad.x=gp.axes[0]||0;Pad.y=gp.axes[1]||0;Pad.held=Math.hypot(Pad.x,Pad.y)>0.2;
+  const want=stickDirs(Pad.x,Pad.y);
+  if(b(12))want.up=true;if(b(13))want.down=true;if(b(14))want.left=true;if(b(15))want.right=true;
+  feed(Pad.dirs,want);
+  const map={fire:b(0),search:b(1)||b(3),gren:b(2),aim:b(4)||b(5)||b(6)||b(7)};
+  for(const k in map)if(map[k]!==!!Pad.b[k]){Pad.b[k]=map[k];press(k,map[k]);}
+  const st=b(9);
+  if(st&&!Pad.start){if(G.state==='play'||G.state==='paused')togglePause();else menuGo();}
+  Pad.start=st;
+}
+el('bp').addEventListener('click',togglePause);
+
+el('sound').addEventListener('click',()=>{
+  Snd.on=!Snd.on;save('wolfenstein.sound',Snd.on?'1':'0');
+  el('soundstate').textContent=Snd.on?'on':'off';
+  if(Snd.on){Snd.boot();Snd.item();}
+});
+el('soundstate').textContent=Snd.on?'on':'off';
+
+/* Going to the background pauses: a phone call must not get you shot. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&G.state==='play')togglePause();
+});
+
+/* ---------- boot ---------- */
+showSplash();
+
+let last=0;
+function frame(ts){
+  const t=ts/1000;
+  let dt=last?t-last:0;
+  last=t;
+  if(dt>0.1)dt=0.1;                   /* a backgrounded tab must not fast-forward */
+  pollPads();
+  stepGame(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+<!-- no-zoom:start -->
+<script data-shared="no-zoom">
+/* ---- the pinch and the double tap ---- *
+ *
+ * iOS Safari has ignored `user-scalable=no` and `maximum-scale` in the viewport
+ * meta tag since iOS 10. Every one of these pages carried both and neither did
+ * anything, so a double tap anywhere - on the glass, on a control, on the black
+ * - zoomed the page, and a zoomed page puts the controls off the edge of the
+ * screen. In a game with a clock running that is not an inconvenience, it is a
+ * death, and full screen does not help because the zoom is applied to the
+ * visual viewport on top of whatever the layout is doing.
+ *
+ * Three things are needed and the meta tag is none of them:
+ *
+ *   1. gesturestart / gesturechange / gestureend. This is how WebKit offers a
+ *      pinch, and it exists on no other engine.
+ *   2. A non-passive touchend that eats the second tap of a double tap. It has
+ *      to be non-passive or preventDefault is ignored outright, and it has to
+ *      be touchend rather than dblclick, because the zoom is committed before
+ *      a dblclick is ever dispatched.
+ *   3. A way back for a player who is zoomed already, because neither of the
+ *      above can un-zoom a page that is. Rewriting the viewport meta is the
+ *      only lever a page has over WebKit's zoom, and it only fires on a real
+ *      change, so the content is toggled rather than re-set.
+ *
+ * This file is the one copy. tools/sync-nozoom.js writes it into each game
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  var D=document, W=window;
+  if(!D.addEventListener)return;
+  for(var i=0,g=["gesturestart","gesturechange","gestureend"];i<g.length;i++)
+    D.addEventListener(g[i],function(e){e.preventDefault();},{passive:false});
+  /* Eating the second tap of a double tap eats the click the browser makes
+   * out of it, and every game here has controls that listen for one - so on a
+   * control this would cost the player every second press of a fast mash,
+   * which in a game about pressing fire quickly is worse than the zoom. The
+   * controls do not need it: a button carrying touch-action none or
+   * manipulation is already exempt from double-tap zoom on every engine that
+   * honours it. So the guard leaves anything pressable alone and covers the
+   * rest of the page, which is where the zoom was coming from. */
+  var PRESSABLE="button,a,input,select,textarea,label,[data-cmd],[role=button]";
+  function pressable(t){
+    return !!(t&&t.closest&&t.closest(PRESSABLE));
+  }
+  var lastTap=0;
+  D.addEventListener("touchend",function(e){
+    var now=Date.now();
+    if(now-lastTap<=350&&e.cancelable&&!pressable(e.target))e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+  /* A second finger is a pinch wherever it lands, and no game here wants one. */
+  D.addEventListener("touchstart",function(e){
+    if(e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+  },{passive:false});
+
+  var vv=W.visualViewport, meta=D.querySelector('meta[name="viewport"]');
+  if(!vv||!meta)return;
+  var base=meta.getAttribute("content"), fixing=false;
+  function unzoom(){
+    if(fixing||vv.scale<=1.01)return;
+    fixing=true;
+    meta.setAttribute("content",base+", minimum-scale=1");
+    W.setTimeout(function(){
+      meta.setAttribute("content",base);
+      fixing=false;
+      if(W.scrollTo)W.scrollTo(0,0);
+    },50);
+  }
+  vv.addEventListener("resize",unzoom);
+  vv.addEventListener("scroll",unzoom);
+  W.__unzoom=unzoom;                 // so a harness can ask for it directly
+})();
+</script>
+<!-- no-zoom:end -->
+<!-- launcher:start -->
+<script data-shared="launcher">
+/* ---- the way back to the launcher ----
+ *
+ * Every game here is its own page, and until now only one of them had a link
+ * back to the collection it belongs to: open a game directly, or install it to
+ * a home screen, and the rest of the cabinet was unreachable without editing
+ * the address bar.
+ *
+ * Where it goes took two tries and a measurement.
+ *
+ * Seven of these pages are flex columns whose wrap has flex:1, so the last
+ * child of the body settles at the bottom of the viewport on its own: under
+ * the controls, covering nothing. Law of the West is not one of them - its
+ * whole interface is a position:fixed #app over a body with no flow at all,
+ * and appended there the link landed at the top of the page and shoved the
+ * game down it.
+ *
+ * Pinning it to the bottom of the viewport instead fixed that one and broke
+ * seven: measured against every control on every page, a fixed chip sat on a
+ * full-screen button in five of them and on Galaga's thumb stick.
+ *
+ * So it goes in the flow; and if the flow turns out not to have put it near
+ * the bottom - which is what a body with nothing in it looks like from here -
+ * it moves into whatever element is actually covering the screen and rides
+ * that one's layout instead.
+ *
+ * The lettering is the collection's own: monospace, wide-spaced, upper case,
+ * and split a little cyan to the left and magenta to the right the way a
+ * mistuned tube did it.
+ *
+ * This file is the one copy. tools/sync-launcher.js writes it into each page
+ * between its markers, and the check in CI fails if any of them drifts.
+ */
+(function(){
+  if(typeof document==='undefined')return;
+  if(document.getElementById('rg-launch'))return;
+
+  var CSS=''+
+  '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
+    'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
+    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
+    'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
+    'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
+    'max-width:92%;touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
+    'text-shadow:-1px 0 0 rgba(56,232,255,.75),1px 0 0 rgba(255,62,165,.75),'+
+      '0 0 10px rgba(255,210,127,.45)}'+
+  '#rg-launch:hover,#rg-launch:focus-visible{border-color:rgba(255,210,127,.7);'+
+    'background:rgba(20,14,32,.9);outline:none}'+
+  '#rg-launch:active{transform:translateY(1px)}'+
+  '#rg-launch .rg-c{color:#ffd27f;text-shadow:none;margin-right:.5em}'+
+  /* a tube that has been on a while */
+  '@keyframes rg-flick{0%,96%,100%{opacity:1}97%{opacity:.78}98%{opacity:1}99%{opacity:.88}}'+
+  '#rg-launch{animation:rg-flick 9s steps(1) infinite}'+
+  '@media (prefers-reduced-motion:reduce){#rg-launch{animation:none}}';
+
+  function put(){
+    if(document.getElementById('rg-launch'))return;
+    var s=document.createElement('style');
+    s.id='rg-launch-style';s.textContent=CSS;
+    (document.head||document.documentElement).appendChild(s);
+    var a=document.createElement('a');
+    a.id='rg-launch';
+    /* One level up is the collection, whether that is a folder on a disk or
+     * the Pages site. Relative so it works from file:// as well. */
+    a.href='../';
+    a.setAttribute('aria-label','Back to the Retro Games launcher');
+    a.innerHTML='<span class="rg-c">◀</span>Retro Games';
+    var host=document.body||document.documentElement;
+    host.appendChild(a);
+    /* Did the flow put it near the bottom? If not, this page keeps its
+     * interface somewhere other than the body, and the link belongs there. */
+    try{
+      var r=a.getBoundingClientRect();
+      if(r.top<(window.innerHeight||0)*0.5){
+        var best=null,area=0,all=document.body.querySelectorAll('*');
+        for(var i=0;i<all.length;i++){
+          var el=all[i];
+          if(el===a||el.contains(a))continue;
+          var cs=window.getComputedStyle(el);
+          if(cs.position!=='fixed'&&cs.position!=='absolute')continue;
+          var q=el.getBoundingClientRect();
+          if(q.height<window.innerHeight*0.8)continue;
+          if(q.width*q.height>area){area=q.width*q.height;best=el;}
+        }
+        if(best)best.appendChild(a);
+      }
+    }catch(e){}
+  }
+  if(document.body)put();
+  else document.addEventListener('DOMContentLoaded',put);
+})();
+</script>
+<!-- launcher:end -->
+</body>
+</html>
