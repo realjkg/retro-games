@@ -19,7 +19,23 @@
 const path=require('path');
 const {load}=require(path.join(__dirname,'..','test','harness.js'));
 const arg=(k,d)=>{const i=process.argv.indexOf(k);return i>0?+process.argv[i+1]:d;};
-const COST=arg('--cost',120);          // touch latency plus a frame, in ms
+/* What a press costs before the engine ever sees it.
+ *
+ * The page's own share is measured, not guessed: from the input landing to the
+ * engine stamping the shot is a median of 41ms in Chromium on the real page.
+ * The rest is the input path, and that is where the two numbers part company.
+ * A key on a desk is quick. A finger on glass is not: iOS delivers the touch a
+ * frame or more later than a desktop keypress, and the page is a phone game -
+ * it launches fullscreen, it is driven by a thumb on a drawn pad, and it is
+ * played on a phone. So the standard below is held at the phone figure, and
+ * the desk figure is printed beside it so the gap is visible rather than
+ * assumed away.
+ *
+ * The touch share is an allowance, not a measurement - there is no iPhone in
+ * CI - so it is named here rather than buried in a default. */
+const DESK=arg('--cost',120);          // a keypress on a desktop, plus a frame
+const PHONE=arg('--phone',220);        // a thumb on glass, plus a frame
+const COST=DESK;
 const TRIALS=arg('--trials',4000);
 
 const {run}=load();
@@ -47,18 +63,23 @@ const fight=(kind,respond,seed,zone)=>{
 };
 const CAST_IDX=run('CAST.findIndex(e=>e.id==="kid")');
 
-const rows=[];
-for(const kind of KINDS){
-  for(const who of PLAYERS){
-    const c={kill:0,disarm:0,miss:0,outdrawn:0};
-    for(let i=0;i<TRIALS;i++)c[fight(kind,who.ms+COST,i+1)]++;
-    rows.push({kind,who:who.name,ms:who.ms,
-      answered:Math.round(1000*(TRIALS-c.outdrawn)/TRIALS)/10,
-      hit:Math.round(1000*(c.kill+c.disarm)/TRIALS)/10,
-      outdrawn:Math.round(1000*c.outdrawn/TRIALS)/10});
+const sweep=cost=>{
+  const out=[];
+  for(const kind of KINDS){
+    for(const who of PLAYERS){
+      const c={kill:0,disarm:0,miss:0,outdrawn:0};
+      for(let i=0;i<TRIALS;i++)c[fight(kind,who.ms+cost,i+1)]++;
+      out.push({kind,who:who.name,ms:who.ms,
+        answered:Math.round(1000*(TRIALS-c.outdrawn)/TRIALS)/10,
+        hit:Math.round(1000*(c.kill+c.disarm)/TRIALS)/10,
+        outdrawn:Math.round(1000*c.outdrawn/TRIALS)/10});
+    }
   }
-}
-console.log('a press costs '+COST+'ms on top of the player, '+TRIALS+' fights each\n');
+  return out;
+};
+const rows=sweep(PHONE), desk=sweep(DESK);
+console.log('a press costs '+PHONE+'ms on a phone and '+DESK+'ms on a desk; '
+  +TRIALS+' fights each. The standard below is held at the phone.\n');
 console.log('  kind      player      reacts    got a shot off    was outdrawn    hit him');
 for(const r of rows)
   console.log('  '+r.kind.padEnd(10)+r.who.padEnd(11)+
@@ -69,6 +90,7 @@ for(const r of rows)
  * cannot answer is not difficulty; a gunfight the slowest always wins is not
  * a gunfight. */
 const at=(k,n)=>rows.find(r=>r.kind===k&&r.who===n);
+const atDesk=(k,n)=>desk.find(r=>r.kind===k&&r.who===n);
 const fail=[];
 const ok=(c,m)=>{ if(!c)fail.push(m); };
 ok(at('draw','ordinary').answered>=85,
@@ -89,6 +111,14 @@ ok(at('delayed','slow').outdrawn>at('draw','slow').outdrawn,
   'a man who turns back on you is no worse than one who never turned away');
 ok(at('draw','slow').answered<at('draw','quick').answered,
   'being slow costs nothing at all');
+
+/* And what the same day is on a desk, said out loud rather than left to be
+ * discovered. The windows were opened deliberately, at a player's request,
+ * because the fight was unwinnable on a phone. On a keyboard that same fight
+ * is generous, and pretending otherwise would be the sort of green that means
+ * nothing. */
+console.log('\n  on a desk, the slowest player is outdrawn: '
+  +KINDS.map(k=>k+' '+atDesk(k,'slow').outdrawn+'%').join(', '));
 
 console.log('\n--- '+(fail.length?fail.length+' FAILURES':'all clear')+' ---');
 for(const f of fail)console.log('  FAIL  '+f);

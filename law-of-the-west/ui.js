@@ -483,15 +483,40 @@ function visitor(enc,pose,now){
    * without that opposition is a man being carried along upright. */
   const SWAY=1.15;                                   // rad/s: a shift every few seconds
   const legPh=gait!=null?gait*Math.PI*STRIDE:null;
-  const w=legPh!=null?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
-  const wLag=legPh!=null?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
-  const hipX=Math.round(w*3);
-  const shoX=-Math.round(w*2);                       // the counter-turn
-  const headX=-Math.round(wLag*2);
+  const going=legPh!=null;
+  const w=going?Math.sin(legPh)*0.72:Math.sin(t*SWAY+ph);
+  const wLag=going?Math.sin(legPh-0.5)*0.72:Math.sin((t-0.22)*SWAY+ph);
+  /* Standing and walking are not the same gesture and cannot be given the same
+   * numbers, which is what they had. A walk throws the hips over the planted
+   * leg and brings the shoulders back hard the other way; that is a walk and
+   * it is right. A man standing still does none of it. His pelvis eases onto
+   * one leg, his spine takes most of that back, and his head stays over his
+   * feet - staying over your feet is what standing IS.
+   *
+   * On the walk's numbers he came apart: three pixels of hip one way against
+   * two of shoulder and two of head the other, which on a forty-eight pixel
+   * figure is five and a half pixels of top half and bottom half sliding past
+   * each other, measured. A player watched that and said the callers looked
+   * like two bodies moving at two separate speeds, which is exactly what it
+   * is. Worse, |w| reaches 1 standing and only 0.72 walking, so a caller stood
+   * at his post swayed HARDER than one crossing the street.
+   *
+   * So the hips ease rather than throw, the shoulders answer with a fraction
+   * rather than a counterweight, and the head goes the way the hips went - a
+   * little, and late - instead of against them. */
+  const hipX=Math.round(w*(going?3:2));
+  const shoX=-Math.round(w*(going?2:0.8));           // the counter-turn
+  const headX=going?-Math.round(wLag*2)              // walking, the head counters too
+                   :Math.round(wLag*0.6);            // standing, it stays over the feet
   // planted, he stands tall on that leg; caught between, he settles a little
   const settle=Math.round((1-Math.abs(w))*1.4);
-  // and the head keeps a slower time of its own
-  const headY=Math.round(Math.sin(t*0.71+ph*1.7)*1.2);
+  /* And the head nods on the body's clock. It used to keep a slower time of
+   * its own - 0.71 rad/s against a body swaying at 1.15, an 8.8 second nod
+   * over a 5.5 second sway - so the two drifted in and out of phase forever
+   * and never agreed twice. A head that never agrees with the shoulders under
+   * it is not a man breathing; it is a second animal. Same clock, later phase:
+   * a head still arrives last, it just arrives on the same beat. */
+  const headY=Math.round(Math.sin(going?legPh-0.9:t*SWAY+ph-0.9)*1.2);
   const hips=Math.max(cut.head+1,Math.round(rows.length*0.62));
   // a walk is a fall he keeps catching: the bob is a curve, not a switch, and
   // he leans into it and comes upright as he arrives
@@ -667,7 +692,12 @@ let spin=0;                           // radians, the hand about the wrist
  * The spin runs inside that: one whole turn, done while the arm is still
  * moving, so the flourish is part of the draw rather than a pose struck after
  * it. Holstering turns the other way, and finishes as the gun reaches leather. */
-const DRAW_MS=280, PUTUP_MS=420, TURN=Math.PI*2;
+/* And it is quick. A draw that takes better than a quarter second to play is
+ * a draw the player is waiting on rather than making - the shot has already
+ * gone off, because FIRE fires; what he is watching is the picture catching
+ * up with his own thumb. Putting it away was slower still and he spent most
+ * of half a second unable to see past his own arm. */
+const DRAW_MS=170, PUTUP_MS=240, TURN=Math.PI*2;
 let seqAt=-1e9, seqKind="", seqFrom=0;
 /* Starting from wherever the arm actually is, not from where it ought to be.
  * A sequence that assumes it begins at one end jumps on its first frame if the

@@ -74,6 +74,7 @@ const SHED=0.02;                                   // of him, lost to a torn sea
 const KEYLINE=6;                                   // px of outline across his middle
 const RIGID=40;                                    // degrees of disagreement between rings
 const TRAPPED=16;                                  // px of street shut inside a caller
+const SCISSOR=3;                                   // px of top half sliding against bottom
 
 let chromium;
 try{({chromium}=require(process.env.PW||'playwright-core'));}
@@ -155,6 +156,48 @@ const STILL=function(tm){
   for(let i=0;i<d.length;i+=16)h=(h*31+d[i]+d[i+1]*3+d[i+2]*7)|0;
   walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
   return String(h);
+};
+
+/* How far the top of a caller and the bottom of him pull apart at one moment.
+ *
+ * A body shifting its weight turns about itself, so the hips and the shoulders
+ * do go opposite ways - a little. Given a walk's numbers while standing still
+ * they went opposite ways a lot: three pixels of hip against two of shoulder
+ * and two of head, which measured five and a half pixels of top half sliding
+ * against bottom half on a forty-eight pixel figure, and read on the screen as
+ * two bodies moving at two separate speeds. A player said exactly that.
+ *
+ * Posed over a flat ground, and every band measured against HIS OWN top row,
+ * so a man who rises and falls does not come back as a man who slides. */
+const SCISS=function(tm){
+  const enc=who(G); if(!enc)return null;
+  const keep=[walkAt,leaving,reactAt];
+  walkAt=-1e9; leaving=null; reactAt=-1e9;
+  const g=document.getElementById('scene').getContext('2d');
+  const X0=130,Y0=10,W=180,H=200;
+  g.save(); g.setTransform(1,0,0,1,0,0);
+  g.fillStyle='#b0a898'; g.fillRect(X0,Y0,W,H); g.restore();
+  visitor(enc,'idle',tm);
+  const d=g.getImageData(X0,Y0,W,H).data;
+  const mid=[]; let top=-1,bot=-1;
+  for(let y=0;y<H;y++){
+    let lo=1e9,hi=-1e9;
+    for(let x=0;x<W;x++){
+      const q=((y*W)+x)*4;
+      if(Math.abs(d[q]-0xb0)+Math.abs(d[q+1]-0xa8)+Math.abs(d[q+2]-0x98)<=20)continue;
+      if(x<lo)lo=x; if(x>hi)hi=x;
+    }
+    if(hi<0){mid.push(null);continue;}
+    if(top<0)top=y; bot=y; mid.push((lo+hi)/2);
+  }
+  walkAt=keep[0]; leaving=keep[1]; reactAt=keep[2];
+  if(top<0)return null;
+  const h=bot-top+1;
+  const band=function(a,z){var s=0,n=0;
+    for(var y=top+Math.round(a*h);y<=top+Math.round(z*h)&&y<mid.length;y++){
+      if(mid[y]==null)continue; s+=mid[y]; n++; }
+    return n?s/n:null; };
+  return [band(0,0.16),band(0.86,1.0)];            // his head, and his hem
 };
 
 /* Air that is inside the caller: background the outside cannot reach. */
@@ -266,11 +309,15 @@ const RECORD=function(){
    * the end. For each one the same questions - did he walk in on his own feet,
    * did he stride or only slide, is he alive while he stands there, does the
    * scene answer what is pressed at it, and does he leave the way he came. */
+  /* How long the draw takes, read off the page rather than assumed, and read
+   * defensively: a build that predates this still has to be openable, because
+   * running against the build you are replacing is the point of the tool. */
+  const drawSpan=await page.evaluate(()=>typeof DRAW_MS==='number'?DRAW_MS:null);
   const met=new Set(), seams=[], scenes=new Map();
   const note=(id,k,v)=>{
     let r=scenes.get(id);
     if(!r){r={id:id,arrived:0,beats:new Set(),alive:-1,answered:false,left:0,
-              seam:null,trap:null};scenes.set(id,r);}
+              seam:null,trap:null,sciss:null};scenes.set(id,r);}
     if(k)r[k]=v;
     return r;
   };
@@ -310,6 +357,30 @@ const RECORD=function(){
          * the same picture: a caller who holds one pose is a cut-out. */
         const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
         note(s.who,'alive',a1===a2?0:1);
+        /* And is he one body? Standing still, his head and his hem must not
+         * set off in opposite directions at once. */
+        {
+          const H=[],M=[];
+          for(let i=0;i<22;i++){
+            const v=await page.evaluate(SCISS,200000+i*260);
+            if(v){H.push(v[0]);M.push(v[1]);}
+          }
+          let sc=0, stirred=false;
+          if(H.length){
+            const h0=H.reduce((a,b)=>a+b,0)/H.length, m0=M.reduce((a,b)=>a+b,0)/M.length;
+            for(let i=0;i<H.length;i++){
+              const dh=H[i]-h0, dm=M[i]-m0;
+              if(dh*dm<0)sc=Math.max(sc,Math.abs(dh)+Math.abs(dm));
+            }
+            /* A figure that never moved at all scores a perfect nought, which
+             * is the same number a figure that moves properly scores. The kid
+             * came back 0.00 that way and was read as the best of them when he
+             * was simply not measured. So say whether he stirred. */
+            const rng=v=>Math.max.apply(null,v)-Math.min.apply(null,v);
+            stirred=rng(H)>0.5||rng(M)>0.5;
+          }
+          note(s.who,'sciss',stirred?+sc.toFixed(2):null);
+        }
         await page.evaluate(()=>{window.__probing=false;paint();});
         if(met.size<=3){                             // and on some of them, the gun
           await page.keyboard.press('ArrowUp');  await page.waitForTimeout(500);
@@ -341,12 +412,37 @@ const RECORD=function(){
         :((who(G)&&who(G).id)||G.phase));
       const r=note(id);
       // a robbery and a stand-off are scenes too: is the man in them alive?
-      if(r.alive<0&&await page.evaluate(()=>!!who(G))){
+      /* And do not probe a scene until it has been seen to move. The probe
+       * costs a round trip a sample and the page keeps running while it works,
+       * so probing on arrival ate the robbers' walk-ins whole and reported
+       * three scenes that never moved when what never moved was the tool. */
+      const moved=r.arrived>0||r.left>0;
+      if(r.alive<0&&moved&&await page.evaluate(()=>!!who(G))){
         await page.evaluate(()=>{window.__probing=true;});
         const a1=await page.evaluate(STILL,0), a2=await page.evaluate(STILL,1300);
         r.alive=a1===a2?0:1;
         r.seam=Math.max(await page.evaluate(SEAM,0),await page.evaluate(SEAM,1300));
         r.trap=Math.max(await page.evaluate(TRAP,0),await page.evaluate(TRAP,1300));
+        /* A robber is a man the sheriff stands in front of too, and he was
+         * going through this branch and out the other side unmeasured. */
+        {
+          const H=[],M=[];
+          for(let i=0;i<22;i++){
+            const v=await page.evaluate(SCISS,200000+i*260);
+            if(v){H.push(v[0]);M.push(v[1]);}
+          }
+          let sc=0, stirred=false;
+          if(H.length){
+            const h0=H.reduce((a,b)=>a+b,0)/H.length, m0=M.reduce((a,b)=>a+b,0)/M.length;
+            for(let i=0;i<H.length;i++){
+              const dh=H[i]-h0, dm=M[i]-m0;
+              if(dh*dm<0)sc=Math.max(sc,Math.abs(dh)+Math.abs(dm));
+            }
+            const rng=v=>Math.max.apply(null,v)-Math.min.apply(null,v);
+            stirred=rng(H)>0.5||rng(M)>0.5;
+          }
+          r.sciss=stirred?+sc.toFixed(2):null;
+        }
         await page.evaluate(()=>{window.__probing=false;paint();});
       }
       const was=await page.evaluate(()=>G.phase+'/'+(G.interlude||''));
@@ -357,10 +453,10 @@ const RECORD=function(){
   }
   const log=await page.evaluate(()=>window.__log);
   await browser.close();
-  report(log,errs,ink,seams,rings,scenes);
+  report(log,errs,ink,seams,rings,scenes,drawSpan);
 })().catch(e=>{console.error(e);process.exit(1);});
 
-function report(log,errs,ink,seams,rings,scenes){
+function report(log,errs,ink,seams,rings,scenes,armSpan){
   const segs=[]; let cur=null;
   for(const f of log){
     if(!cur||cur.who!==f.who){cur={who:f.who,frames:[]};segs.push(cur);}
@@ -399,11 +495,22 @@ function report(log,errs,ink,seams,rings,scenes){
   for(let i=1;i<sw.length;i++)
     if(sw[i]!==null&&sw[i-1]!==null)armJump=Math.max(armJump,Math.abs(sw[i]-sw[i-1]));
   const seen=new Set(sw.filter(v=>v!==null));
-  /* A quick draw is 280ms, so at thirty frames a second one frame is an eighth
-   * of it and the fast part of the curve fairly covers a third of the travel.
-   * What this is for is a draw that is a switch rather than a movement, so the
-   * bar is a third of it in one frame, not a tenth. */
-  const armOk=seen.size>5&&armJump<=0.5;
+  /* What this is for is a draw that is a SWITCH rather than a movement: one
+   * frame from leather to level. So the bar cannot be a constant - it is a
+   * share of the travel per frame, and that share depends on how long the draw
+   * takes. Written as 0.5 it was really "a third of the travel in one frame at
+   * 280ms", and the moment the draw was made quicker the number went on
+   * meaning the old speed and failed a draw that is simply faster.
+   *
+   * So it is derived: one frame at thirty a second is frame/DRAW_MS of the
+   * sequence, a cubic ease covers 1-(1-x)^3 of the travel in it, and a frame
+   * may be dropped under load, so allow half again. At 280ms that gives 0.47,
+   * which is the bar this replaces - the re-derivation is checked against the
+   * speed it was written for rather than fitted to the one it now meets. */
+  const drawMs=(typeof armSpan==='number'&&armSpan>0)?armSpan:280;
+  const perFrame=Math.min(1,33/drawMs);
+  const armBar=Math.min(0.9,1.5*(1-Math.pow(1-perFrame,3)));
+  const armOk=seen.size>5&&armJump<=armBar;
   if(!armOk)bad++;
   console.log(`\n${armOk?'  ok  ':'  BAD '} the arm moves: ${seen.size} distinct positions, `+
     `biggest one-frame change ${armJump.toFixed(2)}`);
@@ -455,7 +562,7 @@ function report(log,errs,ink,seams,rings,scenes){
    * in, or a scene that does not answer what is pressed at it, is a scene a
    * player will meet. */
   if(scenes&&scenes.size){
-    console.log('\n  scene        walked in   strode        alive  answers  walked off');
+    console.log('\n  scene        walked in   strode        alive  answers  walked off  one body');
     let sceneBad=0;
     const all=[...scenes.values()].filter(r=>r.id!=='summary'&&r.id!=='intro');
     const last=all.length?all[all.length-1].id:null;
@@ -470,6 +577,7 @@ function report(log,errs,ink,seams,rings,scenes){
       if(!r.answered&&!ending)fail.push('no answer');
       if(r.seam!=null&&r.seam>KEYLINE)fail.push('torn');
       if(r.trap!=null&&r.trap>TRAPPED)fail.push('slotted');
+      if(r.sciss!=null&&r.sciss>SCISSOR)fail.push('scissors');
       if(fail.length)sceneBad++;
       console.log(`  ${fail.length?'BAD ':'ok  '} ${r.id.padEnd(11)}`+
         `${String(r.arrived||'-').padStart(6)}px  `+
@@ -477,11 +585,12 @@ function report(log,errs,ink,seams,rings,scenes){
         `${r.alive<0?'  -  ':(r.alive?' yes ':' NO  ')}  `+
         `${r.answered?' yes ':' NO  '}  `+
         `${String(r.left||'-').padStart(6)}px`+
+        `${String(r.sciss==null?'-':r.sciss.toFixed(2)+'px').padStart(9)}`+
         (fail.length?'   <- '+fail.join(', '):''));
     }
     if(sceneBad)bad++;
     console.log(sceneBad?`\n  ${sceneBad} scene(s) a player would meet and find wrong.`
-                        :'\n  Every scene walked, strode, lived, answered and left.');
+                        :'\n  Every scene walked, strode, lived, answered, left and held together.');
   }
   for(const e of errs){bad++;console.log('  BAD  page error: '+e);}
   console.log(bad?`\n${bad} thing(s) the player would see.`:'\nNothing a player would see wrong.');

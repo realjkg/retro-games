@@ -565,12 +565,39 @@ you, where you are in the day and how it is going live in a strip above it.
 
 ## How it plays
 
+**They stand as one body.** A caller waiting for you shifts his weight, and
+the hips and the shoulders do go opposite ways — a little. They used to go
+opposite ways a lot: standing still, a caller was given the numbers a walk
+uses, three pixels of hip against two of shoulder and two of head, and the top
+half and the bottom half slid past each other by five and a half pixels on a
+figure forty-eight wide. The head made it worse by nodding on a clock of its
+own — 0.71 rad/s against a body swaying at 1.15, so the two drifted in and out
+of phase and never agreed twice. On the screen that is two bodies moving at two
+separate speeds, and a player said so. Standing now eases rather than throws,
+the head stays over the feet, and every clock on a caller is the same clock.
+`playtest.js` measures it per scene and fails over three pixels.
+
 **Two modes, one pad.** Up draws: the gun hand comes up, a crosshair appears and
 the replies go dim. The pad moves the crosshair; down walks it back and, pulled
 past the bottom, holsters — as do HOL and Escape. Drawn guns are not tolerated:
 a hidden reflex timer runs while yours is out and an armed man answers it — a
 frightened man in about 1.1 to 1.9 seconds, a hostile one in 1.4 to 2.2, a
-patient one not for 3 to 4.4.
+patient one not for 3 to 4.4. The draw itself is quick: 170ms to clear leather
+and come up level, 240ms to put it away, both with the gun turning over inside
+the move. FIRE fires — the sequence is the picture catching up with the thumb,
+never something the shot waits on.
+
+**Whose fight it is.** The windows were opened twice, both times because a
+player said the same thing: the CPU kept getting there first. An ambush now
+runs 850–1250ms end to end, a man who turns back on you 1010–1410, and one who
+squares up and gives warning 1060–1460 — the ceiling is still under a second
+and a half, so it is still a gunfight. `tools/timing.js` holds the standard at
+a **phone's** press cost rather than a desk's, because this is a phone game and
+a thumb on glass is slower than a key: the page's own share of a press is a
+measured 41ms, and the touch on top of it is an allowance, named in the tool
+rather than buried in a default. At that cost an ambush still costs a slow
+player something. On a desktop keyboard the same day is generous, and the tool
+prints that line too rather than letting a green run imply otherwise.
 
 **The shooting.** Weapon box and centre mass are separate and follow the drawn
 frames. Shooting the gun out of an armed man's hand disarms and arrests; centre
