@@ -400,15 +400,22 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
 /* The moods a line is said in: its pitch across the line (shape, from its
  * start at 0 to its end at 1) and its pace (r); p is the pitch given to the
  * device's voice if that is the one chosen. */
+/*   acc  how hard a stressed syllable is hit: German says a word by jumping
+ *        up onto its stressed syllable and falling away after it
+ *   oq   how long the voice is open each cycle: a shout is pressed and harsh
+ *        (short), talk between friends is loose and breathy (long)
+ * They are men's voices, all of them: a shout lifts a man's pitch by a
+ * quarter, not by the half that the first version gave it, which with its
+ * higher base put the guards in a woman's range. */
 const MOODS={
-  bark:      {p:1.15,r:1.25,v:1,  syl:0.075,g:0.06, fall:0.85,shape:q=>1.3-0.45*q},
-  ask:       {p:1.05,r:1.0, v:0.9,syl:0.10, g:0.045,fall:1.05,shape:q=>0.92+0.6*q*q},
-  cold:      {p:0.72,r:0.8, v:0.8,syl:0.15, g:0.04, fall:0.98,shape:q=>0.8},
-  suspicious:{p:0.9, r:0.76,v:0.85,syl:0.16,g:0.04, fall:1.0, shape:q=>1+0.28*Math.sin(q*Math.PI*2.2)},
-  dismiss:   {p:1.0, r:1.2, v:0.8,syl:0.08, g:0.04, fall:0.9, shape:q=>1.12-0.4*q},
-  plead:     {p:1.45,r:1.15,v:0.9,syl:0.09, g:0.045,fall:0.95,shape:q=>1.45-0.25*q},
-  scream:    {p:1.7, r:1.4, v:1,  syl:0.12, g:0.06, fall:0.6, shape:q=>1.8-0.9*q},
-  chat:      {p:1.0, r:1.0, v:0.6,syl:0.09, g:0.03, fall:1.0, shape:q=>1+0.12*Math.sin(q*9)}
+  bark:      {p:1.1, r:1.2, v:1,  acc:0.22,oq:0.38,breath:0.04,shape:q=>1.2-0.34*q},
+  ask:       {p:1.0, r:1.0, v:0.9,acc:0.1, oq:0.52,breath:0.06,shape:q=>0.9+0.6*q*q*q},
+  cold:      {p:0.8, r:0.82,v:0.8,acc:0.06,oq:0.48,breath:0.05,shape:q=>0.88},
+  suspicious:{p:0.9, r:0.78,v:0.85,acc:0.14,oq:0.52,breath:0.08,shape:q=>1+0.16*Math.sin(q*Math.PI*2.2)},
+  dismiss:   {p:1.0, r:1.18,v:0.8,acc:0.1, oq:0.5, breath:0.06,shape:q=>1.06-0.26*q},
+  plead:     {p:1.2, r:1.12,v:0.9,acc:0.14,oq:0.6, breath:0.12,shape:q=>1.25-0.18*q},
+  scream:    {p:1.4, r:1.35,v:1,  acc:0.25,oq:0.34,breath:0.1, shape:q=>1.4-0.55*q},
+  chat:      {p:1.0, r:1.0, v:0.6,acc:0.12,oq:0.62,breath:0.14,shape:q=>1+0.08*Math.sin(q*9)}
 };
 /* ---------- the castle's voice ----------
  * The 1981 game talked: "Achtung!", "Halt!", "Kommen Sie!", out of a speaker
@@ -447,6 +454,8 @@ const PH={
  * the passwords and the commandants' names included. */
 function g2p(text){
   const out=[];
+  /* letters said as letters: SS is Es-Es, not a hiss */
+  text=String(text).replace(/\bSS\b/g,'Es Es');
   const parts=String(text).toLowerCase().replace(/[^a-zäöüß ,.!?\-]/g,' ').split(/([ ,.!?\-]+)/);
   for(const w of parts){
     if(!w)continue;
@@ -515,8 +524,10 @@ const VCACHE=new Map();
 /* one line, as samples: the text, the mood, and the man saying it */
 function synthLine(text,mood,who){
   const M=MOODS[mood]||MOODS.bark;
-  const f0b=(who&&who.f0)||130,rate=((who&&who.rate)||1)*M.r;
-  const key=text+'|'+mood+'|'+f0b.toFixed(1)+'|'+rate.toFixed(2);
+  const f0b=(who&&who.f0)||120,rate=((who&&who.rate)||1)*M.r;
+  const fs=(who&&who.fs)||1,rasp=(who&&who.rasp)||0.15,growl=(who&&who.growl)||0;
+  const jit=(who&&who.jit)||0.02,shim=(who&&who.shim)||0.08;
+  const key=text+'|'+mood+'|'+f0b.toFixed(1)+'|'+rate.toFixed(2)+'|'+fs.toFixed(2)+'|'+growl.toFixed(2);
   if(VCACHE.has(key))return VCACHE.get(key);
   const segs=[];let T=0.02;
   for(let raw of g2p(text)){
@@ -529,10 +540,15 @@ function synthLine(text,mood,who){
   /* each consonant borrows the resonances of the vowel next to it */
   const vowelNear=i=>{for(let k=i;k<segs.length;k++)if(segs[k].P.f)return segs[k].P.f;
     for(let k=i;k>=0;k--)if(segs[k].P.f)return segs[k].P.f;return[500,1500,2500];};
-  segs.forEach((s,i)=>{s.F=s.P.f||vowelNear(i);});
+  segs.forEach((s,i)=>{s.F=(s.P.f||vowelNear(i)).map(f=>f*fs);});
+  /* where each word's stressed syllable starts: the pitch jumps up into it */
+  const accents=segs.filter(s=>s.stress&&s.P.t==='v').map(s=>s.t0);
+  for(let i=0;i<segs.length;i++)if(segs[i].stress&&segs[i].P.t!=='v'){
+    const v=segs.slice(i).find(x=>x.P.t==='v');if(v&&accents.indexOf(v.t0)<0)accents.push(v.t0);}
   const n=Math.ceil(T*VSR),out=new Float32Array(n),hs=new Float32Array(n);
   const r1=resonator(),r2=resonator(),r3=resonator(),rn=resonator();
   let F=segs.length?segs[0].F.slice():[500,1500,2500],phase=0,gPrev=0,si=0,amp=0,vPrev=0;
+  let pj=1,ps=1,odd=false;
   for(let k=0;k<n;k++){
     const t=k/VSR;
     while(si<segs.length-1&&t>=segs[si].t1)si++;
@@ -541,15 +557,22 @@ function synthLine(text,mood,who){
     const P=sg.P,u=(t-sg.t0)/(sg.t1-sg.t0);
     if(k%16===0){
       for(let j=0;j<3;j++)F[j]+=(sg.F[j]-F[j])*0.22;
-      tuneRes(r1,F[0],70);tuneRes(r2,F[1],100);tuneRes(r3,F[2],160);
+      tuneRes(r1,F[0],80);tuneRes(r2,F[1],110);tuneRes(r3,F[2],170);
       if(P.n)tuneRes(rn,P.n[0],P.n[1]);
     }
-    /* the pitch: the man's own, bent by the mood across the line, lifted on a stressed syllable */
-    const f0=f0b*M.shape(t/T)*(sg.stress?1.07:1)*(1+0.012*Math.sin(t*31));
-    phase+=f0/VSR;if(phase>=1)phase-=1;
-    const gl=phase<0.55?Math.sin(Math.PI*phase/0.55):0;
-    const src=(gl-gPrev)*6;gPrev=gl;
+    /* The pitch: the man's own, bent by the mood across the line, and in
+       every word a jump up onto the stressed syllable that falls away after
+       it. No two cycles quite alike (jitter, shimmer); the SS every other
+       cycle weaker than the last, which is the growl. */
+    let acc=0;for(const a of accents)acc+=t>=a?Math.exp(-(t-a)/0.13):Math.exp((t-a)/0.025);
+    const f0=f0b*M.shape(t/T)*(1+M.acc*Math.min(1.2,acc))*pj;
+    phase+=f0/VSR;
+    if(phase>=1){phase-=1;odd=!odd;
+      pj=1+(Math.random()-0.5)*2*jit;ps=(1+(Math.random()-0.5)*2*shim)*(odd?1-growl:1);}
+    const gl=phase<M.oq?Math.sin(Math.PI*phase/M.oq):0;
     const noise=Math.random()*2-1;
+    /* rasp and breath: noise riding on the open part of each cycle */
+    const src=((gl-gPrev)*6+noise*gl*(rasp+M.breath)*0.9)*ps;gPrev=gl;
     let av=0,an=0,ah=0;
     switch(P.t){
       case'v':av=1;break;
@@ -591,7 +614,10 @@ const Voice={
       if(typeof speechSynthesis==='undefined'||typeof SpeechSynthesisUtterance==='undefined')return;
       this.synth=speechSynthesis;
       const find=()=>{try{const vs=this.synth.getVoices()||[];
-        this.de=vs.find(v=>/^de(-|_|$)/i.test(v.lang))||null;}catch(e){}};
+        /* a man's German voice if the device has one: they are mostly named */
+        const de=vs.filter(v=>/^de(-|_|$)/i.test(v.lang));
+        this.de=de.find(v=>/\b(male|mann|markus|yannick|hans|stefan|martin|viktor|conrad|klaus|jonas|daniel|helmut|reed|rocko|eddy|grandpa)\b/i.test(v.name))||de[0]||null;
+        this.deMale=!!this.de&&de.indexOf(this.de)>=0&&this.de!==de[0]||/male/i.test((this.de||{}).name||'');}catch(e){}};
       find();
       try{this.synth.addEventListener('voiceschanged',find);}catch(e){}
     }catch(e){this.synth=null;}
@@ -603,7 +629,8 @@ const Voice={
       try{
         const u=new SpeechSynthesisUtterance(text);
         u.lang='de-DE';u.voice=this.de;
-        u.pitch=clamp(((who&&who.pitch)||1)*M.p*(who&&who.kind==='ss'?0.6:1),0.1,2);
+        /* and if it is not a man's, down to the bottom of its range */
+        u.pitch=clamp(((who&&who.pitch)||1)*M.p*(who&&who.kind==='ss'?0.6:1)*(this.deMale?1:0.55),0.1,2);
         u.rate=clamp(((who&&who.rate)||1)*M.r,0.5,1.8);u.volume=M.v;
         /* a shout cuts across whatever was being said; talk waits its turn */
         if(mood==='bark'||mood==='scream'||this.synth.pending)this.synth.cancel();
@@ -895,9 +922,15 @@ function makeRoom(cx,cy,doors,opts){
 let guardId=1;
 /* A guard's voice is anywhere from a high bark to a low growl; the SS are
  * all down at the bottom. */
+/* Every voice a man's. A guard from a high, hard 150 Hz down to a bass at
+ * 95; the SS all below that, 66 to 86, with the growl of a voice pushed
+ * down to the bottom of itself. A deeper man is a bigger man, so his
+ * resonances come down too (fs), and each has his own amount of rasp. */
 function voiceFor(kind,pitch,rate){
-  const k=(pitch-0.85)/0.3;
-  return{kind,pitch,rate,f0:kind==='ss'?72+k*30:112+k*98};
+  const k=Math.max(0,Math.min(1,(pitch-0.85)/0.3));
+  return kind==='ss'
+    ?{kind,pitch,rate,f0:66+k*20,fs:0.87+0.05*k,rasp:0.14,growl:0.28+0.2*(1-k),jit:0.03,shim:0.12}
+    :{kind,pitch,rate,f0:95+k*55,fs:0.93+0.08*k,rasp:0.05+0.1*(1-k),growl:0,jit:0.02,shim:0.08};
 }
 function mkGuard(kind,x,y){
   return{id:guardId++,kind,x,y,dir:ri(8),face:R()<0.5?1:-1,dist:0,st:'stand',t:0.3+R(),
