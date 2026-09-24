@@ -91,6 +91,13 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
     await pg.keyboard.press('Enter');await pg.waitForTimeout(80);
   }
   check(await read('G.state')==='play'&&await read('room().guards[0].cleared'),'answered right by keyboard, he waves you on');
+  /* stopped again, and this time H: the gun comes out on him */
+  await read(`(()=>{G.P.holstered=true;const rm=room();rm.guards=[];room().blown=false;
+    const g=mkGuard('guard',G.P.x+18,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);return 0;})()`);
+  await pg.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+  await pg.keyboard.press('h');await pg.waitForTimeout(120);
+  check(await read('G.state')==='play'&&await read('room().guards[0].st')==='hup','stopped and questioned, H draws on him and his hands go up',
+    await read('room().guards[0].st'));
   await read(`room().guards=[];0`);
 
   /* impenetrable, in real time: an SS man put in front of him, ten seconds */

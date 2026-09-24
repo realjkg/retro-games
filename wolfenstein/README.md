@@ -93,6 +93,29 @@ a room. What you are asked when questioned builds up the same way (below).
 cell, and your cellmate tells you so. In every castle after, it is in a room
 next to the cell.
 
+## Challenged, and drawn on
+
+A guard who comes on an escaped prisoner does not simply shoot him. **He
+challenges him first**, gun up and finger off the trigger: *Halt! Hände
+hoch!*, *Halt! Kommen Sie!*, *Stehenbleiben!* He waits three seconds in the
+first castle and a second and a half by the sixth.
+
+* **Pull your gun on him** while he waits, and his hands go up: *Kamerad!
+  Nicht schießen!*
+* **Walk away** and he shouts *Stehenbleiben!* and opens fire.
+* **Stand there** and he fires when he has waited long enough.
+
+The same holds when you are in uniform. **Stopped and questioned, you can
+draw on him instead of answering**: *Draw on him* on the card, or H. At
+arm's length, with his own gun down, he has no choice, and his hands go up;
+so do a guard's who has just waved you on, if you draw on him close to. Either
+way your cover is gone with anyone else who saw it.
+
+The SS challenge too (*Halt! SS! Hände hoch!*), for less than half as long,
+and only put their hands up to a gun drawn on them at arm's length. Drawn on
+from across a room, an SS man goes for his gun (*Waffe runter!*). One already
+shooting at you never surrenders.
+
 ## Holster the gun, and be questioned
 
 **H** (or HOLSTER) puts the gun away: his hands go to his sides and the
@@ -293,7 +316,7 @@ you are impenetrable.
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 43 tests, no browser
+    node --test tests/*.test.cjs                              # 48 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
     PW=... node tools/layout.js

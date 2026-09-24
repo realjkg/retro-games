@@ -34,6 +34,9 @@ const SCENES=[
                    G.P.uniform=true;watch(g);STRIDE=true`],
   ['halt!',       `play();bare(40,92);const g=put('guard',200,92);alarm(g);G.impenetrable=true;G.P.dir=2;
                    watch(g);STRIDE=true`],
+  ['challenged',  `play();G.impenetrable=true;bare(60,92);G.P.holstered=true;G.P.dir=2;const g=put('guard',170,92);sim(0.3);watch(g)`],
+  ['drawn on',    `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;const g=put('guard',124,92);
+                   sim(2);drawDuringQuestions();sim(0.2);watch(g)`],
   ['hands up',    `play();bare(60,92);const g=put('guard',150,92);g.st='hup';g.hupT=1e9;G.P.dir=0;watch(g)`],
   ['ss walks in', `play();bare(200,50);G.impenetrable=true;const g=put('ss',-6,92);g.st='enter';g.dir=0;g.face=1;
                    watch(g);IN=true;STRIDE=true`],
