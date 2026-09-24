@@ -24,6 +24,9 @@ const MOMENTS=[
   ['questioned',  `play(4);G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;const a=put('ss',130,92),b=put('ss',150,80);sim(1.6)`],
   ['spion!',      `play(4);G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;const a=put('ss',130,92),b=put('ss',150,80);sim(1.6);
                    answer(G.q.cur.a.findIndex(o=>o[2]==='bad'));answer(G.q.cur.a.findIndex(o=>o[2]==='bad'));sim(0.3)`],
+  ['challenged',  `play();G.impenetrable=true;bare(80,92);G.P.holstered=true;G.P.dir=2;put('guard',170,92);sim(0.4)`],
+  ['drawn on',    `play(4);G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;put('ss',124,92);
+                   sim(2);drawDuringQuestions();sim(0.4)`],
   ['holstered',   `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;put('guard',160,92);sim(0.4)`],
   ['ss squad room',`play(5);let i=G.castle.rooms.findIndex(r=>r.guards.filter(g=>g.kind==='ss').length>=2);visit(i);G.P.uniform=true;sim(1)`],
   ['picking',     `play();bare(60,90);room().chests.push({tx:12,ty:9,strong:false,state:'locked',item:{k:'vest'}});

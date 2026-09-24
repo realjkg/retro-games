@@ -110,6 +110,8 @@ h1.qde{font-size:16px;letter-spacing:.02em;color:#fff;text-transform:none;line-h
 .menuitem.qa{display:flex;flex-direction:column;gap:0;text-transform:none;padding:4px 6px;font-size:12.5px;line-height:1.2}
 .menuitem.qa small{font-size:10px;opacity:.72}
 #overlay.ask small.tip{font-size:10px;line-height:1.25}
+.menuitem.qa.draw{border-color:#8a2020;color:#ffb0a0}
+.menuitem.qa.draw.sel{background:#c02020;border-color:#c02020;color:#fff}
 /* a small playfield: the question, the clock and the answers, and no more */
 @media (max-width:430px){
   #overlay.ask{gap:3px;padding:4px 8px}
@@ -296,6 +298,7 @@ function tune(d){
     guardsMax:d<2?2:3,
     huntGap:36-24*k,            /* between squads on the alarm */
     qTime:12-5*k,               /* to answer a question */
+    challenge:3.2-1.6*k,        /* a guard's challenge: HALT! to his first shot */
     graze:d<=2                  /* the first bullet only grazes him */
   };
 }
@@ -1289,6 +1292,38 @@ function sendSquad(){
   G.dread=0.7;Snd.klaxon();Snd.boots();
   message('SS! THROUGH THE '+{n:'NORTH',s:'SOUTH',e:'EAST',w:'WEST'}[side]+' DOOR','#ff4a3a');
 }
+/* ---------- the challenge ----------
+ * A guard who comes on an escaped prisoner does not simply shoot him. He
+ * challenges him, gun up and finger off the trigger: Halt! Hände hoch! Pull
+ * your gun on him in that moment and he is the one with his hands up. Walk
+ * away and he fires; stand there and he fires when he has waited long
+ * enough. The SS challenge too, but for less time, and will only put their
+ * hands up to a gun drawn on them at arm's length. */
+const CHALLENGE=['Halt! Hände hoch!','Halt! Kommen Sie!','Halt! Stehenbleiben!','Hände hoch!'];
+function challenge(g){
+  if(!live(g)||g.st==='alert'||g.st==='enter'||g.st==='hup'||g.st==='challenge')return;
+  const P=G.P;
+  g.st='challenge';g.susp=0;
+  g.t=tune(G.castle.d).challenge*(g.kind==='ss'?0.45:1);
+  g.chD=Math.hypot(P.x-g.x,P.y-g.y);
+  g.face=P.x>g.x?1:-1;
+  say(g,g.kind==='ss'?'Halt! SS! Hände hoch!':pick(CHALLENGE),'bark');
+  if(g.kind==='ss'&&!G.demo)g.locked=true;
+}
+/* close enough that a gun drawn on him leaves him no choice */
+function atArmsLength(g){return Math.hypot(G.P.x-g.x,G.P.y-g.y)<(g.kind==='ss'?48:130);}
+function surrender(g){
+  g.st='hup';g.hupT=2.4;g.susp=0;g.walking=false;
+  say(g,pick(['Kamerad! Nicht schießen!','Nicht schießen! Kamerad!','Ja, ja! Kamerad!']),'plead',true);
+  G.stats.held=(G.stats.held||0)+1;
+}
+/* a gun drawn on a man who had taken you for one of them: he knows now, and
+ * so does anyone else who saw it */
+function drawnOn(g){
+  surrender(g);
+  room().blown=true;
+  for(const o of room().guards)if(o!==g&&live(o)&&o.st!=='hup'&&sees(o))alarm(o);
+}
 function sees(g){
   const P=G.P;
   return los(room(),g.x,g.y-10,P.x,P.y-8);
@@ -1338,9 +1373,24 @@ function stepGuard(g,dt){
     else if((g.hupT-=dt)<=0){g.st='alert';g.fireT=0.8;say(g,'Schweinehund!','bark');}
     return;
   }
+  if(g.st==='challenge'){
+    g.face=dx>0?1:-1;
+    if(P.dead){g.st='stand';return;}
+    /* the gun on him: hands up, if he is close enough to be sure of it */
+    if(aimedAt(g)){g.susp+=dt;if(g.susp>0.25){if(atArmsLength(g)){surrender(g);return;}
+      g.st='alert';g.fireT=0.35;say(g,'Waffe runter!','bark',true);return;}}
+    /* walking off is running away */
+    if(d>g.chD+16){g.st='alert';g.fireT=0.3;say(g,'Stehenbleiben!','bark',true);if(g.kind==='ss')raiseHunt();return;}
+    g.chD=Math.min(g.chD,d);
+    if((g.t-=dt)<=0){g.st='alert';g.fireT=0.2;if(g.kind==='ss')raiseHunt();}
+    return;
+  }
   if(g.st==='patrol'||g.st==='stand'){
     if(canSee){
-      if(!disguised())alarm(g);
+      /* taken off guard: a gun drawn and pointed at him, close to */
+      if(!P.holstered&&aimedAt(g)&&atArmsLength(g)&&(disguised()||g.cleared)){g.susp+=dt;
+        if(g.susp>0.25){drawnOn(g);return;}}
+      else if(!disguised())challenge(g);
       else if(!g.cleared){
         /* The uniform passes, at a distance. Come close, or stay close, and
          * you are stopped and questioned: by an SS man from further off and
@@ -1352,7 +1402,7 @@ function stepGuard(g,dt){
       /* a man in uniform who has been questioned and passed talks shop */
       if(disguised()&&d<80)chatter(g,dt);
     }
-    if(g.st==='alert')return;
+    if(g.st==='alert'||g.st==='challenge'||g.st==='hup')return;
     g.t-=dt;
     if(g.st==='stand'){
       if(g.t<=0){g.st='patrol';g.dir=ri(8);g.t=0.8+R()*1.8;}
@@ -1488,8 +1538,21 @@ function paintQuestion(pre){
     '<p class="qwho '+(Q.g.kind==='ss'?'ss':'')+'"><b>'+who+'</b> · '+esc(Q.cur.q.en)+'</p>'+
     '<div class="qbar"><i id="qbar"></i></div>'+
     Q.cur.a.map(o=>'<button class="menuitem qa" type="button">'+esc(o[0])+'<small>'+esc(o[1])+'</small></button>').join('')+
+    '<button class="menuitem qa draw" type="button">Draw on him (H)<small>'+
+      (Q.g.kind==='ss'?'an SS man at arm\'s length':'hands up, and your cover is gone')+'</small></button>'+
     (notes.length?'<small class="tip">Notebook: '+esc(notes.join(' · '))+'</small>':''),
-    Q.cur.a.map((o,i)=>({go:()=>answer(i)})),0);
+    Q.cur.a.map((o,i)=>({go:()=>answer(i)})).concat([{go:drawDuringQuestions}]),0);
+}
+/* Instead of an answer, the gun: at arm's length, with his own gun down,
+ * the man questioning you has no choice. */
+function drawDuringQuestions(){
+  const Q=G.q;if(!Q||G.state!=='question')return;
+  const g=Q.g,P=G.P;G.q=null;
+  hideOverlay();asking(false);G.state='play';
+  P.holstered=false;P.fireCool=0.3;
+  P.dir=dirTo(g.x-P.x,g.y-P.y);P.face=g.x>P.x?1:-1;
+  Snd.click();
+  drawnOn(g);hud();
 }
 function answer(i){
   const Q=G.q;if(!Q||G.state!=='question')return;
@@ -2100,7 +2163,7 @@ function guardSprite(gd){
   if(gd.st==='hup')return figure(gd.kind,breath?'hup2':'hup','stand',flip,(gd.phase%1.8)>1.6);
   /* while someone is questioned nobody walks: they stand and breathe */
   const walking=G.state!=='question'&&(gd.st==='patrol'||gd.st==='enter'||(gd.st==='alert'&&gd.walking));
-  const armed=gd.st==='alert'||gd.st==='enter';
+  const armed=gd.st==='alert'||gd.st==='enter'||gd.st==='challenge';
   const torso=armed?(breath?'H2':'H'):(breath?'carry2':'carry');
   if(walking)return figure(gd.kind,armed?'H':'carry',WALKCYCLE[Math.floor(gd.dist/6)%4],flip);
   return figure(gd.kind,torso,'stand',flip,(gd.phase%2.2)>2.05);
@@ -2189,6 +2252,7 @@ function press(k,on){
   if(on)Snd.boot();
   if(G.state!=='play'&&menuItems.length&&!ov.classList.contains('hidden')){
     if(!on)return;
+    if(G.state==='question'&&k==='holster'){drawDuringQuestions();return;}
     if(k==='up')menuNav(-1);else if(k==='down')menuNav(1);else if(k==='fire'||k==='search')menuGo();
     return;
   }

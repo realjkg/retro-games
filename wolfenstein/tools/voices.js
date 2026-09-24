@@ -11,6 +11,7 @@ const {runtime}=require('../tests/harness.cjs');
 const OUT=path.resolve(process.argv[2]||'voices.wav');
 const r=runtime(1);
 const LINES=[
+  ['Halt! Hände hoch!','bark',"voiceFor('guard',1.1,1)"],
   ['Halt! Kommen Sie!','bark',"voiceFor('guard',1.15,1)"],
   ['Was ist los?','ask',"voiceFor('guard',0.95,1)"],
   ['Pass!','bark',"voiceFor('guard',0.85,1.05)"],
