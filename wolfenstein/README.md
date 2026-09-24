@@ -151,9 +151,24 @@ through a speech synthesiser built into the page**:
   low, slow, flat), *suspicious* (slow, the pitch wavering), *dismiss*
   (*Weitermachen.*: quick and falling), *plead* (*Kamerad!*: high), *scream*,
   and *chat* for the talk between guards.
-* **Every man has his own pitch**, set when the castle is made: a guard
-  anywhere from a high bark at about 210 Hz to a low growl at about 110, the SS
-  all down at the bottom, 70 to 100.
+* **Every man has his own voice, and they are men's voices.** A guard is
+  anywhere from a high, hard 150 Hz to a bass at 95; the SS are all below
+  that, 66 to 86 Hz. A deeper man is a bigger one, so his vowel resonances
+  come down too. Each man has his own rasp, and no two cycles of his voice
+  are quite alike (jitter and shimmer). The SS growl: every other cycle is
+  weaker than the one before, which is the sound of a voice pushed down to
+  the bottom of itself. A shout lifts a man's pitch by about a quarter and a
+  question lifts its last word by about a third; only a scream leaves a
+  man's range.
+* **German intonation, word by word**: each word jumps up onto its stressed
+  syllable and falls away after it, on top of the line's mood. A bark is
+  pressed and harsh (the voice open for a short part of each cycle), talk
+  between guards loose and breathy.
+* The first version of this voice put the guards at 110 to 210 Hz, and a
+  question lifted that by half again, to 300: a woman's range, and it was
+  heard as women. The test `men's voices, high and low` holds every man, in
+  every mood but a scream, under 180 Hz, and fails on that version.
+* *SS* is said *Es-Es*. The spelling rules had read it as one hiss.
 * It is made at 11,025 samples a second and brought down to forty-eight
   levels, then played at twice that rate with each sample held for two: the
   grain of a one-speaker computer. Sixteen levels was tried first, and a
@@ -171,6 +186,24 @@ you walk in. `VOICES` on the title switches to the device's own German voice
 instead, where it has one.
 
     node tools/voices.js out.wav      every voice and mood, one after another, to listen to
+
+## How much of this is the 1981 game
+
+Not the talking. The Apple game's speech was **a handful of short digitised
+shouts**, recorded voices, not a conversation. The ones people remember are
+*Achtung!*, *Halt!*, *Kommen Sie!*, *Was ist los?*, *Schweinehund!*, and
+*Kamerad!* from a guard putting his hands up. The exact list could not be
+checked from here. Nobody questioned you: a uniform got you past the guards
+or it did not.
+
+Being stopped and asked for your **pass** belongs to the sequel, *Beyond
+Castle Wolfenstein* (Muse, 1984, also on DOS), where guards demanded a pass,
+and you showed one or paid them off. The questioning here, the notebook, the
+password and the commandant's name are this game's own, built on that idea,
+and so are the alarm's squads, the relentless SS, the holster, the graze and
+the build-up. What is the 1981 game's is the castle of rooms, the guards and
+the SS, holding a guard up, the chests and their locks, the uniform, the
+vest, grenades through walls, the war plans, the ranks, and the shouts.
 
 ## What it does
 

@@ -16,7 +16,7 @@ const LINES=[
   ['Pass!','bark',"voiceFor('guard',0.85,1.05)"],
   ['Achtung!','bark',"voiceFor('guard',1.05,1.1)"],
   ['Kommen Sie hier!','bark',"voiceFor('guard',0.9,1)"],
-  ['Halt! SS!','bark',"voiceFor('ss',1,1)"],
+  ['Halt! SS!','bark',"voiceFor('ss',0.9,1)"],
   ['Halt. Sie da. Pass!','cold',"voiceFor('ss',0.9,0.95)"],
   ['Ihren Pass, bitte. Ihre Papiere.','cold',"voiceFor('ss',1.1,1)"],
   ['Wohin gehen Sie?','ask',"voiceFor('guard',1,1)"],
@@ -25,7 +25,13 @@ const LINES=[
   ['Gut. Weitermachen.','dismiss',"voiceFor('ss',1,1)"],
   ['Kamerad! Nicht schießen!','plead',"voiceFor('guard',1.1,1)"],
   ['Schweinehund!','bark',"voiceFor('guard',0.9,1)"],
-  ['Spion! Alarm!','scream',"voiceFor('ss',1,1)"]
+  ['Spion! Alarm!','scream',"voiceFor('ss',1,1)"],
+  /* and a stop in the corridor, the way the game plays it */
+  ['Halt. Sie da. Pass!','cold',"voiceFor('ss',0.95,1)"],
+  ['Wohin gehen Sie?','ask',"voiceFor('ss',0.95,1)"],
+  ['Hmm... Seltsam.','suspicious',"voiceFor('ss',0.95,1)"],
+  ['Die Parole!','bark',"voiceFor('ss',0.95,1)"],
+  ['Gut. Weitermachen.','dismiss',"voiceFor('ss',0.95,1)"]
 ];
 const SR=22050,parts=[];
 for(const [t,m,v] of LINES){
