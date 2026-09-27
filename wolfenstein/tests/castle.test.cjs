@@ -394,25 +394,6 @@ test('the gun holstered: FIRE draws it and does not shoot, and a guard is not he
     'holstered, he looks the same');
 });
 
-test('each man has his own voice, and a question rises where an order falls', ()=>{
-  const r=runtime();
-  const sing=(text,mood,who)=>{r.notes.length=0;r.run(`Snd.on=true;Snd.intone(${JSON.stringify(text)},'${mood}',${JSON.stringify(who)})`);
-    return r.notes.filter((f,i)=>i%1===0).slice();};
-  const guard={kind:'guard',pitch:1,rate:1},ss={kind:'ss',pitch:1,rate:1};
-  const ask=sing('Wohin gehen Sie?','ask',guard),bark=sing('Halt! Stehenbleiben!','bark',guard);
-  assert.ok(ask.length>=3&&bark.length>=3);
-  assert.ok(ask[ask.length-1]>ask[0]*1.2,'a question does not rise: '+ask.map(Math.round));
-  assert.ok(bark[bark.length-1]<bark[0]*0.8,'an order does not fall: '+bark.map(Math.round));
-  const cold=sing('Ihre Papiere, bitte.','cold',ss);
-  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
-  assert.ok(avg(cold)<avg(sing('Ihre Papiere, bitte.','cold',guard))*0.8,'the SS do not sound lower');
-  const sus=sing('Sie haben einen komischen Akzent.','suspicious',guard);
-  const ups=sus.slice(1).filter((f,i)=>f>sus[i]).length,downs=sus.slice(1).filter((f,i)=>f<sus[i]).length;
-  assert.ok(ups>0&&downs>0,'suspicion does not waver');
-  const voices=r.j(`[mkGuard('guard',0,0),mkGuard('guard',0,0),mkGuard('guard',0,0)].map(g=>g.voice.pitch)`);
-  assert.ok(new Set(voices).size===3,'the guards all sound the same');
-});
-
 test('the SS go in squads: never one alone', ()=>{
   const r=runtime();
   const squads=r.j(`(()=>{const out=[];for(let sd=1;sd<40;sd++){seed=sd*131;const C=makeCastle(3+sd%6);

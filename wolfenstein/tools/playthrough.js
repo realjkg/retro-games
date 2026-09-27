@@ -8,6 +8,7 @@
  */
 'use strict';
 const path=require('path'),fs=require('fs');
+const VG=require('./voicegender.js');
 const pw=require(process.env.PW||'playwright-core');
 const URL='file://'+path.join(__dirname,'..','index.html');
 const results=[];
@@ -69,10 +70,12 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   /* The castle's own voice: the keys pressed so far have unlocked the sound,
      and a guard's shout is played through it, not handed to the device */
   check(await read('!!Snd.ctx&&Snd.ctx.state==="running"'),'a key unlocks the sound',await read('Snd.ctx&&Snd.ctx.state'));
-  /* no German voice on this machine: a shout is the square-wave voice */
-  const heard=await read(`(()=>{let n=0;const t=Snd.tone;Snd.tone=function(){n++;return t.apply(this,arguments);};
-    say(mkGuard('guard',0,0),'Halt! Kommen Sie!','bark',true);Snd.tone=t;return n;})()`);
-  check(heard>=3,'a guard\'s shout makes a sound: "Halt! Kommen Sie!"',heard+' syllables');
+  /* a shout is played through the castle's own voice: a clip, not a beep and
+     not the device (read defensively, so this still runs on older builds) */
+  const heard=await read(`(()=>{const n0=typeof Snd.played==='number'?Snd.played:0;
+    say(mkGuard('guard',0,0),'Halt! Kommen Sie!','bark',true);
+    return (typeof Snd.played==='number'?Snd.played:0)-n0;})()`);
+  check(heard===1,'a guard\'s shout is played as a recorded line: "Halt! Kommen Sie!"',heard+' clip(s)');
 
   /* the gun away, and questioned: an SS man stood beside a man in uniform */
   await pg.keyboard.press('h');await pg.waitForTimeout(60);
@@ -224,34 +227,75 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await touch('touchStart',qb.x+qb.width/2,qb.y+qb.height/2);await touch('touchEnd');await pp.waitForTimeout(150);
   check(await pp.evaluate('G.state')==='play','a finger on the right answer, and he waves you on',await pp.evaluate('G.state'));
 
-  /* The German voice. This machine's browser has no speech voices, so a
-     German one is put in its place and every line handed to it is kept:
-     what is said, in which language, at what pitch and what pace. */
+  /* The voice, heard. Two things are put into this page before it loads.
+     The device voices a German iPhone or Mac actually has: Anna, a woman,
+     who is the first German voice there and whom an earlier build picked,
+     and Markus, a man. Every line handed to them is kept. And a tap on the
+     loudspeaker: everything the page's own sound plays is recorded as it
+     plays, so what a guard's shout sounds like is measured from the output,
+     whatever made it, clip or beep, by tools/voicegender.js. */
   const vc=await b.newContext({viewport:{width:640,height:860}});
   await vc.addInitScript(()=>{
-    window.__spoken=[];
-    const v={lang:'de-DE',name:'Deutsch (test)'};
+    window.__spoken=[];window.__pcm=[];window.__rec=false;window.__sr=0;
+    const vs=[{lang:'de-DE',name:'Anna',default:true},{lang:'de-DE',name:'Markus'},{lang:'en-US',name:'Samantha'}];
     window.SpeechSynthesisUtterance=function(t){this.text=t;};
-    Object.defineProperty(window,'speechSynthesis',{value:{pending:false,getVoices:()=>[v],
-      addEventListener(){},cancel(){},speak(u){window.__spoken.push({t:u.text,lang:u.lang,v:u.voice&&u.voice.lang,
-        p:u.pitch,r:u.rate});}}});
+    Object.defineProperty(window,'speechSynthesis',{value:{pending:false,speaking:false,getVoices:()=>vs,
+      addEventListener(){},removeEventListener(){},cancel(){},pause(){},resume(){},
+      speak(u){window.__spoken.push({t:u.text,v:u.voice?u.voice.name:'(default: Anna)',p:u.pitch==null?1:u.pitch});}}});
+    const taps=new WeakMap(),conn=AudioNode.prototype.connect;
+    AudioNode.prototype.connect=function(dst){
+      const r=conn.apply(this,arguments);
+      const c=this.context;
+      if(dst&&dst===c.destination&&!(c instanceof OfflineAudioContext)&&!(this instanceof ScriptProcessorNode)){
+        let t=taps.get(c);
+        if(!t){t=c.createScriptProcessor(4096,1,1);window.__sr=c.sampleRate;
+          t.onaudioprocess=e=>{if(window.__rec)window.__pcm.push(Array.from(e.inputBuffer.getChannelData(0)));};
+          conn.call(t,c.destination);taps.set(c,t);}
+        conn.call(this,t);
+      }
+      return r;
+    };
   });
   const vp=await vc.newPage();vp.on('pageerror',e=>errs.push(e.message));
   await vp.goto(URL);await vp.waitForTimeout(300);
-  await vp.evaluate(()=>{G.talk='questioned';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
+  await vp.keyboard.press('ArrowLeft');await vp.waitForTimeout(200);
+  await vp.evaluate(()=>{G.talk='questioned';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;G.demo=false;
+    if(typeof Voice!=='undefined'&&Voice.init)try{Voice.init();}catch(e){}
     const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
     G.P.x=100;G.P.y=92;G.P.uniform=true;G.P.holstered=true;room().blown=false;
     const a=mkGuard('ss',124,92);a.st='stand';a.t=1e9;rm.guards.push(a);});
   await vp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   await vp.waitForTimeout(700);
-  await vp.evaluate(()=>{const g=mkGuard('guard',0,0);say(g,'Halt!','bark',true);say(g,'Wohin gehen Sie?','ask',true);});
+  check(await vp.evaluate('G.state')==='question','an SS man stops a man in uniform and questions him',await vp.evaluate('G.state'));
+  /* the lines every guard has, and one nobody recorded */
+  await vp.evaluate(()=>{const g=mkGuard('guard',0,0);say(g,'Halt!','bark',true);say(g,'Wohin gehen Sie?','ask',true);
+    say(g,'Das Wetter ist heute schlecht, Kamerad.','chat',true);});
   const said=await vp.evaluate(()=>__spoken);
-  check(said.length>=3&&said.every(u=>u.lang==='de-DE'&&u.v==='de-DE'),'with a German voice, every line is spoken in German',
-    said.map(u=>u.t).join(' / '));
-  const ssLine=said.find(u=>/Sie da|Moment/.test(u.t)),q=said[said.length-3]||said[1];
-  const bark=said[said.length-2],ask=said[said.length-1];
-  check(ssLine&&ssLine.p<bark.p*0.8,'the SS speak lower than a guard',ssLine&&(ssLine.p.toFixed(2)+' against '+bark.p.toFixed(2)));
-  check(bark.r>ask.r,'an order comes faster than a question',bark.r.toFixed(2)+' against '+ask.r.toFixed(2));
+  const women=said.filter(u=>u.v!=='Markus');
+  check(women.length===0,'the device\'s woman\'s voice, Anna, never speaks for a guard',
+    women.length?women.map(u=>u.v+': '+u.t).join(' / '):said.length+' line(s), all Markus');
+  check(!said.some(u=>/^(Halt!|Wohin gehen Sie\?)$/.test(u.t)),'what the castle has recorded is never handed to the device',
+    said.map(u=>u.t).join(' / ')||'nothing handed over');
+  check(said.every(u=>u.p<=1),'and the man\'s voice is never pitched up',said.map(u=>u.p.toFixed(2)).join(' ')||'-');
+
+  /* the shouts, heard at the loudspeaker. The highest-voiced guard and SS
+     man the castle can make, at the fastest they are played */
+  const pitchOf=async(kind,text)=>{
+    await vp.evaluate(([kind,text])=>{Snd.clips&&Snd.clips.forEach(s=>{try{s.stop();}catch(e){}});
+      window.__pcm=[];window.__rec=true;const g=mkGuard(kind,0,0);
+      if(typeof voiceFor==='function')g.voice=voiceFor(kind,1.15,1.1);
+      say(g,text,'bark',true);},[kind,text]);
+    await vp.waitForTimeout(2600);
+    const {pcm,sr}=await vp.evaluate(()=>{window.__rec=false;return{pcm:[].concat(...window.__pcm),sr:window.__sr};});
+    let e=0;for(const v of pcm)e+=v*v;
+    if(!pcm.length||e<1e-6)return{f0:NaN,voiced:0,sound:false};
+    return Object.assign(VG.judge(Float32Array.from(pcm),sr),{sound:true});
+  };
+  for(const [kind,text] of [['guard','Halt! Kommen Sie!'],['guard','Was ist los?'],['ss','Halt! SS!'],['ss','Ihren Pass!']]){
+    const j=await pitchOf(kind,text);
+    check(j.sound&&j.man,'a '+(kind==='ss'?'SS man':'guard')+' shouting "'+text+'" is heard in a man\'s voice, under '+VG.MAN_MAX+' Hz',
+      j.sound?Math.round(j.f0)+' Hz over '+j.voiced+' voiced frames':'no sound came out');
+  }
   await vc.close();
 
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
