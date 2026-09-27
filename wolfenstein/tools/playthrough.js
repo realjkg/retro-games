@@ -298,6 +298,48 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   }
   await vc.close();
 
+  /* Hands up. A gun pointed at a guard, by real keys: turned on him with X
+     held and an arrow, or drawn with SPACE (H while questioned), and his
+     hands must go up within half a second and stay up while it is on him.
+     Read defensively, so this runs on builds without the challenge. */
+  const hc=await b.newContext({viewport:{width:640,height:860}});
+  const hp=await hc.newPage();hp.on('pageerror',e=>errs.push(e.message));
+  await hp.goto(URL);await hp.waitForTimeout(300);
+  const stand=o=>hp.evaluate(o=>{
+    G.talk=o.talk||'1981';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=false;G.demo=false;
+    const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);rm.blown=false;
+    G.P.x=100;G.P.y=92;G.P.uniform=!!o.uniform;G.P.holstered=!!o.holstered;G.P.dir=o.dir;G.P.face=o.dir===4?-1:1;
+    const g=mkGuard('guard',100+o.dx,92);g.st=o.st||'stand';g.t=1e9;g.face=-1;if(o.st==='alert')g.fireT=1;
+    if(o.cleared)g.cleared=true;rm.guards.push(g);window.__g=g;},o);
+  const turnOn=async()=>{await hp.keyboard.down('x');await hp.keyboard.down('ArrowRight');await hp.waitForTimeout(120);
+    await hp.keyboard.up('ArrowRight');await hp.keyboard.up('x');};
+  const upBy=async ms=>{for(let t=0;t<ms;t+=50){if(await hp.evaluate('__g.st')==='hup')return t;await hp.waitForTimeout(50);}return -1;};
+  const HUP=[
+    ['challenged, he turns his gun on the guard',{dir:4,dx:60},'challenge',turnOn],
+    ['in uniform, he draws on the guard in front of him',{uniform:true,holstered:true,dir:0,dx:60},null,()=>hp.keyboard.press('Space')],
+    ['waved on after questioning, then he draws',{talk:'questioned',uniform:true,holstered:true,dir:0,dx:60,cleared:true},null,()=>hp.keyboard.press('Space')],
+    ['stopped and questioned, he draws (H)',{talk:'questioned',uniform:true,holstered:true,dir:0,dx:20},'question',()=>hp.keyboard.press('h')],
+    ['the guard is already shooting, he turns his gun on him',{dir:4,dx:70,st:'alert'},null,turnOn]];
+  for(const [what,o,wait,act] of HUP){
+    await stand(o);
+    if(wait==='challenge')await hp.waitForFunction(()=>__g.st==='challenge',null,{timeout:3000}).catch(()=>{});
+    if(wait==='question')await hp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+    else await hp.waitForTimeout(150);
+    await act();
+    const t=await upBy(800);
+    check(t>=0,'hands up: '+what,t>=0?'within '+(t/1000).toFixed(2)+' s':'he did not ('+await hp.evaluate('__g.st')+')');
+  }
+  /* kept on him, they stay up; turned away, he drops them and fires */
+  await stand({dir:4,dx:60});await hp.waitForFunction(()=>__g.st==='challenge',null,{timeout:3000}).catch(()=>{});
+  await turnOn();await hp.waitForTimeout(600);
+  const kept=[];for(let i=0;i<8;i++){kept.push(await hp.evaluate('__g.st'));await hp.waitForTimeout(500);}
+  check(kept.every(s=>s==='hup'),'the gun kept on him four seconds, his hands stay up',[...new Set(kept)].join('>'));
+  await hp.keyboard.down('x');await hp.keyboard.down('ArrowLeft');await hp.waitForTimeout(120);
+  await hp.keyboard.up('ArrowLeft');await hp.keyboard.up('x');
+  await hp.waitForFunction(()=>__g.st!=='hup',null,{timeout:5000}).catch(()=>{});
+  check(await hp.evaluate('__g.st')==='alert','turned away, he drops them and goes for his gun',await hp.evaluate('__g.st'));
+  await hc.close();
+
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}
   const bad=results.filter(r=>!r[0]).length+errs.length;

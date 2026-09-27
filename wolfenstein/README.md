@@ -408,6 +408,11 @@ then on the right answer, does the same. **The voices, heard**: the
 device is given Anna and Markus, and only Markus is ever handed a line, never
 a shout and never pitched up; then what comes out of the page's loudspeaker
 while a guard and an SS man shout is recorded and measured under 150 Hz.
+**Hands up**, by real keys: challenged and turning the gun on him, drawing in
+uniform, drawing after being waved on, H while questioned, and turning on a
+guard already shooting all put his hands up within half a second; kept on
+him they stay up four seconds, turned away he drops them and fires. Four of
+those fail on the build before the challenge.
 
 `tools/layout.js` asks **where the controls are**, on six screens from 320×568
 to an iPad, each way up, during play. Is any control over the playfield or over
