@@ -21,6 +21,7 @@ newly written, drawn and composed — see **What is faithful, and what is not**.
 | `ui.js` | The street, the figures, the five-line matrix, the input, one rAF loop |
 | `tools/assemble.js` | Writes `index.html` from the shell and the four scripts |
 | `tools/render-sounds.js` | Renders the cue table to wavs for auditioning |
+| `tools/hear-title.js` | Checks the title is Oh! Susanna, in the table and in the rendered audio |
 | `tools/check-audio.js` | Drives every cue through the runtime with a stubbed AudioContext |
 | `tools/playthrough.js` | Plays all eleven journeys in a real browser at phone size |
 | `tools/playtest.js` | Plays the day in a real browser and reports on how the figures moved |
@@ -737,8 +738,14 @@ to sundown as the only requirement; the 320×200 holster-level composition; and
 the seven dimensions at sundown; a gunsight bounded off the sheriff's own body;
 and a hat you can shoot off a man instead of shooting the man.
 
-The dialogue, the figures, the street, the melodies and the numbers are new.
-Nothing from the original's code, artwork, script or sound is reused. The
+The dialogue, the figures, the street and the numbers are new, and so is every
+melody but one. The title screen plays **"Oh! Susanna"** — Stephen Foster, 1848,
+public domain for the better part of a century, a tune a hundred westerns have
+reached for, and the one the 1985 title screen played. Setting the same song is
+not reusing that game's music: the arrangement here is written from scratch for
+the three voices the machine had, and no bar of its arrangement, its data or its
+recording is present. Nothing from the original's code, artwork, script or sound
+is reused. The
 characters, the mechanics and the framing above are facts about how the game
 worked; no line, picture or bar of it has been copied, and none of its writing
 was taken from a walkthrough, a longplay or a ROM. Modern
