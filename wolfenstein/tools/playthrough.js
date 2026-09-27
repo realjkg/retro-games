@@ -28,6 +28,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
 
   const title=await pg.innerText('#overlay');
   check(/IMPENETRABLE: OFF · MORTAL/.test(title),'a first visit is mortal',title.split('\n').find(l=>/IMPEN/.test(l)));
+  check(/TALK: 1981 · SHOUTS ONLY/.test(title),'and shouts only, as in 1981',title.split('\n').find(l=>/TALK/.test(l)));
   check(await read('!!document.getElementById("rg-launch")'),'the way back to the collection is on the page');
 
   /* the switch, by keyboard: down to it, ENTER */
@@ -68,9 +69,10 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   /* The castle's own voice: the keys pressed so far have unlocked the sound,
      and a guard's shout is played through it, not handed to the device */
   check(await read('!!Snd.ctx&&Snd.ctx.state==="running"'),'a key unlocks the sound',await read('Snd.ctx&&Snd.ctx.state'));
-  const heard=await read(`(()=>{Voice.mode='castle';const n0=Snd.voices.length;const g=mkGuard('guard',0,0);
-    say(g,'Halt! Kommen Sie!','bark',true);return Snd.voices.length-n0;})()`);
-  check(heard===1,'a guard shouts in the castle\'s own voice: "Halt! Kommen Sie!"',heard+' playing');
+  /* no German voice on this machine: a shout is the square-wave voice */
+  const heard=await read(`(()=>{let n=0;const t=Snd.tone;Snd.tone=function(){n++;return t.apply(this,arguments);};
+    say(mkGuard('guard',0,0),'Halt! Kommen Sie!','bark',true);Snd.tone=t;return n;})()`);
+  check(heard>=3,'a guard\'s shout makes a sound: "Halt! Kommen Sie!"',heard+' syllables');
 
   /* the gun away, and questioned: an SS man stood beside a man in uniform */
   await pg.keyboard.press('h');await pg.waitForTimeout(60);
@@ -79,7 +81,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pg.keyboard.press('Space');await pg.waitForTimeout(400);
   check(await read('G.P.ammo')===a1&&await read('G.P.holstered')===false,'SPACE with the gun away draws it, no shot');
   await pg.keyboard.press('h');await pg.waitForTimeout(400);
-  await read(`(()=>{G.P.uniform=true;G.P.papers=true;room().blown=false;const rm=room();rm.guards=[];
+  await read(`(()=>{G.talk='questioned';G.P.uniform=true;G.P.papers=true;room().blown=false;const rm=room();rm.guards=[];
     const g=mkGuard('ss',G.P.x+24,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);return 0;})()`);
   await pg.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   check(await read('G.state')==='question','walk up to an SS man in uniform and he questions you',await read('G.state'));
@@ -213,7 +215,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pp.evaluate(()=>{G.P.holstered=false;G.P.busy=null;});
   await tapBtn('#bh');
   check(await pp.evaluate('G.P.holstered'),'a finger on HOLSTER puts the gun away');
-  await pp.evaluate(()=>{G.P.uniform=true;room().blown=false;const rm=room();rm.guards=[];
+  await pp.evaluate(()=>{G.talk='questioned';G.P.uniform=true;room().blown=false;const rm=room();rm.guards=[];
     const g=mkGuard('guard',G.P.x+16,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);});
   await pp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   check(await pp.evaluate('G.state')==='question','a guard questions a man in uniform, on a phone too');
@@ -236,7 +238,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   });
   const vp=await vc.newPage();vp.on('pageerror',e=>errs.push(e.message));
   await vp.goto(URL);await vp.waitForTimeout(300);
-  await vp.evaluate(()=>{Voice.mode='device';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
+  await vp.evaluate(()=>{G.talk='questioned';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
     const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
     G.P.x=100;G.P.y=92;G.P.uniform=true;G.P.holstered=true;room().blown=false;
     const a=mkGuard('ss',124,92);a.st='stand';a.t=1e9;rm.guards.push(a);});

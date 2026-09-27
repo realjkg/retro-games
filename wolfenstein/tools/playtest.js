@@ -35,7 +35,7 @@ const SCENES=[
   ['halt!',       `play();bare(40,92);const g=put('guard',200,92);alarm(g);G.impenetrable=true;G.P.dir=2;
                    watch(g);STRIDE=true`],
   ['challenged',  `play();G.impenetrable=true;bare(60,92);G.P.holstered=true;G.P.dir=2;const g=put('guard',170,92);sim(0.3);watch(g)`],
-  ['drawn on',    `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;const g=put('guard',124,92);
+  ['drawn on',    `G.talk='questioned';play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;const g=put('guard',124,92);
                    sim(2);drawDuringQuestions();sim(0.2);watch(g)`],
   ['hands up',    `play();bare(60,92);const g=put('guard',150,92);g.st='hup';g.hupT=1e9;G.P.dir=0;watch(g)`],
   ['ss walks in', `play();bare(200,50);G.impenetrable=true;const g=put('ss',-6,92);g.st='enter';g.dir=0;g.face=1;
@@ -51,11 +51,11 @@ const SCENES=[
                    stepPursuers(0.01);const g=room().guards.find(g=>g.st==='enter');watch(g);IN=true;STRIDE=true`],
   ['squad in',    `play();G.impenetrable=true;bare(140,120);raiseHunt();G.hunt.t=0.01;sim(0.5);
                    const g=room().guards.filter(g=>g.st==='enter')[1]||room().guards[1];watch(g);IN=true;STRIDE=true`],
-  ['frozen round',`play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
+  ['frozen round',`G.talk='questioned';play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
                    const w=put('guard',200,60);w.st='patrol';w.dir=4;w.t=1e9;put('ss',130,92);sim(1.6);watch(w)`],
-  ['questioned',  `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
+  ['questioned',  `G.talk='questioned';play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;
                    const g=put('ss',130,92);put('ss',150,74);sim(1.6);watch(g)`],
-  ['answered',    `play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;G.P.papers=true;
+  ['answered',    `G.talk='questioned';play();G.impenetrable=true;bare(100,92);G.P.uniform=true;G.P.holstered=true;G.P.papers=true;
                    const g=put('ss',130,92);sim(1.6);let n=0;
                    while(G.state==='question'&&n++<6)answer(G.q.cur.a.findIndex(o=>o[2]==='good'||o[2]==='holster'));
                    sim(0.1);watch(G.P);STRIDE=true`],
@@ -186,7 +186,7 @@ function row(name,cells){
   for(const [name,setup] of SCENES){
     const res=await pg.evaluate(({setup})=>{
       window.W0=null;window.IN=window.OFF=window.STRIDE=false;window.ENTER_DIR=window.EXIT_DIR=null;
-      G.j=G.j2=0;
+      G.j=G.j2=0;G.talk='1981';
       (0,eval)('(function(){'+setup+'})()');
       render();
       const out={},f=window.W0;

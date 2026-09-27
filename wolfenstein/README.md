@@ -150,65 +150,34 @@ What they ask builds up:
 * The SS ask one question in the first castles, two from the third, three
   from the fifth.
 
-## The castle talks
+## TALK: 1981, or questioned
 
-The 1981 game talked, *Achtung!*, *Halt!*, *Kommen Sie!*, out of a speaker
-that could only click, and the crackle was half of what made it frightening.
-The first version of this one left speech to the device, and on a phone with no
-German voice installed you heard beeps; iOS will not let a page speak at all
-unless the first word comes straight from a tap. So **the guards now talk
-through a speech synthesiser built into the page**:
+`TALK` on the title has two positions, and the first is the default:
 
-* German spelling is turned into its sounds by rule: *sch*, *ch* after a back
-  vowel and after a front one, *ei*, *au*, *eu*, *ie*, the *z* that is *ts*,
-  the *w* that is *v*, the *s* that buzzes before a vowel, long and short
-  vowels, the unstressed *-en* and *-er*, and a *b*, *d* or *g* at the end of a
-  word said as *p*, *t*, *k*. *Halt! Kommen Sie!* comes out as
-  `h A l t , k O m @ n _ z i`.
-* A buzz at the man's own pitch goes through three resonances set for each
-  German vowel; hiss for *s*, *sch*, *ch*, *f*; a closure and a burst for
-  *p*, *t*, *k*; a rolled *r*. Each consonant takes the resonances of the
-  vowel beside it, so the sounds run together.
-* The line's **mood bends the pitch across it**: *bark* (orders: fast, loud,
-  falling), *ask* (questions rise at the end), *cold* (*Ihren Pass, bitte.*:
-  low, slow, flat), *suspicious* (slow, the pitch wavering), *dismiss*
-  (*Weitermachen.*: quick and falling), *plead* (*Kamerad!*: high), *scream*,
-  and *chat* for the talk between guards.
-* **Every man has his own voice, and they are men's voices.** A guard is
-  anywhere from a high, hard 150 Hz to a bass at 95; the SS are all below
-  that, 66 to 86 Hz. A deeper man is a bigger one, so his vowel resonances
-  come down too. Each man has his own rasp, and no two cycles of his voice
-  are quite alike (jitter and shimmer). The SS growl: every other cycle is
-  weaker than the one before, which is the sound of a voice pushed down to
-  the bottom of itself. A shout lifts a man's pitch by about a quarter and a
-  question lifts its last word by about a third; only a scream leaves a
-  man's range.
-* **German intonation, word by word**: each word jumps up onto its stressed
-  syllable and falls away after it, on top of the line's mood. A bark is
-  pressed and harsh (the voice open for a short part of each cycle), talk
-  between guards loose and breathy.
-* The first version of this voice put the guards at 110 to 210 Hz, and a
-  question lifted that by half again, to 300: a woman's range, and it was
-  heard as women. The test `men's voices, high and low` holds every man, in
-  every mood but a scream, under 180 Hz, and fails on that version.
-* *SS* is said *Es-Es*. The spelling rules had read it as one hiss.
-* It is made at 11,025 samples a second and brought down to forty-eight
-  levels, then played at twice that rate with each sample held for two: the
-  grain of a one-speaker computer. Sixteen levels was tried first, and a
-  spectrogram showed the grain burying the vowels.
+* **1981 · SHOUTS ONLY**: the game as it was. Guards and SS shout, challenge
+  and put their hands up; nobody questions you and nobody chats. A uniform
+  gets you past at a distance. Walk into a guard and he wants to know what is
+  going on (*Was ist los?*) and challenges you; stand about at an SS man's
+  elbow, or with a gun out near one, and he sees what you are.
+* **QUESTIONED**: everything this game built on top. Men in the corridors
+  stop a uniform and question it in German (above), the guards let slip the
+  password and the commandant's name, and there is a notebook.
 
-The challenges are the ones the old game is remembered for: *Halt!*, *Halt!
-Kommen Sie!*, *Kommen Sie hier!*, *Achtung!*, *Was ist los?*, and in a
-uniform, stopped, *Pass!* or *Ihren Pass!* before the questions.
+The choice is remembered between visits.
 
-It speaks on any phone with nothing installed, once the page has been
-touched: the first touch, click or key anywhere unlocks the sound, and the
-page tells iOS it is playback, so the silent switch does not mute it. The
-shouts a room's men are likely to give are made ahead, between frames, when
-you walk in. `VOICES` on the title switches to the device's own German voice
-instead, where it has one.
+## The voices
 
-    node tools/voices.js out.wav      every voice and mood, one after another, to listen to
+The shouts are spoken by the device's own German voice, where it has one, at
+the man's pitch and the mood's pace. Where it has none, each shout is a burst
+of square-wave syllables on the pitch the mood puts it on: a question rises,
+an order falls. The first touch, click or key anywhere unlocks the sound, and
+the page tells iOS it is playback, so the silent switch does not mute it.
+
+A speech synthesiser built into the page was tried, and **taken back out**.
+Its pitch was measured, and moved down into a man's range, but it was never
+compared against a real man's voice, and it was heard as a woman's. Nothing
+that is not tested against a man's voice goes back in. The way to real
+voices is recordings: the 1981 game's were real people.
 
 ## How much of this is the 1981 game
 
@@ -344,12 +313,14 @@ question holds the castle's password, and the notebook has it once found**;
 cell, then next door**; **castle one is gentle and it builds up**; **the
 first bullet grazes**; **FIRE draws a holstered gun and holds nobody up**;
 and **each man his own voice; a question rises where an order falls**. All
-twelve fail on the build before them. Then the voice and the chase: **the
-castle talks, in sounds it can make, loud enough to hear**; **high voices and
-low, the SS at the bottom, measured in the samples**; **a question rises, an
-order falls**; **one SS man follows you room after room until you shoot
-him**; **several come, the nearest first**; and **a uniform that holds and
-they come in and cannot see you**. All six fail on the build before them.
+twelve fail on the build before them. Then the chase: **one SS man follows you room after room until you
+shoot him**; **several come, the nearest first**; and **a uniform that holds
+and they come in and cannot see you**. The challenge: **a guard challenges
+an escaped prisoner before he shoots**; **pull your gun on him and his hands
+go up**; **walk away and he fires**; **draw on the man questioning you**;
+**waved on, then drawn on**. And TALK: **1981, shouts only, is the default**,
+and **in 1981 nobody questions you or chats**. Each fails on the build
+before it.
 
 `tools/playtest.js` asks **how it moved**. It opens the real page in Chromium
 and reads the canvas, one row per scene: the title demo, the cell, walking
@@ -411,13 +382,13 @@ For eyes, not checks:
     PW=... node tools/shots.js out.png       sixteen moments of the game, 3×
     PW=... node tools/render-icons.js        the home-screen icons, from the art
     PW=... node tools/render-icons.js --check
-    node tools/voices.js out.wav             every voice and mood, to listen to
 
 ## What is not fixed
 
-* **The speech is synthesised, not the Apple's recordings.** The Apple
-  version played real digitised voices. These are made by rule from the
-  German text (above), and sound made rather than recorded.
+* **The guards' voices are not the 1981 game's.** Those were recordings of
+  real people. Here it is the device's German voice, which may be a woman's,
+  or the square-wave syllables. A synthesiser built into the page was taken
+  back out because it was never tested against a man's voice.
 * **One floor.** The original castle had about sixty rooms on several floors
   joined by stairs. This one is a single grid of rooms, up to thirty, with no
   stairs and no locked doors.
@@ -431,15 +402,6 @@ For eyes, not checks:
   retrogames.cz and the Atari 8-bit build on archive.org were both blocked by
   this environment's network policy. What is here is from what is known of
   Silas Warner's game, not from playing those builds side by side.
-* **Nobody here has listened to the voice.** This machine has no speakers.
-  What was checked is what can be measured: every line the guards say is made
-  of sounds the synthesiser knows and is loud enough to hear; the pitch in the
-  samples, found by autocorrelation, is high for a high guard, low for a low
-  one and lowest for the SS; a question's pitch rises across it and an order's
-  falls; and a spectrogram shows the vowel resonances where German vowels have
-  them. Whether it sounds like German to a German is for an ear to say, and
-  `tools/voices.js` makes the file to listen to. It is a formant synthesiser
-  of a few hundred lines, not a recording, and it sounds like one.
 * **The first touch unlocks the sound on iOS by the rules iOS publishes**,
   but that was checked in Chromium, which may allow sound without a touch at
   all.

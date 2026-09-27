@@ -331,23 +331,6 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
     try{if(c.state==='suspended')c.resume();}catch(e){}
     return c;
   },
-  /* a line of speech: played at twice its own rate, each sample held for two,
-   * which is where the grain comes from; at most two men talk at once, and a
-   * shout cuts in over whoever was talking */
-  voices:[],
-  voice(pcm,vol,cut){
-    const c=this.live();if(!c||!pcm||!pcm.length)return;
-    try{
-      if(cut||this.voices.length>=2){const o=this.voices.shift();if(o)try{o.stop();}catch(e){}}
-      const buf=c.createBuffer(1,pcm.length*2,VSR*2),d=buf.getChannelData(0);
-      for(let k=0;k<pcm.length;k++){d[2*k]=pcm[k];d[2*k+1]=pcm[k];}
-      const s=c.createBufferSource(),g=c.createGain();
-      s.buffer=buf;g.gain.value=0.5*(vol||1);
-      s.connect(g);g.connect(c.destination);s.start();
-      this.voices.push(s);
-      s.onended=()=>{const i=this.voices.indexOf(s);if(i>=0)this.voices.splice(i,1);};
-    }catch(e){}
-  },
   /* A phone will not make a sound until it has been touched, and iOS keeps
    * web audio quiet on silent unless the page says it is playback. The first
    * touch, click or key anywhere unlocks it, with one silent sample. */
@@ -356,7 +339,8 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
     this.boot();const c=this.ctx;if(!c)return;
     try{if(c.state==='suspended')c.resume();
       const b=c.createBuffer(1,1,22050),s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start();}catch(e){}
-    try{if(Voice.mode==='device'&&Voice.synth)Voice.synth.speak(new SpeechSynthesisUtterance(''));}catch(e){}
+    /* and one empty word, so the device's voice is allowed to speak later */
+    try{if(Voice.synth)Voice.synth.speak(new SpeechSynthesisUtterance(''));}catch(e){}
   },
   tone(type,f0,f1,dur,gain,delay){
     const c=this.live();if(!c)return;
@@ -392,6 +376,21 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
   die(){this.tone('sawtooth',400,60,0.5,0.06);},
   hit(){this.tone('square',220,90,0.12,0.06);},
   step(){this.tone('square',90,90,0.012,0.02);},
+  /* Speech with no speech synthesiser: one square-wave syllable per vowel,
+   * which is about as much as the Apple's speaker could do without a card,
+   * but each on the pitch the mood puts it on, so a question rises at the
+   * end, an order falls, and a suspicious man drags it out and wavers. */
+  intone(text,mood,who){
+    const M=MOODS[mood]||MOODS.bark;
+    const v=(text.toUpperCase().match(/[AEIOUÄÖÜY]+/g)||['A']).slice(0,10);
+    const base=(who&&who.kind==='ss'?122:188)*((who&&who.pitch)||1);
+    const rate=(who&&who.rate)||1,syl=M.syl/rate;
+    v.forEach((s,i)=>{
+      const p=v.length>1?i/(v.length-1):1;
+      const f=base*M.shape(p);
+      this.tone('square',f,f*M.fall,syl*0.9,M.g,i*syl);
+    });
+  },
   /* the alarm: a two-tone siren, rising and falling */
   klaxon(){for(let i=0;i<4;i++){this.tone('sawtooth',440,660,0.22,0.05,i*0.46);this.tone('sawtooth',660,440,0.22,0.05,i*0.46+0.23);}},
   heart(){this.tone('sine',62,40,0.12,0.18);this.tone('sine',58,38,0.12,0.14,0.2);},
@@ -400,240 +399,42 @@ const Snd={ctx:null,on:load('wolfenstein.sound','1')==='1',
   over(){[392,330,262,196].forEach((f,i)=>this.tone('square',f,f*0.97,0.22,0.06,i*0.24));}
 };
 
-/* The moods a line is said in: its pitch across the line (shape, from its
- * start at 0 to its end at 1) and its pace (r); p is the pitch given to the
- * device's voice if that is the one chosen. */
-/*   acc  how hard a stressed syllable is hit: German says a word by jumping
- *        up onto its stressed syllable and falling away after it
- *   oq   how long the voice is open each cycle: a shout is pressed and harsh
- *        (short), talk between friends is loose and breathy (long)
- * They are men's voices, all of them: a shout lifts a man's pitch by a
- * quarter, not by the half that the first version gave it, which with its
- * higher base put the guards in a woman's range. */
+/* The moods a line is said in. p and r are the pitch and rate given to a
+ * speech synthesiser; shape is the pitch across the line for the square-wave
+ * voice, from its first syllable (0) to its last (1). */
 const MOODS={
-  bark:      {p:1.1, r:1.2, v:1,  acc:0.22,oq:0.38,breath:0.04,shape:q=>1.2-0.34*q},
-  ask:       {p:1.0, r:1.0, v:0.9,acc:0.1, oq:0.52,breath:0.06,shape:q=>0.9+0.6*q*q*q},
-  cold:      {p:0.8, r:0.82,v:0.8,acc:0.06,oq:0.48,breath:0.05,shape:q=>0.88},
-  suspicious:{p:0.9, r:0.78,v:0.85,acc:0.14,oq:0.52,breath:0.08,shape:q=>1+0.16*Math.sin(q*Math.PI*2.2)},
-  dismiss:   {p:1.0, r:1.18,v:0.8,acc:0.1, oq:0.5, breath:0.06,shape:q=>1.06-0.26*q},
-  plead:     {p:1.2, r:1.12,v:0.9,acc:0.14,oq:0.6, breath:0.12,shape:q=>1.25-0.18*q},
-  scream:    {p:1.4, r:1.35,v:1,  acc:0.25,oq:0.34,breath:0.1, shape:q=>1.4-0.55*q},
-  chat:      {p:1.0, r:1.0, v:0.6,acc:0.12,oq:0.62,breath:0.14,shape:q=>1+0.08*Math.sin(q*9)}
+  bark:      {p:1.15,r:1.25,v:1,  syl:0.075,g:0.06, fall:0.85,shape:q=>1.3-0.45*q},
+  ask:       {p:1.05,r:1.0, v:0.9,syl:0.10, g:0.045,fall:1.05,shape:q=>0.92+0.6*q*q},
+  cold:      {p:0.72,r:0.8, v:0.8,syl:0.15, g:0.04, fall:0.98,shape:q=>0.8},
+  suspicious:{p:0.9, r:0.76,v:0.85,syl:0.16,g:0.04, fall:1.0, shape:q=>1+0.28*Math.sin(q*Math.PI*2.2)},
+  dismiss:   {p:1.0, r:1.2, v:0.8,syl:0.08, g:0.04, fall:0.9, shape:q=>1.12-0.4*q},
+  plead:     {p:1.45,r:1.15,v:0.9,syl:0.09, g:0.045,fall:0.95,shape:q=>1.45-0.25*q},
+  scream:    {p:1.7, r:1.4, v:1,  syl:0.12, g:0.06, fall:0.6, shape:q=>1.8-0.9*q},
+  chat:      {p:1.0, r:1.0, v:0.6,syl:0.09, g:0.03, fall:1.0, shape:q=>1+0.12*Math.sin(q*9)}
 };
-/* ---------- the castle's voice ----------
- * The 1981 game talked: "Achtung!", "Halt!", "Kommen Sie!", out of a speaker
- * that could only click, and the crackle was half of what made it frightening.
- * So the guards here talk too, through a speech synthesiser built into the
- * page, not the device's: a buzz at the man's own pitch shaped by the
- * resonances of German vowels, hiss and bursts for the consonants, the
- * line's mood on the pitch, and the whole thing brought down to eleven
- * thousand samples a second and forty-eight levels, like the Apple's speaker.
- * It needs no voice installed and nothing fetched, and it speaks on any
- * phone once the page has been touched. */
-const VSR=11025;
-const PH={
-  /* vowels, long and short: the first three resonances, in Hz */
-  a:{t:'v',f:[730,1250,2550],d:.13},A:{t:'v',f:[700,1220,2550],d:.085},
-  e:{t:'v',f:[380,2150,2750],d:.13},E:{t:'v',f:[560,1800,2500],d:.085},
-  i:{t:'v',f:[280,2300,3000],d:.12},I:{t:'v',f:[380,2000,2650],d:.075},
-  o:{t:'v',f:[420,760,2600],d:.13},O:{t:'v',f:[560,900,2600],d:.085},
-  u:{t:'v',f:[310,760,2300],d:.12},U:{t:'v',f:[400,950,2300],d:.075},
-  y:{t:'v',f:[280,1700,2150],d:.12},2:{t:'v',f:[400,1450,2250],d:.12},
-  '@':{t:'v',f:[500,1450,2500],d:.06},6:{t:'v',f:[620,1250,2450],d:.08},
-  /* voiced consonants */
-  m:{t:'n',f:[280,1100,2300],d:.075},n:{t:'n',f:[280,1700,2600],d:.065},N:{t:'n',f:[280,2100,2700],d:.075},
-  l:{t:'n',f:[380,1100,2600],d:.065},j:{t:'n',f:[280,2150,3000],d:.055},R:{t:'r',f:[520,1250,2300],d:.06},
-  /* hiss: centre and width of the noise, how loud, and whether the voice runs under it */
-  f:{t:'f',n:[6000,3500],a:.22,d:.09},s:{t:'f',n:[5200,1800],a:.62,d:.1},S:{t:'f',n:[2700,1300],a:.78,d:.11},
-  x:{t:'f',n:[1300,700],a:.42,d:.09},C:{t:'f',n:[3600,1500],a:.48,d:.09},
-  v:{t:'f',n:[4500,4000],a:.16,d:.07,vo:1},z:{t:'f',n:[5000,1800],a:.34,d:.08,vo:1},
-  h:{t:'h',a:.5,d:.06},
-  /* stops: a closure, then a burst */
-  p:{t:'p',n:[900,1500],a:.55,d:.075},t:{t:'p',n:[4200,2500],a:.7,d:.075},k:{t:'p',n:[1900,1200],a:.7,d:.085},
-  b:{t:'p',n:[800,1200],a:.35,d:.06,vo:1},d:{t:'p',n:[3800,2500],a:.4,d:.06,vo:1},g:{t:'p',n:[1800,1200],a:.4,d:.065,vo:1},
-  _:{t:'_',d:.07},',':{t:'_',d:.16}
-};
-/* German spelling to those sounds: enough rules for everything said here,
- * the passwords and the commandants' names included. */
-function g2p(text){
-  const out=[];
-  /* letters said as letters: SS is Es-Es, not a hiss */
-  text=String(text).replace(/\bSS\b/g,'Es Es');
-  const parts=String(text).toLowerCase().replace(/[^a-zäöüß ,.!?\-]/g,' ').split(/([ ,.!?\-]+)/);
-  for(const w of parts){
-    if(!w)continue;
-    if(/^[ ,.!?\-]+$/.test(w)){out.push(/[,.!?]/.test(w)?',':'_');continue;}
-    const ph=wordSounds(w);if(ph.length){ph[0]='^'+ph[0];out.push(...ph);}
-  }
-  return out;
-}
-function wordSounds(w){
-  const o=[],V='aeiouäöüy',isV=c=>!!c&&V.includes(c);
-  let i=0;
-  while(i<w.length){
-    const r=w.slice(i),c=w[i],n=w[i+1]||'',prev=w[i-1]||'';
-    /* consonants after the vowel: two or more and it is short; the h of ch
-       and sch counts, the h that only lengthens does not */
-    const cons=()=>{let k=0,j=i+1;while(j<w.length&&!isV(w[j])){if(w[j]!=='h'||/[cs]/.test(w[j-1]))k++;j++;}return k;};
-    if(r.startsWith('tsch')){o.push('t','S');i+=4;continue;}
-    if(r.startsWith('sch')){o.push('S');i+=3;continue;}
-    if(r.startsWith('ch')){o.push(/[aou]/.test(prev)?'x':'C');i+=2;continue;}
-    if(i===0&&(r.startsWith('sp')||r.startsWith('st'))){o.push('S',r[1]);i+=2;continue;}
-    if(r.startsWith('ei')||r.startsWith('ai')){o.push('A','I');i+=2;continue;}
-    if(r.startsWith('eu')||r.startsWith('äu')){o.push('O','y');i+=2;continue;}
-    if(r.startsWith('au')){o.push('A','U');i+=2;continue;}
-    if(r.startsWith('ie')){o.push('i');i+=2;continue;}
-    if(r.startsWith('qu')){o.push('k','v');i+=2;continue;}
-    if(r.startsWith('ck')){o.push('k');i+=2;continue;}
-    if(r.startsWith('ph')){o.push('f');i+=2;continue;}
-    if(r.startsWith('tz')){o.push('t','s');i+=2;continue;}
-    if(c==='z'){o.push('t','s');i++;continue;}
-    if(r.startsWith('ng')){o.push('N');i+=2;continue;}
-    if(r.startsWith('nk')){o.push('N','k');i+=2;continue;}
-    if(c==='ß'){o.push('s');i++;continue;}
-    if(r.startsWith('ss')){o.push('s');i+=2;continue;}
-    if(isV(c)){
-      const rest=w.slice(i);
-      /* the unstressed endings: -e, -en, -em, -es, -el and -er */
-      if(c==='e'&&i>0&&/^(e|en|em|es|el|et)$/.test(rest)){o.push('@');i++;continue;}
-      if(c==='e'&&i>0&&rest==='er'){o.push('6');i+=2;continue;}
-      const dbl=n===c,hh=n==='h'&&!isV(w[i+2]);
-      const long=dbl||hh||cons()<2;
-      const map={a:'aA',e:'eE',i:'iI',o:'oO',u:'uU',ä:'EE',ö:'22',ü:'yy',y:'yy'};
-      o.push(map[c][long?0:1]);
-      i+=dbl||hh?2:1;continue;
-    }
-    if(c==='h'){if(i===0||isV(n))o.push('h');i++;continue;}
-    if(c==='r'){o.push(isV(n)||!isV(prev)?'R':i===w.length-1?'6':'R');i++;continue;}
-    if(c==='s'){o.push(isV(n)&&(i===0||isV(prev)||'lnrm'.includes(prev))?'z':'s');i++;continue;}
-    if(c==='v'){o.push('f');i++;continue;}
-    if(c==='w'){o.push('v');i++;continue;}
-    if(c==='c'){o.push('k');i++;continue;}
-    if(c==='x'){o.push('k','s');i++;continue;}
-    if(c===n){i++;continue;}                          /* a doubled consonant is one */
-    if('bdg'.includes(c)&&!isV(n)&&n!=='l'&&n!=='r'){o.push({b:'p',d:'t',g:'k'}[c]);i++;continue;}
-    if(PH[c])o.push(c);
-    i++;
-  }
-  return o;
-}
-function resonator(){return{A:0,B:0,C:0,y1:0,y2:0};}
-function tuneRes(r,f,bw){
-  const T=1/VSR,C=-Math.exp(-2*Math.PI*bw*T),B=2*Math.exp(-Math.PI*bw*T)*Math.cos(2*Math.PI*Math.min(f,VSR*0.45)*T);
-  r.A=1-B-C;r.B=B;r.C=C;
-}
-function ring(r,x){const y=r.A*x+r.B*r.y1+r.C*r.y2;r.y2=r.y1;r.y1=y;return y;}
-const VCACHE=new Map();
-/* one line, as samples: the text, the mood, and the man saying it */
-function synthLine(text,mood,who){
-  const M=MOODS[mood]||MOODS.bark;
-  const f0b=(who&&who.f0)||120,rate=((who&&who.rate)||1)*M.r;
-  const fs=(who&&who.fs)||1,rasp=(who&&who.rasp)||0.15,growl=(who&&who.growl)||0;
-  const jit=(who&&who.jit)||0.02,shim=(who&&who.shim)||0.08;
-  const key=text+'|'+mood+'|'+f0b.toFixed(1)+'|'+rate.toFixed(2)+'|'+fs.toFixed(2)+'|'+growl.toFixed(2);
-  if(VCACHE.has(key))return VCACHE.get(key);
-  const segs=[];let T=0.02;
-  for(let raw of g2p(text)){
-    const stress=raw[0]==='^';if(stress)raw=raw.slice(1);
-    const P=PH[raw];if(!P)continue;
-    const d=P.d/rate*(stress&&P.t==='v'?1.15:1);
-    segs.push({P,t0:T,t1:T+d,stress});T+=d;
-  }
-  T+=0.06;
-  /* each consonant borrows the resonances of the vowel next to it */
-  const vowelNear=i=>{for(let k=i;k<segs.length;k++)if(segs[k].P.f)return segs[k].P.f;
-    for(let k=i;k>=0;k--)if(segs[k].P.f)return segs[k].P.f;return[500,1500,2500];};
-  segs.forEach((s,i)=>{s.F=(s.P.f||vowelNear(i)).map(f=>f*fs);});
-  /* where each word's stressed syllable starts: the pitch jumps up into it */
-  const accents=segs.filter(s=>s.stress&&s.P.t==='v').map(s=>s.t0);
-  for(let i=0;i<segs.length;i++)if(segs[i].stress&&segs[i].P.t!=='v'){
-    const v=segs.slice(i).find(x=>x.P.t==='v');if(v&&accents.indexOf(v.t0)<0)accents.push(v.t0);}
-  const n=Math.ceil(T*VSR),out=new Float32Array(n),hs=new Float32Array(n);
-  const r1=resonator(),r2=resonator(),r3=resonator(),rn=resonator();
-  let F=segs.length?segs[0].F.slice():[500,1500,2500],phase=0,gPrev=0,si=0,amp=0,vPrev=0;
-  let pj=1,ps=1,odd=false;
-  for(let k=0;k<n;k++){
-    const t=k/VSR;
-    while(si<segs.length-1&&t>=segs[si].t1)si++;
-    const sg=segs[si];
-    if(!sg||t<sg.t0||t>=sg.t1+0.001&&si===segs.length-1){out[k]=0;amp*=0.99;continue;}
-    const P=sg.P,u=(t-sg.t0)/(sg.t1-sg.t0);
-    if(k%16===0){
-      for(let j=0;j<3;j++)F[j]+=(sg.F[j]-F[j])*0.22;
-      tuneRes(r1,F[0],80);tuneRes(r2,F[1],110);tuneRes(r3,F[2],170);
-      if(P.n)tuneRes(rn,P.n[0],P.n[1]);
-    }
-    /* The pitch: the man's own, bent by the mood across the line, and in
-       every word a jump up onto the stressed syllable that falls away after
-       it. No two cycles quite alike (jitter, shimmer); the SS every other
-       cycle weaker than the last, which is the growl. */
-    let acc=0;for(const a of accents)acc+=t>=a?Math.exp(-(t-a)/0.13):Math.exp((t-a)/0.025);
-    const f0=f0b*M.shape(t/T)*(1+M.acc*Math.min(1.2,acc))*pj;
-    phase+=f0/VSR;
-    if(phase>=1){phase-=1;odd=!odd;
-      pj=1+(Math.random()-0.5)*2*jit;ps=(1+(Math.random()-0.5)*2*shim)*(odd?1-growl:1);}
-    const gl=phase<M.oq?Math.sin(Math.PI*phase/M.oq):0;
-    const noise=Math.random()*2-1;
-    /* rasp and breath: noise riding on the open part of each cycle */
-    const src=((gl-gPrev)*6+noise*gl*(rasp+M.breath)*0.9)*ps;gPrev=gl;
-    let av=0,an=0,ah=0;
-    switch(P.t){
-      case'v':av=1;break;
-      case'n':av=0.55;break;
-      case'r':av=0.7*(0.6+0.4*Math.sin(t*2*Math.PI*26));break;
-      case'f':av=P.vo?0.3:0;an=P.a;break;
-      case'h':ah=P.a;break;
-      case'p':if(u<0.55)av=P.vo?0.12:0;else{an=P.a*Math.exp(-(u-0.55)*9);ah=P.vo?0:0.25*(u-0.55);}break;
-    }
-    /* soft edges on every sound, so they join without clicks */
-    const edge=Math.min(1,u*8,(1-u)*8+0.35);
-    amp+=(edge-amp)*0.2;
-    const v=ring(r3,ring(r2,ring(r1,(av*src+ah*noise*0.8))))*amp;
-    /* lifted in the treble, as a voice is on its way out of the mouth, which
-       is what brings the second and third resonances up to be heard */
-    out[k]=v-0.92*vPrev;vPrev=v;
-    hs[k]=an?ring(rn,noise)*an*amp:0;
-  }
-  /* The voice and the hiss each get their own level: a narrow noise filter
-   * rings far louder than a vowel does, and normalised together the hiss
-   * of an s drowned the words. The voice goes to full; the hiss to a
-   * fraction of it that its sound (s loud, f soft) sets. */
-  let peak=1e-6,hr=0,hn=0;
-  for(let k=0;k<n;k++){peak=Math.max(peak,Math.abs(out[k]));if(hs[k]){hr+=hs[k]*hs[k];hn++;}}
-  const hk=hn?0.3/Math.sqrt(hr/hn):0;
-  /* and down to forty-eight levels: the grain of a one-speaker computer.
-     Sixteen was tried first, and the grain buried the vowels. */
-  for(let k=0;k<n;k++)out[k]=Math.round(clamp(out[k]/peak*0.9+hs[k]*hk,-1,1)*24)/24;
-  if(VCACHE.size>160)VCACHE.delete(VCACHE.keys().next().value);
-  VCACHE.set(key,out);
-  return out;
-}
-/* The voice: the castle's own, above, unless the player has chosen the
- * device's German voice and the device has one. */
+/* The voice: the browser's own German speech where it has a German voice,
+ * given each man's pitch and pace and the line's mood; the square-wave voice
+ * otherwise, and always under a test. */
 const Voice={
-  synth:null,de:null,mode:load('wolfenstein.voice','castle')==='device'?'device':'castle',
+  synth:null,de:null,
   init(){
     try{
       if(typeof speechSynthesis==='undefined'||typeof SpeechSynthesisUtterance==='undefined')return;
       this.synth=speechSynthesis;
       const find=()=>{try{const vs=this.synth.getVoices()||[];
-        /* a man's German voice if the device has one: they are mostly named */
-        const de=vs.filter(v=>/^de(-|_|$)/i.test(v.lang));
-        this.de=de.find(v=>/\b(male|mann|markus|yannick|hans|stefan|martin|viktor|conrad|klaus|jonas|daniel|helmut|reed|rocko|eddy|grandpa)\b/i.test(v.name))||de[0]||null;
-        this.deMale=!!this.de&&de.indexOf(this.de)>=0&&this.de!==de[0]||/male/i.test((this.de||{}).name||'');}catch(e){}};
+        this.de=vs.find(v=>/^de(-|_|$)/i.test(v.lang))||null;}catch(e){}};
       find();
       try{this.synth.addEventListener('voiceschanged',find);}catch(e){}
     }catch(e){this.synth=null;}
   },
-  say(text,mood,who,always){
-    if(!Snd.on||G.demo&&!always)return;
+  say(text,mood,who){
+    if(!Snd.on||G.demo)return;
     const M=MOODS[mood]||MOODS.bark;
-    if(this.mode==='device'&&this.synth&&this.de){
+    if(this.synth&&this.de){
       try{
         const u=new SpeechSynthesisUtterance(text);
         u.lang='de-DE';u.voice=this.de;
-        /* and if it is not a man's, down to the bottom of its range */
-        u.pitch=clamp(((who&&who.pitch)||1)*M.p*(who&&who.kind==='ss'?0.6:1)*(this.deMale?1:0.55),0.1,2);
+        u.pitch=clamp(((who&&who.pitch)||1)*M.p*(who&&who.kind==='ss'?0.6:1),0.1,2);
         u.rate=clamp(((who&&who.rate)||1)*M.r,0.5,1.8);u.volume=M.v;
         /* a shout cuts across whatever was being said; talk waits its turn */
         if(mood==='bark'||mood==='scream'||this.synth.pending)this.synth.cancel();
@@ -641,7 +442,7 @@ const Voice={
         return;
       }catch(e){}
     }
-    try{Snd.voice(synthLine(text,mood,who),M.v,mood==='bark'||mood==='scream');}catch(e){}
+    Snd.intone(text,mood,who);
   }
 };
 /* what the bubbles can draw: capitals, and no umlauts */
@@ -925,16 +726,8 @@ function makeRoom(cx,cy,doors,opts){
 let guardId=1;
 /* A guard's voice is anywhere from a high bark to a low growl; the SS are
  * all down at the bottom. */
-/* Every voice a man's. A guard from a high, hard 150 Hz down to a bass at
- * 95; the SS all below that, 66 to 86, with the growl of a voice pushed
- * down to the bottom of itself. A deeper man is a bigger man, so his
- * resonances come down too (fs), and each has his own amount of rasp. */
-function voiceFor(kind,pitch,rate){
-  const k=Math.max(0,Math.min(1,(pitch-0.85)/0.3));
-  return kind==='ss'
-    ?{kind,pitch,rate,f0:66+k*20,fs:0.87+0.05*k,rasp:0.14,growl:0.28+0.2*(1-k),jit:0.03,shim:0.12}
-    :{kind,pitch,rate,f0:95+k*55,fs:0.93+0.08*k,rasp:0.05+0.1*(1-k),growl:0,jit:0.02,shim:0.08};
-}
+/* every man his own voice: a pitch and a pace of his own */
+function voiceFor(kind,pitch,rate){return{kind,pitch,rate};}
 function mkGuard(kind,x,y){
   return{id:guardId++,kind,x,y,dir:ri(8),face:R()<0.5?1:-1,dist:0,st:'stand',t:0.3+R(),
     fireT:1,hp:kind==='ss'?SS_HP:1,searched:false,say:null,lastSeen:null,noLos:0,detour:0,
@@ -1001,7 +794,10 @@ function makeCastle(d){
 }
 
 /* ---------- state ---------- */
+/* TALK: '1981', shouts only, the game as it was and the default; or
+ * 'questioned', where a man in uniform is stopped and asked things. */
 const G={state:'splash',demo:true,impenetrable:load('wolfenstein.impenetrable','0')==='1',noRecord:false,
+  talk:load('wolfenstein.talk','1981')==='questioned'?'questioned':'1981',
   castle:null,cur:0,P:null,shots:[],nades:[],booms:[],sparks:[],pursuers:[],msg:null,
   hunt:{on:false,t:0,quiet:0,beat:0},dread:0,
   rank:0,castles:0,stats:null,t:0,dieT:0,escT:0,best:loadJSON('wolfenstein.best',null)};
@@ -1391,6 +1187,16 @@ function stepGuard(g,dt){
       if(!P.holstered&&aimedAt(g)&&atArmsLength(g)&&(disguised()||g.cleared)){g.susp+=dt;
         if(g.susp>0.25){drawnOn(g);return;}}
       else if(!disguised())challenge(g);
+      else if(G.talk==='1981'){
+        /* Shouts only, as in 1981: the uniform passes. Walk into a guard and
+         * he wants to know what is going on; stand about at an SS man's
+         * elbow, or with a gun out, and he sees what you are. */
+        const drawn=!G.P.holstered,close=d<(g.kind==='ss'?26:14);
+        if(close||drawn&&d<40)g.susp+=dt*(drawn?2:1);else g.susp=Math.max(0,g.susp-dt);
+        if(g.susp>(g.kind==='ss'?1.5:0.8)){g.susp=0;room().blown=true;
+          say(g,g.kind==='ss'?'Halt! SS!':'Was ist los?',g.kind==='ss'?'bark':'ask',true);
+          g.kind==='ss'?alarm(g):challenge(g);return;}
+      }
       else if(!g.cleared){
         /* The uniform passes, at a distance. Come close, or stay close, and
          * you are stopped and questioned: by an SS man from further off and
@@ -1400,7 +1206,7 @@ function stepGuard(g,dt){
         if(g.susp>(g.kind==='ss'?1.2:1.0)){g.susp=0;g.face=dx>0?1:-1;startQuestions(g);return;}
       }
       /* a man in uniform who has been questioned and passed talks shop */
-      if(disguised()&&d<80)chatter(g,dt);
+      if(G.talk==='questioned'&&disguised()&&d<80)chatter(g,dt);
     }
     if(g.st==='alert'||g.st==='challenge'||g.st==='hup')return;
     g.t-=dt;
@@ -1720,20 +1526,6 @@ function enterRoom(i){
   /* the guards here did not see you come in; they are where they were */
   for(const g of rm.guards)if(g.st==='alert'&&g.kind==='guard'){g.st='stand';g.t=0.4;g.lastSeen=null;}
   if(G.P.uniform)rm.blown=false;
-  warmVoices(rm);
-}
-/* Each line takes the synthesiser a few milliseconds the first time; so the
- * shouts the men in a room are likely to give are made ahead, one at a time
- * between frames, and a HALT! never stutters the picture. */
-let warmQ=[];
-function warmVoices(rm){
-  warmQ=[];
-  for(const g of rm.guards){
-    if(!live(g))continue;
-    for(const l of g.kind==='ss'?SSHALT:HALT)warmQ.push([l,'bark',g.voice]);
-  }
-  const next=()=>{const w=warmQ.shift();if(!w)return;try{synthLine(w[0],w[1],w[2]);}catch(e){}setTimeout(next,30);};
-  setTimeout(next,30);
 }
 function leave(side){
   const C=G.castle,rm=room(),P=G.P;
@@ -1947,22 +1739,19 @@ function showSplash(){
     '<p class="sub">Out of the cell. Find the war plans. Get out of the castle.</p>'];
   html.push('<button class="menuitem" type="button">START</button>');
   html.push('<button class="menuitem" type="button" id="minv">'+invLabel()+'</button>');
-  html.push('<button class="menuitem" type="button" id="mvoice">'+voiceLabel()+'</button>');
+  html.push('<button class="menuitem" type="button" id="mtalk">'+talkLabel()+'</button>');
   html.push('<button class="menuitem" type="button">HOW TO PLAY</button>');
   html.push('<small class="tip">arrows walk · SPACE fire · hold X to aim · E search · G grenade'+
     (G.best.rank||G.best.castles?' · best '+esc(rankName(G.best.rank)):'')+'</small>');
-  buildMenu(html.join(''),[{go:()=>newGame()},{go:toggleInv},{go:toggleVoice},{go:showHelp}],0);
+  buildMenu(html.join(''),[{go:()=>newGame()},{go:toggleInv},{go:toggleTalk},{go:showHelp}],0);
 }
 /* Two positions: the game as it was, where one bullet ends it, and the one
  * this collection added, where nothing does. */
-/* The castle's own voice, or the device's German one, where it has one. */
-function voiceLabel(){return 'VOICES: '+(Voice.mode==='device'?'DEVICE GERMAN'+(Voice.de?'':' (NONE FOUND)'):'CASTLE · 1-BIT');}
-function toggleVoice(){
-  Voice.mode=Voice.mode==='device'?'castle':'device';save('wolfenstein.voice',Voice.mode);
-  const b=el('mvoice');if(b)b.textContent=voiceLabel();
-  Snd.unlock();
-  /* and say something, so the choice can be heard */
-  Voice.say('Halt! Kommen Sie!','bark',voiceFor('guard',1,1),true);
+/* TALK: the 1981 game's shouts and nothing more, or questioned in German */
+function talkLabel(){return 'TALK: '+(G.talk==='1981'?'1981 · SHOUTS ONLY':'QUESTIONED');}
+function toggleTalk(){
+  G.talk=G.talk==='1981'?'questioned':'1981';save('wolfenstein.talk',G.talk);
+  const b=el('mtalk');if(b)b.textContent=talkLabel();
 }
 function invLabel(){return 'IMPENETRABLE: '+(G.impenetrable?'ON · ENDLESS':'OFF · MORTAL');}
 function toggleInv(){
@@ -1987,8 +1776,10 @@ function showHelp(){
     'sees you raises the <b>alarm</b>, and until it goes quiet more squads come through the doors.<br><br>'+
     '<b>Chests</b> take time to pick, standing still; shoot the lock off and it is quick. They hold '+
     'bullets, grenades, bulletproof vests, uniforms, and a lot of sauerkraut. In a <b>uniform</b> you '+
-    'blend in, even with the SS, until you fire. But the SS look closely: get near one and he asks for '+
-    'your papers, and if you are still in front of him when he has looked, you are a spy. The <b>war plans</b> are in a steel '+
+    'blend in, even with the SS, until you fire, walk into a guard, or linger at an SS man\'s elbow. '+
+    'A guard who sees you as you are <b>challenges</b> you first: pull your gun on him then and his hands go up. '+
+    '<b>TALK</b> on the title: <b>1981</b> is shouts only, the game as it was; <b>QUESTIONED</b> has men in '+
+    'the corridors stop a uniform and question it in German. The <b>war plans</b> are in a steel '+
     'strongbox. Search a body, or a guard with his hands up, for bullets.<br><br>'+
     'Find the way out, marked on its wall. Out with the plans, and you are promoted; out without them, '+
     'and you are only alive. <b>Grenades</b> bring down the inside walls, and anything else near them.'+
@@ -2021,6 +1812,7 @@ function showPause(){
 function notebookHtml(){
   const P=G.P,C=G.castle,r=[];
   r.push('Uniform: '+(P.uniform?'yes, gun '+(P.holstered?'away':'out'):'not yet'));
+  if(G.talk==='1981')return '<small class="tip">'+r.join(' · ')+'</small>';
   if(C.d>=2)r.push('Papers: '+(P.papers?'yes':'not yet'));
   if(C.d>=3){r.push('Password: '+(P.knows.parole?esc(C.parole):'?'));r.push('Commandant: '+(P.knows.chief?esc(C.chief):'?'));}
   return '<small class="tip">'+r.join(' · ')+'</small>';
@@ -2076,8 +1868,8 @@ function hud(){
   if(P&&P.vest)tags.push('<span class="tag">VEST '+P.vest+'</span>');
   if(P&&P.plans)tags.push('<span class="tag on">PLANS</span>');
   if(P&&P.uniform&&!G.demo)tags.push('<span class="tag">'+(P.holstered?'GUN AWAY':'GUN OUT')+'</span>');
-  if(P&&P.papers&&!G.demo)tags.push('<span class="tag">PAPERS</span>');
-  if(P&&(P.knows.parole||P.knows.chief)&&!G.demo)tags.push('<span class="tag">NOTES '+((P.knows.parole?1:0)+(P.knows.chief?1:0))+'</span>');
+  if(P&&P.papers&&!G.demo&&G.talk==='questioned')tags.push('<span class="tag">PAPERS</span>');
+  if(P&&(P.knows.parole||P.knows.chief)&&!G.demo&&G.talk==='questioned')tags.push('<span class="tag">NOTES '+((P.knows.parole?1:0)+(P.knows.chief?1:0))+'</span>');
   if(G.hunt&&G.hunt.on&&!G.demo)tags.push('<span class="tag alarm">ALARM</span>');
   if(G.impenetrable)tags.push('<span class="tag inv">IMPENETRABLE</span>');
   el('kit').innerHTML=tags.join(' ');
