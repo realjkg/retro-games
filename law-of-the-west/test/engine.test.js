@@ -313,6 +313,36 @@ test('10. every cue is played or reserved, and every caller has his own theme', 
   report.themes=[...named];
 });
 
+test('10b. the title screen plays Oh! Susanna', ()=>{
+  const vm=require('node:vm');
+  const audio=fs.readFileSync(path.join(ROOT,'sid-audio.js'),'utf8');
+  const abox={};vm.createContext(abox);
+  vm.runInContext(audio.slice(0,audio.indexOf('const GATE='))+'\nthis.S=SOUNDS;',abox);
+  /* Stephen Foster, 1848, public domain, and the tune the 1985 title screen
+   * played. Written as scale degrees so the check is about the SONG and not
+   * about the key, the tempo or the arrangement - all of which are ours.
+   *
+   * A table of plausible notes is not a tune, and nothing else here can tell
+   * the difference: the cue table is checked for voices, length and overlap,
+   * and an invented melody passes every one of those. Confirmed to fail on the
+   * build this replaces, which had thirty-one notes of something else. */
+  const VERSE=[0,2,4,4,7,7,9,7,4,0,2,4,2];   // I come from Alabama...
+  const CHORUS=[9,9,7,4,0,2,4,2,0];          // Oh Susanna, don't you cry for me
+  const SONG=[].concat(VERSE,[2],VERSE,[0],CHORUS,VERSE,[0]);
+  const lead=abox.S.title[0];
+  assert.ok(lead&&lead.seq,'the title has no melody');
+  /* Array.from, not .map: the seq comes out of the vm sandbox carrying THAT
+   * realm's Array.prototype, and deepStrictEqual compares prototypes - so a
+   * sandbox array of identical numbers fails against a native one, with a diff
+   * that shows two columns of the same digits and no explanation. */
+  const degs=Array.from(lead.seq,n=>((n[0]%12)+12)%12);
+  assert.deepEqual(degs,SONG,'the title is not the song');
+  // and the bass must come home rather than stop on the five
+  const bass=abox.S.title[1].seq;
+  assert.equal(((bass[bass.length-1][0]%12)+12)%12,0,
+    'the title ends on something other than the tonic');
+});
+
 test('11. twelve figures, no two alike, each with hitboxes over his own art', ()=>{
   const {run}=load();
   const out=JSON.parse(run(`(()=>{
