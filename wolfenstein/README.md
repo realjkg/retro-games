@@ -93,6 +93,29 @@ a room. What you are asked when questioned builds up the same way (below).
 cell, and your cellmate tells you so. In every castle after, it is in a room
 next to the cell.
 
+## Challenged, and drawn on
+
+A guard who comes on an escaped prisoner does not simply shoot him. **He
+challenges him first**, gun up and finger off the trigger: *Halt! Hände
+hoch!*, *Halt! Kommen Sie!*, *Stehenbleiben!* He waits three seconds in the
+first castle and a second and a half by the sixth.
+
+* **Pull your gun on him** while he waits, and his hands go up: *Kamerad!
+  Nicht schießen!*
+* **Walk away** and he shouts *Stehenbleiben!* and opens fire.
+* **Stand there** and he fires when he has waited long enough.
+
+The same holds when you are in uniform. **Stopped and questioned, you can
+draw on him instead of answering**: *Draw on him* on the card, or H. At
+arm's length, with his own gun down, he has no choice, and his hands go up;
+so do a guard's who has just waved you on, if you draw on him close to. Either
+way your cover is gone with anyone else who saw it.
+
+The SS challenge too (*Halt! SS! Hände hoch!*), for less than half as long,
+and only put their hands up to a gun drawn on them at arm's length. Drawn on
+from across a room, an SS man goes for his gun (*Waffe runter!*). One already
+shooting at you never surrenders.
+
 ## Holster the gun, and be questioned
 
 **H** (or HOLSTER) puts the gun away: his hands go to his sides and the
@@ -127,16 +150,101 @@ What they ask builds up:
 * The SS ask one question in the first castles, two from the third, three
   from the fifth.
 
-**Every man speaks in his own voice, and every line has a mood.** Each guard
-is given a pitch and a pace of his own when the castle is made. The SS are
-lower. A line is said in one of eight moods: *bark* (orders: fast, loud,
-falling), *ask* (questions rise at the end), *cold* (*Ihre Papiere, bitte.*:
-low, slow, flat), *suspicious* (slow, the pitch wavering), *dismiss*
-(*Weitermachen.*: quick and falling), *plead* (*Kamerad!*: high), *scream*,
-and *chat* for the talk between guards. Where the browser has a German voice,
-the lines are spoken in German by it, with the man's pitch and the mood's
-pitch and pace. Where it does not, it is the square-wave voice: one syllable a
-vowel, on the pitch the mood puts it on.
+## TALK: 1981, or questioned
+
+`TALK` on the title has two positions, and the first is the default:
+
+* **1981 · SHOUTS ONLY**: the game as it was. Guards and SS shout, challenge
+  and put their hands up; nobody questions you and nobody chats. A uniform
+  gets you past at a distance. Walk into a guard and he wants to know what is
+  going on (*Was ist los?*) and challenges you; stand about at an SS man's
+  elbow, or with a gun out near one, and he sees what you are.
+* **QUESTIONED**: everything this game built on top. Men in the corridors
+  stop a uniform and question it in German (above), the guards let slip the
+  password and the commandant's name, and there is a notebook.
+
+The choice is remembered between visits.
+
+## The voices
+
+**Every guard and SS line is a man's voice, carried in the page.** Each line
+the castle can say — the 1981 shouts, the challenges, the screams, and in
+QUESTIONED the questions, answers and chatter — was spoken once by eSpeak NG,
+in its German voice with its male variants, and kept in the page as a short
+6 kHz clip: 90 clips, 106 seconds, which is most of why the page is ~540 KB.
+There are three men: two guards, one higher and one lower, and a deeper SS
+voice. Each man in the castle plays his clip a little faster or slower, so no
+two sound quite the same.
+
+**The device's voice is used only when it is known to be a man**, and then only
+for a line the page has no clip for. The earlier build handed every line to
+the device's *first* German voice, which on an iPhone or Mac is Anna, in
+Chrome is Google Deutsch, and on Windows is Hedda or Katja: all women, and
+that build then pitched them *up*. Now a device voice is used only if it is a
+German voice named as a man (Markus, Yannick, Viktor, Martin, Stefan,
+Conrad, Killian…), never a named woman, and never pitched above 1. Without
+one, a line with no clip is not spoken: its words stay in the bubble.
+
+The first touch, click or key anywhere unlocks the sound, and the page tells
+iOS it is playback, so the silent switch does not mute it.
+
+### How the voices are checked to be men
+
+Pitch is measured, not assumed. `tools/voicegender.js` finds the fundamental
+of every voiced frame by YIN, and a voice is a man's if the median is **under
+150 Hz**. That bar is itself checked against recordings in `tests/voices/`
+(sources in `tests/voices/SOURCES.md`): six real men, 102–164 Hz; a real
+woman, 235 Hz; eSpeak's seven labelled men, 89–101 Hz, and five labelled
+women, 166–202 Hz. Every woman is above the bar with room to spare. Pitch
+alone cannot separate a deep woman from a high man: 166 and 164 are two hertz
+apart. So the game is held *under* the bar, not near it.
+
+* `tests/voices.test.cjs` (no browser):
+  * the bar holds for every reference speaker;
+  * every clip, played at the fastest any man plays it, is under 150 Hz
+    (measured: guards 88–130 Hz, SS 64–99 Hz), and the SS are lower than
+    the guards;
+  * every line has a clip;
+  * given the real voice lists of an iPhone, a Mac, Chrome, Android and
+    Windows, the game never picks a woman and never pitches up;
+  * no shout is ever handed to the device.
+* `tools/playthrough.js` (real Chromium) records what comes out of the page's
+  loudspeaker while a guard and an SS man shout, and measures that.
+  * Measured: "Halt! Kommen Sie!" at 104 Hz, "Was ist los?" 111, "Halt! SS!"
+    83, "Ihren Pass!" 77.
+  * With Anna and Markus both on the device, only Markus is ever handed a
+    line.
+
+Each check fails on the build before it. On that build, Anna speaks every
+line, nothing comes out of the page's own sound, and with no German voice
+the guards' beeps measure 154 and 228 Hz. With the clips re-rendered in
+eSpeak's women's voices, "Halt!" measures 212 Hz and the clip test fails.
+
+    MESPEAK=… node tools/render-voices.js           re-render the clips into the page
+    MESPEAK=… node tools/render-voices.js --check   is the page current
+    MESPEAK=… node tools/render-voices.js --verify  eSpeak's men under, women over
+    node tools/listen.js out.wav                    every clip, highest and lowest man
+
+eSpeak NG is GPL and is a build tool here, like a microphone: only the sound
+it made is in the page. `MESPEAK` points at an installed `mespeak` package.
+
+## How much of this is the 1981 game
+
+Not the talking. The Apple game's speech was **a handful of short digitised
+shouts**, recorded voices, not a conversation. The ones people remember are
+*Achtung!*, *Halt!*, *Kommen Sie!*, *Was ist los?*, *Schweinehund!*, and
+*Kamerad!* from a guard putting his hands up. The exact list could not be
+checked from here. Nobody questioned you: a uniform got you past the guards
+or it did not.
+
+Being stopped and asked for your **pass** belongs to the sequel, *Beyond
+Castle Wolfenstein* (Muse, 1984, also on DOS), where guards demanded a pass,
+and you showed one or paid them off. The questioning here, the notebook, the
+password and the commandant's name are this game's own, built on that idea,
+and so are the alarm's squads, the relentless SS, the holster, the graze and
+the build-up. What is the 1981 game's is the castle of rooms, the guards and
+the SS, holding a guard up, the chests and their locks, the uniform, the
+vest, grenades through walls, the war plans, the ranks, and the shouts.
 
 ## What it does
 
@@ -156,9 +264,17 @@ for bullets and grenades, and a dead guard sometimes for his uniform.
 
 **The SS** (violet) never go about alone. A room that has them has a squad,
 two men and from the fourth castle sometimes three, standing together. They
-wear vests and take three bullets each, and they never surrender. They
-**follow you**: leave a room with the SS after you and a moment later they
-walk in through the same opening, one after another.
+wear vests and take three bullets each, and they never surrender.
+
+**They are relentless.** An SS man who has seen you for what you are is after
+you until you shoot him, wherever he is in the castle. Each time you go
+through a door, every one of them sets off for the room you are now in, the
+nearest first, and walks in through the opening on the side he is coming
+from, a moment later for every room he has to cross. Run through five rooms
+and they come through five doors after you. The one way out, short of a
+bullet, is a uniform: get into a room where it holds, and when they come in
+they are looking for a man they cannot see (*Wo ist er?*), and they have lost
+you.
 
 **The alarm** is the frightening part. An SS man who sees you for what you are
 raises it. A klaxon goes, the screen flares red, and from then on its edges
@@ -218,7 +334,7 @@ you are impenetrable.
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 38 tests, no browser
+    node --test tests/*.test.cjs                              # 52 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
     PW=... node tools/layout.js
@@ -244,9 +360,15 @@ holsters it**; **what they ask builds up by castle**; **the password
 question holds the castle's password, and the notebook has it once found**;
 **the guards let slip the password and the name**; **the uniform is in the
 cell, then next door**; **castle one is gentle and it builds up**; **the
-first bullet grazes**; **FIRE draws a holstered gun and holds nobody up**;
-and **each man his own voice; a question rises where an order falls**. All
-twelve fail on the build before them.
+first bullet grazes**; and **FIRE draws a holstered gun and holds nobody
+up**. All eleven fail on the build before them. Then the chase: **one SS man follows you room after room until you
+shoot him**; **several come, the nearest first**; and **a uniform that holds
+and they come in and cannot see you**. The challenge: **a guard challenges
+an escaped prisoner before he shoots**; **pull your gun on him and his hands
+go up**; **walk away and he fires**; **draw on the man questioning you**;
+**waved on, then drawn on**. And TALK: **1981, shouts only, is the default**,
+and **in 1981 nobody questions you or chats**. Each fails on the build
+before it.
 
 `tools/playtest.js` asks **how it moved**. It opens the real page in Chromium
 and reads the canvas, one row per scene: the title demo, the cell, walking
@@ -282,10 +404,15 @@ fires and button 1 held turns him without a step, and FIRE, THROW, SEARCH and
 AIM-with-the-stick all work with fingers. H holsters and SPACE draws without
 a shot. Walked up to an SS man in uniform he is questioned in German, and
 answered right by keyboard he waves you on; on a phone a finger on HOLSTER,
-then on the right answer, does the same. **The German voice**: this machine's
-browser has no speech voices, so the check puts a German one in its place and
-keeps every line handed to it. Every line goes to it in German, the SS at a
-lower pitch than a guard, an order faster than a question.
+then on the right answer, does the same. **The voices, heard**: the
+device is given Anna and Markus, and only Markus is ever handed a line, never
+a shout and never pitched up; then what comes out of the page's loudspeaker
+while a guard and an SS man shout is recorded and measured under 150 Hz.
+**Hands up**, by real keys: challenged and turning the gun on him, drawing in
+uniform, drawing after being waved on, H while questioned, and turning on a
+guard already shooting all put his hands up within half a second; kept on
+him they stay up four seconds, turned away he drops them and fires. Four of
+those fail on the build before the challenge.
 
 `tools/layout.js` asks **where the controls are**, on six screens from 320×568
 to an iPad, each way up, during play. Is any control over the playfield or over
@@ -311,17 +438,24 @@ For eyes, not checks:
 
 ## What is not fixed
 
-* **The guards do not speak.** The Apple version was famous for real digitised
-  speech out of a one-bit speaker. Here a shout is its words in a bubble and a
-  burst of square-wave syllables.
+* **The guards' voices are not the 1981 game's.** Those were recordings of
+  real people. These are eSpeak, a formant synthesiser: measured as men, and
+  they sound like it, but they are robotic, not actors.
+* **Nobody here has listened to them.** The checks are pitch, measured
+  against real and labelled voices. `tools/listen.js` writes every clip to a
+  file so a person can.
+* **Only one real woman is in the reference set** (LJSpeech). The women's
+  side of the bar also rests on eSpeak's five labelled women.
+* **Not run on a real iPhone.** The device voice choice is tested against
+  iOS's voice list, not on iOS. On an iPhone without Markus or Yannick
+  installed, lines with no clip (only a few chatter lines in QUESTIONED) are
+  words in the bubble, not speech.
 * **One floor.** The original castle had about sixty rooms on several floors
   joined by stairs. This one is a single grid of rooms, up to thirty, with no
   stairs and no locked doors.
 * **Guards already in a room are standing there when you walk in.** They live
   there, which is how the original worked, but it is not a walk-in. Only the
   SS walk in after you.
-* **An SS man loses you** if you have left the room he was following you into
-  before he gets there. He does not follow a second time.
 * **Standing legs are straight.** The walk is four drawn frames. Standing is
   five rows of dead-straight legs; the life in a standing figure is in the
   arms and the blink.
@@ -329,11 +463,9 @@ For eyes, not checks:
   retrogames.cz and the Atari 8-bit build on archive.org were both blocked by
   this environment's network policy. What is here is from what is known of
   Silas Warner's game, not from playing those builds side by side.
-* **The German speech could not be heard here.** This machine's browser has
-  no speech voices, so what played here is the square-wave voice. The spoken
-  German is checked by what it is handed (language, pitch, pace), not by
-  listening. Whether it sounds right depends on the German voice your device
-  has, and some have none, in which case you get the square-wave voice too.
+* **The first touch unlocks the sound on iOS by the rules iOS publishes**,
+  but that was checked in Chromium, which may allow sound without a touch at
+  all.
 * **The questions are this game's**, as are the holster, the notebook, the
   password and commandant, the graze and the build-up table. None is from the
   1981 disk. The German is plain textbook German and has not been checked by

@@ -8,6 +8,7 @@
  */
 'use strict';
 const path=require('path'),fs=require('fs');
+const VG=require('./voicegender.js');
 const pw=require(process.env.PW||'playwright-core');
 const URL='file://'+path.join(__dirname,'..','index.html');
 const results=[];
@@ -28,6 +29,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
 
   const title=await pg.innerText('#overlay');
   check(/IMPENETRABLE: OFF · MORTAL/.test(title),'a first visit is mortal',title.split('\n').find(l=>/IMPEN/.test(l)));
+  check(/TALK: 1981 · SHOUTS ONLY/.test(title),'and shouts only, as in 1981',title.split('\n').find(l=>/TALK/.test(l)));
   check(await read('!!document.getElementById("rg-launch")'),'the way back to the collection is on the page');
 
   /* the switch, by keyboard: down to it, ENTER */
@@ -65,6 +67,16 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pg.waitForTimeout(1200);
   check(await read('G.state')==='play','and it does not end an impenetrable run, however close',await read('G.state'));
 
+  /* The castle's own voice: the keys pressed so far have unlocked the sound,
+     and a guard's shout is played through it, not handed to the device */
+  check(await read('!!Snd.ctx&&Snd.ctx.state==="running"'),'a key unlocks the sound',await read('Snd.ctx&&Snd.ctx.state'));
+  /* a shout is played through the castle's own voice: a clip, not a beep and
+     not the device (read defensively, so this still runs on older builds) */
+  const heard=await read(`(()=>{const n0=typeof Snd.played==='number'?Snd.played:0;
+    say(mkGuard('guard',0,0),'Halt! Kommen Sie!','bark',true);
+    return (typeof Snd.played==='number'?Snd.played:0)-n0;})()`);
+  check(heard===1,'a guard\'s shout is played as a recorded line: "Halt! Kommen Sie!"',heard+' clip(s)');
+
   /* the gun away, and questioned: an SS man stood beside a man in uniform */
   await pg.keyboard.press('h');await pg.waitForTimeout(60);
   check(await read('G.P.holstered')===true,'H puts the gun away');
@@ -72,7 +84,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pg.keyboard.press('Space');await pg.waitForTimeout(400);
   check(await read('G.P.ammo')===a1&&await read('G.P.holstered')===false,'SPACE with the gun away draws it, no shot');
   await pg.keyboard.press('h');await pg.waitForTimeout(400);
-  await read(`(()=>{G.P.uniform=true;G.P.papers=true;room().blown=false;const rm=room();rm.guards=[];
+  await read(`(()=>{G.talk='questioned';G.P.uniform=true;G.P.papers=true;room().blown=false;const rm=room();rm.guards=[];
     const g=mkGuard('ss',G.P.x+24,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);return 0;})()`);
   await pg.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   check(await read('G.state')==='question','walk up to an SS man in uniform and he questions you',await read('G.state'));
@@ -84,6 +96,13 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
     await pg.keyboard.press('Enter');await pg.waitForTimeout(80);
   }
   check(await read('G.state')==='play'&&await read('room().guards[0].cleared'),'answered right by keyboard, he waves you on');
+  /* stopped again, and this time H: the gun comes out on him */
+  await read(`(()=>{G.P.holstered=true;const rm=room();rm.guards=[];room().blown=false;
+    const g=mkGuard('guard',G.P.x+18,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);return 0;})()`);
+  await pg.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+  await pg.keyboard.press('h');await pg.waitForTimeout(120);
+  check(await read('G.state')==='play'&&await read('room().guards[0].st')==='hup','stopped and questioned, H draws on him and his hands go up',
+    await read('room().guards[0].st'));
   await read(`room().guards=[];0`);
 
   /* impenetrable, in real time: an SS man put in front of him, ten seconds */
@@ -136,6 +155,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pp.tap('#overlay .menuitem.sel');
   await pp.waitForFunction(()=>G.state==='play',null,{timeout:8000}).catch(()=>{});
   check(await pp.evaluate('G.state')==='play','two taps and a finger is in the castle',await pp.evaluate('G.state'));
+  check(await pp.evaluate('!!Snd.ctx&&Snd.ctx.state==="running"'),'and the first tap unlocked the sound',await pp.evaluate('Snd.ctx&&Snd.ctx.state'));
   const cdp=await ph.newCDPSession(pp);
   const touch=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
   const sb=await pp.locator('#stick').boundingBox();
@@ -198,7 +218,7 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await pp.evaluate(()=>{G.P.holstered=false;G.P.busy=null;});
   await tapBtn('#bh');
   check(await pp.evaluate('G.P.holstered'),'a finger on HOLSTER puts the gun away');
-  await pp.evaluate(()=>{G.P.uniform=true;room().blown=false;const rm=room();rm.guards=[];
+  await pp.evaluate(()=>{G.talk='questioned';G.P.uniform=true;room().blown=false;const rm=room();rm.guards=[];
     const g=mkGuard('guard',G.P.x+16,G.P.y);g.st='stand';g.t=1e9;rm.guards.push(g);});
   await pp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   check(await pp.evaluate('G.state')==='question','a guard questions a man in uniform, on a phone too');
@@ -207,35 +227,118 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   await touch('touchStart',qb.x+qb.width/2,qb.y+qb.height/2);await touch('touchEnd');await pp.waitForTimeout(150);
   check(await pp.evaluate('G.state')==='play','a finger on the right answer, and he waves you on',await pp.evaluate('G.state'));
 
-  /* The German voice. This machine's browser has no speech voices, so a
-     German one is put in its place and every line handed to it is kept:
-     what is said, in which language, at what pitch and what pace. */
+  /* The voice, heard. Two things are put into this page before it loads.
+     The device voices a German iPhone or Mac actually has: Anna, a woman,
+     who is the first German voice there and whom an earlier build picked,
+     and Markus, a man. Every line handed to them is kept. And a tap on the
+     loudspeaker: everything the page's own sound plays is recorded as it
+     plays, so what a guard's shout sounds like is measured from the output,
+     whatever made it, clip or beep, by tools/voicegender.js. */
   const vc=await b.newContext({viewport:{width:640,height:860}});
   await vc.addInitScript(()=>{
-    window.__spoken=[];
-    const v={lang:'de-DE',name:'Deutsch (test)'};
+    window.__spoken=[];window.__pcm=[];window.__rec=false;window.__sr=0;
+    const vs=[{lang:'de-DE',name:'Anna',default:true},{lang:'de-DE',name:'Markus'},{lang:'en-US',name:'Samantha'}];
     window.SpeechSynthesisUtterance=function(t){this.text=t;};
-    Object.defineProperty(window,'speechSynthesis',{value:{pending:false,getVoices:()=>[v],
-      addEventListener(){},cancel(){},speak(u){window.__spoken.push({t:u.text,lang:u.lang,v:u.voice&&u.voice.lang,
-        p:u.pitch,r:u.rate});}}});
+    Object.defineProperty(window,'speechSynthesis',{value:{pending:false,speaking:false,getVoices:()=>vs,
+      addEventListener(){},removeEventListener(){},cancel(){},pause(){},resume(){},
+      speak(u){window.__spoken.push({t:u.text,v:u.voice?u.voice.name:'(default: Anna)',p:u.pitch==null?1:u.pitch});}}});
+    const taps=new WeakMap(),conn=AudioNode.prototype.connect;
+    AudioNode.prototype.connect=function(dst){
+      const r=conn.apply(this,arguments);
+      const c=this.context;
+      if(dst&&dst===c.destination&&!(c instanceof OfflineAudioContext)&&!(this instanceof ScriptProcessorNode)){
+        let t=taps.get(c);
+        if(!t){t=c.createScriptProcessor(4096,1,1);window.__sr=c.sampleRate;
+          t.onaudioprocess=e=>{if(window.__rec)window.__pcm.push(Array.from(e.inputBuffer.getChannelData(0)));};
+          conn.call(t,c.destination);taps.set(c,t);}
+        conn.call(this,t);
+      }
+      return r;
+    };
   });
   const vp=await vc.newPage();vp.on('pageerror',e=>errs.push(e.message));
   await vp.goto(URL);await vp.waitForTimeout(300);
-  await vp.evaluate(()=>{newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;
+  await vp.keyboard.press('ArrowLeft');await vp.waitForTimeout(200);
+  await vp.evaluate(()=>{G.talk='questioned';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=true;G.demo=false;
+    if(typeof Voice!=='undefined'&&Voice.init)try{Voice.init();}catch(e){}
     const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
     G.P.x=100;G.P.y=92;G.P.uniform=true;G.P.holstered=true;room().blown=false;
     const a=mkGuard('ss',124,92);a.st='stand';a.t=1e9;rm.guards.push(a);});
   await vp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
   await vp.waitForTimeout(700);
-  await vp.evaluate(()=>{const g=mkGuard('guard',0,0);say(g,'Halt!','bark',true);say(g,'Wohin gehen Sie?','ask',true);});
+  check(await vp.evaluate('G.state')==='question','an SS man stops a man in uniform and questions him',await vp.evaluate('G.state'));
+  /* the lines every guard has, and one nobody recorded */
+  await vp.evaluate(()=>{const g=mkGuard('guard',0,0);say(g,'Halt!','bark',true);say(g,'Wohin gehen Sie?','ask',true);
+    say(g,'Das Wetter ist heute schlecht, Kamerad.','chat',true);});
   const said=await vp.evaluate(()=>__spoken);
-  check(said.length>=3&&said.every(u=>u.lang==='de-DE'&&u.v==='de-DE'),'with a German voice, every line is spoken in German',
-    said.map(u=>u.t).join(' / '));
-  const ssLine=said.find(u=>/Sie da|Moment/.test(u.t)),q=said[said.length-3]||said[1];
-  const bark=said[said.length-2],ask=said[said.length-1];
-  check(ssLine&&ssLine.p<bark.p*0.8,'the SS speak lower than a guard',ssLine&&(ssLine.p.toFixed(2)+' against '+bark.p.toFixed(2)));
-  check(bark.r>ask.r,'an order comes faster than a question',bark.r.toFixed(2)+' against '+ask.r.toFixed(2));
+  const women=said.filter(u=>u.v!=='Markus');
+  check(women.length===0,'the device\'s woman\'s voice, Anna, never speaks for a guard',
+    women.length?women.map(u=>u.v+': '+u.t).join(' / '):said.length+' line(s), all Markus');
+  check(!said.some(u=>/^(Halt!|Wohin gehen Sie\?)$/.test(u.t)),'what the castle has recorded is never handed to the device',
+    said.map(u=>u.t).join(' / ')||'nothing handed over');
+  check(said.every(u=>u.p<=1),'and the man\'s voice is never pitched up',said.map(u=>u.p.toFixed(2)).join(' ')||'-');
+
+  /* the shouts, heard at the loudspeaker. The highest-voiced guard and SS
+     man the castle can make, at the fastest they are played */
+  const pitchOf=async(kind,text)=>{
+    await vp.evaluate(([kind,text])=>{Snd.clips&&Snd.clips.forEach(s=>{try{s.stop();}catch(e){}});
+      window.__pcm=[];window.__rec=true;const g=mkGuard(kind,0,0);
+      if(typeof voiceFor==='function')g.voice=voiceFor(kind,1.15,1.1);
+      say(g,text,'bark',true);},[kind,text]);
+    await vp.waitForTimeout(2600);
+    const {pcm,sr}=await vp.evaluate(()=>{window.__rec=false;return{pcm:[].concat(...window.__pcm),sr:window.__sr};});
+    let e=0;for(const v of pcm)e+=v*v;
+    if(!pcm.length||e<1e-6)return{f0:NaN,voiced:0,sound:false};
+    return Object.assign(VG.judge(Float32Array.from(pcm),sr),{sound:true});
+  };
+  for(const [kind,text] of [['guard','Halt! Kommen Sie!'],['guard','Was ist los?'],['ss','Halt! SS!'],['ss','Ihren Pass!']]){
+    const j=await pitchOf(kind,text);
+    check(j.sound&&j.man,'a '+(kind==='ss'?'SS man':'guard')+' shouting "'+text+'" is heard in a man\'s voice, under '+VG.MAN_MAX+' Hz',
+      j.sound?Math.round(j.f0)+' Hz over '+j.voiced+' voiced frames':'no sound came out');
+  }
   await vc.close();
+
+  /* Hands up. A gun pointed at a guard, by real keys: turned on him with X
+     held and an arrow, or drawn with SPACE (H while questioned), and his
+     hands must go up within half a second and stay up while it is on him.
+     Read defensively, so this runs on builds without the challenge. */
+  const hc=await b.newContext({viewport:{width:640,height:860}});
+  const hp=await hc.newPage();hp.on('pageerror',e=>errs.push(e.message));
+  await hp.goto(URL);await hp.waitForTimeout(300);
+  const stand=o=>hp.evaluate(o=>{
+    G.talk=o.talk||'1981';newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=false;G.demo=false;
+    const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);rm.blown=false;
+    G.P.x=100;G.P.y=92;G.P.uniform=!!o.uniform;G.P.holstered=!!o.holstered;G.P.dir=o.dir;G.P.face=o.dir===4?-1:1;
+    const g=mkGuard('guard',100+o.dx,92);g.st=o.st||'stand';g.t=1e9;g.face=-1;if(o.st==='alert')g.fireT=1;
+    if(o.cleared)g.cleared=true;rm.guards.push(g);window.__g=g;},o);
+  const turnOn=async()=>{await hp.keyboard.down('x');await hp.keyboard.down('ArrowRight');await hp.waitForTimeout(120);
+    await hp.keyboard.up('ArrowRight');await hp.keyboard.up('x');};
+  const upBy=async ms=>{for(let t=0;t<ms;t+=50){if(await hp.evaluate('__g.st')==='hup')return t;await hp.waitForTimeout(50);}return -1;};
+  const HUP=[
+    ['challenged, he turns his gun on the guard',{dir:4,dx:60},'challenge',turnOn],
+    ['in uniform, he draws on the guard in front of him',{uniform:true,holstered:true,dir:0,dx:60},null,()=>hp.keyboard.press('Space')],
+    ['waved on after questioning, then he draws',{talk:'questioned',uniform:true,holstered:true,dir:0,dx:60,cleared:true},null,()=>hp.keyboard.press('Space')],
+    ['stopped and questioned, he draws (H)',{talk:'questioned',uniform:true,holstered:true,dir:0,dx:20},'question',()=>hp.keyboard.press('h')],
+    ['the guard is already shooting, he turns his gun on him',{dir:4,dx:70,st:'alert'},null,turnOn]];
+  for(const [what,o,wait,act] of HUP){
+    await stand(o);
+    if(wait==='challenge')await hp.waitForFunction(()=>__g.st==='challenge',null,{timeout:3000}).catch(()=>{});
+    if(wait==='question')await hp.waitForFunction(()=>G.state==='question',null,{timeout:6000}).catch(()=>{});
+    else await hp.waitForTimeout(150);
+    await act();
+    const t=await upBy(800);
+    check(t>=0,'hands up: '+what,t>=0?'within '+(t/1000).toFixed(2)+' s':'he did not ('+await hp.evaluate('__g.st')+')');
+  }
+  /* kept on him, they stay up; turned away, he drops them and fires */
+  await stand({dir:4,dx:60});await hp.waitForFunction(()=>__g.st==='challenge',null,{timeout:3000}).catch(()=>{});
+  await turnOn();await hp.waitForTimeout(600);
+  const kept=[];for(let i=0;i<8;i++){kept.push(await hp.evaluate('__g.st'));await hp.waitForTimeout(500);}
+  check(kept.every(s=>s==='hup'),'the gun kept on him four seconds, his hands stay up',[...new Set(kept)].join('>'));
+  await hp.keyboard.down('x');await hp.keyboard.down('ArrowLeft');await hp.waitForTimeout(120);
+  await hp.keyboard.up('ArrowLeft');await hp.keyboard.up('x');
+  await hp.waitForFunction(()=>__g.st!=='hup',null,{timeout:5000}).catch(()=>{});
+  check(await hp.evaluate('__g.st')==='alert','turned away, he drops them and goes for his gun',await hp.evaluate('__g.st'));
+  await hc.close();
 
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}

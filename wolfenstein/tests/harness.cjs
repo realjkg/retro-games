@@ -47,14 +47,14 @@ function runtime(seed,file){
     createOscillator(){return{type:'',frequency:{setValueAtTime(hz){notes.push(hz)},
       exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){}};}
     createBuffer(ch,n){const d=new Float32Array(n);return{length:n,getChannelData(){return d}};}
-    createBufferSource(){return{buffer:null,connect(){},start(){}};}
+    createBufferSource(){return{buffer:null,playbackRate:{value:1},connect(){},start(){},stop(){}};}
     createBiquadFilter(){return{type:'',frequency:{value:0},connect(){},disconnect(){}};}
     createDelay(){return{delayTime:{value:0},connect(){},disconnect(){}};}
     resume(){return Promise.resolve();}
   }
   const docEvents=[];
   const box={console,setTimeout(){},clearTimeout(){},Math,Date,JSON,Array,Object,String,
-    Number,Boolean,Promise,Float32Array,Uint8Array,isNaN,parseInt,parseFloat,
+    Number,Boolean,Promise,Float32Array,Uint8Array,Map,Set,atob,isNaN,parseInt,parseFloat,
     document:{hidden:false,body:{classList:{add(){},remove(){},toggle(){},contains(){return false}}},
       documentElement:{},getElementById:el,createElement:()=>mkEl('new'),
       querySelectorAll(){return[]},addEventListener(type){docEvents.push(type);}},

@@ -233,6 +233,7 @@ test('in a uniform you blend in, with the guards and the SS alike, until you fir
 
 test('in uniform, come close and you are stopped and questioned in German', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`G.impenetrable=true;`);
   bare(r,100,92);
   guard(r,'ss',130,92);
@@ -249,6 +250,7 @@ test('in uniform, come close and you are stopped and questioned in German', ()=>
 
 test('the right answers and he waves you on, and does not stop you again', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`G.impenetrable=true;`);
   bare(r,100,92);guard(r,'ss',130,92);
   r.run(`G.P.uniform=true;G.P.holstered=true;G.P.papers=true;G.P.dir=2;`);
@@ -265,6 +267,7 @@ test('the right answers and he waves you on, and does not stop you again', ()=>{
 
 test('two wrong answers and you are a spy; hesitating counts as wrong', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`G.impenetrable=true;`);
   bare(r,100,92);guard(r,'ss',130,92);
   r.run(`G.P.uniform=true;G.P.holstered=true;G.P.dir=2;`);
@@ -282,6 +285,7 @@ test('two wrong answers and you are a spy; hesitating counts as wrong', ()=>{
 
 test('with the gun out he asks about the gun first, and saying sorry holsters it', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`G.impenetrable=true;`);
   bare(r,100,92);guard(r,'ss',140,92);
   r.run(`G.P.uniform=true;G.P.holstered=false;G.P.dir=2;`);
@@ -306,6 +310,7 @@ test('what they ask builds up: easy in the first castle, the password and the co
 
 test('the password question has the castle\'s password among its answers, and the notebook has it once found', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;`);
   bare(r,100,92);
   const res=r.j(`(()=>{const a=QUESTIONS.parole.a();return{a:a.map(o=>o[0]),good:a.filter(o=>o[2]==='good').map(o=>o[0]),p:G.castle.parole};})()`);
@@ -318,6 +323,7 @@ test('the password question has the castle\'s password among its answers, and th
 
 test('in uniform the guards let slip the password and the commandant\'s name', ()=>{
   const r=runtime();
+  r.run(`G.talk='questioned';`);
   r.run(`startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;`);
   bare(r,100,92);
   guard(r,'guard',150,92);
@@ -388,25 +394,6 @@ test('the gun holstered: FIRE draws it and does not shoot, and a guard is not he
     'holstered, he looks the same');
 });
 
-test('each man has his own voice, and a question rises where an order falls', ()=>{
-  const r=runtime();
-  const sing=(text,mood,who)=>{r.notes.length=0;r.run(`Snd.on=true;Snd.intone(${JSON.stringify(text)},'${mood}',${JSON.stringify(who)})`);
-    return r.notes.filter((f,i)=>i%1===0).slice();};
-  const guard={kind:'guard',pitch:1,rate:1},ss={kind:'ss',pitch:1,rate:1};
-  const ask=sing('Wohin gehen Sie?','ask',guard),bark=sing('Halt! Stehenbleiben!','bark',guard);
-  assert.ok(ask.length>=3&&bark.length>=3);
-  assert.ok(ask[ask.length-1]>ask[0]*1.2,'a question does not rise: '+ask.map(Math.round));
-  assert.ok(bark[bark.length-1]<bark[0]*0.8,'an order does not fall: '+bark.map(Math.round));
-  const cold=sing('Ihre Papiere, bitte.','cold',ss);
-  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
-  assert.ok(avg(cold)<avg(sing('Ihre Papiere, bitte.','cold',guard))*0.8,'the SS do not sound lower');
-  const sus=sing('Sie haben einen komischen Akzent.','suspicious',guard);
-  const ups=sus.slice(1).filter((f,i)=>f>sus[i]).length,downs=sus.slice(1).filter((f,i)=>f<sus[i]).length;
-  assert.ok(ups>0&&downs>0,'suspicion does not waver');
-  const voices=r.j(`[mkGuard('guard',0,0),mkGuard('guard',0,0),mkGuard('guard',0,0)].map(g=>g.voice.pitch)`);
-  assert.ok(new Set(voices).size===3,'the guards all sound the same');
-});
-
 test('the SS go in squads: never one alone', ()=>{
   const r=runtime();
   const squads=r.j(`(()=>{const out=[];for(let sd=1;sd<40;sd++){seed=sd*131;const C=makeCastle(3+sd%6);
@@ -458,6 +445,194 @@ test('a squad that comes in after a man in uniform does not know him', ()=>{
   const st=r.j(`room().guards.map(g=>g.st)`);
   assert.ok(st.length>=2);
   assert.ok(st.every(s=>s!=='alert'),'they came in and knew him at once: '+st);
+});
+
+/* walk the prisoner out of the room by the first opening that leads to a
+   room he was not just in, and let the castle run until an SS man is in the
+   room with him or the time is up */
+const HUNT=`(function(){
+  globalThis.walkOn=function(){
+    const C=G.castle,rm=room();
+    const sides=Object.keys(SIDES).filter(s=>rm.doors[s]);
+    const s=sides.find(x=>{const j=(rm.cy+SIDES[x][1])*C.CW+rm.cx+SIDES[x][0];return j!==globalThis.lastRoom;})||sides[0];
+    globalThis.lastRoom=G.cur;leave(s);
+    const r=room();r.guards=r.guards.filter(g=>g.kind!=='guard');r.chests=[];r.g=r.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);
+    G.P.x=140;G.P.y=92;
+  };
+  globalThis.waitFor=function(g,secs){const out={came:false,firstX:null};
+    for(let k=0;k<secs*60;k++){stepGame(1/60);if(room().guards.indexOf(g)>=0){
+      if(out.firstX===null)out.firstX={x:g.x,y:g.y};if(g.st==='alert'){out.came=true;break;}}}
+    return out;};
+})()`;
+
+test('the SS are relentless: one who has seen you follows you room after room until you shoot him', ()=>{
+  const r=runtime(21);
+  r.run(`startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;G.hunt.t=1e9;`+HUNT);
+  bare(r,140,92);
+  guard(r,'ss',200,92);
+  r.run(`globalThis.S=room().guards[0];alarm(S);G.hunt.t=1e9;`);
+  assert.equal(r.j('S.locked'),true,'he saw a man in prison clothes and did not lock on');
+  const trail=[];
+  for(let n=0;n<4;n++){
+    r.run(`walkOn();G.hunt.t=1e9;`);
+    const w=r.j(`waitFor(S,10)`);
+    trail.push(w);
+    assert.ok(w.came,'room '+(n+1)+': he did not come after him');
+    const f=w.firstX;
+    assert.ok(f.x<0||f.x>280||f.y<8||f.y>168,'room '+(n+1)+': he appeared inside the room at '+JSON.stringify(f));
+  }
+  /* shoot him and he stops coming */
+  r.run(`S.hp=1;hitGuard(S);walkOn();G.hunt.t=1e9;`);
+  assert.equal(r.j(`waitFor(S,10).came`),false,'a dead man kept on coming');
+});
+
+test('several who have seen you all come, the nearest first', ()=>{
+  const r=runtime(22);
+  r.run(`startCastle(6);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
+  const res=r.j(`(()=>{
+    const C=G.castle;const ids=[];
+    /* two SS locked on, in two different rooms away from him */
+    const {dist}=roomPath(G.cur);
+    const far=C.rooms.map((rm,i)=>i).filter(i=>dist[i]>=2).sort((a,b)=>dist[a]-dist[b]);
+    const near=C.rooms.map((rm,i)=>i).find(i=>dist[i]===1);
+    const put=(ri)=>{const g=mkGuard('ss',140,92);g.st='alert';g.locked=true;C.rooms[ri].guards.push(g);ids.push(g.id);return g;};
+    const a=put(far[far.length-1]),b=put(near);
+    walkOn();G.hunt.t=1e9;
+    const order=[];
+    for(let k=0;k<60*25&&order.length<2;k++){stepGame(1/60);for(const g of room().guards)if((g===a||g===b)&&order.indexOf(g.id)<0)order.push(g.id);}
+    return{order,a:a.id,b:b.id,here:[room().guards.indexOf(a)>=0,room().guards.indexOf(b)>=0]};})()`);
+  assert.equal(res.order.length,2,'not both came: '+JSON.stringify(res));
+  assert.deepEqual(res.order,[res.b,res.a],'the far one came before the near one');
+});
+
+test('a uniform that holds: the SS who were hunting him come in, and cannot see him', ()=>{
+  const r=runtime(23);
+  r.run(`startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
+  bare(r,140,92);
+  guard(r,'ss',200,92);
+  r.run(`globalThis.S=room().guards[0];alarm(S);G.hunt.t=1e9;`);
+  r.run(`G.P.uniform=true;G.P.holstered=true;walkOn();G.hunt.t=1e9;`);
+  const w=r.j(`(()=>{for(let k=0;k<600;k++){stepGame(1/60);if(room().guards.indexOf(S)>=0&&S.st!=='enter')break;}
+    return{here:room().guards.indexOf(S)>=0,st:S.st,locked:S.locked};})()`);
+  assert.ok(w.here,'he did not come');
+  assert.notEqual(w.st,'alert','he came in and knew him at once, in a uniform that held');
+  assert.equal(w.locked,false,'he is still locked on to a man he cannot see');
+  r.run(`walkOn();G.hunt.t=1e9;`);
+  assert.equal(r.j(`waitFor(S,10).came`),false,'he followed him again after losing him');
+});
+
+test('a guard who sees an escaped prisoner challenges him before he shoots', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=false;G.P.grazed=true;`);
+  bare(r,60,92);guard(r,'guard',180,92);
+  r.run(`G.P.holstered=true;G.P.dir=2;`);
+  step(r,0.1);
+  assert.equal(r.j(`room().guards[0].st`),'challenge','he saw a prisoner and did not challenge him');
+  assert.match(r.j(`room().guards[0].say.text`),/HALT|HAENDE HOCH/);
+  /* stand still, gun away: he waits, and does not shoot yet */
+  step(r,1.5);
+  assert.equal(r.j(`G.shots.length`),0,'he fired during his own challenge');
+  assert.equal(r.j(`G.P.dead`),false);
+  /* and when he has waited long enough, he fires */
+  step(r,3);
+  assert.equal(r.j(`room().guards[0].st`),'alert','he never stopped waiting');
+});
+
+test('pull your gun on the guard who challenges you, and his hands go up', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,60,92);guard(r,'guard',160,92);
+  r.run(`G.P.holstered=true;G.P.dir=2;`);
+  step(r,0.1);
+  assert.equal(r.j(`room().guards[0].st`),'challenge');
+  r.run(`holster();G.P.dir=0;G.P.face=1;`);        /* the gun out, and on him */
+  step(r,0.5);
+  assert.equal(r.j(`room().guards[0].st`),'hup','a gun drawn on him and his hands stayed down');
+  assert.match(r.j(`room().guards[0].say.text`),/KAMERAD|NICHT SCHIESSEN/);
+  assert.equal(r.j(`G.shots.length`),0);
+});
+
+test('walk away from a challenge and he opens fire', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'guard',200,92);
+  r.run(`G.P.holstered=true;`);
+  step(r,0.1);
+  assert.equal(r.j(`room().guards[0].st`),'challenge');
+  r.run(`keys.left=true;`);step(r,0.8);r.run(`keys.left=false;`);
+  assert.equal(r.j(`room().guards[0].st`),'alert','he let an escaped prisoner walk off');
+});
+
+test('stopped and questioned, draw on him instead of answering: his hands go up, guard or SS', ()=>{
+  for(const kind of ['guard','ss']){
+    const r=runtime();
+  r.run(`G.talk='questioned';`);
+    r.run(`G.impenetrable=true;`);
+    bare(r,100,92);guard(r,kind,124,92);
+    r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;G.P.dir=2;`);
+    step(r,2);
+    assert.equal(r.j('G.state'),'question',kind+': not questioned');
+    assert.equal(r.j(`menuActions.length`),4,'no way to draw on him from the card');
+    r.run(`press('holster',true);`);
+    assert.equal(r.j('G.state'),'play');
+    assert.equal(r.j('G.P.holstered'),false,'the gun did not come out');
+    assert.equal(r.j(`room().guards[0].st`),'hup',kind+': drawn on at arm\'s length and his hands did not go up');
+    step(r,1.5);
+    assert.equal(r.j(`room().guards[0].st`),'hup',kind+': his hands came down with the gun still on him');
+    assert.equal(r.j('room().blown'),true,'drawing a gun on a man in the corridor did not give you away');
+  }
+});
+
+test('waved on, then drawn on: he puts his hands up; an SS man shooting at you never does', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'guard',140,92);
+  r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;room().guards[0].cleared=true;G.P.dir=2;`);
+  step(r,1);
+  assert.equal(r.j(`room().guards[0].st`),'stand');
+  r.run(`holster();G.P.dir=0;G.P.face=1;`);
+  step(r,0.5);
+  assert.equal(r.j(`room().guards[0].st`),'hup','he let a man he had just passed draw on him and did nothing');
+  /* across a room (in aim, out of arm's reach) an SS man drawn on goes for his gun */
+  bare(r,40,92);guard(r,'ss',130,92);
+  r.run(`G.P.uniform=false;room().blown=false;G.P.holstered=false;G.P.dir=0;G.P.face=1;`);
+  step(r,0.6);
+  assert.equal(r.j(`room().guards[0].st`),'alert','an SS man across the room put his hands up');
+});
+
+test('TALK: 1981, shouts only, is the default, and remembered when changed', ()=>{
+  const r=runtime();
+  assert.equal(r.j('G.talk'),'1981');
+  assert.match(r.j('talkLabel()'),/1981 · SHOUTS ONLY/);
+  r.run(`toggleTalk();`);
+  assert.equal(r.j('G.talk'),'questioned');
+  assert.equal(r.store.get('wolfenstein.talk'),'questioned');
+  r.run(`toggleTalk();`);
+  assert.equal(r.store.get('wolfenstein.talk'),'1981');
+});
+
+test('1981: in uniform nobody questions you or chats; walk into a guard or stand at an SS man\'s elbow and you are seen', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,100,92);guard(r,'ss',124,92);
+  r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;G.P.dir=2;`);
+  step(r,0.5);
+  assert.notEqual(r.j('G.state'),'question','questioned in 1981');
+  step(r,2);
+  assert.notEqual(r.j('G.state'),'question');
+  assert.equal(r.j('room().guards[0].st'),'alert','an SS man let a man stand at his elbow');
+  assert.match(r.j('room().guards[0].say.text'),/SS!|STEHENBLEIBEN/);
+  /* a guard walked into */
+  bare(r,100,92);guard(r,'guard',108,92);
+  r.run(`room().blown=false;`);
+  step(r,1.2);
+  assert.equal(r.j('room().guards[0].st'),'challenge','walked into, and he did not challenge');
+  /* at a distance, the uniform passes, and nobody talks shop */
+  bare(r,60,92);guard(r,'guard',200,92);guard(r,'ss',200,40);
+  r.run(`room().blown=false;room().guards.forEach(g=>g.cleared=true);`);
+  step(r,20);
+  assert.deepEqual(r.j('room().guards.map(g=>g.st)'),['stand','stand']);
+  assert.equal(r.j('G.P.knows.parole||G.P.knows.chief'),false,'guards chatted in 1981');
 });
 
 test('picking a lock takes time, walking away gives it up, shooting it off is quick', ()=>{
