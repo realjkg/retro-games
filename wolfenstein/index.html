@@ -943,6 +943,12 @@ function say(e,text,mood,force){
 }
 function message(text,col){G.msg={text,t:2.4,col:col||'#ffffff'};}
 function disguised(){return G.P.uniform&&!room().blown;}
+/* Does the uniform fool this man? It fools a guard. In 1981 it did not fool
+ * the SS: they knew an impostor when they saw one, and so they do here, with
+ * TALK on 1981. With TALK on QUESTIONED they stop the uniform and ask for its
+ * papers instead, which is the game this one grew into. */
+function seesThrough(g){return g.kind==='ss'&&G.talk==='1981';}
+function fooled(g){return disguised()&&!seesThrough(g);}
 
 /* ---------- the prisoner ---------- */
 function stepPlayer(dt){
@@ -1123,7 +1129,7 @@ function alarm(g){
   g.fireT=tune(G.castle.d).react+R()*0.4;
   say(g,pick(g.kind==='ss'?SSHALT:HALT),'bark');
   /* an SS man who has seen you for what you are will not let you go */
-  if(g.kind==='ss'&&!G.demo){if(!disguised())g.locked=true;raiseHunt();}
+  if(g.kind==='ss'&&!G.demo){if(!fooled(g))g.locked=true;raiseHunt();}
 }
 /* ---------- the hunt ----------
  * An SS man who has seen you for what you are raises the alarm, and the alarm
@@ -1151,7 +1157,7 @@ function stepHunt(dt){
   /* the heart, faster with them in the room */
   h.beat-=dt;
   if(h.beat<=0){Snd.heart();h.beat=hunting.length?0.55:0.95;}
-  if(h.quiet>(disguised()?12:30)){
+  if(h.quiet>(disguised()&&G.talk!=='1981'?12:30)){
     h.on=false;message('THE ALARM GOES QUIET','#9aa0c0');hud();return;
   }
   if((h.t-=dt)<=0){h.t=huntGap();sendSquad();}
@@ -1240,7 +1246,7 @@ function stepGuard(g,dt){
     g.x+=ux*gSpeed(g)*dt;g.y+=uy*gSpeed(g)*dt;g.dist+=gSpeed(g)*dt;
     if(ux)g.face=ux>0?1:-1;
     if(g.x>10&&g.x<W-10&&g.y>22&&g.y<H-6&&boxFree(rm,g.x,g.y,true)){
-      if(g.hunter&&disguised()){g.st='patrol';g.t=0.8+R();g.locked=false;
+      if(g.hunter&&fooled(g)){g.st='patrol';g.t=0.8+R();g.locked=false;
         const l=pick([['Wo ist er?','ask'],['Sucht ihn!','bark'],['Schnell!','bark']]);say(g,l[0],l[1]);}
       else{g.st='alert';g.fireT=Math.max(0.6,tune(G.castle.d).react*0.6);say(g,pick(SSHALT),'bark');
         if(g.kind==='ss')g.locked=true;}
@@ -1269,18 +1275,16 @@ function stepGuard(g,dt){
   if(g.st==='patrol'||g.st==='stand'){
     if(canSee){
       /* taken off guard: a gun drawn and pointed at him, close to */
-      if(!P.holstered&&aimedAt(g)&&atArmsLength(g)&&(disguised()||g.cleared)){g.susp+=dt;
+      if(!P.holstered&&aimedAt(g)&&atArmsLength(g)&&(fooled(g)||g.cleared)){g.susp+=dt;
         if(g.susp>0.25){drawnOn(g);return;}}
-      else if(!disguised())challenge(g);
+      else if(!fooled(g))challenge(g);
       else if(G.talk==='1981'){
-        /* Shouts only, as in 1981: the uniform passes. Walk into a guard and
-         * he wants to know what is going on; stand about at an SS man's
-         * elbow, or with a gun out, and he sees what you are. */
-        const drawn=!G.P.holstered,close=d<(g.kind==='ss'?26:14);
+        /* Shouts only, as in 1981: the uniform passes a guard. Walk into him,
+         * or stand about in front of him with a gun out, and he wants to
+         * know what is going on. (The SS are not here: they see through it.) */
+        const drawn=!G.P.holstered,close=d<14;
         if(close||drawn&&d<40)g.susp+=dt*(drawn?2:1);else g.susp=Math.max(0,g.susp-dt);
-        if(g.susp>(g.kind==='ss'?1.5:0.8)){g.susp=0;room().blown=true;
-          say(g,g.kind==='ss'?'Halt! SS!':'Was ist los?',g.kind==='ss'?'bark':'ask',true);
-          g.kind==='ss'?alarm(g):challenge(g);return;}
+        if(g.susp>0.8){g.susp=0;room().blown=true;say(g,'Was ist los?','ask',true);challenge(g);return;}
       }
       else if(!g.cleared){
         /* The uniform passes, at a distance. Come close, or stay close, and
@@ -1808,6 +1812,8 @@ function demoInput(dt){
 function showSplash(){
   G.state='splash';G.demo=true;G.q=null;asking(false);
   seed=1981;guardId=1;
+  /* the demo starts from its first step every time, not from wherever the last one left it */
+  demoT=0;demoK={};
   G.castle=makeCastle(3);
   /* a room with company in it */
   let i=0;for(let k=0;k<G.castle.rooms.length;k++)
@@ -1861,7 +1867,8 @@ function showHelp(){
     'sees you raises the <b>alarm</b>, and until it goes quiet more squads come through the doors.<br><br>'+
     '<b>Chests</b> take time to pick, standing still; shoot the lock off and it is quick. They hold '+
     'bullets, grenades, bulletproof vests, uniforms, and a lot of sauerkraut. In a <b>uniform</b> you '+
-    'blend in, even with the SS, until you fire, walk into a guard, or linger at an SS man\'s elbow. '+
+    'blend in with the guards until you fire or walk into one. The <b>SS</b> are not fooled by it, '+
+    'as in 1981; with TALK on QUESTIONED they stop you and ask for your papers instead. '+
     'A guard who sees you as you are <b>challenges</b> you first: pull your gun on him then and his hands go up. '+
     '<b>TALK</b> on the title: <b>1981</b> is shouts only, the game as it was; <b>QUESTIONED</b> has men in '+
     'the corridors stop a uniform and question it in German. The <b>war plans</b> are in a steel '+

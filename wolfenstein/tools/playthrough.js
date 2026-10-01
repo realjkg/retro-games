@@ -340,6 +340,34 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
   check(await hp.evaluate('__g.st')==='alert','turned away, he drops them and goes for his gun',await hp.evaluate('__g.st'));
   await hc.close();
 
+  /* The SS and the uniform. In 1981 the uniform fooled the guards and not
+     the SS, and with TALK on 1981 so it is here: across the room, gun away,
+     he knows you, and walking off brings the alarm. With TALK on QUESTIONED
+     he lets a uniform be, at a distance. */
+  const sc=await b.newContext({viewport:{width:640,height:860}});
+  const sp=await sc.newPage();sp.on('pageerror',e=>errs.push(e.message));
+  await sp.goto(URL);await sp.waitForTimeout(300);
+  const ssRoom=talk=>sp.evaluate(talk=>{
+    G.talk=talk;newGame(4);startCastle(4);hideOverlay();G.state='play';G.impenetrable=true;Snd.on=false;G.demo=false;
+    const rm=room();rm.guards=[];rm.chests=[];rm.g=rm.g.map(t=>t===INNER||t===RUBBLE?FLOOR:t);rm.blown=false;
+    G.P.x=60;G.P.y=92;G.P.uniform=true;G.P.holstered=true;G.P.dir=0;G.P.face=1;G.hunt.on=false;
+    const g=mkGuard('ss',200,92);g.st='stand';g.t=1e9;g.face=-1;rm.guards.push(g);
+    const h=mkGuard('guard',200,40);h.st='stand';h.t=1e9;h.face=-1;rm.guards.push(h);
+    window.__ss=g;window.__gd=h;},talk);
+  await ssRoom('1981');await sp.waitForTimeout(600);
+  const s81=await sp.evaluate(()=>({ss:__ss.st,said:__ss.say?__ss.say.text:'',gd:__gd.st}));
+  check(s81.ss==='challenge'&&/SS/.test(s81.said),'1981: an SS man across the room sees through the uniform',s81.ss+(s81.said?', "'+s81.said+'"':''));
+  check(s81.gd==='stand','1981: the guard beside him is fooled by it',s81.gd);
+  await sp.screenshot({path:path.join(require('os').tmpdir(),'wolf-ss-1981.png')});
+  await sp.keyboard.down('ArrowLeft');await sp.waitForTimeout(700);await sp.keyboard.up('ArrowLeft');
+  await sp.waitForTimeout(300);
+  const run=await sp.evaluate(()=>({ss:__ss.st,hunt:G.hunt.on}));
+  check(run.ss==='alert'&&run.hunt,'1981: walk away from him and he raises the alarm',run.ss+', alarm '+(run.hunt?'on':'off'));
+  await ssRoom('questioned');await sp.waitForTimeout(1500);
+  const sq=await sp.evaluate(()=>({ss:__ss.st,hunt:G.hunt.on,state:G.state}));
+  check(sq.ss==='stand'&&!sq.hunt&&sq.state==='play','QUESTIONED: at a distance he lets a uniform be',sq.ss+', '+sq.state);
+  await sc.close();
+
   for(const [ok,what,got] of results)console.log((ok?'  ok   ':'  FAIL ')+what+(got!==''?'  ('+got+')':''));
   if(errs.length){console.log('page errors:');errs.forEach(e=>console.log('  '+e));}
   const bad=results.filter(r=>!r[0]).length+errs.length;
