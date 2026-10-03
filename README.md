@@ -14,6 +14,28 @@ Retro games on Apple II, Commodore64, Atari and in the arcade
 - [Lode Runner — Bungeling Empire](lode-runner/) (Apple II) — [play it](https://realjkg.github.io/retro-games/lode-runner/)
 - [Tapped — The Root Beer Bar](tapped/) (Arcade) — [play it](https://realjkg.github.io/retro-games/tapped/)
 
+## Full screen
+
+Every game has a **FULL SCREEN** chip at the bottom, beside the way back to
+the collection, or its own full-screen button where it had one already
+(Archon, Aztec, Choplifter, Drol, Lode Runner, Law of the West).
+
+| Where you play | What gives you the whole screen |
+|---|---|
+| A computer, Android, an iPad | The chip or the game's button. Esc, or pressing it again, gives the screen back. |
+| An iPhone | Safari there cannot take its bars away for a web page, so no button can. The chip shows how: **Share → Add to Home Screen**, then open the game from that icon, and it runs with no browser round it. |
+| Launched from a home screen | Already full screen; the chip is not shown. |
+
+While the screen is the game's it is kept awake, where the browser allows.
+
+The chip is one file, `shared/fullscreen.js`, which `tools/sync-fullscreen.js`
+writes into every page (CI fails if a copy drifts). `tools/fullscreen.js`
+checks it in Chromium, every game, on a computer and a phone each way up:
+that it goes full screen and back, that SPACE still reaches the game after
+it is pressed, that it covers no control or playfield, and, as an iPhone,
+that it explains Add to Home Screen. It cannot be an iPhone: the Home Screen
+launch itself needs a real one.
+
 ## Publishing
 
 GitHub Pages is deployed by `.github/workflows/pages.yml` on every push to
