@@ -217,9 +217,9 @@ test('the SS never surrender', ()=>{
   assert.notEqual(r.j(`room().guards[0].st`),'hup');
 });
 
-test('in a uniform you blend in, with the guards and the SS alike, until you fire', ()=>{
+test('QUESTIONED: in a uniform you blend in, with the guards and the SS alike, until you fire', ()=>{
   const r=runtime();
-  r.run(`G.impenetrable=true;`);
+  r.run(`G.impenetrable=true;G.talk='questioned';`);
   bare(r,60,92);
   guard(r,'guard',200,92);guard(r,'ss',200,40);
   r.run(`G.P.uniform=true;G.P.dir=2;room().guards.forEach(g=>g.st='stand');`);
@@ -424,11 +424,11 @@ test('the alarm sends squads through the doors, walking in from off the screen',
   assert.ok(res.st.every(s=>s==='alert'),'the squad came in and did not come for him: '+res.st);
 });
 
-test('the alarm goes quiet, and sooner in a uniform', ()=>{
+test('QUESTIONED: the alarm goes quiet, and sooner in a uniform', ()=>{
   const quiet=uniform=>{
     const r=runtime();
     bare(r,60,92);
-    r.run(`G.impenetrable=true;G.P.uniform=${uniform};raiseHunt();G.hunt.t=1e9;`);
+    r.run(`G.impenetrable=true;G.talk='questioned';G.P.uniform=${uniform};raiseHunt();G.hunt.t=1e9;`);
     let t=0;while(t<60&&r.j('G.hunt.on')){step(r,0.5);t+=0.5;}
     return t;
   };
@@ -437,10 +437,10 @@ test('the alarm goes quiet, and sooner in a uniform', ()=>{
   assert.ok(dressed<plain/2,'the uniform did not quieten the hunt: '+dressed+'s against '+plain+'s');
 });
 
-test('a squad that comes in after a man in uniform does not know him', ()=>{
+test('QUESTIONED: a squad that comes in after a man in uniform does not know him', ()=>{
   const r=runtime();
   bare(r,140,92);
-  r.run(`G.impenetrable=true;G.P.uniform=true;room().blown=false;raiseHunt();G.hunt.t=0.01;`);
+  r.run(`G.impenetrable=true;G.talk='questioned';G.P.uniform=true;room().blown=false;raiseHunt();G.hunt.t=0.01;`);
   step(r,4);
   const st=r.j(`room().guards.map(g=>g.st)`);
   assert.ok(st.length>=2);
@@ -505,9 +505,9 @@ test('several who have seen you all come, the nearest first', ()=>{
   assert.deepEqual(res.order,[res.b,res.a],'the far one came before the near one');
 });
 
-test('a uniform that holds: the SS who were hunting him come in, and cannot see him', ()=>{
+test('QUESTIONED: a uniform that holds: the SS who were hunting him come in, and cannot see him', ()=>{
   const r=runtime(23);
-  r.run(`startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
+  r.run(`G.talk='questioned';startCastle(5);hideOverlay();G.state='play';G.impenetrable=true;`+HUNT);
   bare(r,140,92);
   guard(r,'ss',200,92);
   r.run(`globalThis.S=room().guards[0];alarm(S);G.hunt.t=1e9;`);
@@ -611,28 +611,52 @@ test('TALK: 1981, shouts only, is the default, and remembered when changed', ()=
   assert.equal(r.store.get('wolfenstein.talk'),'1981');
 });
 
-test('1981: in uniform nobody questions you or chats; walk into a guard or stand at an SS man\'s elbow and you are seen', ()=>{
+test('1981: in uniform nobody questions you or chats; walk into a guard and he challenges you', ()=>{
   const r=runtime();
   r.run(`G.impenetrable=true;`);
-  bare(r,100,92);guard(r,'ss',124,92);
-  r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;G.P.dir=2;`);
-  step(r,0.5);
-  assert.notEqual(r.j('G.state'),'question','questioned in 1981');
-  step(r,2);
-  assert.notEqual(r.j('G.state'),'question');
-  assert.equal(r.j('room().guards[0].st'),'alert','an SS man let a man stand at his elbow');
-  assert.match(r.j('room().guards[0].say.text'),/SS!|STEHENBLEIBEN/);
+  assert.equal(r.j('G.talk'),'1981','1981 is not the default');
   /* a guard walked into */
   bare(r,100,92);guard(r,'guard',108,92);
-  r.run(`room().blown=false;`);
+  r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;G.P.dir=2;`);
   step(r,1.2);
+  assert.notEqual(r.j('G.state'),'question','questioned in 1981');
   assert.equal(r.j('room().guards[0].st'),'challenge','walked into, and he did not challenge');
-  /* at a distance, the uniform passes, and nobody talks shop */
-  bare(r,60,92);guard(r,'guard',200,92);guard(r,'ss',200,40);
+  /* at a distance, the uniform passes a guard, and nobody talks shop */
+  bare(r,60,92);guard(r,'guard',200,92);
   r.run(`room().blown=false;room().guards.forEach(g=>g.cleared=true);`);
   step(r,20);
-  assert.deepEqual(r.j('room().guards.map(g=>g.st)'),['stand','stand']);
+  assert.deepEqual(r.j('room().guards.map(g=>g.st)'),['stand']);
   assert.equal(r.j('G.P.knows.parole||G.P.knows.chief'),false,'guards chatted in 1981');
+});
+
+test('1981: the SS are not fooled by the uniform', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  /* across the room, gun away, uniform on: he knows you at once */
+  bare(r,60,92);guard(r,'guard',200,92);guard(r,'ss',200,40);
+  r.run(`G.P.uniform=true;G.P.holstered=true;room().blown=false;G.P.dir=2;room().guards.forEach(g=>g.st='stand');`);
+  step(r,0.3);
+  const st=r.j('room().guards.map(g=>g.st)');
+  assert.equal(st[0],'stand','the guard saw through the uniform');
+  assert.equal(st[1],'challenge','an SS man took a man in uniform for one of them');
+  assert.match(r.j('room().guards[1].say.text'),/SS/);
+  assert.equal(r.j('room().guards[1].locked'),true,'he will not follow');
+  /* walk away from him and the alarm goes up */
+  r.run(`G.P.x=20;`);step(r,0.5);
+  assert.equal(r.j('room().guards[1].st'),'alert');
+  assert.equal(r.j('G.hunt.on'),true,'no alarm');
+  /* a squad sent in after a man in uniform knows him */
+  bare(r,140,92);
+  r.run(`G.P.uniform=true;room().blown=false;raiseHunt();G.hunt.t=0.01;`);
+  step(r,4);
+  const sq=r.j('room().guards.map(g=>g.st)');
+  assert.ok(sq.length>=2,'no squad came');
+  assert.ok(sq.every(s=>s==='alert'),'a squad came in and did not know him: '+sq);
+  /* and the uniform does not quieten the hunt */
+  const quiet=uniform=>{const q=runtime();bare(q,60,92);
+    q.run(`G.impenetrable=true;G.P.uniform=${uniform};raiseHunt();G.hunt.t=1e9;`);
+    let t=0;while(t<60&&q.j('G.hunt.on')){step(q,0.5);t+=0.5;}return t;};
+  assert.equal(quiet(true),quiet(false),'the SS hunt eased off for a uniform');
 });
 
 test('picking a lock takes time, walking away gives it up, shooting it off is quick', ()=>{

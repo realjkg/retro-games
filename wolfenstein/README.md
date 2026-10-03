@@ -156,11 +156,15 @@ What they ask builds up:
 
 * **1981 · SHOUTS ONLY**: the game as it was. Guards and SS shout, challenge
   and put their hands up; nobody questions you and nobody chats. A uniform
-  gets you past at a distance. Walk into a guard and he wants to know what is
-  going on (*Was ist los?*) and challenges you; stand about at an SS man's
-  elbow, or with a gun out near one, and he sees what you are.
+  gets you past the guards at a distance; walk into one and he wants to know
+  what is going on (*Was ist los?*) and challenges you. **The SS are not
+  fooled by it**, as in 1981: an SS man who sees you knows an impostor, and
+  challenges you (*Halt! SS! Hände hoch!*) as if you wore nothing at all.
+  Squads sent in by the alarm know you too, and the alarm is no quieter for
+  the uniform.
 * **QUESTIONED**: everything this game built on top. Men in the corridors
-  stop a uniform and question it in German (above), the guards let slip the
+  stop a uniform and question it in German (above), the SS among them, who
+  let a uniform be at a distance and ask for its papers close to; the guards let slip the
   password and the commandant's name, and there is a notebook.
 
 The choice is remembered between visits.
@@ -272,9 +276,10 @@ through a door, every one of them sets off for the room you are now in, the
 nearest first, and walks in through the opening on the side he is coming
 from, a moment later for every room he has to cross. Run through five rooms
 and they come through five doors after you. The one way out, short of a
-bullet, is a uniform: get into a room where it holds, and when they come in
-they are looking for a man they cannot see (*Wo ist er?*), and they have lost
-you.
+bullet, with TALK on QUESTIONED, is a uniform: get into a room where it
+holds, and when they come in they are looking for a man they cannot see
+(*Wo ist er?*), and they have lost you. With TALK on 1981 the SS see through
+a uniform, and there is no such way out.
 
 **The alarm** is the frightening part. An SS man who sees you for what you are
 raises it. A klaxon goes, the screen flares red, and from then on its edges
@@ -290,8 +295,10 @@ walking away gives it up. Shoot the lock off and it opens at once. They hold
 bullets, grenades, bulletproof vests, uniforms, and a great deal of sauerkraut
 and schnapps.
 
-**In a German uniform you blend in**, with the guards and with the SS, at a
-distance; up close you are questioned (above). A squad the alarm sends into a
+**In a German uniform you blend in** with the guards at a distance. With TALK
+on 1981, the default, that is all it does: **the SS see through it**, as
+they did in 1981. With TALK on QUESTIONED you blend in with the SS too, at a
+distance, and up close you are questioned (above). There, a squad the alarm sends into a
 room where your uniform still holds does not know you either: they come in
 looking (*Wo ist er?*). In a uniform the alarm goes quiet in twelve seconds
 instead of thirty. Firing, or throwing a grenade, gives it away to everyone
@@ -368,7 +375,11 @@ an escaped prisoner before he shoots**; **pull your gun on him and his hands
 go up**; **walk away and he fires**; **draw on the man questioning you**;
 **waved on, then drawn on**. And TALK: **1981, shouts only, is the default**,
 and **in 1981 nobody questions you or chats**. Each fails on the build
-before it.
+before it. Last, **1981: the SS are not fooled by the uniform**: across the
+room he challenges you, the guard beside him does not, walk away and the
+alarm goes up, a squad sent in knows you, and the alarm is no quieter for the
+uniform. It fails on the build before it, where the SS man stands there. The
+tests of blending in with the SS now run with TALK on QUESTIONED.
 
 `tools/playtest.js` asks **how it moved**. It opens the real page in Chromium
 and reads the canvas, one row per scene: the title demo, the cell, walking
@@ -412,7 +423,11 @@ while a guard and an SS man shout is recorded and measured under 150 Hz.
 uniform, drawing after being waved on, H while questioned, and turning on a
 guard already shooting all put his hands up within half a second; kept on
 him they stay up four seconds, turned away he drops them and fires. Four of
-those fail on the build before the challenge.
+those fail on the build before the challenge. **The SS and the uniform**:
+with TALK on 1981 an SS man across the room challenges a man in uniform with
+his gun away while the guard beside him is fooled, and walking away raises the
+alarm; with TALK on QUESTIONED he lets the uniform be. The first two fail on
+the build before.
 
 `tools/layout.js` asks **where the controls are**, on six screens from 320×568
 to an iPad, each way up, during play. Is any control over the playfield or over
@@ -470,10 +485,15 @@ For eyes, not checks:
   password and commandant, the graze and the build-up table. None is from the
   1981 disk. The German is plain textbook German and has not been checked by
   a native speaker.
-* **The SS in a uniform are this game's.** The alarm, the squads sent through
-  the doors, the inspection for papers, and a uniform that gets you past the
-  SS at a distance were all asked for, as an enhancement, and are not a
-  reading of the 1981 disk.
+* **The SS in a uniform are this game's, with TALK on QUESTIONED.** The
+  alarm, the squads sent through the doors, the inspection for papers, and a
+  uniform that gets you past the SS at a distance were all asked for, as an
+  enhancement, and are not a reading of the 1981 disk. With TALK on 1981 the
+  SS see through the uniform, as the 1981 game's did (by its descriptions;
+  the disk itself has not been read).
+* **The SS still put their hands up** to a gun drawn on them at arm's length
+  while they challenge you, though the help text and this README say they
+  never surrender. In 1981 only ordinary guards surrendered.
 * **The numbers are this game's, not the Apple's.** Ten rounds and three
   grenades to start, three hits for a vest and three bullets for an SS man,
   the rank ladder, and the strongbox that grenades cannot break (so a castle
