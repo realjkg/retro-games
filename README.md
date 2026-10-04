@@ -28,15 +28,62 @@ the collection, or its own full-screen button where it had one already
 
 While the screen is the game's it is kept awake, where the browser allows.
 
+**Full screen is a game screen, not a bigger page.** Archon and Law of the
+West already had one. The other eight are built the same way, and full screen
+turns each into one:
+- the page goes black, and the picture grows as large as its own shape allows
+  with the whole game still on the screen;
+- on a computer the touch pads are put away, since the keyboard plays it;
+- held sideways on a phone or an iPad, the stick goes on the left and the
+  buttons on the right, if that gives a bigger picture than pads underneath;
+- a small ✕ EXIT sits in the status bar, and leaving puts the page back as it
+  was.
+
+On a monitor the picture went from 9–17% of the screen to 58–91% for the wide
+games. Tall ones (Galaga, Tapped) reach the top and bottom edges, which is as
+big as their shape allows.
+
 The chip is one file, `shared/fullscreen.js`, which `tools/sync-fullscreen.js`
 writes into every page (CI fails if a copy drifts). `tools/fullscreen.js`
-checks it in Chromium, every game, on a computer and a phone each way up:
-that it goes full screen and back, that SPACE still reaches the game after
-it is pressed, that it covers no control or playfield, and, as an iPhone,
-that it explains Add to Home Screen. It cannot be an iPhone: the Home Screen
-launch itself needs a real one.
+checks it in Chromium.
 
-## Publishing
+**On every game**, on a computer and on a phone held upright and sideways, it
+checks that the chip:
+- goes full screen and comes back;
+- still lets SPACE reach the game after it is pressed;
+- covers no control and no part of the playfield.
+
+As an iPhone, it checks that the chip explains Add to Home Screen.
+
+**On the eight**, on a monitor, a laptop, a phone both ways and an iPad, it
+checks that game mode:
+- makes the picture as large as it can be (4% bigger would no longer fit);
+- leaves every control on the screen and tappable;
+- puts no control on the picture;
+- returns the page exactly as it was on the way out.
+
+It cannot be an iPhone: the Home Screen launch itself needs a real one.
+
+## Reviewing a game's screen
+
+`.claude/agents/ui-game-reviewer.md` is a reviewer for the cleanest, most
+minimal game screen: the picture as large as its shape allows, and round it
+only what a player needs. It reports what to take away, merge or move, and
+never touches the joystick: the stick, the d-pad and the action buttons stay,
+a thumb's size, under the thumbs.
+
+It works from `tools/uireview.js`, which photographs every game. It covers a
+phone held upright and sideways and a computer, the page and full-screen game
+mode, and the title and in play. For each screen it measures how much is
+picture, how many non-game controls and words sit round it, how many type
+sizes and colours, and whether it scrolls. It also checks that the joystick
+controls are there, a thumb wide, and wholly on the screen. It writes a
+contact sheet to look at alongside the numbers.
+
+    PW=... node tools/uireview.js out/          every game
+    PW=... node tools/uireview.js out/ galaga   one
+
+
 
 GitHub Pages is deployed by `.github/workflows/pages.yml` on every push to
 `main`. The workflow runs every game's tests, then uploads the repository root

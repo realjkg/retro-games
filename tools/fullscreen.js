@@ -106,7 +106,10 @@ const MEASURE=()=>{
         await p.keyboard.press('Space');await p.waitForTimeout(150);
         const still=await p.evaluate(()=>!!document.fullscreenElement);
         const whileFull=await p.evaluate(MEASURE);
-        await p.click('#rg-fs');await p.waitForTimeout(250);
+        /* out: in the game mode the chip's row is put away, and the way out is
+           the EXIT in the status bar */
+        await p.evaluate(()=>{const x=document.getElementById('rg-x');
+          (x&&!x.hidden?x:document.getElementById('rg-fs')).click();});await p.waitForTimeout(250);
         const off=await p.evaluate(()=>({fs:!!document.fullscreenElement,t:document.getElementById('rg-fs').textContent}));
         row.push(cell(!off.fs&&!/exit/i.test(off.t),off.fs?'still full':'back'));
         row.push(cell(!space.focus&&still,space.focus?'chip has it':still?'to the game':'SPACE left'));
@@ -150,6 +153,93 @@ const MEASURE=()=>{
     const m=await p.evaluate(MEASURE);
     console.log(g.padEnd(16)+cell(m.there&&!m.shown,!m.there?'no chip':m.shown?'chip shown':'no chip shown'));
     await c.close();
+  }
+  /* The game mode. Full screen is only worth having if the game fills it:
+     the first version of the chip put the same small page in the middle of
+     the screen, and the game had 9 to 17 per cent of a monitor. On the eight
+     pages built the same way, entered the way a player would (the chip, or
+     the game's own button):
+       fill     the picture is as large as it can be: made 4% larger, something
+                no longer fits (it leaves the screen, a control does, a
+                control ends up under it, or the page starts to scroll).
+                Compared with the page it came from it would mislead: held
+                sideways most of these pages scroll, and part of the picture
+                was off the screen to begin with;
+       reach    every control left on the screen is wholly on it, 4 px clear of
+                the edge, and a finger on its middle lands on it and not on
+                something laid over it;
+       clear    no control sits on the picture;
+       restore  out of full screen, the page is put back as it was. */
+  const FIT=['aztec','bards-tale','choplifter','drol','galaga','lode-runner','tapped','wolfenstein'];
+  const OWNBTN={aztec:'#fs',choplifter:'#fs',drol:'#fs','lode-runner':'#fs'};
+  const GSCREENS=[SCREENS[0],{name:'laptop',viewport:{width:1366,height:768}},SCREENS[2],SCREENS[1],
+    {name:'iPad side',viewport:{width:1024,height:768},isMobile:true,hasTouch:true,deviceScaleFactor:2}];
+  const LOOK=()=>{
+    const st=document.getElementById('stage');const r=st.getBoundingClientRect();
+    const ctl=[];
+    document.querySelectorAll('#pads button,#pads .btn,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button,#status button').forEach(el=>{
+      const q=el.getBoundingClientRect();if(q.width<4||q.height<4)return;
+      for(let e=el;e;e=e.parentElement){const s=getComputedStyle(e);if(s.display==='none'||s.visibility==='hidden')return;}
+      const cx=q.left+q.width/2,cy=q.top+q.height/2;
+      /* the whole control, a few pixels clear of the edge: flush against it
+         is cut off by a phone's rounded corners. The first version of this
+         looked only at the middle, and passed buttons that ran off the side */
+      const m=el.closest('#status')?0:4;
+      const on=q.left>=m-0.5&&q.top>=m-0.5&&q.right<=innerWidth-m+0.5&&q.bottom<=innerHeight-m+0.5;
+      const hit=on?document.elementFromPoint(cx,cy):null;
+      const ix=Math.min(r.right,q.right)-Math.max(r.left,q.left),iy=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top);
+      ctl.push({id:(el.id||el.className||el.tagName).toString().slice(0,14),on,
+        hits:!!hit&&(hit===el||el.contains(hit)||hit.contains(el)),over:ix>1&&iy>1&&!st.contains(el)});
+    });
+    return{x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
+      pct:Math.round(100*r.width*r.height/(innerWidth*innerHeight)),
+      edge:Math.round(100*Math.max(r.width/innerWidth,r.height/innerHeight)),
+      touch:matchMedia('(any-pointer: coarse)').matches,ctl};
+  };
+  console.log('\ngame         screen      fill: picture, of the screen      reach           clear           restore');
+  for(const g of FIT){
+    for(const s of GSCREENS){
+      const{c,p}=await open(g,s);
+      const before=await p.evaluate(LOOK);
+      const sel=OWNBTN[g]||'#rg-fs';
+      try{await p.click(sel,{timeout:3000});}catch(e){await p.evaluate(q=>{const b=document.querySelector(q);if(b)b.click();},sel);}
+      await p.waitForTimeout(600);
+      const inn=await p.evaluate(LOOK);
+      const full=await p.evaluate(()=>!!document.fullscreenElement);
+      const row=[g.padEnd(13)+s.name.padEnd(12)];
+      /* 4% larger: does it still all fit? Then it was not as large as it could be */
+      const roomy=await p.evaluate(()=>{
+        const st=document.getElementById('stage'),root=document.documentElement,se=document.scrollingElement;
+        const fits=()=>{const r=st.getBoundingClientRect();
+          if(r.left<-1||r.top<-1||r.right>innerWidth+1||r.bottom>innerHeight+1)return false;
+          for(const el of document.querySelectorAll('#status,#pads button,#pads .btn,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button')){
+            const q=el.getBoundingClientRect();if(q.width<2||q.height<2)continue;
+            let hid=false;for(let e=el;e;e=e.parentElement){if(getComputedStyle(e).display==='none')hid=true;}
+            if(hid)continue;
+            const m=el.id==='status'?-1:4;   /* the same rule as reach: a control clear of the edge */
+            if(q.left<m||q.top<m||q.right>innerWidth-m||q.bottom>innerHeight-m)return false;
+            if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;}
+          return true;};
+        const s0=se.scrollHeight>innerHeight+1,was=root.style.getPropertyValue('--rg-sw');
+        root.style.setProperty('--rg-sw',Math.round(st.getBoundingClientRect().width*1.04)+'px');
+        const still=fits()&&(s0||se.scrollHeight<=innerHeight+1);
+        if(was)root.style.setProperty('--rg-sw',was);else root.style.removeProperty('--rg-sw');
+        return still;});
+      const fillOk=full&&!roomy;
+      row.push(cell(fillOk,(full?'':'not full ')+(roomy?'could be bigger ':'')+inn.pct+'% (was '+before.pct+')'));
+      const lost=inn.ctl.filter(k=>!k.on||!k.hits);
+      row.push(cell(!lost.length,lost.length?lost[0].id+(lost[0].on?' covered':' at the edge'):inn.ctl.length+' controls'));
+      const over=inn.ctl.filter(k=>k.over);
+      row.push(cell(!over.length,over.length?'on '+over[0].id:'clear'));
+      /* out again: the game's own button, or the chip's EXIT in the status bar */
+      await p.evaluate(q=>{const x=document.getElementById('rg-x');const b=(x&&!x.hidden)?x:document.querySelector(q);if(b)b.click();},sel);
+      await p.waitForTimeout(600);
+      const after=await p.evaluate(LOOK);
+      const same=['x','y','w','h'].every(k=>Math.abs(after[k]-before[k])<=1);
+      row.push(cell(same,same?'as it was':'moved '+JSON.stringify([after.x,after.y,after.w,after.h])));
+      console.log(row.join('  '));
+      await c.close();
+    }
   }
   if(errs.length){console.log('\npage errors:');errs.forEach(e=>console.log('  '+e));bad+=errs.length;}
   console.log('\n* below: the page was already taller than the screen without the chip, and scrolls to it');
