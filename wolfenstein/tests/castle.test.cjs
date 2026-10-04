@@ -538,6 +538,57 @@ test('a guard who sees an escaped prisoner challenges him before he shoots', ()=
   assert.equal(r.j(`room().guards[0].st`),'alert','he never stopped waiting');
 });
 
+test('the challenge is an exchange: Halt! Kommen Sie!, then his papers, then a last word', ()=>{
+  /* what he says, frame by frame, in the order he says it */
+  const heard=r=>{const out=[];for(let i=0;i<70;i++){step(r,0.05);
+    const t=r.j(`(room().guards[0].say||{}).text||''`);if(t&&t!==out[out.length-1])out.push(t);}return out;};
+  let opened=0,papers=0,last=0;
+  for(let seed=1;seed<=8;seed++){
+    const r=runtime(seed);
+    r.run(`G.impenetrable=true;`);
+    bare(r,60,92);guard(r,'guard',180,92);
+    r.run(`G.P.holstered=true;G.P.dir=2;room().guards[0].say=null;`);
+    const said=heard(r);
+    assert.match(said[0]||'',/HALT|HAENDE HOCH/,'he did not open with a halt: '+said.join(' / '));
+    if(/KOMMEN SIE/.test(said[0]))opened++;
+    const p=said.findIndex(t=>/PASS|PAPIERE/.test(t));
+    assert.ok(p>0,'he never asked for papers: '+said.join(' / '));
+    papers++;
+    if(said.slice(p+1).some(t=>/HAENDE HOCH|SCHNELL/.test(t)))last++;
+  }
+  /* Halt! Kommen Sie! is the one he says most */
+  assert.ok(opened>=3,'Halt! Kommen Sie! only '+opened+' times in 8');
+  assert.ok(last>=6,'a last word before the shot only '+last+' times in 8');
+  /* the SS want the pass too, in less time */
+  const r=runtime(3);
+  r.run(`G.impenetrable=true;`);
+  bare(r,60,92);guard(r,'ss',180,92);
+  r.run(`G.P.holstered=true;G.P.dir=2;room().guards[0].say=null;`);
+  const said=heard(r);
+  assert.ok(said.some(t=>/PASS/.test(t)),'the SS man never asked for his pass: '+said.join(' / '));
+});
+
+test('an SS man on the prisoner\'s heels shouts SS!, again and again', ()=>{
+  const r=runtime();
+  r.run(`G.impenetrable=true;`);
+  bare(r,60,92);guard(r,'ss',200,92,'alert');
+  r.run(`room().guards[0].fireT=1e9;room().guards[0].say=null;`);
+  let n=0,prev='';
+  for(let i=0;i<240;i++){step(r,0.05);
+    const t=r.j(`(room().guards[0].say||{}).text||''`);
+    if(t&&t!==prev&&/\bSS\b/.test(t))n++;
+    prev=t;if(!t)prev='';}
+  assert.ok(n>=2,'in twelve seconds of chasing he said SS! '+n+' time(s)');
+  /* and a squad shouts as one, not in a chorus */
+  const q=runtime(5);
+  q.run(`G.impenetrable=true;`);
+  bare(q,60,92);guard(q,'ss',200,90,'alert');guard(q,'ss',204,96,'alert');
+  q.run(`room().guards.forEach(g=>{g.fireT=1e9;g.say=null;g.shoutT=0.5;});`);
+  step(q,0.6);
+  const both=q.j(`room().guards.map(g=>(g.say||{}).text||'')`);
+  assert.ok(!(both[0]&&both[0]===both[1]),'two men side by side shouted the same thing at once: '+both.join(' / '));
+});
+
 test('pull your gun on the guard who challenges you, and his hands go up', ()=>{
   const r=runtime();
   r.run(`G.impenetrable=true;`);

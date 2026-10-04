@@ -280,22 +280,36 @@ const check=(ok,what,got)=>{results.push([ok,what,got===undefined?'':got]);};
 
   /* the shouts, heard at the loudspeaker. The highest-voiced guard and SS
      man the castle can make, at the fastest they are played */
-  const pitchOf=async(kind,text)=>{
-    await vp.evaluate(([kind,text])=>{Snd.clips&&Snd.clips.forEach(s=>{try{s.stop();}catch(e){}});
+  const pitchOf=async(kind,text,pitch)=>{
+    /* nobody else in the room while a line is measured: an SS man left
+       standing there now shouts SS! every few seconds, and his voice in the
+       recording pulled every measurement down */
+    await vp.evaluate(([kind,text,pitch])=>{try{room().guards.length=0;G.hunt.on=false;G.pursuers=[];}catch(e){}
+      Snd.clips&&Snd.clips.forEach(s=>{try{s.stop();}catch(e){}});
       window.__pcm=[];window.__rec=true;const g=mkGuard(kind,0,0);
-      if(typeof voiceFor==='function')g.voice=voiceFor(kind,1.15,1.1);
-      say(g,text,'bark',true);},[kind,text]);
+      if(typeof voiceFor==='function')g.voice=voiceFor(kind,pitch,1.1);
+      say(g,text,'bark',true);},[kind,text,pitch||1.15]);
     await vp.waitForTimeout(2600);
     const {pcm,sr}=await vp.evaluate(()=>{window.__rec=false;return{pcm:[].concat(...window.__pcm),sr:window.__sr};});
     let e=0;for(const v of pcm)e+=v*v;
     if(!pcm.length||e<1e-6)return{f0:NaN,voiced:0,sound:false};
     return Object.assign(VG.judge(Float32Array.from(pcm),sr),{sound:true});
   };
-  for(const [kind,text] of [['guard','Halt! Kommen Sie!'],['guard','Was ist los?'],['ss','Halt! SS!'],['ss','Ihren Pass!']]){
-    const j=await pitchOf(kind,text);
-    check(j.sound&&j.man,'a '+(kind==='ss'?'SS man':'guard')+' shouting "'+text+'" is heard in a man\'s voice, under '+VG.MAN_MAX+' Hz',
+  /* the exchange and the chase, in the highest and the lowest voice of each
+     kind (1.15 the highest a man is made, 0.86 near the lowest) */
+  for(const [kind,text,pitch] of [['guard','Halt! Kommen Sie!',1.15],['guard','Was ist los?',1.15],
+      ['guard','Was? Pass!',1.15],['guard','Was? Pass!',0.86],['ss','Halt! SS!',1.15],['ss','Ihren Pass!',1.15],
+      ['ss','SS!',1.15],['ss','SS!',0.86]]){
+    const j=await pitchOf(kind,text,pitch);
+    check(j.sound&&j.man,'a '+(kind==='ss'?'SS man':'guard')+(pitch<1?' (low)':'')+' shouting "'+text+'" is heard in a man\'s voice, under '+VG.MAN_MAX+' Hz',
       j.sound?Math.round(j.f0)+' Hz over '+j.voiced+' voiced frames':'no sound came out');
   }
+  /* and the men are not one voice: the same challenge, from three guards */
+  const three=[];
+  for(const p of [0.86,1.0,1.14])three.push((await pitchOf('guard','Halt! Kommen Sie!',p)).f0);
+  const spread=Math.max(...three)-Math.min(...three);
+  check(spread>=12&&new Set(three.map(f=>Math.round(f/4))).size===3,
+    'three guards challenge in three different voices',three.map(f=>Math.round(f)+' Hz').join(', '));
   await vc.close();
 
   /* Hands up. A gun pointed at a guard, by real keys: turned on him with X

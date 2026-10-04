@@ -96,9 +96,22 @@ next to the cell.
 ## Challenged, and drawn on
 
 A guard who comes on an escaped prisoner does not simply shoot him. **He
-challenges him first**, gun up and finger off the trigger: *Halt! Hände
-hoch!*, *Halt! Kommen Sie!*, *Stehenbleiben!* He waits three seconds in the
-first castle and a second and a half by the sixth.
+challenges him first**, gun up and finger off the trigger, and it is a short
+exchange, not one shout:
+
+1. **The halt.** Most often *Halt! Kommen Sie!*, the one people remember; or
+   *Halt! Hände hoch!*, *Halt! Stehenbleiben!*.
+2. **His papers.** A second later, if you are still standing there: *Was?
+   Pass!*, *Ihren Pass!*, *Pass! Schnell!* or *Papiere!*, asked, not barked.
+3. **A last word** before the shot: *Hände hoch!* or *Schnell!*
+
+He waits three seconds in the first castle and a second and a half by the
+sixth. The SS challenge in under half that, and want *Ihren Pass!* after half
+a second.
+
+**The SS say who they are.** An SS man on your heels shouts *SS!*, *Halt!
+SS!* or *SS! Stehenbleiben!* every few seconds, for as long as he is after you.
+A squad shouts as one: the man beside him does not echo him.
 
 * **Pull your gun on him** while he waits, and his hands go up: *Kamerad!
   Nicht schießen!*
@@ -175,10 +188,18 @@ The choice is remembered between visits.
 the castle can say — the 1981 shouts, the challenges, the screams, and in
 QUESTIONED the questions, answers and chatter — was spoken once by eSpeak NG,
 in its German voice with its male variants, and kept in the page as a short
-6 kHz clip: 90 clips, 106 seconds, which is most of why the page is ~540 KB.
-There are three men: two guards, one higher and one lower, and a deeper SS
-voice. Each man in the castle plays his clip a little faster or slower, so no
-two sound quite the same.
+6 kHz clip: 159 clips, 170 seconds, which is most of why the page is ~800 KB.
+
+There are five men:
+- three guards, high, middle and low (about 105, 95 and 85 Hz);
+- two SS men, lower than any guard (about 80 and 75 Hz).
+
+Every shout and challenge is in each of their voices, and the mood gives each
+line its own tune: an order falls, a question (*Was? Pass!*) rises. Each man
+in the castle also plays his clip a little faster or slower, so no two sound
+quite the same. The tests measure that the five are five different pitches,
+and in the browser, at the loudspeaker, that three guards challenging sound
+like three different men.
 
 **The device's voice is used only when it is known to be a man**, and then only
 for a line the page has no clip for. The earlier build handed every line to
@@ -341,7 +362,7 @@ you are impenetrable.
 
 ## How this is checked
 
-    node --test tests/*.test.cjs                              # 52 tests, no browser
+    node --test tests/*.test.cjs                              # 55 tests, no browser
     PW=$PWD/../node_modules/playwright-core node tools/playtest.js
     PW=... node tools/playthrough.js
     PW=... node tools/layout.js
