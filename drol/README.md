@@ -30,10 +30,10 @@ of them to bring them home. Three scenes, and then the whole thing again and fas
   those rows back to the maze, which is worth doing on a small phone.
 - **MENU** (Esc/P) pauses, and the pause screen carries the controls card, the music switch,
   the scope switch, the endless-robots switch and the full-screen switch.
-- Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- Sound starts after a tap or key press. "Sound: on/off" in the title menu and the pause menu mutes or enables it.
 - **FULL SCREEN** hides the page around the game: everything goes black, the maze and the
   controls are all that is left. Held sideways the pads move to either side of the screen
-  like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
+  like a handheld. EXIT (or Esc) puts the page back.
 
 ## Robots
 
@@ -330,7 +330,7 @@ joystick game:
 - A title screen rather than a menu on a black rectangle: the four storeys with the pillared
   wall behind them, the robot hanging over the top one, the boy along the floor and the witch
   doctor watching from the other end.
-- **SOUND ON/OFF, the music switch, the scope and your best score are remembered** between
+- **The Sound switch, the music switch, the scope and your best score are remembered** between
   visits, in `localStorage` under one key, and every read and write is wrapped: a private
   window that refuses storage is still a game.
 - An **INSTALL** button beside SOUND and FULL SCREEN, as the other games in the collection

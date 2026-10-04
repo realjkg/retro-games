@@ -25,11 +25,11 @@ generated fresh for every game, so no two raids are the same.
   **GO UP**, **ESCAPE** with the idol (**NEED IDOL** at the entrance without it), or plain **USE**.
 - **WALK/RUN** toggles your pace and lights up while you are running. **MENU** (Esc/P) pauses,
   and the pause screen carries the controls card and the full-screen switch.
-- Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- Sound starts after a tap or key press. "Sound: on/off" in the title menu and the pause menu mutes or enables it.
 - **FULL SCREEN** hides the page around the game: everything goes black, the screen and the
   controls are all that is left, and the view grows until the whole depth of the tomb is on
   screen at once. Held sideways the pads move to either side of the screen like a handheld.
-  EXIT FULL SCREEN (or Esc) puts the page back.
+  EXIT (or Esc) puts the page back.
 
 ## What the original is, and what this keeps
 

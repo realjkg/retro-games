@@ -41,11 +41,11 @@ other. She can be going left with her nose pointed at you. So this has a stick.
   his feet and everything hunting you, with your own position and how much of it you can see.
 - **MENU** (Esc/P) pauses; the pause card carries the controls, the music switch, the scanner
   switch, the endless-machines switch and the full-screen switch.
-- Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- Sound starts after a tap or key press. "Sound: on/off" in the title menu and the pause menu mutes or enables it.
 - **Out of the box there is no music — just the blades.** See below; the score is a switch on
   the title card and in the pause menu.
 - **FULL SCREEN** hides the page around the game. Held sideways the stick and the buttons move
-  to either side of the screen like a handheld. EXIT FULL SCREEN (or Esc) puts the page back.
+  to either side of the screen like a handheld. EXIT (or Esc) puts the page back.
 
 ### The pinch, the double tap and the iOS zoom
 
@@ -187,7 +187,7 @@ slower figure on the title card. It speeds up as the waves come in.
 
 **All of the writing is original.** Nothing is transcribed from any film score or from any
 port of this game, and there is nothing of the original's to transcribe in the first place —
-it had no music. Both switches, and the master SOUND ON/OFF, are remembered between visits.
+it had no music. Both switches, and the master Sound switch in the menus, are remembered between visits.
 
 ## The turn is the game, so the turn is drawn
 
