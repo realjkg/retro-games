@@ -77,6 +77,9 @@ h1{font-size:22px;margin:0;letter-spacing:.16em;color:var(--gold);font-weight:80
 .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,94%)}
 .row2 .menuitem,.row3 .menuitem{width:auto}
 .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(340px,94%)}
+/* Three abreast is narrow on a phone: the words have to fit inside the button. */
+#overlay.splash .row2 .menuitem,#overlay.splash .row3 .menuitem{width:auto;min-width:0}
+#overlay .row3 .menuitem{padding-left:4px;padding-right:4px;font-size:13px;white-space:nowrap}
 small.tip{color:var(--dim);font-size:11px;max-width:380px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
@@ -119,6 +122,9 @@ body.fs .abtn{width:clamp(60px,20vw,92px);height:clamp(60px,20vw,92px);font-size
 body.fs .sbtn{width:clamp(60px,20vw,92px);height:clamp(34px,9vw,44px);font-size:12px}
 body.fs .soundrow{margin:2px 0 0;gap:8px}
 body.fs #audio-status{display:none}
+/* Sound lives in the title and pause menus now; the button stays in the page
+   (hidden) so its handler is the one switch both menus press. */
+#sound,#audio-status{display:none}
 @media (orientation:landscape) and (max-height:560px){
   /* Held sideways there is no room below the screen, so the pads flank it the
      way a handheld does: pad under the left thumb, digs under the right. */
@@ -1931,24 +1937,24 @@ function showMenu(mode){
   const parts=[];
   if(mode==='title'){
     parts.push('<h1>LODE RUNNER</h1>');
-    parts.push('<p class="sub">The Bungeling Empire took the gold. You are one runner with a shovel that only points down, and the guards do not stop coming.</p>');
     parts.push(btn('start','START AT LEVEL '+G.startLevel));
     parts.push('<div class="row3">'+btn('lvdown','◀ LEVEL')+btn('lvup','LEVEL ▶')+btn('editor','GENERATOR')+'</div>');
     parts.push('<div class="row2">'+btn('custom',(G.custom?'✓ ':'')+'MY LEVELS ('+G.customSet.length+')')+btn('help','HOW TO PLAY')+'</div>');
-    parts.push('<div class="row2">'+btn('scores','HIGH SCORES')+btn('resume','RESUME')+'</div>');
-    parts.push('<small class="tip">Arrows or I J K L to move · U and O dig · tap DIG on a phone.</small>');
+    parts.push('<div class="row3">'+btn('scores','HIGH SCORES')+btn('resume','RESUME')+btn('sound',soundLabel())+'</div>');
   }else if(mode==='pause'){
     parts.push('<h1>PAUSED</h1>');
     parts.push(btn('resume','RESUME'));
     parts.push('<div class="row2">'+btn('again','RESTART LEVEL')+btn('quit','QUIT TO TITLE')+'</div>');
-    parts.push(btn('save','SAVE THIS RUN'));
-    parts.push('<div class="row2">'+btn('music',(A.music?'MUSIC ON':'MUSIC OFF'))+btn('help','HOW TO PLAY')+'</div>');
+    parts.push('<div class="row2">'+btn('save','SAVE THIS RUN')+btn('help','HOW TO PLAY')+'</div>');
+    parts.push('<div class="row2">'+btn('music',(A.music?'MUSIC: ON':'MUSIC: OFF'))+btn('sound',soundLabel())+'</div>');
   }else if(mode==='help'){
     parts.push('<h1>HOW TO PLAY</h1>');
     parts.push('<small class="tip">Take every chest on the level, then climb to the very top: the ladder out only appears once the last one is yours.<br><br>'+
       'You cannot jump and you cannot kill a guard. What you can do is dig the brick diagonally below you, left or right. A guard who falls in is stuck long enough to run over his head, and if he was carrying a chest he drops it. The brick grows back — be somewhere else when it does, and so much the worse for him.<br><br>'+
       'Poured blocks cannot be dug. Some bricks are false and drop you straight through. Ropes are crossed hand over hand; press down to let go.<br><br>'+
-      '<b>Keys</b> — arrows or I J K L to move, U dig left, O dig right, Z and X also dig, R gives yourself up and restarts the level, Esc or P pauses.</small>');
+      '<b>Keys</b> — arrows or I J K L to move, U dig left, O dig right, Z and X also dig, R gives yourself up and restarts the level, Esc or P pauses.<br><br>'+
+      '<b>On a phone</b> — the pad moves you and the two DIG buttons dig left and right; ≡ is the menu.<br><br>'+
+      'Sound starts after a tap or key press. SOUND in the title and pause menus turns it on and off; EXIT leaves full screen.</small>');
     parts.push(btn('back','BACK'));
   }else if(mode==='over'||mode==='won'){
     parts.push('<h1>'+(mode==='won'?'ALL LEVELS CLEARED':'GAME OVER')+'</h1>');
@@ -1959,6 +1965,7 @@ function showMenu(mode){
   overlay.innerHTML=parts.join('');
   wireMenu();
 }
+function soundLabel(){return A.on?'SOUND: ON':'SOUND: OFF';}
 function btn(id,label){return '<button class="menuitem" data-m="'+id+'">'+label+'</button>';}
 function hideMenu(){
   if(overlay)overlay.classList.add('hidden');
@@ -1991,6 +1998,8 @@ showMenu('title');
   else if(a==='again'){hideMenu();loadLevel(G.level);}
   else if(a==='quit'){G.started=false;G.state='title';showMenu('title');}
   else if(a==='music'){A.music=!A.music;showMenu('pause');}
+  // the hidden SOUND button is still the one switch; the menu line presses it
+  else if(a==='sound'){const b=$('sound');if(b&&b.click)b.click();showMenu(menuMode);}
   else if(a==='scores')Arcade.show({onClose:()=>showMenu(G.state==='title'?'title':G.state)});
   else if(a==='resume'){
     if(!Arcade.hasSlots()){say('Nothing is saved yet.');return;}
@@ -2125,7 +2134,7 @@ function toggleFull(){
   const want=!(b.classList.contains&&b.classList.contains('fs'));
   b.classList.toggle('fs',want);
   const f=$('fs');
-  if(f)f.textContent=want?'EXIT FULL SCREEN':'FULL SCREEN';
+  if(f)f.textContent=want?'EXIT':'FULL SCREEN';
   const el=document.documentElement;
   try{
     if(want&&el.requestFullscreen)el.requestFullscreen();
@@ -2410,9 +2419,10 @@ if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('f
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -2424,7 +2434,7 @@ if(isStandaloneApp()){const b=document.body;if(b&&b.classList)b.classList.add('f
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
@@ -2507,8 +2517,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -2528,18 +2539,22 @@ var CSS=''+
 'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
 'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
 'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-'html.rg-side #status{grid-area:1/1/2/4!important}'+
-'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+'html.rg-side #status{font-size:12px!important}'+
+'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-side .rg-thru{display:contents!important}'+
 'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
 'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
 'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
 'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
 'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
 '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
 '#rg-x[hidden]{display:none}'+
 '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -2547,13 +2562,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){
@@ -2643,7 +2658,7 @@ if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bott
 }
 return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
 var alone=function(w){return inside(at(w));};

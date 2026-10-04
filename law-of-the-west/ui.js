@@ -1867,14 +1867,17 @@ function paint(){
   const b=beat(), live=build.rows>=10&&!notArrived();
   if(G.phase==="summary"){return paintSummary();}
   if(G.phase==="intro"){
-    lineEls[0].textContent="LAW OF THE WEST — GOLD GULCH";
+    /* the drawn plate says whose street it is: the line says nothing */
+    lineEls[0].textContent="";
     lineEls[0].className="npc";
     setChoice(lineEls[1],1,"Pin on the badge","sel");
     setChoice(lineEls[2],2,"Sound test");
     lineEls[3].className="choice dim note";
     lineEls[3].textContent="An original recreation inspired by the 1985 game.";
     lineEls[4].className="choice dim note";
-    lineEls[4].textContent=(gameMode?"":"Opens full screen; EXIT or g stays in the page.");
+    /* the keys, once, on the title: there is no other screen for them, and
+     * the strip under the pads that used to say them on every screen is gone */
+    lineEls[4].textContent="Up draws · down holsters · 1–4 or FIRE speaks · m sound · g full screen";
     hud(); fitText(); return;
   }
   lineEls[0].className="npc";

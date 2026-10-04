@@ -57,7 +57,6 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
   background:radial-gradient(circle at 36% 32%,#ff8a7a 0,#e02a1e 38%,#8a0e08 100%);
   box-shadow:0 5px 8px rgba(0,0,0,.55);pointer-events:none;will-change:transform}
 #stick.on #knob{box-shadow:0 2px 4px rgba(0,0,0,.6)}
-.stickwrap small{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font-size:16px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
@@ -104,7 +103,11 @@ small.tip{color:var(--dim);font-size:11px;max-width:420px;line-height:1.5}
 .ini .step{width:52px;height:34px;padding:0;font-size:15px;border-radius:9px;background:#2b1d13;
   border:1px solid #5a4028;color:#f2e8dc;cursor:pointer}
 #status{align-items:center}
-#sound{height:28px;width:56px;margin-left:auto}
+/* with SOUND gone from it, the bar is one line on a phone even at six-digit scores */
+@media (max-width:430px){#status{font-size:12px}}
+/* SOUND lives in the title and pause menus; the button stays in the page,
+   hidden, because its click handler is the one switch both menus press. */
+#sound{display:none}
 @media (pointer:fine){#pads{display:none}}
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
@@ -119,7 +122,7 @@ small.tip{color:var(--dim);font-size:11px;max-width:420px;line-height:1.5}
   <div id="status">
     <span id="hud">SCORE <b id="score">0</b> &nbsp; HIGH <b id="high">0</b></span>
     <span id="hud2">LEVEL <b id="level-n">1</b> &nbsp; BARTENDERS <b id="lives">3</b></span>
-    <!-- up here, not on the glass: on the playfield it sat on the first bar's tap -->
+    <!-- hidden: SOUND is a title and pause menu item; this is the switch it presses -->
     <button id="sound" class="btn sbtn" type="button">SOUND<small id="soundstate">on</small></button>
   </div>
   <div id="stage">
@@ -131,7 +134,6 @@ small.tip{color:var(--dim);font-size:11px;max-width:420px;line-height:1.5}
       <div id="stick" role="button" aria-label="joystick: up and down change bar, left and right run">
         <div class="gate"></div><div class="shaft" id="shaft"></div><div id="knob"></div>
       </div>
-      <small>▲ ▼ bar · ◀ ▶ run</small>
     </div>
     <div class="right">
       <button class="btn sbtn" id="bp" type="button">PAUSE</button>
@@ -1190,7 +1192,8 @@ function showSplash(){
   items.push({go:cycleLives});
   html.push('<button class="menuitem" type="button">HOW TO PLAY · HIGH SCORES</button>');
   items.push({go:showHelp});
-  html.push('<small class="tip">▲ ▼ change bar · ◀ ▶ run · hold SPACE to pour, let go to send</small>');
+  html.push(soundItem());
+  items.push({go:toggleSound});
   buildMenu(html.join(''),items,0);
 }
 /* Two positions, the cabinet's and the free one: the arcade's count of
@@ -1208,10 +1211,18 @@ function setEndless(on){
   if(on&&G.state!=='splash')G.noScore=true;
   hud();
 }
+/* The one sound switch, offered as a menu item: it presses the hidden #sound
+ * button, so the menu, the button's handler and the saved setting can never
+ * disagree. */
+function soundLabel(){return 'SOUND: '+(Snd.on?'ON':'OFF');}
+function soundItem(){return '<button class="menuitem msound" type="button">'+soundLabel()+'</button>';}
+function toggleSound(){el('sound').click();}
 function showHelp(){
   ov.className='card';
   buildMenu(
     '<h1>HOW TO PLAY</h1>'+
+    '<small class="tip">The stick, the arrows or WASD: ▲ ▼ change bar, ◀ ▶ run. Hold POUR '+
+    '(SPACE) to fill, let go to send. P or PAUSE to pause.</small>'+
     '<div class="tally" style="text-align:left">'+
     '<div class="r"><span>Customer pushed out of the door</span><span>'+SCORE.out+'</span></div>'+
     '<div class="r"><span>Empty mug caught</span><span>'+SCORE.empty+'</span></div>'+
@@ -1255,11 +1266,13 @@ function showPause(note){
     '<button class="menuitem sel" type="button">BACK IN</button>'+
     '<button class="menuitem" type="button">BARTENDERS: '+(G.endless?'UNLIMITED':G.lives+' LEFT')+'</button>'+
     '<button class="menuitem" type="button">SAVE AND QUIT</button>'+
-    '<button class="menuitem" type="button">END THIS RUN</button>',
+    '<button class="menuitem" type="button">END THIS RUN</button>'+
+    soundItem(),
     [{go:togglePause},
      {go:()=>{setEndless(!G.endless);if(!G.endless&&G.lives<1)G.lives=1;hud();saveSlot();showPause();}},
      {go:()=>{saveSlot();Music.stop();showSplash();}},
-     {go:()=>{G.state='play';gameOver();}}]);
+     {go:()=>{G.state='play';gameOver();}},
+     {go:toggleSound}]);
 }
 function togglePause(){
   if(G.state==='play'){G.state='paused';saveSlot();showPause();Music.stop();}
@@ -1600,6 +1613,7 @@ el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('tapped.sound',Snd.on?'1':'0');
   if(!Snd.on)Music.stop();
   el('soundstate').textContent=Snd.on?'on':'off';
+  ov.querySelectorAll('.msound').forEach(b=>{b.textContent=soundLabel();});
   if(Snd.on){Snd.boot();Snd.clink();}
 });
 el('soundstate').textContent=Snd.on?'on':'off';
@@ -1738,8 +1752,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -1759,18 +1774,22 @@ var CSS=''+
 'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
 'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
 'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-'html.rg-side #status{grid-area:1/1/2/4!important}'+
-'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+'html.rg-side #status{font-size:12px!important}'+
+'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-side .rg-thru{display:contents!important}'+
 'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
 'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
 'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
 'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
 'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
 '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
 '#rg-x[hidden]{display:none}'+
 '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -1778,13 +1797,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){
@@ -1874,7 +1893,7 @@ if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bott
 }
 return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
 var alone=function(w){return inside(at(w));};

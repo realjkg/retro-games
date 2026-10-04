@@ -146,7 +146,7 @@ test('Full screen is a class on the page and says how to get out again',()=>{
   assert.equal(r.cls.has('fs'),false);
   r.run('toggleFull();');
   assert.equal(r.cls.has('fs'),true);
-  assert.equal(r.el('fs').textContent,'EXIT FULL SCREEN');
+  assert.equal(r.el('fs').textContent,'EXIT');
   r.run('toggleFull();');
   assert.equal(r.cls.has('fs'),false);
   assert.equal(r.el('fs').textContent,'FULL SCREEN');

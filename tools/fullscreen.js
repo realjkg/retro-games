@@ -188,7 +188,14 @@ const MEASURE=()=>{
       const on=q.left>=m-0.5&&q.top>=m-0.5&&q.right<=innerWidth-m+0.5&&q.bottom<=innerHeight-m+0.5;
       const hit=on?document.elementFromPoint(cx,cy):null;
       const ix=Math.min(r.right,q.right)-Math.max(r.left,q.left),iy=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top);
-      ctl.push({id:(el.id||el.className||el.tagName).toString().slice(0,14),on,
+      /* and in one piece: every part of it (a stick's knob, its ring) inside
+         its own box. A rule that took a stick's position:relative away put
+         Galaga's knob in the middle of the picture, and every other column
+         here still said yes */
+      let whole=true;
+      for(const d of el.querySelectorAll('*')){const z=d.getBoundingClientRect();if(z.width<1||z.height<1)continue;
+        if(z.left<q.left-4||z.top<q.top-4||z.right>q.right+4||z.bottom>q.bottom+4){whole=false;break;}}
+      ctl.push({id:(el.id||el.className||el.tagName).toString().slice(0,14),on:on&&whole,
         hits:!!hit&&(hit===el||el.contains(hit)||hit.contains(el)),over:ix>1&&iy>1&&!st.contains(el)});
     });
     return{x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
@@ -228,7 +235,7 @@ const MEASURE=()=>{
       const fillOk=full&&!roomy;
       row.push(cell(fillOk,(full?'':'not full ')+(roomy?'could be bigger ':'')+inn.pct+'% (was '+before.pct+')'));
       const lost=inn.ctl.filter(k=>!k.on||!k.hits);
-      row.push(cell(!lost.length,lost.length?lost[0].id+(lost[0].on?' covered':' at the edge'):inn.ctl.length+' controls'));
+      row.push(cell(!lost.length,lost.length?lost[0].id+(lost[0].on?' covered':' at the edge or apart'):inn.ctl.length+' controls'));
       const over=inn.ctl.filter(k=>k.over);
       row.push(cell(!over.length,over.length?'on '+over[0].id:'clear'));
       /* out again: the game's own button, or the chip's EXIT in the status bar */

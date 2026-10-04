@@ -77,9 +77,11 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #overlay.hidden{display:none}
 /* Over the title art the overlay is only a scrim, so the swarm shows through. */
 #overlay.splash{background:linear-gradient(rgba(4,4,10,0) 0%,rgba(4,4,10,0) 44%,rgba(4,4,10,.93) 70%);
-  justify-content:flex-end;gap:6px;padding:10px 12px 14px}
+  justify-content:flex-end;gap:5px;padding:10px 12px 12px}
 #overlay.splash h1{font-size:17px;margin-bottom:2px;text-shadow:0 1px 3px #000}
-#overlay.splash .menuitem{width:min(280px,82%);padding:9px;background:rgba(20,20,34,.92);
+/* six choices under the swarm: a little tighter than a card's, so the name
+   still sits below the bees rather than across them */
+#overlay.splash .menuitem{width:min(280px,82%);padding:6px 9px;background:rgba(20,20,34,.92);
   border-color:#4a4a6a;color:#e6e6f2}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#16130a}
 #overlay.splash .sub,#overlay.splash small.tip{color:#c9c9e0;text-shadow:0 1px 2px #000}
@@ -94,7 +96,9 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
   border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:min(300px,86%)}
 .tally .r{display:flex;justify-content:space-between;gap:18px}
 .tally .r span:last-child{color:var(--gold);font-weight:700}
-#sound{position:absolute;right:8px;top:8px;z-index:3}
+/* SOUND lives in the title and pause menus now; the button stays in the page,
+   hidden, because its click handler is the one switch both menus press. */
+#sound{display:none}
 @media (pointer:fine){#pads{display:none}}
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
@@ -1950,9 +1954,9 @@ function showSplash(){
     '<button class="menuitem" type="button">RESUME</button>'+
     '<button class="menuitem" type="button">HIGH SCORES</button>'+
     '<button class="menuitem" type="button">HOW TO PLAY</button>'+
-    '<small class="tip">← → or the stick to move · SPACE fire · P pause · hold to autofire</small>',
+    soundItem(),
     [{go:newGame},{go:cycleLives},{go:resumeRun},
-     {go:()=>Arcade.show({onClose:showSplash})},{go:showHelp}]);
+     {go:()=>Arcade.show({onClose:showSplash})},{go:showHelp},{go:toggleSound}]);
 }
 /* Two, three, five, endless, and back to three. Endless is the fourth stop on
  * the same switch rather than a mode of its own, because it is the same
@@ -1966,10 +1970,18 @@ function cycleLives(){
   const b=el('mfight');
   if(b)b.textContent='FIGHTERS: '+(G.endless?'ENDLESS':G.startLives);
 }
+/* The one sound switch, offered as a menu item: it presses the hidden #sound
+ * button, so the menu, the button's handler and the saved setting can never
+ * disagree. */
+function soundLabel(){return 'SOUND: '+(Snd.on?'ON':'OFF');}
+function soundItem(){return '<button class="menuitem msound" type="button">'+soundLabel()+'</button>';}
+function toggleSound(){el('sound').click();}
 function showHelp(){
   ov.className='card';
   ov.innerHTML=
     '<h1>HOW TO PLAY</h1>'+
+    '<small class="tip">← → or the stick to move, or drag on the playfield. SPACE or FIRE '+
+    'to fire; hold it to autofire. P or PAUSE to pause.</small>'+
     '<div class="tally" style="text-align:left">'+
     '<div class="r"><span>Bee, in formation / diving</span><span>50 / 100</span></div>'+
     '<div class="r"><span>Butterfly, formation / diving</span><span>80 / 160</span></div>'+
@@ -2026,13 +2038,15 @@ function showPause(){
     '<button class="menuitem" type="button">FIGHTERS: '+
       (G.endless?'ENDLESS':G.lives)+'</button>'+
     '<button class="menuitem" type="button">SAVE THIS RUN</button>'+
-    '<button class="menuitem" type="button">END THIS RUN</button>',
+    '<button class="menuitem" type="button">END THIS RUN</button>'+
+    soundItem(),
     [{go:togglePause},
      {go:()=>{setEndless(!G.endless);showPause();}},
      {go:()=>Arcade.saveAs(packRun(),'STAGE '+G.stage,function(sl){
         if(sl){G.slotIni=sl.ini;flash('KEPT UNDER '+sl.ini);}
         showPause();})},
-     {go:()=>{G.state='play';gameOver();}}]);
+     {go:()=>{G.state='play';gameOver();}},
+     {go:toggleSound}]);
 }
 
 /* The title screen flies the formation behind the menu rather than a picture of
@@ -2203,6 +2217,7 @@ el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('galaga.sound',Snd.on?'1':'0');
   if(!Snd.on)Music.stop();
   el('soundstate').textContent=Snd.on?'on':'off';
+  ov.querySelectorAll('.msound').forEach(b=>{b.textContent=soundLabel();});
   if(Snd.on){Snd.boot();Snd.shot();}
 });
 el('soundstate').textContent=Snd.on?'on':'off';
@@ -2332,9 +2347,10 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -2346,7 +2362,7 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
@@ -2429,8 +2445,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -2450,18 +2467,22 @@ var CSS=''+
 'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
 'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
 'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-'html.rg-side #status{grid-area:1/1/2/4!important}'+
-'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+'html.rg-side #status{font-size:12px!important}'+
+'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-side .rg-thru{display:contents!important}'+
 'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
 'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
 'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
 'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
 'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
 '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
 '#rg-x[hidden]{display:none}'+
 '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -2469,13 +2490,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){
@@ -2565,7 +2586,7 @@ if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bott
 }
 return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
 var alone=function(w){return inside(at(w));};

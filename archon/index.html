@@ -65,6 +65,19 @@ body.facing .padrow.flip{transform:rotate(180deg)}
 #overlay{position:absolute;inset:0;background:rgba(8,10,16,.94);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:9px;padding:16px;text-align:center;overflow-y:auto}
 #overlay.hidden{display:none}
+/* Centred when it fits and scrolled from the top when it does not: plain
+   centring in a short stage pushes the title off the top, out of reach. */
+#overlay{justify-content:flex-start}
+#overlay>:first-child{margin-top:auto}
+#overlay>:last-child{margin-bottom:auto}
+/* Nothing to say (the menus, before a game): no empty bar over the board. */
+#status:empty{display:none}
+/* SOUND is in the main menu; the button stays, off the screen, as the one
+   place the switch is kept, and the line that spoke for it goes with it. */
+#sound,#audio-status{display:none!important}
+small.tip.help{text-align:left;max-width:340px;color:#c3cad9}
+.help b{color:var(--gold)}
+@media (max-width:430px){#overlay{gap:6px}.menuitem{padding:8px}}
 h1{font-size:22px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:800}
 .sub{font-size:12px;color:var(--dim);margin:0 0 4px;max-width:340px;line-height:1.45}
 .menuitem{width:min(300px,86%);padding:11px;border:1px solid var(--line);border-radius:10px;
@@ -103,7 +116,7 @@ body.gamemode{position:fixed;top:0;left:0;right:0;padding:0;background:#000;over
 body.gamemode #wrap{position:relative;max-width:none;width:100%;gap:0;padding:0;
   flex:1;min-height:0;height:auto}
 body.gamemode #status{position:absolute;left:0;right:0;top:0;z-index:3;height:26px;min-height:0;
-  padding:5px 168px 5px 8px;border:0;border-radius:0;background:rgba(8,10,16,.72);color:#e9edf6;
+  padding:5px 64px 5px 8px;border:0;border-radius:0;background:rgba(8,10,16,.72);color:#e9edf6;
   font-size:12px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 body.gamemode #stage{position:absolute;aspect-ratio:auto;border:0;border-radius:0;background:#000}
 body.gamemode #pads{position:absolute;inset:0;z-index:2;pointer-events:none}
@@ -1410,7 +1423,7 @@ function setGameMode(on){
   gameMode=!!on; wantGameMode=gameMode;
   bodyEl.classList?.[gameMode?"add":"remove"]("gamemode");
   fullBtn?.setAttribute?.("aria-pressed",gameMode?"true":"false");
-  if(fullBtn)fullBtn.textContent=gameMode?"EXIT FULL":"FULL SCREEN";
+  if(fullBtn)fullBtn.textContent=gameMode?"EXIT":"FULL SCREEN";
   try{localStorage.setItem("archon.gamemode",gameMode?"1":"0");}catch(e){}
   if(gameMode)keepAwake(); else releaseAwake();
   layout();
@@ -1610,6 +1623,8 @@ ov.addEventListener("click",e=>{
   if(el.dataset.act==="full"){toggleGameMode();mainMenu();return;}
   // A click is a user gesture, which is the only moment fullscreen can be requested.
   if(el.dataset.act==="back"){mainMenu();return;}
+  if(el.dataset.act==="sound"){document.getElementById("sound").click();el.textContent=soundLabel();return;}
+  if(el.dataset.act==="help"){helpMenu();return;}
   if(el.dataset.mode||el.dataset.side||el.dataset.seat||el.dataset.cpu)enterGameModeIfWanted();
   if(el.dataset.seat){setSeating(el.dataset.seat);
     G.mode="pvp"; G.human={L:true,D:true}; newGame(); applySeating(); return;}
@@ -1658,6 +1673,23 @@ function cpuMenu(side){
   `<div class="menuitem" data-act="menu">Back</div>`);
 }
 let pendingSide="L";
+/* SOUND: the same switch as the #sound button, which still does the work */
+function soundLabel(){return "Sound: "+(SOUND.enabled?"ON":"OFF");}
+function helpMenu(){
+  showOverlay(`<h1>HOW TO PLAY</h1><small class="tip help">
+  <b>Win</b> by taking all five power points or destroying every enemy icon. Light always moves first.<br><br>
+  <b>Stick</b> moves the cursor, and holds a direction in a duel. <b>Controls</b> on the main menu switches it for a d-pad.<br>
+  <b>A</b> selects, confirms and fires · <b>B</b> cancels · <b>SPELL</b> opens the seven one-shot spells · <b>MENU</b> goes back to the main menu.<br><br>
+  <b>Combat</b>: hold A + a direction to aim and fire; release A to move.<br>
+  <b>Bells</b>: high bell = Light ready, low bell = Dark ready.<br><br>
+  <b>1P vs CPU</b> asks how hard the machine should play, from Novice to Master.<br>
+  <b>1P vs 2P</b> gives each player their own pad — Light's and Dark's, each live only on its own turn —
+  and asks whether you are sitting side by side or facing each other across the device.<br><br>
+  <b>Keyboard</b>: arrows + Z/X, and WASD + Shift for player two. Q spells, Esc menu. G toggles full screen.<br>
+  <b>Gamepad</b>: a connected gamepad drives Light; a second one drives Dark.<br>
+  <b>Sound</b> is switched on the main menu.</small>
+  <div class="menuitem sel" data-act="menu">Back</div>`);
+}
 function mainMenu(){
   G.phase="menu"; G.turnPhase="select"; G.combat=null;
   document.getElementById("pad2").style.display="none";layout();
@@ -1667,15 +1699,9 @@ function mainMenu(){
   <div class="menuitem" data-mode="pvc">1P vs CPU</div>
   <div class="menuitem" data-mode="cvc">CPU vs CPU &nbsp;<span style="opacity:.7">demo</span></div>
   <div class="menuitem" data-act="controls">Controls: ${controls==="stick"?"JOYSTICK":"D-PAD"}</div>
+  <div class="menuitem" data-act="sound">${soundLabel()}</div>
+  <div class="menuitem" data-act="help">How to play</div>
   <div class="menuitem" data-act="full">${gameMode?"EXIT FULL SCREEN":"FULL SCREEN"}</div>
-  <small class="tip">The stick moves the cursor and holds a direction in a duel — Controls switches it
-  for a d-pad · A selects, confirms and fires · B cancels · SPELL opens the seven
-  one-shot spells. Combat: hold A + a direction to aim and fire; release A to move. High bell = Light ready, low bell = Dark ready.
-  1P vs CPU asks how hard the machine should play, from Novice to Master.
-  1P vs 2P gives each player their own pad — Light's and Dark's, each live only on its own turn —
-  and asks whether you are sitting side by side or facing each other across the device.
-  Keyboard: arrows + Z/X, and WASD + Shift for player two. G toggles full screen.
-  A connected gamepad drives Light; a second one drives Dark.</small>
   ${isStandalone()?"":`<small class="tip">${isIOS()
     ?"iPhone: <b>Share ▸ Add to Home Screen</b> to play with no address bar, offline."
     :"Install it from the INSTALL button below the pad to play without the browser."}</small>`}
@@ -2104,9 +2130,10 @@ mainMenu(); requestAnimationFrame(loop);
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -2118,7 +2145,7 @@ mainMenu(); requestAnimationFrame(loop);
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
@@ -2201,8 +2228,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -2216,13 +2244,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){

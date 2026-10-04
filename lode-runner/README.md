@@ -22,10 +22,10 @@ diagonally, and no way at all to kill the guards who are already running at you.
   way out the original gave you when you had walled yourself in.
 - **PAUSE** (Esc or P) opens the menu, which carries the controls card, the music switch and the
   full-screen switch. **≡** on the pad does the same.
-- Sound starts after a tap or key press. SOUND ON/OFF mutes or enables it.
+- Sound starts after a tap or key press. "Sound: on/off" in the title menu and the pause menu mutes or enables it.
 - **FULL SCREEN** hides the page around the game: everything goes black, the board and the
   controls are all that is left. Held sideways the pads move to either side of the screen like a
-  handheld. EXIT FULL SCREEN (or Esc) puts the page back.
+  handheld. EXIT (or Esc) puts the page back.
 
 ## What the original is, and what this keeps
 

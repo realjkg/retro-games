@@ -104,13 +104,26 @@ h2{font-size:14px;margin:0;color:var(--gold);letter-spacing:.06em}
 small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
 .scroll{max-height:100%;overflow-y:auto;width:100%;display:flex;flex-direction:column;
   align-items:center;gap:6px}
-#sound{position:absolute;right:6px;top:6px;z-index:3;min-width:0;height:26px;font-size:9px;padding:0 6px}
+/* SOUND lives in the title menu and MENU; the button stays in the page,
+   hidden, because its click handler is the one switch both menus press. */
+#sound{display:none}
 .sheet{font-size:11px;text-align:left;background:var(--panel2);border:1px solid var(--line);
   border-radius:8px;padding:7px 10px;width:min(330px,94%);line-height:1.6}
 .sheet .r{display:flex;justify-content:space-between;gap:10px}
 .sheet .r span:last-child{color:var(--gold)}
-@media (pointer:fine){#pads .hint{display:block}}
-.hint{display:none;font-size:10px;color:var(--dim);text-align:center}
+/* The log is a box for what has happened; before anything has, it is not there. */
+#log:empty{display:none}
+/* On a phone held upright the view is about 370x255, and the Guild's five
+   choices with its title, line and footer did not fit in it: the last was cut
+   in half. Tighter menus on a small view keep every choice on the glass. */
+#stage{container-type:inline-size}
+@container (max-width:520px){
+  #overlay{gap:4px;padding:8px 10px}
+  #overlay .scroll{gap:4px}
+  #overlay h1{font-size:15px}
+  #overlay .sub,#overlay small.tip{font-size:10px;line-height:1.35;margin:0}
+  #overlay .menuitem{padding:6px 10px;font-size:12.5px}
+}
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
    the click that a fast second press makes - and it does that on the
@@ -582,7 +595,6 @@ small.tip{color:var(--dim);font-size:10.5px;max-width:400px;line-height:1.5}
       <button class="btn wide" id="buse" type="button">USE<small>item</small></button>
       <button class="btn wide" id="bmenu" type="button">MENU<small>save</small></button>
     </div>
-    <div class="hint">arrows or WASD to move · C cast · B sing · U use · P party · ESC menu</div>
   </div>
 </div>
 <script>
@@ -1735,12 +1747,15 @@ function drawHud(){
 function paintView(){
   g.fillStyle='#0d0a08';g.fillRect(0,0,VW,VH);
   if(P.roster.length)drawWorld();
-  else{
+  /* The title menu says the name itself; drawn under it as well, the two
+   * showed through each other. The canvas keeps it only with nothing over it. */
+  else if(!overlayUp()){
     drawTextC(g,"THE BARD'S TALE",50,'#d8a838');
     drawTextC(g,'SKARA BRAE',64,'#9a8b76');
   }
   if(P.fight)drawFight();
-  drawHud();
+  /* where and which way only mean something once there is a party standing there */
+  if(P.roster.length)drawHud();
 }
 
 /* ---------- the page around it ---------- */
@@ -1789,7 +1804,7 @@ function menu(o){
   if(o.sub)parts.push('<p class="sub">'+o.sub+'</p>');
   if(o.html)parts.push(o.html);
   (o.items||[]).forEach(it=>{
-    parts.push('<button class="menuitem" type="button"'+(it.off?' disabled':'')+'>'+
+    parts.push('<button class="menuitem'+(it.cls?' '+it.cls:'')+'" type="button"'+(it.off?' disabled':'')+'>'+
       '<span>'+esc(it.label)+'</span>'+(it.right?'<b>'+esc(it.right)+'</b>':'')+'</button>');
   });
   if(o.tip)parts.push('<small class="tip">'+o.tip+'</small>');
@@ -1828,10 +1843,15 @@ function showSplash(){
     items:[
       {label:'A NEW PARTY',go:()=>{newGame();}},
       {label:'RESUME',right:saved?'saved':'',off:!saved,go:resumeMenu},
-      {label:'HOW TO PLAY',go:showHelp}
-    ],
-    tip:'arrows or WASD to walk · C cast · B sing · U use · P party · ESC menu'});
+      {label:'HOW TO PLAY',go:showHelp},
+      soundItem()
+    ]});
 }
+/* The one sound switch, offered as a menu item: it presses the hidden #sound
+ * button, so the menus, the button's handler and the saved setting can never
+ * disagree. */
+function soundLabel(){return 'SOUND: '+(Snd.on?'ON':'OFF');}
+function soundItem(){return {label:soundLabel(),cls:'msound',go:()=>el('sound').click()};}
 function showHelp(){
   menu({title:'HOW TO PLAY',
     html:'<div class="sheet">'+
@@ -1841,7 +1861,9 @@ function showHelp(){
       '<div class="r"><span>Temple</span><span>wounds, poison, the dead</span></div>'+
       '<div class="r"><span>Review Board</span><span>levels, when you have earned one</span></div>'+
       '<div class="r"><span>Scarlet Bard</span><span>fills the bard\'s flask</span></div>'+
-      '<div class="r"><span>The grate</span><span>down</span></div></div>',
+      '<div class="r"><span>The grate</span><span>down</span></div></div>'+
+      '<small class="tip">On a keyboard: arrows or WASD to walk · C cast · B sing · '+
+      'U use · P party · ESC menu</small>',
     sub:'Six adventurers. The four in front do the fighting and take the blows; '+
         'the two behind cast, sing and shoot. Spells cost spell points and songs '+
         'cost a swallow from the flask. Take a torch — the dark down there is not '+
@@ -2281,6 +2303,7 @@ function gameMenu(){
       {label:'SAVE',off:!P.roster.length,go:()=>saveMenu(hideOverlay)},
       {label:'RESUME A SAVED PARTY',off:!Arcade.hasSlots(),go:resumeMenu},
       {label:'BACK TO THE TITLE',go:showSplash},
+      soundItem(),
       {label:'CLOSE',go:hideOverlay}]});
 }
 
@@ -2374,6 +2397,7 @@ document.addEventListener('keydown',ev=>{
 el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('bt.sound',Snd.on?'1':'0');
   el('soundstate').textContent=Snd.on?'on':'off';
+  ov.querySelectorAll('.msound span').forEach(s=>{s.textContent=soundLabel();});
   if(Snd.on){Snd.boot();Snd.coin();}
 });
 el('soundstate').textContent=Snd.on?'on':'off';
@@ -2490,9 +2514,10 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -2504,7 +2529,7 @@ if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
@@ -2587,8 +2612,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -2608,18 +2634,22 @@ var CSS=''+
 'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
 'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
 'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-'html.rg-side #status{grid-area:1/1/2/4!important}'+
-'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+'html.rg-side #status{font-size:12px!important}'+
+'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-side .rg-thru{display:contents!important}'+
 'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
 'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
 'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
 'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
 'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
 '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
 '#rg-x[hidden]{display:none}'+
 '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -2627,13 +2657,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){
@@ -2723,7 +2753,7 @@ if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bott
 }
 return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
 var alone=function(w){return inside(at(w));};

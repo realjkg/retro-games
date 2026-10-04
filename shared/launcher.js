@@ -23,9 +23,10 @@
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -37,7 +38,7 @@
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+

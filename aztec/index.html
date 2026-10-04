@@ -64,6 +64,10 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
   border-color:#6b5533;color:#f1e6d2}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#1a1205}
 #overlay.splash .diffgrid .menuitem{width:auto}
+/* A row of choices side by side, so the title card stays under the logo. */
+.mrow{display:flex;justify-content:center;gap:6px;width:min(260px,76%)}
+#overlay.splash .mrow .menuitem{width:auto;flex:1 1 0;min-width:0}
+#overlay.splash .menuitem.small{width:auto;padding:5px 14px;font-size:12px;letter-spacing:.04em}
 #overlay.splash .sub,#overlay.splash small.tip{color:#d9c9a8;text-shadow:0 1px 2px #000}
 #overlay.splash small.tip{font-size:10px}
 #overlay.splash.card{background:linear-gradient(rgba(6,5,12,.62),rgba(6,5,12,.9) 58%);
@@ -75,6 +79,9 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
 .menuitem.sel{border-color:var(--gold);background:var(--gold);color:#1a1205;font-weight:700}
 .diffgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(340px,94%)}
 .diffgrid .menuitem{width:auto;padding:10px 4px;font-size:14px}
+/* The pause card goes two abreast so it fits a stage wider than it is tall. */
+.menugrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,96%)}
+.menugrid .menuitem{width:auto;padding:10px 6px;font-size:13px}
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
@@ -107,6 +114,9 @@ body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size
 body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
 body.fs .soundrow{margin:2px 0 0;gap:8px}
 body.fs #audio-status{display:none}
+/* Sound lives in the title and pause menus now; the button stays in the page
+   (hidden) so its handler is the one switch both menus press. */
+#sound,#audio-status{display:none}
 @media (orientation:landscape) and (max-height:560px){
   /* Held sideways there is no room below the screen, so the pads flank it
      the way a handheld does: pad under the left thumb, buttons under the right. */
@@ -1186,7 +1196,7 @@ const fsBtn=document.getElementById("fs");
 const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
 function setFocus(on){
  document.body.classList.toggle("fs",on);
- fsBtn.textContent=on?"\u2715 EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.textContent=on?"\u2715 EXIT":"FULL SCREEN";
  fsBtn.setAttribute("aria-pressed",String(on));
 }
 function toggleFullscreen(){
@@ -1198,7 +1208,7 @@ function toggleFullscreen(){
  setFocus(on);
  clearKeys();
  fit();
- say(on?"Full screen. EXIT FULL SCREEN puts the page back.":"Back to the page.");
+ say(on?"Full screen. EXIT puts the page back.":"Back to the page.");
 }
 fsBtn.addEventListener("click",toggleFullscreen);
 // Leaving fullscreen by Esc or the system gesture drops the layout with it.
@@ -1233,7 +1243,8 @@ function label(el,text,caption){
 }
 function updatePads(){
  const h=G.hero;
- label(fireBtn,weaponLabel(),"fire");
+ const wl=weaponLabel();
+ label(fireBtn,wl,wl==="FIRE"?"":"fire");     // no caption that repeats the name
  const act=actionLabel();
  label(useBtn,act,act==="USE"?"":"use");
  label(runBtn,h&&h.running?"RUN":"WALK","");
@@ -1247,8 +1258,13 @@ function showMenu(title,sub,items,tip,grid,splash){
  ov.classList.toggle("card",!!(splash&&title));
  G.menuTitle=title||"";
  ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
-  (grid?`<div class="diffgrid">`:"")+
-  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}" data-i="${i}">${it.label}</button>`).join("")+
+  (grid?`<div class="${grid===true?"diffgrid":grid}">`:"")+
+  items.map((it,i)=>{
+   const prev=i?items[i-1].row:undefined, next=i+1<items.length?items[i+1].row:undefined;
+   const btn=`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`;
+   if(!it.row)return btn;
+   return (prev===it.row?"":`<div class="mrow">`)+btn+(next===it.row?"":`</div>`);
+  }).join("")+
   (grid?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
  ov.classList.remove("hidden");
 }
@@ -1262,13 +1278,24 @@ ov.addEventListener("click",e=>{
  const b=e.target.closest?e.target.closest(".menuitem"):null;
  if(!b||!G.menu)return;
  G.menu.sel=+b.dataset.i;chooseMenu();});
+// Sound on/off as a menu line: it presses the (hidden) SOUND button, so the
+// state, the label and anything listening to that button stay one switch.
+function soundItem(rebuild){
+ return{label:"Sound: "+(SOUND.enabled?"on":"off"),fn:()=>{
+  const i=G.menu?G.menu.sel:0;
+  document.getElementById("sound").click();
+  rebuild();
+  if(G.menu){G.menu.sel=i;
+   ov.querySelectorAll(".menuitem").forEach((el,j)=>el.classList.toggle("sel",j===i));}}};
+}
 function mainMenu(){
  G.phase="menu";                       // the canvas draws the title, so the card carries none
  showMenu("","",
   [{label:"Enter the tomb",fn:diffMenu},
-   {label:"High scores",fn:()=>Arcade.show({onClose:mainMenu})},
-   {label:"How to play",fn:helpMenu}],
-  "After Aztec, Paul Stephenson / Datamost, 1982. Rebuilt for touch screens.",false,true);
+   {label:"High scores",row:"a",fn:()=>Arcade.show({onClose:mainMenu})},
+   {label:"How to play",row:"a",fn:()=>helpMenu()},
+   Object.assign(soundItem(mainMenu),{small:true})],
+  "After Aztec, Paul Stephenson / Datamost, 1982.",false,true);
 }
 function diffMenu(){
  const items=[];
@@ -1287,16 +1314,18 @@ function helpMenu(back){
   "do where you stand: OPEN a chest, DIG the wall you face, GO DOWN, GO UP, ESCAPE. "+
   "A standing swing or shot passes over a serpent; crawl and strike low. "+
   "Find the idol on the lowest level, then climb back to the entrance and out. "+
-  "FULL SCREEN below the pad hides the page and leaves only the tomb and the controls.");
+  "FULL SCREEN below the pad hides the page and leaves only the tomb and the controls; EXIT puts it back. "+
+  "Sound starts with your first tap or key press; switch it in this menu or the pause menu.");
 }
 function pauseMenu(){
  showMenu("Paused","Depth "+(G.depth+1)+" of "+G.levels.length+" · "+fmtTime(G.time)+" · score "+G.score+
   " · music "+(MUSIC.on?"on":"off"),
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
    {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
+   soundItem(pauseMenu),
    {label:"Music on/off",fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
    {label:"Controls",fn:()=>{helpMenu(true);}},
-   {label:"Abandon the tomb",fn:mainMenu}]);
+   {label:"Abandon the tomb",fn:mainMenu}],"","menugrid");
 }
 
 /* ============ drawing ============ */
@@ -1677,9 +1706,10 @@ fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
  * it moves into whatever element is actually covering the screen and rides
  * that one's layout instead.
  *
- * The lettering is the collection's own: monospace, wide-spaced, upper case,
- * and split a little cyan to the left and magenta to the right the way a
- * mistuned tube did it.
+ * The lettering is the collection's own: wide-spaced, upper case, and split a
+ * little cyan to the left and magenta to the right the way a mistuned tube did
+ * it. The face is the game's own: a second family round the picture was the
+ * link's, and a design review counted it against every game.
  *
  * This file is the one copy. tools/sync-launcher.js writes it into each page
  * between its markers, and the check in CI fails if any of them drifts.
@@ -1691,7 +1721,7 @@ fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
   var CSS=''+
   '#rg-launch{display:block;margin:8px auto calc(env(safe-area-inset-bottom) + 2px);'+
     'padding:6px 13px;border-radius:999px;flex:0 0 auto;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'text-decoration:none;color:#fff8e6;background:rgba(10,7,19,.72);'+
     'border:1px solid rgba(255,210,127,.32);text-align:center;width:max-content;'+
@@ -1774,8 +1804,9 @@ var CSS=''+
 '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
 'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
 '#rg-row #rg-launch{margin:0}'+
+'body.gamemode #rg-row{display:none!important}'+
 '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-family:inherit;'+
 'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -1795,18 +1826,22 @@ var CSS=''+
 'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
 'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
 'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-'html.rg-side #status{grid-area:1/1/2/4!important}'+
-'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+'html.rg-side #status{font-size:12px!important}'+
+'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-side .rg-thru{display:contents!important}'+
 'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
 'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
 'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
 'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
 'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
 'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
 '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
 'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
 '#rg-x[hidden]{display:none}'+
 '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -1814,13 +1849,13 @@ var CSS=''+
 '#rg-fs-how[hidden]{display:none}'+
 '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
 'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'font-size:14px;line-height:1.45;font-family:inherit}'+
 '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
 '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
 '#rg-fs-how li{margin:4px 0}'+
 '#rg-fs-how b{color:#ffd27f}'+
 '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
 'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 var wake=null;
 function keepAwake(){
@@ -1910,7 +1945,7 @@ if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bott
 }
 return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
 var alone=function(w){return inside(at(w));};
