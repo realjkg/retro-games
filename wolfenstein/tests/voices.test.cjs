@@ -39,17 +39,19 @@ test('the measure is right about people: every woman above the bar, every man be
 function clips(){
   const r=runtime(1);
   const out=[];
-  for(const kind of ['g1','g2','ss'])
+  for(const kind of ['g1','g2','g3','ss','ss2'])
     for(const text of r.j(`Object.keys(CLIPS.v.${kind})`))
       out.push({kind,text,pcm:r.j(`Array.from(decodeClip(CLIPS.v.${kind}[${JSON.stringify(text)}]))`),
         sr:r.j('CLIPS.sr')});
   return{r,out};
 }
-/* the fastest each voice is played: a guard's voice at his highest, and the
-   deeper guards borrowing the first voice for their questions */
+/* the fastest each voice's clips are played: by the man whose voice it is,
+   at his highest, and by the others of his kind who borrow the first voice's
+   clips for the lines they have none of their own for */
 function fastest(r,kind){
-  return r.j(`(()=>{let m=0;for(let p=0.85;p<=1.1501;p+=0.01){const v=voiceFor(${JSON.stringify(kind==='ss'?'ss':'guard')},p,1);
-    if(v.clip===${JSON.stringify(kind)}||(${JSON.stringify(kind)}==='g1'&&v.clip==='g2'))m=Math.max(m,v.play);}return m;})()`);
+  const ss=kind==='ss'||kind==='ss2';
+  return r.j(`(()=>{let m=0;for(let p=0.85;p<=1.1501;p+=0.01){const v=voiceFor(${JSON.stringify(ss?'ss':'guard')},p,1);
+    if(v.clip===${JSON.stringify(kind)}||${JSON.stringify(kind)}==='g1'||${JSON.stringify(kind)}==='ss')m=Math.max(m,v.play);}return m;})()`);
 }
 
 test('every line the men say is a man\'s voice, at every pitch the game plays it', ()=>{
@@ -68,16 +70,21 @@ test('every line the men say is a man\'s voice, at every pitch the game plays it
   }
   /* and the voices sound like different men: the SS lowest */
   const med=k=>V.median(rows.filter(x=>x[0]===k&&mood[x[1]]!=='scream').map(x=>x[2]));
-  assert.ok(med('ss')<med('g2')&&med('g2')<med('g1'),'the SS are not the deepest: '+['g1','g2','ss'].map(k=>k+' '+med(k)).join(', '));
+  const all=['g1','g2','g3','ss','ss2'].map(k=>k+' '+med(k)).join(', ');
+  assert.ok(Math.max(med('ss'),med('ss2'))<Math.min(med('g1'),med('g2'),med('g3')),'the SS are not the deepest: '+all);
+  /* five men, five voices: no two of them at the same pitch */
+  const m=['g1','g2','g3','ss','ss2'].map(med).sort((a,b)=>a-b);
+  for(let i=1;i<m.length;i++)assert.ok(m[i]-m[i-1]>=3,'two voices at the same pitch: '+all);
 });
 
 test('every line the game says in 1981 has a man\'s voice to say it', ()=>{
   const r=runtime(1);
   const miss=r.j(`(()=>{const need=[];
-    for(const l of HALT.concat(CHALLENGE))need.push([l,'guard']);
-    for(const l of SSHALT.concat(['Halt! SS! Hände hoch!','Waffe runter!']))need.push([l,'ss']);
+    for(const l of HALT.concat(CHALLENGE,CH_PAPERS,CH_LAST))need.push([l,'guard']);
+    for(const l of SSHALT.concat(SSCHASE,['Halt! SS! Hände hoch!','Waffe runter!','Ihren Pass!']))need.push([l,'ss']);
     for(const q of Object.values(QUESTIONS))need.push([q.de,'guard'],[q.de,'ss']);
-    return need.filter(([l,k])=>!clipFor(l,voiceFor(k,1,1))&&!clipFor(l,voiceFor(k,0.9,1))).map(x=>x.join(' / '));})()`);
+    /* in every man's voice: low, middle and high of each kind */
+    return need.filter(([l,k])=>[0.86,1,1.14].some(p=>!clipFor(l,voiceFor(k,p,1)))).map(x=>x.join(' / '));})()`);
   assert.deepEqual(miss,[],'lines with no clip');
 });
 

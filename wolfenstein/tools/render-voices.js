@@ -32,7 +32,9 @@ const SR=6000;
 const VOICES={
   g1:{variant:'m3',pitch:46},     /* a guard, the higher of the two */
   g2:{variant:'m4',pitch:38},     /* a guard, deeper */
-  ss:{variant:'m1',pitch:30}      /* the SS, at the bottom */
+  g3:{variant:'m7',pitch:34},     /* a third guard, between them, another throat */
+  ss:{variant:'m1',pitch:30},     /* the SS, at the bottom */
+  ss2:{variant:'m2',pitch:20}     /* a second SS man, lower still */
 };
 /* the moods: pace (words a minute), and pitch and its range relative to the man's own */
 const MOODS={
@@ -96,14 +98,17 @@ if(process.argv.includes('--verify')){
 }
 const r=runtime(1);
 const SPOKEN=r.j('SPOKEN');
-const clips={g1:{},g2:{},ss:{}};
+const clips={g1:{},g2:{},g3:{},ss:{},ss2:{}};
 let n=0,secs=0;
 for(const [text,mood,who] of SPOKEN){
-  /* the second guard voice has its own shouts; for the questions and the
-     talk he borrows the first's, played at his own pitch */
-  const shout=mood==='bark'||mood==='plead'||mood==='scream';
-  const guards=shout?['g1','g2']:['g1'];
-  const voices=who==='ss'?['ss']:who==='guard'?guards:guards.concat(['ss']);
+  /* every guard voice has its own shouts and challenges (an order falls, a
+     question rises: the mood gives each its own tune); for the questioning
+     and the talk the others borrow the first's, played at their own pitch.
+     The second SS man shouts in his own voice too */
+  const shout=mood==='bark'||mood==='plead'||mood==='scream'||mood==='ask';
+  const guards=shout?['g1','g2','g3']:['g1'];
+  const sss=shout?['ss','ss2']:['ss'];
+  const voices=who==='ss'?sss:who==='guard'?guards:guards.concat(sss);
   for(const v of voices){const y=render(text,v,mood);clips[v][text]=encode(y);n++;secs+=y.length/SR;}
   process.stdout.write('.');
 }
