@@ -1746,136 +1746,222 @@ fit();mainMenu();audioLabel();updatePads();requestAnimationFrame(loop);
 </script>
 <!-- launcher:end -->
 <!-- fullscreen:start -->
-<script data-shared="fullscreen" data-own="1">
+<script data-shared="fullscreen" data-own="1" data-fit="1" data-side="L:#pads .dpad,.soundrow|R:#pads .acts">
 /* full screen: shared/fullscreen.js, written in by tools/sync-fullscreen.js */
 (function(){
-  if(typeof document==='undefined')return;
-  if(document.getElementById('rg-fs'))return;
-  var me=document.currentScript;
-  var own=!!(me&&me.getAttribute('data-own')==='1');
-  var root=document.documentElement;
-  var canAsk=!!(root.requestFullscreen||root.webkitRequestFullscreen);
-  var nav=typeof navigator==='object'&&navigator?navigator:{};
-
-  function installed(){
-    if(nav.standalone===true)return true;
-    try{return matchMedia('(display-mode: standalone)').matches||
-               matchMedia('(display-mode: fullscreen)').matches;}catch(e){return false;}
-  }
-  function current(){return document.fullscreenElement||document.webkitFullscreenElement||null;}
-  /* the name on the home-screen icon, as the page gives it */
-  function gameName(){
-    var m=document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    var t=(m&&m.getAttribute('content'))||document.title||'the game';
-    return t.split(/\s+[—–-]\s+/)[0];
-  }
-
-  var CSS=''+
-  '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
-    'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
-  '#rg-row #rg-launch{margin:0}'+
-  '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
-    'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
-    'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
-    'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
-    'text-shadow:-1px 0 0 rgba(56,232,255,.75),1px 0 0 rgba(255,62,165,.75)}'+
-  '#rg-fs:hover,#rg-fs:focus-visible{border-color:rgba(56,232,255,.75);background:rgba(20,14,32,.9);outline:none}'+
-  '#rg-fs:active{transform:translateY(1px)}'+
-  '#rg-fs .rg-c{color:#38e8ff;text-shadow:none;margin-right:.5em}'+
-  '#rg-fs[hidden]{display:none}'+
-  '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
-    'justify-content:center;padding:16px;background:rgba(4,3,10,.82)}'+
-  '#rg-fs-how[hidden]{display:none}'+
-  '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
-    'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-    'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
-  '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
-  '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
-  '#rg-fs-how li{margin:4px 0}'+
-  '#rg-fs-how b{color:#ffd27f}'+
-  '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-    'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
-    'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
-
-  var wake=null;
-  function keepAwake(){
-    try{if(nav.wakeLock&&nav.wakeLock.request)
-      nav.wakeLock.request('screen').then(function(l){wake=l;}).catch(function(){});}catch(e){}
-  }
-  function letSleep(){try{if(wake)wake.release();}catch(e){}wake=null;}
-
-  function label(b,text){b.innerHTML='<span class="rg-c">'+(current()?'▣':'⛶')+'</span>'+text;}
-  function refresh(b){
-    if(installed()){b.hidden=true;return;}
-    if(!canAsk){b.hidden=false;label(b,'Full screen');return;}
-    /* a page with its own button keeps it, wherever the browser can do it */
-    b.hidden=own;
-    label(b,current()?'Exit full screen':'Full screen');
-  }
-
-  function how(){
-    var d=document.getElementById('rg-fs-how');
-    if(!d){
-      d=document.createElement('div');d.id='rg-fs-how';
-      d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
-      d.setAttribute('aria-labelledby','rg-fs-how-h');
-      d.innerHTML='<div class="rg-box"><h2 id="rg-fs-how-h">Play full screen</h2>'+
-        '<div>Safari on an iPhone cannot hide its bars for a web page. '+
-        'Put the game on your Home Screen and it opens with none:</div>'+
-        '<ol><li>Tap <b>Share</b> (the square with the arrow).</li>'+
-        '<li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li>'+
-        '<li>Open <b class="rg-name"></b> from the new icon.</li></ol>'+
-        '<button type="button">Got it</button></div>';
-      d.querySelector('.rg-name').textContent=gameName();
-      var shut=function(e){if(e)e.preventDefault();d.hidden=true;};
-      d.querySelector('button').addEventListener('click',shut);
-      d.addEventListener('click',function(e){if(e.target===d)shut(e);});
-      document.addEventListener('keydown',function(e){
-        if(!d.hidden&&(e.key==='Escape'||e.key==='Enter')){shut(e);e.stopPropagation();}},true);
-      document.body.appendChild(d);
-    }
-    d.hidden=false;
-    try{d.querySelector('button').focus();}catch(e){}
-  }
-
-  function toggle(b){
-    if(!canAsk){how();return;}
-    try{
-      if(current()){
-        var x=document.exitFullscreen||document.webkitExitFullscreen;
-        var r=x&&x.call(document);if(r&&r.catch)r.catch(function(){});
-      }else{
-        var q=root.requestFullscreen?root.requestFullscreen({navigationUI:'hide'}):root.webkitRequestFullscreen();
-        /* refused (a page shown inside another page can be): say so, briefly */
-        if(q&&q.catch)q.catch(function(){label(b,'Not allowed here');setTimeout(function(){refresh(b);},2200);});
-      }
-    }catch(e){}
-  }
-
-  function put(){
-    if(document.getElementById('rg-fs'))return;
-    var s=document.createElement('style');s.id='rg-fs-style';s.textContent=CSS;
-    (document.head||root).appendChild(s);
-    var b=document.createElement('button');
-    b.id='rg-fs';b.type='button';
-    b.setAttribute('aria-label','Play full screen');
-    b.addEventListener('click',function(e){e.preventDefault();toggle(b);b.blur();});
-    /* beside the way back to the collection, in one row; where a page has no
-     * way back, the row goes where that link would have gone */
-    var row=document.createElement('div');row.id='rg-row';
-    var back=document.getElementById('rg-launch');
-    if(back&&back.parentNode){back.parentNode.insertBefore(row,back);row.appendChild(back);}
-    else (document.body||root).appendChild(row);
-    row.appendChild(b);
-    refresh(b);
-    var on=function(){refresh(b);if(current())keepAwake();else letSleep();};
-    document.addEventListener('fullscreenchange',on);
-    document.addEventListener('webkitfullscreenchange',on);
-    document.addEventListener('visibilitychange',function(){if(!document.hidden&&current())keepAwake();});
-  }
-  if(document.body)put();
-  else document.addEventListener('DOMContentLoaded',put);
+if(typeof document==='undefined')return;
+if(document.getElementById('rg-fs'))return;
+var me=document.currentScript;
+var own=!!(me&&me.getAttribute('data-own')==='1');
+var fit=!!(me&&me.getAttribute('data-fit')==='1');
+var side=(me&&me.getAttribute('data-side'))||'';
+var keepPads=!!(me&&me.getAttribute('data-pads')==='keep');
+var root=document.documentElement;
+var canAsk=!!(root.requestFullscreen||root.webkitRequestFullscreen);
+var nav=typeof navigator==='object'&&navigator?navigator:{};
+function installed(){
+if(nav.standalone===true)return true;
+try{return matchMedia('(display-mode: standalone)').matches||
+matchMedia('(display-mode: fullscreen)').matches;}catch(e){return false;}
+}
+function current(){return document.fullscreenElement||document.webkitFullscreenElement||null;}
+function gameName(){
+var m=document.querySelector('meta[name="apple-mobile-web-app-title"]');
+var t=(m&&m.getAttribute('content'))||document.title||'the game';
+return t.split(/\s+[—–-]\s+/)[0];
+}
+var CSS=''+
+'#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
+'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
+'#rg-row #rg-launch{margin:0}'+
+'#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
+'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
+'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
+'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
+'text-shadow:-1px 0 0 rgba(56,232,255,.75),1px 0 0 rgba(255,62,165,.75)}'+
+'#rg-fs:hover,#rg-fs:focus-visible{border-color:rgba(56,232,255,.75);background:rgba(20,14,32,.9);outline:none}'+
+'#rg-fs:active{transform:translateY(1px)}'+
+'#rg-fs .rg-c{color:#38e8ff;text-shadow:none;margin-right:.5em}'+
+'#rg-fs[hidden]{display:none}'+
+'html.rg-game,html.rg-game body{background:#000!important}'+
+'html.rg-game #rg-row{display:none!important}'+
+'html.rg-game #wrap{max-width:none!important;margin-top:auto;margin-bottom:auto;height:auto!important}'+
+'html.rg-game #stage{width:var(--rg-sw)!important;max-width:none!important;flex:none!important;'+
+'margin-left:auto;margin-right:auto}'+
+'html.rg-nopads #pads{display:none!important}'+
+'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
+'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
+'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
+'html.rg-side #status{grid-area:1/1/2/4!important}'+
+'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side .rg-thru{display:contents!important}'+
+'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
+'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
+'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
+'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
+'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
+'#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
+'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
+'#rg-x[hidden]{display:none}'+
+'#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
+'justify-content:center;padding:16px;background:rgba(4,3,10,.82)}'+
+'#rg-fs-how[hidden]{display:none}'+
+'#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
+'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
+'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+'#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
+'#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
+'#rg-fs-how li{margin:4px 0}'+
+'#rg-fs-how b{color:#ffd27f}'+
+'#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
+'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
+var wake=null;
+function keepAwake(){
+try{if(nav.wakeLock&&nav.wakeLock.request)
+nav.wakeLock.request('screen').then(function(l){wake=l;}).catch(function(){});}catch(e){}
+}
+function letSleep(){try{if(wake)wake.release();}catch(e){}wake=null;}
+function label(b,text){b.innerHTML='<span class="rg-c">'+(current()?'▣':'⛶')+'</span>'+text;}
+function refresh(b){
+if(installed()){b.hidden=true;return;}
+if(!canAsk){b.hidden=false;label(b,'Full screen');return;}
+b.hidden=own;
+label(b,current()?'Exit full screen':'Full screen');
+}
+function how(){
+var d=document.getElementById('rg-fs-how');
+if(!d){
+d=document.createElement('div');d.id='rg-fs-how';
+d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+d.setAttribute('aria-labelledby','rg-fs-how-h');
+d.innerHTML='<div class="rg-box"><h2 id="rg-fs-how-h">Play full screen</h2>'+
+'<div>Safari on an iPhone cannot hide its bars for a web page. '+
+'Put the game on your Home Screen and it opens with none:</div>'+
+'<ol><li>Tap <b>Share</b> (the square with the arrow).</li>'+
+'<li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li>'+
+'<li>Open <b class="rg-name"></b> from the new icon.</li></ol>'+
+'<button type="button">Got it</button></div>';
+d.querySelector('.rg-name').textContent=gameName();
+var shut=function(e){if(e)e.preventDefault();d.hidden=true;};
+d.querySelector('button').addEventListener('click',shut);
+d.addEventListener('click',function(e){if(e.target===d)shut(e);});
+document.addEventListener('keydown',function(e){
+if(!d.hidden&&(e.key==='Escape'||e.key==='Enter')){shut(e);e.stopPropagation();}},true);
+document.body.appendChild(d);
+}
+d.hidden=false;
+try{d.querySelector('button').focus();}catch(e){}
+}
+function toggle(b){
+if(!canAsk){how();return;}
+try{
+if(current()){
+var x=document.exitFullscreen||document.webkitExitFullscreen;
+var r=x&&x.call(document);if(r&&r.catch)r.catch(function(){});
+}else{
+var q=root.requestFullscreen?root.requestFullscreen({navigationUI:'hide'}):root.webkitRequestFullscreen();
+if(q&&q.catch)q.catch(function(){label(b,'Not allowed here');setTimeout(function(){refresh(b);},2200);});
+}
+}catch(e){}
+}
+function gameOn(){return !!current()||installed();}
+function touch(){try{return matchMedia('(any-pointer: coarse)').matches;}catch(e){return false;}}
+function sides(){
+var wrap=document.getElementById('wrap');if(!wrap||!side)return;
+side.split('|').forEach(function(part){
+var k=part.charAt(0)==='L'?'l':'r',n=0;
+part.slice(2).split(',').forEach(function(q){
+var el=null;try{el=document.querySelector(q.trim());}catch(e){}
+if(!el||n>=3)return;
+n++;el.classList.add('rg-'+k+n,'rg-sd');
+for(var a=el.parentElement;a&&a!==wrap;a=a.parentElement)a.classList.add('rg-thru');
+});
+});
+}
+var sizing=false,queued=false;
+function size(){
+queued=false;
+if(!fit||sizing)return;
+var on=gameOn(),st=document.getElementById('stage');
+root.classList.toggle('rg-game',on);
+var t=touch(),canSide=on&&!!side&&(t||keepPads)&&window.innerWidth>window.innerHeight;
+root.classList.remove('rg-side');
+root.classList.toggle('rg-nopads',on&&!t&&!keepPads);
+var x=document.getElementById('rg-x');if(x)x.hidden=!(on&&current());
+if(!st)return;
+if(!on){root.style.removeProperty('--rg-sw');return;}
+sizing=true;
+var se=document.scrollingElement||root,W=window.innerWidth,H=window.innerHeight;
+var keep=[].slice.call(document.querySelectorAll('#status,#pads button,#pads .stick,#pads #stick,'+
+'#pads #joy,#pads .dpad,.soundrow button'));
+var clear=function(r){
+for(var i=0;i<keep.length;i++){
+var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
+if(q.left<-1||q.top<-1||q.right>W+1||q.bottom>H+1)return false;
+if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
+}
+return true;};
+var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
+var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
+var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
+var alone=function(w){return inside(at(w));};
+var widest=function(){
+var level=all(160)?3:reach(160)?2:1,ok=[alone,reach,all][level-1],lo=160,hi=W;
+while(hi-lo>2){var m=(lo+hi)>>1;if(ok(m))lo=m;else hi=m;}
+return{w:lo,level:level};};
+var below=widest(),best=below.w;
+if(canSide){
+root.classList.add('rg-side');
+var beside=widest();
+if(beside.level>below.level||beside.level===below.level&&beside.w>below.w)best=beside.w;
+else root.classList.remove('rg-side');
+}
+root.style.setProperty('--rg-sw',best+'px');
+try{window.dispatchEvent(new Event('resize'));}catch(e){}
+sizing=false;
+}
+function later(){if(queued||sizing)return;queued=true;
+(window.requestAnimationFrame||setTimeout)(size);}
+function put(){
+if(document.getElementById('rg-fs'))return;
+var s=document.createElement('style');s.id='rg-fs-style';s.textContent=CSS;
+(document.head||root).appendChild(s);
+var b=document.createElement('button');
+b.id='rg-fs';b.type='button';
+b.setAttribute('aria-label','Play full screen');
+b.addEventListener('click',function(e){e.preventDefault();toggle(b);b.blur();});
+var row=document.createElement('div');row.id='rg-row';
+var back=document.getElementById('rg-launch');
+if(back&&back.parentNode){back.parentNode.insertBefore(row,back);row.appendChild(back);}
+else (document.body||root).appendChild(row);
+row.appendChild(b);
+refresh(b);
+if(fit){
+var st=document.getElementById('status');
+if(st&&!own){
+var x=document.createElement('button');x.id='rg-x';x.type='button';x.hidden=true;
+x.textContent='✕ Exit';x.setAttribute('aria-label','Leave full screen');
+x.addEventListener('click',function(e){e.preventDefault();x.blur();if(current())toggle(b);});
+st.appendChild(x);
+}
+sides();
+window.addEventListener('resize',later);
+window.addEventListener('orientationchange',later);
+try{var pads=document.getElementById('pads');
+if(pads&&window.ResizeObserver)new ResizeObserver(later).observe(pads);}catch(e){}
+size();
+}
+var on=function(){refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
+document.addEventListener('fullscreenchange',on);
+document.addEventListener('webkitfullscreenchange',on);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&current())keepAwake();});
+}
+if(document.body)put();
+else document.addEventListener('DOMContentLoaded',put);
 })();
 </script>
 <!-- fullscreen:end -->

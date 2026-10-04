@@ -25,6 +25,45 @@
  *
  * While the screen is the game's it is kept awake, where the browser allows.
  *
+ * Full screen is not much use if the game stays the size it was in the tab:
+ * the first version of this put the same 560-pixel page in the middle of a
+ * 1920-pixel screen, and the game had 9 to 17 per cent of it. So on the eight
+ * pages built the same way (a #wrap holding #status, #stage and #pads; the
+ * sync tool marks them data-fit="1") full screen is a game mode:
+ *
+ *   the page goes black, the row of links at the bottom goes, and the cap on
+ *   the page's width comes off;
+ *
+ *   the stage (the picture and its menus) is made as large as it can be with
+ *   the whole game still on the screen: status, picture and, on a phone, the
+ *   pads, in whatever arrangement the game's own stylesheet gives them for
+ *   that screen. It is found by trying sizes and measuring, not worked out,
+ *   because each game arranges itself differently;
+ *
+ *   a small EXIT goes into the status bar where the page has no button of its
+ *   own to leave by;
+ *
+ *   on a touch screen wider than it is tall (a phone on its side, an iPad) it
+ *   is laid out like a handheld: the picture in the middle, as tall as the
+ *   screen allows, the stick under the left thumb and the buttons under the
+ *   right. Which part of each game's pads goes where is data-side, written
+ *   by the sync tool: "L:selectors|R:selectors", up to three a side, top to
+ *   bottom. A game held that way used to put its pads under the picture,
+ *   where they pushed it smaller the larger it got. But a very wide picture
+ *   (Drol's is 2.3 times as wide as it is tall) runs out of width between
+ *   two columns of pads long before it runs out of height, and on an iPad
+ *   that left it a fifth of the screen. So both are tried, beside and below,
+ *   and the one that gives the larger picture is kept;
+ *
+ *   with no touch screen at all, the pads are put away: the game is played
+ *   from the keyboard, and they were taking the picture's room. (Not in The
+ *   Bard's Tale, data-pads="keep", whose buttons are how a mouse plays it.)
+ *
+ * Launched from a home screen the game is in this mode from the start.
+ * Archon and Law of the West have full game screens of their own already,
+ * and their copies leave the game mode out: the parts between the @fit
+ * markers are dropped from them by the sync tool.
+ *
  * The chip is a button, and a focused button is pressed by SPACE, which is
  * FIRE in most of these games. So it gives up the focus as soon as it is
  * pressed.
@@ -37,6 +76,9 @@
   if(document.getElementById('rg-fs'))return;
   var me=document.currentScript;
   var own=!!(me&&me.getAttribute('data-own')==='1');
+  var fit=!!(me&&me.getAttribute('data-fit')==='1');
+  var side=(me&&me.getAttribute('data-side'))||'';
+  var keepPads=!!(me&&me.getAttribute('data-pads')==='keep');
   var root=document.documentElement;
   var canAsk=!!(root.requestFullscreen||root.webkitRequestFullscreen);
   var nav=typeof navigator==='object'&&navigator?navigator:{};
@@ -68,6 +110,28 @@
   '#rg-fs:active{transform:translateY(1px)}'+
   '#rg-fs .rg-c{color:#38e8ff;text-shadow:none;margin-right:.5em}'+
   '#rg-fs[hidden]{display:none}'+
+  /* the game mode */
+  /*@fit*/'html.rg-game,html.rg-game body{background:#000!important}'+
+  'html.rg-game #rg-row{display:none!important}'+
+  'html.rg-game #wrap{max-width:none!important;margin-top:auto;margin-bottom:auto;height:auto!important}'+
+  'html.rg-game #stage{width:var(--rg-sw)!important;max-width:none!important;flex:none!important;'+
+    'margin-left:auto;margin-right:auto}'+
+  'html.rg-nopads #pads{display:none!important}'+
+  'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
+    'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
+    'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
+  'html.rg-side #status{grid-area:1/1/2/4!important}'+
+  'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+  'html.rg-side .rg-thru{display:contents!important}'+
+  'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
+  'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
+  'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
+  'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
+  'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
+  '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
+    'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+    'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
+  '#rg-x[hidden]{display:none}'+/*@/fit*/
   '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
     'justify-content:center;padding:16px;background:rgba(4,3,10,.82)}'+
   '#rg-fs-how[hidden]{display:none}'+
@@ -137,6 +201,86 @@
     }catch(e){}
   }
 
+  /* ---- the game mode ---- */
+  /*@fit*/
+  function gameOn(){return !!current()||installed();}
+  function touch(){try{return matchMedia('(any-pointer: coarse)').matches;}catch(e){return false;}}
+  /* each part of the pads that has a side, and everything between it and the
+   * page's column, which steps out of the way (display:contents) */
+  function sides(){
+    var wrap=document.getElementById('wrap');if(!wrap||!side)return;
+    side.split('|').forEach(function(part){
+      var k=part.charAt(0)==='L'?'l':'r',n=0;
+      part.slice(2).split(',').forEach(function(q){
+        var el=null;try{el=document.querySelector(q.trim());}catch(e){}
+        if(!el||n>=3)return;
+        n++;el.classList.add('rg-'+k+n,'rg-sd');
+        for(var a=el.parentElement;a&&a!==wrap;a=a.parentElement)a.classList.add('rg-thru');
+      });
+    });
+  }
+  var sizing=false,queued=false;
+  function size(){
+    queued=false;
+    if(!fit||sizing)return;
+    var on=gameOn(),st=document.getElementById('stage');
+    root.classList.toggle('rg-game',on);
+    /* beside: on a touch screen held wide; and on any wide screen for a game
+     * whose buttons stay out without one (The Bard's Tale's, and its log) */
+    var t=touch(),canSide=on&&!!side&&(t||keepPads)&&window.innerWidth>window.innerHeight;
+    root.classList.remove('rg-side');
+    root.classList.toggle('rg-nopads',on&&!t&&!keepPads);
+    var x=document.getElementById('rg-x');if(x)x.hidden=!(on&&current());
+    if(!st)return;
+    if(!on){root.style.removeProperty('--rg-sw');return;}
+    sizing=true;
+    var se=document.scrollingElement||root,W=window.innerWidth,H=window.innerHeight;
+    /* what the picture must leave room for: the status bar and every control,
+     * each on the screen and none under the picture. Measuring only whether
+     * the page scrolled let Galaga, held sideways, push its stick off the
+     * bottom, and let Wolfenstein's picture grow over its own PAUSE */
+    var keep=[].slice.call(document.querySelectorAll('#status,#pads button,#pads .stick,#pads #stick,'+
+      '#pads #joy,#pads .dpad,.soundrow button'));
+    var clear=function(r){
+      for(var i=0;i<keep.length;i++){
+        var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
+        if(q.left<-1||q.top<-1||q.right>W+1||q.bottom>H+1)return false;
+        if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
+      }
+      return true;};
+    var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
+    var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+    /* the whole game on the screen, nothing scrolling; failing that (a page
+     * with more on it than a screen holds), every control still in reach;
+     * failing even that, the picture on the screen */
+    var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
+    var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
+    var alone=function(w){return inside(at(w));};
+    /* the widest stage that fits, in whichever arrangement is on now */
+    /* (and how well it fits: 3 all of it, 2 every control, 1 the picture.
+     * An arrangement that keeps the controls beats a bigger one that does not:
+     * Galaga's pads under its picture only "fitted" with the stick off the
+     * screen) */
+    var widest=function(){
+      var level=all(160)?3:reach(160)?2:1,ok=[alone,reach,all][level-1],lo=160,hi=W;
+      while(hi-lo>2){var m=(lo+hi)>>1;if(ok(m))lo=m;else hi=m;}
+      return{w:lo,level:level};};
+    var below=widest(),best=below.w;
+    if(canSide){
+      root.classList.add('rg-side');
+      var beside=widest();
+      if(beside.level>below.level||beside.level===below.level&&beside.w>below.w)best=beside.w;
+      else root.classList.remove('rg-side');
+    }
+    root.style.setProperty('--rg-sw',best+'px');
+    /* the games size their canvases on resize: tell them the stage changed */
+    try{window.dispatchEvent(new Event('resize'));}catch(e){}
+    sizing=false;
+  }
+  function later(){if(queued||sizing)return;queued=true;
+    (window.requestAnimationFrame||setTimeout)(size);}
+  /*@/fit*/
+
   function put(){
     if(document.getElementById('rg-fs'))return;
     var s=document.createElement('style');s.id='rg-fs-style';s.textContent=CSS;
@@ -153,7 +297,26 @@
     else (document.body||root).appendChild(row);
     row.appendChild(b);
     refresh(b);
-    var on=function(){refresh(b);if(current())keepAwake();else letSleep();};
+    /*@fit*/
+    if(fit){
+      /* leaving, where the page has no button of its own to leave by */
+      var st=document.getElementById('status');
+      if(st&&!own){
+        var x=document.createElement('button');x.id='rg-x';x.type='button';x.hidden=true;
+        x.textContent='✕ Exit';x.setAttribute('aria-label','Leave full screen');
+        x.addEventListener('click',function(e){e.preventDefault();x.blur();if(current())toggle(b);});
+        st.appendChild(x);
+      }
+      sides();
+      window.addEventListener('resize',later);
+      window.addEventListener('orientationchange',later);
+      /* the pads can change size in play (a fight bar, a question) */
+      try{var pads=document.getElementById('pads');
+        if(pads&&window.ResizeObserver)new ResizeObserver(later).observe(pads);}catch(e){}
+      size();
+    }
+    /*@/fit*/
+    var on=function(){refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
     document.addEventListener('fullscreenchange',on);
     document.addEventListener('webkitfullscreenchange',on);
     document.addEventListener('visibilitychange',function(){if(!document.hidden&&current())keepAwake();});
