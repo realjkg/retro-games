@@ -480,7 +480,10 @@ if(back&&back.parentNode){back.parentNode.insertBefore(row,back);row.appendChild
 else (document.body||root).appendChild(row);
 row.appendChild(b);
 refresh(b);
-var on=function(){refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
+var on=function(){
+var f=document.activeElement;
+if(f&&f!==document.body&&/^(BUTTON|A)$/.test(f.tagName)&&f.blur)f.blur();
+refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
 document.addEventListener('fullscreenchange',on);
 document.addEventListener('webkitfullscreenchange',on);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&current())keepAwake();});

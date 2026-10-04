@@ -165,8 +165,9 @@ const MEASURE=()=>{
                 Compared with the page it came from it would mislead: held
                 sideways most of these pages scroll, and part of the picture
                 was off the screen to begin with;
-       reach    every control left on the screen is on it, and a finger on
-                its middle lands on it and not on something laid over it;
+       reach    every control left on the screen is wholly on it, 4 px clear of
+                the edge, and a finger on its middle lands on it and not on
+                something laid over it;
        clear    no control sits on the picture;
        restore  out of full screen, the page is put back as it was. */
   const FIT=['aztec','bards-tale','choplifter','drol','galaga','lode-runner','tapped','wolfenstein'];
@@ -176,11 +177,15 @@ const MEASURE=()=>{
   const LOOK=()=>{
     const st=document.getElementById('stage');const r=st.getBoundingClientRect();
     const ctl=[];
-    document.querySelectorAll('#pads button,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button,#status button').forEach(el=>{
+    document.querySelectorAll('#pads button,#pads .btn,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button,#status button').forEach(el=>{
       const q=el.getBoundingClientRect();if(q.width<4||q.height<4)return;
       for(let e=el;e;e=e.parentElement){const s=getComputedStyle(e);if(s.display==='none'||s.visibility==='hidden')return;}
       const cx=q.left+q.width/2,cy=q.top+q.height/2;
-      const on=cx>=0&&cy>=0&&cx<=innerWidth&&cy<=innerHeight;
+      /* the whole control, a few pixels clear of the edge: flush against it
+         is cut off by a phone's rounded corners. The first version of this
+         looked only at the middle, and passed buttons that ran off the side */
+      const m=el.closest('#status')?0:4;
+      const on=q.left>=m-0.5&&q.top>=m-0.5&&q.right<=innerWidth-m+0.5&&q.bottom<=innerHeight-m+0.5;
       const hit=on?document.elementFromPoint(cx,cy):null;
       const ix=Math.min(r.right,q.right)-Math.max(r.left,q.left),iy=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top);
       ctl.push({id:(el.id||el.className||el.tagName).toString().slice(0,14),on,
@@ -207,11 +212,12 @@ const MEASURE=()=>{
         const st=document.getElementById('stage'),root=document.documentElement,se=document.scrollingElement;
         const fits=()=>{const r=st.getBoundingClientRect();
           if(r.left<-1||r.top<-1||r.right>innerWidth+1||r.bottom>innerHeight+1)return false;
-          for(const el of document.querySelectorAll('#status,#pads button,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button')){
+          for(const el of document.querySelectorAll('#status,#pads button,#pads .btn,#pads .stick,#pads #stick,#pads #joy,#pads .dpad,.soundrow button')){
             const q=el.getBoundingClientRect();if(q.width<2||q.height<2)continue;
             let hid=false;for(let e=el;e;e=e.parentElement){if(getComputedStyle(e).display==='none')hid=true;}
             if(hid)continue;
-            if(q.left<-1||q.top<-1||q.right>innerWidth+1||q.bottom>innerHeight+1)return false;
+            const m=el.id==='status'?-1:4;   /* the same rule as reach: a control clear of the edge */
+            if(q.left<m||q.top<m||q.right>innerWidth-m||q.bottom>innerHeight-m)return false;
             if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;}
           return true;};
         const s0=se.scrollHeight>innerHeight+1,was=root.style.getPropertyValue('--rg-sw');
@@ -222,7 +228,7 @@ const MEASURE=()=>{
       const fillOk=full&&!roomy;
       row.push(cell(fillOk,(full?'':'not full ')+(roomy?'could be bigger ':'')+inn.pct+'% (was '+before.pct+')'));
       const lost=inn.ctl.filter(k=>!k.on||!k.hits);
-      row.push(cell(!lost.length,lost.length?lost[0].id+(lost[0].on?' covered':' off'):inn.ctl.length+' controls'));
+      row.push(cell(!lost.length,lost.length?lost[0].id+(lost[0].on?' covered':' at the edge'):inn.ctl.length+' controls'));
       const over=inn.ctl.filter(k=>k.over);
       row.push(cell(!over.length,over.length?'on '+over[0].id:'clear'));
       /* out again: the game's own button, or the chip's EXIT in the status bar */

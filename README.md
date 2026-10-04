@@ -64,7 +64,26 @@ checks that game mode:
 
 It cannot be an iPhone: the Home Screen launch itself needs a real one.
 
-## Publishing
+## Reviewing a game's screen
+
+`.claude/agents/ui-game-reviewer.md` is a reviewer for the cleanest, most
+minimal game screen: the picture as large as its shape allows, and round it
+only what a player needs. It reports what to take away, merge or move, and
+never touches the joystick: the stick, the d-pad and the action buttons stay,
+a thumb's size, under the thumbs.
+
+It works from `tools/uireview.js`, which photographs every game. It covers a
+phone held upright and sideways and a computer, the page and full-screen game
+mode, and the title and in play. For each screen it measures how much is
+picture, how many non-game controls and words sit round it, how many type
+sizes and colours, and whether it scrolls. It also checks that the joystick
+controls are there, a thumb wide, and wholly on the screen. It writes a
+contact sheet to look at alongside the numbers.
+
+    PW=... node tools/uireview.js out/          every game
+    PW=... node tools/uireview.js out/ galaga   one
+
+
 
 GitHub Pages is deployed by `.github/workflows/pages.yml` on every push to
 `main`. The workflow runs every game's tests, then uploads the repository root

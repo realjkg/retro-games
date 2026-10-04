@@ -113,7 +113,11 @@
   /* the game mode */
   /*@fit*/'html.rg-game,html.rg-game body{background:#000!important}'+
   'html.rg-game #rg-row{display:none!important}'+
-  'html.rg-game #wrap{max-width:none!important;margin-top:auto;margin-bottom:auto;height:auto!important}'+
+  /* a margin round the whole game: flush against the edge, a phone's rounded
+   * corners and its notch cut the outer buttons off */
+  'html.rg-game #wrap{max-width:none!important;margin-top:auto;margin-bottom:auto;height:auto!important;'+
+    'box-sizing:border-box;padding:max(4px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) '+
+    'max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important}'+
   'html.rg-game #stage{width:var(--rg-sw)!important;max-width:none!important;flex:none!important;'+
     'margin-left:auto;margin-right:auto}'+
   'html.rg-nopads #pads{display:none!important}'+
@@ -127,6 +131,10 @@
   'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
   'html.rg-side .rg-r2{grid-area:3/3/4/4!important}html.rg-side .rg-r3{grid-area:4/3/5/4!important}'+
   'html.rg-side .rg-sd{align-self:center!important;justify-self:center!important;margin:0!important;order:0!important}'+
+  /* four games pin their SOUND / EXIT row 2 px off the bottom when held
+   * sideways: lifted clear of the edge, and in a column it is just an item */
+  'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
+  'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
   'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
   '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
     'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
@@ -239,12 +247,15 @@
      * each on the screen and none under the picture. Measuring only whether
      * the page scrolled let Galaga, held sideways, push its stick off the
      * bottom, and let Wolfenstein's picture grow over its own PAUSE */
-    var keep=[].slice.call(document.querySelectorAll('#status,#pads button,#pads .stick,#pads #stick,'+
+    /* (#pads .btn: Aztec's, Drol's and Lode Runner's pads are divs, not buttons) */
+    var keep=[].slice.call(document.querySelectorAll('#status,#pads button,#pads .btn,#pads .stick,#pads #stick,'+
       '#pads #joy,#pads .dpad,.soundrow button'));
     var clear=function(r){
       for(var i=0;i<keep.length;i++){
         var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
-        if(q.left<-1||q.top<-1||q.right>W+1||q.bottom>H+1)return false;
+        /* wholly on the screen, and a control 4 px clear of its edge */
+        var m=keep[i].id==='status'?-1:4;
+        if(q.left<m||q.top<m||q.right>W-m||q.bottom>H-m)return false;
         if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
       }
       return true;};
@@ -316,7 +327,13 @@
       size();
     }
     /*@/fit*/
-    var on=function(){refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
+    var on=function(){
+      /* A game's own full-screen button kept the focus, and the next ENTER,
+       * which starts most of these games, pressed it again and left full
+       * screen (Lode Runner did). Whatever button took the screen lets go. */
+      var f=document.activeElement;
+      if(f&&f!==document.body&&/^(BUTTON|A)$/.test(f.tagName)&&f.blur)f.blur();
+      refresh(b);if(current())keepAwake();else letSleep();if(fit)later();};
     document.addEventListener('fullscreenchange',on);
     document.addEventListener('webkitfullscreenchange',on);
     document.addEventListener('visibilitychange',function(){if(!document.hidden&&current())keepAwake();});
