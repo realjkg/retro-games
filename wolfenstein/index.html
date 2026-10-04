@@ -84,7 +84,6 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #knob{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
   background:radial-gradient(circle at 36% 30%,#7a7a7a 0,#1e1e1e 45%,#000 100%);
   box-shadow:0 4px 6px rgba(0,0,0,.6);pointer-events:none;will-change:transform}
-.stickwrap small{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);
   font:inherit;font-size:13px;line-height:1.05;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:1px;cursor:pointer;touch-action:none;text-align:center}
@@ -151,7 +150,9 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
 .tally .r{display:flex;justify-content:space-between;gap:18px}
 .tally .r span:last-child{color:var(--gold);font-weight:700}
 #map{image-rendering:pixelated;border:1px solid #3a4060;border-radius:6px;background:#000}
-#sound{height:28px;width:56px}
+/* SOUND is in the title and pause menus; the button stays, off the screen, as
+   the one place the switch is kept */
+#sound{display:none}
 @media (max-width:520px){
   #overlay{gap:5px;padding:8px}
   h1,#overlay.splash h1{font-size:15px}
@@ -161,6 +162,25 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
   .tally{font-size:11px;padding:4px 10px}
 }
 @media (pointer:fine){#pads{display:none}}
+/* A phone held upright: the status bar on one line, PAUSE at its end, and the
+   title menu inside the stage with its heading showing. */
+@media (max-width:430px){
+  #status{font-size:10.5px;column-gap:6px;padding:4px 6px;flex-wrap:nowrap;align-items:flex-start}
+  #status #hud{flex:none;padding-top:7px}
+  /* the tags (UNIFORM, VEST, ALARM...) wrap under the counts, PAUSE stays put */
+  #status #hud2{flex:1 1 0;min-width:0;padding-top:7px}
+  #status .tag{white-space:nowrap;display:inline-block;margin-top:2px}
+  /* full screen puts EXIT in the bar too, and four things do not fit on one
+     line: the counts go under the rank, PAUSE and EXIT stay at the top right */
+  html.rg-game #status{flex-wrap:wrap;row-gap:0}
+  html.rg-game #status #hud2{order:5;flex:1 1 100%;padding-top:2px}
+  #status #bp{width:50px}
+  #overlay.card:not(.ask){gap:3px}
+  #overlay.card:not(.ask) .menuitem{padding:5px}
+  #map{width:auto!important;height:40px!important}
+  #overlay.splash{gap:4px;padding-top:6px}
+  #overlay.splash .menuitem{padding:5px}
+}
 /* A narrow phone: the box a little smaller, so stick and buttons share a row. */
 @media (max-width:370px){
   #joy{transform:scale(.84);transform-origin:0 100%;margin:-27px -27px 0 0}
@@ -175,10 +195,8 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
     grid-template-rows:auto minmax(0,1fr);column-gap:10px;row-gap:4px;
     height:calc(100dvh - 44px - env(safe-area-inset-top));flex:none}
   #status{grid-column:1/4;min-height:0;padding:3px 8px;font-size:11px}
-  #sound{height:22px}
   #pads{display:contents}
   .stickwrap{grid-column:1;grid-row:2;align-self:center}
-  .stickwrap small{display:none}
   .right{grid-column:3;grid-row:2;align-self:center}
   #stage{grid-column:2;grid-row:2;align-self:center;justify-self:center;
     width:min(100%,calc((100dvh - 44px - 40px - env(safe-area-inset-top)) * 280 / 168));height:auto}
@@ -227,7 +245,6 @@ small.tip{color:#9aa0c0;font-size:11px;max-width:460px;line-height:1.5}
           <i class="boot" aria-hidden="true"></i><i class="shaft" id="shaft"></i><i id="knob"></i>
         </div>
       </div>
-      <small>push further · walk faster</small>
     </div>
     <div class="right">
       <button class="btn abtn" id="bf" type="button">FIRE</button>
@@ -1827,14 +1844,14 @@ function showSplash(){
   hud();
   ov.className='splash';
   const html=['<h1>CASTLE WOLFENSTEIN</h1>',
-    '<p class="sub">Out of the cell. Find the war plans. Get out of the castle.</p>'];
+    '<p class="sub">Out of the cell. Find the war plans. Get out of the castle.'+
+    (G.best&&(G.best.rank||G.best.castles)?' Best: '+esc(rankName(G.best.rank))+'.':'')+'</p>'];
   html.push('<button class="menuitem" type="button">START</button>');
   html.push('<button class="menuitem" type="button" id="minv">'+invLabel()+'</button>');
   html.push('<button class="menuitem" type="button" id="mtalk">'+talkLabel()+'</button>');
+  html.push('<button class="menuitem" type="button" id="msnd">'+soundLabel()+'</button>');
   html.push('<button class="menuitem" type="button">HOW TO PLAY</button>');
-  html.push('<small class="tip">arrows walk · SPACE fire · hold X to aim · E search · G grenade'+
-    (G.best.rank||G.best.castles?' · best '+esc(rankName(G.best.rank)):'')+'</small>');
-  buildMenu(html.join(''),[{go:()=>newGame()},{go:toggleInv},{go:toggleTalk},{go:showHelp}],0);
+  buildMenu(html.join(''),[{go:()=>newGame()},{go:toggleInv},{go:toggleTalk},{go:toggleSound},{go:showHelp}],0);
 }
 /* Two positions: the game as it was, where one bullet ends it, and the one
  * this collection added, where nothing does. */
@@ -1843,6 +1860,13 @@ function talkLabel(){return 'TALK: '+(G.talk==='1981'?'1981 · SHOUTS ONLY':'QUE
 function toggleTalk(){
   G.talk=G.talk==='1981'?'questioned':'1981';save('wolfenstein.talk',G.talk);
   const b=el('mtalk');if(b)b.textContent=talkLabel();
+}
+/* SOUND: the same switch as the #sound button, which is kept (hidden) and
+ * still does the work, so there is one sound state and one place it changes */
+function soundLabel(){return 'SOUND: '+(Snd.on?'ON':'OFF');}
+function toggleSound(){
+  el('sound').click();
+  const b=el('msnd');if(b)b.textContent=soundLabel();
 }
 function invLabel(){return 'IMPENETRABLE: '+(G.impenetrable?'ON · ENDLESS':'OFF · MORTAL');}
 function toggleInv(){
@@ -1879,11 +1903,14 @@ function showHelp(){
     'keep coming, and the run is endless. It is never a record.</small>'+
     '<div class="tally" style="text-align:left">'+
     '<div class="r"><span>Walk</span><span>arrows · WASD</span></div>'+
-    '<div class="r"><span>Turn in place</span><span>hold X or SHIFT</span></div>'+
+    '<div class="r"><span>Walk faster</span><span>push the stick further</span></div>'+
+    '<div class="r"><span>Aim · turn in place</span><span>hold X or SHIFT</span></div>'+
     '<div class="r"><span>Fire</span><span>SPACE</span></div>'+
     '<div class="r"><span>Search</span><span>E</span></div>'+
     '<div class="r"><span>Grenade</span><span>G</span></div>'+
-    '<div class="r"><span>Pause · map</span><span>P</span></div></div>'+
+    '<div class="r"><span>Gun away · out</span><span>H</span></div>'+
+    '<div class="r"><span>Pause · map</span><span>P</span></div>'+
+    '<div class="r"><span>Sound</span><span>title or pause menu</span></div></div>'+
     '<button class="menuitem sel" type="button">BACK</button>',
     [{go:showSplash}]);
 }
@@ -1897,8 +1924,9 @@ function showPause(){
       :'Mortal. One bullet ends it'+(G.P.vest?', unless the vest takes it':'')+'.')+'</p>'+
     '<button class="menuitem sel" type="button">BACK IN</button>'+
     '<button class="menuitem" type="button">'+invLabel()+'</button>'+
+    '<button class="menuitem" type="button" id="msnd">'+soundLabel()+'</button>'+
     '<button class="menuitem" type="button">QUIT TO TITLE</button>',
-    [{go:togglePause},{go:()=>{setImpenetrable(!G.impenetrable);showPause();}},{go:showSplash}]);
+    [{go:togglePause},{go:()=>{setImpenetrable(!G.impenetrable);showPause();}},{go:toggleSound},{go:showSplash}]);
   drawMap();
 }
 function notebookHtml(){
