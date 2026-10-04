@@ -100,8 +100,11 @@
   '#rg-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;'+
     'margin:8px auto calc(env(safe-area-inset-bottom) + 2px);flex:0 0 auto;max-width:96%}'+
   '#rg-row #rg-launch{margin:0}'+
+  /* Archon's and Law of the West's own game modes: the row goes there too */
+  'body.gamemode #rg-row{display:none!important}'+
+  /* the game's own type: a second family round the picture was the chip's */
   '#rg-fs{display:block;margin:0;padding:6px 13px;border-radius:999px;cursor:pointer;'+
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;'+
+    'font-family:inherit;'+
     'font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;'+
     'color:#fff8e6;background:rgba(10,7,19,.72);border:1px solid rgba(56,232,255,.34);'+
     'touch-action:manipulation;-webkit-tap-highlight-color:transparent;'+
@@ -124,8 +127,14 @@
   'html.rg-side #wrap{display:grid!important;grid-template-columns:auto auto auto!important;'+
     'grid-template-rows:auto auto auto auto!important;justify-content:center;align-content:center;'+
     'column-gap:10px!important;row-gap:6px!important;height:auto!important;flex:none!important;width:100%!important}'+
-  'html.rg-side #status{grid-area:1/1/2/4!important}'+
-  'html.rg-side #stage{grid-area:2/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
+  /* held sideways the picture is limited by the height, so the status bar
+   * stops spanning the top and takes the top of the left column instead:
+   * the picture gets the screen's whole height */
+  'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
+    'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
+    'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
+  'html.rg-side #status>*{margin:0!important}'+
+  'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
   'html.rg-side .rg-thru{display:contents!important}'+
   'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
   'html.rg-side .rg-l3{grid-area:4/1/5/2!important}html.rg-side .rg-r1{grid-area:2/3/3/4!important}'+
@@ -137,7 +146,7 @@
   'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
   'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
   '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
-    'font:700 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;'+
+    'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
     'color:#fff8e6;background:rgba(10,7,19,.85);border:1px solid rgba(56,232,255,.45);touch-action:manipulation}'+
   '#rg-x[hidden]{display:none}'+/*@/fit*/
   '#rg-fs-how{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;'+
@@ -145,13 +154,13 @@
   '#rg-fs-how[hidden]{display:none}'+
   '#rg-fs-how .rg-box{max-width:340px;padding:18px 18px 14px;border-radius:12px;'+
     'background:#0d0a18;border:1px solid rgba(56,232,255,.4);color:#fff8e6;'+
-    'font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}'+
+    'font-size:14px;line-height:1.45;font-family:inherit}'+
   '#rg-fs-how h2{margin:0 0 8px;font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:#38e8ff}'+
   '#rg-fs-how ol{margin:8px 0 12px;padding-left:20px}'+
   '#rg-fs-how li{margin:4px 0}'+
   '#rg-fs-how b{color:#ffd27f}'+
   '#rg-fs-how button{display:block;margin:0 auto;padding:7px 18px;border-radius:999px;cursor:pointer;'+
-    'font:700 12px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase;'+
+    'font-weight:700;font-size:12px;font-family:inherit;letter-spacing:.2em;text-transform:uppercase;'+
     'color:#fff8e6;background:#1b1530;border:1px solid rgba(255,210,127,.5);touch-action:manipulation}';
 
   var wake=null;
