@@ -222,7 +222,7 @@ test('Full screen isolates the controls, and the layout drops when fullscreen en
   assert.equal(r.cls.has('fs'),false);
   r.run('toggleFullscreen();');
   assert.equal(r.cls.has('fs'),true,'the focus layout is applied');
-  assert.match(r.el('fs').textContent,/EXIT FULL SCREEN/);
+  assert.match(r.el('fs').textContent,/EXIT/);
   r.run('toggleFullscreen();');
   assert.equal(r.cls.has('fs'),false);
   assert.equal(r.el('fs').textContent,'FULL SCREEN');

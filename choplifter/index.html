@@ -88,6 +88,12 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
   border-color:#3b4a6e;color:#e8eeff}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#101426}
 #overlay.splash .menuitem.small{width:auto;padding:5px 14px;font-size:13px;letter-spacing:.04em}
+/* A row of choices side by side: two abreast for the big ones, the switches
+   in one line, so the title card stays under the logo rather than over it. */
+.mrow{display:flex;justify-content:center;gap:6px;width:min(260px,76%)}
+#overlay.splash .mrow .menuitem{width:auto;flex:1 1 0;min-width:0}
+#overlay.splash .mrow.small{width:min(340px,96%);flex-wrap:wrap}
+#overlay.splash .mrow.small .menuitem{flex:0 1 auto;padding:5px 10px;font-size:12px}
 #overlay.splash .diffgrid .menuitem,#overlay.splash .menugrid .menuitem{width:auto}
 #overlay.splash .sub,#overlay.splash small.tip{color:#c7d2ec;text-shadow:0 1px 2px #000}
 #overlay.splash small.tip{font-size:10px}
@@ -104,6 +110,9 @@ h1{font-size:21px;margin:0;letter-spacing:.14em;color:var(--gold);font-weight:80
    choices go two abreast rather than five deep. */
 .menugrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,96%)}
 .menugrid .menuitem{width:auto;padding:10px 6px;font-size:13px}
+/* Nine switches go three abreast so the card fits a phone held upright. */
+.menugrid.three{grid-template-columns:repeat(3,1fr)}
+.menugrid.three .menuitem{padding:9px 4px}
 small.tip{color:var(--dim);font-size:11px;max-width:350px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
@@ -136,6 +145,9 @@ body.fs .abtn{width:clamp(58px,19vw,88px);height:clamp(58px,19vw,88px);font-size
 body.fs .sbtn{width:clamp(58px,19vw,88px);height:clamp(36px,10vw,46px);font-size:13px}
 body.fs .soundrow{margin:2px 0 0;gap:8px}
 body.fs #audio-status{display:none}
+/* Sound lives in the title and pause menus now; the button stays in the page
+   (hidden) so its handler is the one switch both menus press. */
+#sound,#audio-status{display:none}
 @media (orientation:landscape) and (max-height:560px){
   /* Held sideways there is no room below the screen, so the pads flank it
      the way a handheld does: pad under the left thumb, buttons under the right. */
@@ -1814,7 +1826,7 @@ const fsBtn=document.getElementById("fs");
 const nativeFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
 function setFocus(on){
  document.body.classList.toggle("fs",on);
- fsBtn.textContent=on?"✕ EXIT FULL SCREEN":"FULL SCREEN";
+ fsBtn.textContent=on?"✕ EXIT":"FULL SCREEN";
  fsBtn.setAttribute("aria-pressed",String(on));
 }
 function toggleFullscreen(){
@@ -1824,7 +1836,7 @@ function toggleFullscreen(){
  else{const ex=document.exitFullscreen||document.webkitExitFullscreen;
   if(ex&&nativeFS())try{Promise.resolve(ex.call(document)).catch(()=>{});}catch(e){}}
  setFocus(on);clearKeys();fit(true);
- say(on?"Full screen. EXIT FULL SCREEN puts the page back.":"Back to the page.");
+ say(on?"Full screen. EXIT puts the page back.":"Back to the page.");
 }
 fsBtn.addEventListener("click",toggleFullscreen);
 for(const ev of ["fullscreenchange","webkitfullscreenchange"])
@@ -1905,7 +1917,12 @@ function showMenu(title,sub,items,tip,grid,splash){
  const gcls=grid===true?"diffgrid":grid?String(grid):"";
  ov.innerHTML=(title?`<h1>${title}</h1>`:"")+`<p class="sub">${sub}</p>`+
   (gcls?`<div class="${gcls}">`:"")+
-  items.map((it,i)=>`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`).join("")+
+  items.map((it,i)=>{
+   const prev=i?items[i-1].row:undefined, next=i+1<items.length?items[i+1].row:undefined;
+   const btn=`<button class="menuitem${i?"":" sel"}${it.small?" small":""}" data-i="${i}">${it.label}</button>`;
+   if(!it.row)return btn;
+   return (prev===it.row?"":`<div class="mrow${it.small?" small":""}">`)+btn+(next===it.row?"":`</div>`);
+  }).join("")+
   (gcls?`</div>`:"")+(tip?`<small class="tip">${tip}</small>`:"");
  ov.classList.remove("hidden");
 }
@@ -1919,20 +1936,32 @@ ov.addEventListener("click",e=>{
  const b=e.target.closest?e.target.closest(".menuitem"):null;
  if(!b||!G.menu)return;
  G.menu.sel=+b.dataset.i;chooseMenu();});
+// Rebuild a menu after a switch, with the same line still picked.
+function keepSel(rebuild){
+ const i=G.menu?G.menu.sel:0;
+ rebuild();
+ if(G.menu&&i<G.menu.items.length){G.menu.sel=i;
+  ov.querySelectorAll(".menuitem").forEach((el,j)=>el.classList.toggle("sel",j===i));}
+}
+// Sound on/off as a menu line: it presses the (hidden) SOUND button, so the
+// state, the saved setting and the button's label stay one switch.
+function soundItem(rebuild,extra){
+ return Object.assign({label:"Sound: "+(SOUND.enabled?"on":"off"),
+  fn:()=>keepSel(()=>{document.getElementById("sound").click();rebuild();})},extra||{});
+}
 function mainMenu(){
  G.phase="menu";G.h=null;G.people=[];G.foes=[];G.shots=[];G.seekers=[];G.flak=[];G.puffs=[];
  G.huts=HUTS.map(hutAt);G.aboard=0;G.downT=0;
  showMenu("","",
   [{label:"Fly the rescue",fn:diffMenu},
-   {label:MUSIC.on?"Music: ON":"Music: off — blades only",small:true,
-    fn:()=>{setMusic(!MUSIC.on);mainMenu();}},
-   {label:"Endless machines: "+(G.endless?"ON":"off"),small:true,
-    fn:()=>{G.endless=!G.endless;savePrefs();mainMenu();}},
-   {label:"High scores",fn:()=>Arcade.show({onClose:mainMenu})},
-   {label:"How to fly it",fn:()=>helpMenu(false)}],
-  G.endless?"Endless machines: a crash costs you the people aboard, never the mission — and never a high score.":
-   MUSIC.on?"Music on. Switch it off and you get what 1982 got: no score, just the blades.":
-   "After Choplifter, Brøderbund, 1982. It had no music — one bit of sound, spent on the rotor. This runs the same way until you ask otherwise.",
+   {label:"High scores",row:"a",fn:()=>Arcade.show({onClose:mainMenu})},
+   {label:"How to fly it",row:"a",fn:()=>helpMenu(false)},
+   soundItem(mainMenu,{small:true,row:"s"}),
+   {label:"Music: "+(MUSIC.on?"on":"off"),small:true,row:"s",
+    fn:()=>{keepSel(()=>{setMusic(!MUSIC.on);mainMenu();});}},
+   {label:"Endless: "+(G.endless?"on":"off"),small:true,row:"s",
+    fn:()=>{keepSel(()=>{G.endless=!G.endless;savePrefs();mainMenu();});}}],
+  "After Choplifter, Brøderbund, 1982.",
   false,true);
 }
 function diffMenu(){
@@ -1963,20 +1992,23 @@ function helpMenu(back){
   "the mines before anything on the ground, and the only place to get more is the pad at the "+
   "post office. SCAN is the strip along the top: the whole country at once. The sound out of the "+
   "box is the one the machine of 1982 made: no score, just the blades, beating faster as you "+
-  "pull up. MENU has the switch for a synth score if you would rather have one.");
+  "pull up. The title and MENU have the switches: Sound, and Music for a synth score if you "+
+  "would rather have one. Sound starts with your first tap or key press. Endless machines: a "+
+  "crash costs you the people aboard, never the mission — and never a high score.");
 }
 function pauseMenu(){
  showMenu("Paused","Home "+G.rescued+" · lost "+G.lost+" · aboard "+G.aboard+" · "+G.score+
   " points · "+(G.endless?"endless":G.chops+" left")+" machines",
   [{label:"Resume",fn:()=>{G.phase="play";hideOverlay();}},
-   {label:"Full screen on/off",fn:()=>{toggleFullscreen();pauseMenu();}},
-   {label:"Music: "+(MUSIC.on?"ON":"off"),fn:()=>{setMusic(!MUSIC.on);pauseMenu();}},
-   {label:"Blades: "+(AUDIO.rotor?"ON":"off"),fn:()=>{setRotor(!AUDIO.rotor);pauseMenu();}},
+   soundItem(pauseMenu),
+   {label:"Music: "+(MUSIC.on?"on":"off"),fn:()=>keepSel(()=>{setMusic(!MUSIC.on);pauseMenu();})},
+   {label:"Blades: "+(AUDIO.rotor?"on":"off"),fn:()=>keepSel(()=>{setRotor(!AUDIO.rotor);pauseMenu();})},
+   {label:"Scanner: "+(G.scan?"on":"off"),fn:()=>keepSel(()=>{G.scan=!G.scan;savePrefs();fit(true);pauseMenu();})},
+   {label:"Endless: "+(G.endless?"on":"off"),
+    fn:()=>keepSel(()=>{G.endless=!G.endless;savePrefs();pauseMenu();})},
+   {label:"Full screen",fn:()=>keepSel(()=>{toggleFullscreen();pauseMenu();})},
    {label:"Controls",fn:()=>helpMenu(true)},
-   {label:"Scanner on/off",fn:()=>{G.scan=!G.scan;savePrefs();fit(true);pauseMenu();}},
-   {label:"Endless machines: "+(G.endless?"ON":"off"),
-    fn:()=>{G.endless=!G.endless;savePrefs();pauseMenu();}},
-   {label:"Give up",fn:mainMenu}],"","menugrid");
+   {label:"Give up",fn:mainMenu}],"","menugrid three");
 }
 // What the post signals back. The original graded you on the count and so does this.
 function rating(){

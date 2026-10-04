@@ -77,6 +77,9 @@ h1{font-size:22px;margin:0;letter-spacing:.16em;color:var(--gold);font-weight:80
 .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;width:min(340px,94%)}
 .row2 .menuitem,.row3 .menuitem{width:auto}
 .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(340px,94%)}
+/* Three abreast is narrow on a phone: the words have to fit inside the button. */
+#overlay.splash .row2 .menuitem,#overlay.splash .row3 .menuitem{width:auto;min-width:0}
+#overlay .row3 .menuitem{padding-left:4px;padding-right:4px;font-size:13px;white-space:nowrap}
 small.tip{color:var(--dim);font-size:11px;max-width:380px;line-height:1.5}
 button{font:inherit;cursor:pointer}
 .soundrow{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font-size:11px;color:var(--dim)}
@@ -119,6 +122,9 @@ body.fs .abtn{width:clamp(60px,20vw,92px);height:clamp(60px,20vw,92px);font-size
 body.fs .sbtn{width:clamp(60px,20vw,92px);height:clamp(34px,9vw,44px);font-size:12px}
 body.fs .soundrow{margin:2px 0 0;gap:8px}
 body.fs #audio-status{display:none}
+/* Sound lives in the title and pause menus now; the button stays in the page
+   (hidden) so its handler is the one switch both menus press. */
+#sound,#audio-status{display:none}
 @media (orientation:landscape) and (max-height:560px){
   /* Held sideways there is no room below the screen, so the pads flank it the
      way a handheld does: pad under the left thumb, digs under the right. */
@@ -1931,24 +1937,24 @@ function showMenu(mode){
   const parts=[];
   if(mode==='title'){
     parts.push('<h1>LODE RUNNER</h1>');
-    parts.push('<p class="sub">The Bungeling Empire took the gold. You are one runner with a shovel that only points down, and the guards do not stop coming.</p>');
     parts.push(btn('start','START AT LEVEL '+G.startLevel));
     parts.push('<div class="row3">'+btn('lvdown','◀ LEVEL')+btn('lvup','LEVEL ▶')+btn('editor','GENERATOR')+'</div>');
     parts.push('<div class="row2">'+btn('custom',(G.custom?'✓ ':'')+'MY LEVELS ('+G.customSet.length+')')+btn('help','HOW TO PLAY')+'</div>');
-    parts.push('<div class="row2">'+btn('scores','HIGH SCORES')+btn('resume','RESUME')+'</div>');
-    parts.push('<small class="tip">Arrows or I J K L to move · U and O dig · tap DIG on a phone.</small>');
+    parts.push('<div class="row3">'+btn('scores','HIGH SCORES')+btn('resume','RESUME')+btn('sound',soundLabel())+'</div>');
   }else if(mode==='pause'){
     parts.push('<h1>PAUSED</h1>');
     parts.push(btn('resume','RESUME'));
     parts.push('<div class="row2">'+btn('again','RESTART LEVEL')+btn('quit','QUIT TO TITLE')+'</div>');
-    parts.push(btn('save','SAVE THIS RUN'));
-    parts.push('<div class="row2">'+btn('music',(A.music?'MUSIC ON':'MUSIC OFF'))+btn('help','HOW TO PLAY')+'</div>');
+    parts.push('<div class="row2">'+btn('save','SAVE THIS RUN')+btn('help','HOW TO PLAY')+'</div>');
+    parts.push('<div class="row2">'+btn('music',(A.music?'MUSIC: ON':'MUSIC: OFF'))+btn('sound',soundLabel())+'</div>');
   }else if(mode==='help'){
     parts.push('<h1>HOW TO PLAY</h1>');
     parts.push('<small class="tip">Take every chest on the level, then climb to the very top: the ladder out only appears once the last one is yours.<br><br>'+
       'You cannot jump and you cannot kill a guard. What you can do is dig the brick diagonally below you, left or right. A guard who falls in is stuck long enough to run over his head, and if he was carrying a chest he drops it. The brick grows back — be somewhere else when it does, and so much the worse for him.<br><br>'+
       'Poured blocks cannot be dug. Some bricks are false and drop you straight through. Ropes are crossed hand over hand; press down to let go.<br><br>'+
-      '<b>Keys</b> — arrows or I J K L to move, U dig left, O dig right, Z and X also dig, R gives yourself up and restarts the level, Esc or P pauses.</small>');
+      '<b>Keys</b> — arrows or I J K L to move, U dig left, O dig right, Z and X also dig, R gives yourself up and restarts the level, Esc or P pauses.<br><br>'+
+      '<b>On a phone</b> — the pad moves you and the two DIG buttons dig left and right; ≡ is the menu.<br><br>'+
+      'Sound starts after a tap or key press. SOUND in the title and pause menus turns it on and off; EXIT leaves full screen.</small>');
     parts.push(btn('back','BACK'));
   }else if(mode==='over'||mode==='won'){
     parts.push('<h1>'+(mode==='won'?'ALL LEVELS CLEARED':'GAME OVER')+'</h1>');
@@ -1959,6 +1965,7 @@ function showMenu(mode){
   overlay.innerHTML=parts.join('');
   wireMenu();
 }
+function soundLabel(){return A.on?'SOUND: ON':'SOUND: OFF';}
 function btn(id,label){return '<button class="menuitem" data-m="'+id+'">'+label+'</button>';}
 function hideMenu(){
   if(overlay)overlay.classList.add('hidden');
@@ -1991,6 +1998,8 @@ showMenu('title');
   else if(a==='again'){hideMenu();loadLevel(G.level);}
   else if(a==='quit'){G.started=false;G.state='title';showMenu('title');}
   else if(a==='music'){A.music=!A.music;showMenu('pause');}
+  // the hidden SOUND button is still the one switch; the menu line presses it
+  else if(a==='sound'){const b=$('sound');if(b&&b.click)b.click();showMenu(menuMode);}
   else if(a==='scores')Arcade.show({onClose:()=>showMenu(G.state==='title'?'title':G.state)});
   else if(a==='resume'){
     if(!Arcade.hasSlots()){say('Nothing is saved yet.');return;}
@@ -2125,7 +2134,7 @@ function toggleFull(){
   const want=!(b.classList.contains&&b.classList.contains('fs'));
   b.classList.toggle('fs',want);
   const f=$('fs');
-  if(f)f.textContent=want?'EXIT FULL SCREEN':'FULL SCREEN';
+  if(f)f.textContent=want?'EXIT':'FULL SCREEN';
   const el=document.documentElement;
   try{
     if(want&&el.requestFullscreen)el.requestFullscreen();

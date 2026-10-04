@@ -77,9 +77,11 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #overlay.hidden{display:none}
 /* Over the title art the overlay is only a scrim, so the swarm shows through. */
 #overlay.splash{background:linear-gradient(rgba(4,4,10,0) 0%,rgba(4,4,10,0) 44%,rgba(4,4,10,.93) 70%);
-  justify-content:flex-end;gap:6px;padding:10px 12px 14px}
+  justify-content:flex-end;gap:5px;padding:10px 12px 12px}
 #overlay.splash h1{font-size:17px;margin-bottom:2px;text-shadow:0 1px 3px #000}
-#overlay.splash .menuitem{width:min(280px,82%);padding:9px;background:rgba(20,20,34,.92);
+/* six choices under the swarm: a little tighter than a card's, so the name
+   still sits below the bees rather than across them */
+#overlay.splash .menuitem{width:min(280px,82%);padding:6px 9px;background:rgba(20,20,34,.92);
   border-color:#4a4a6a;color:#e6e6f2}
 #overlay.splash .menuitem.sel{background:var(--gold);border-color:var(--gold);color:#16130a}
 #overlay.splash .sub,#overlay.splash small.tip{color:#c9c9e0;text-shadow:0 1px 2px #000}
@@ -94,7 +96,9 @@ small.tip{color:var(--dim);font-size:11px;max-width:400px;line-height:1.5}
   border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:min(300px,86%)}
 .tally .r{display:flex;justify-content:space-between;gap:18px}
 .tally .r span:last-child{color:var(--gold);font-weight:700}
-#sound{position:absolute;right:8px;top:8px;z-index:3}
+/* SOUND lives in the title and pause menus now; the button stays in the page,
+   hidden, because its click handler is the one switch both menus press. */
+#sound{display:none}
 @media (pointer:fine){#pads{display:none}}
 /* Every pressable control carries its own touch-action. The shared zoom
    guard below steps aside for anything pressable - it has to, or it eats
@@ -1950,9 +1954,9 @@ function showSplash(){
     '<button class="menuitem" type="button">RESUME</button>'+
     '<button class="menuitem" type="button">HIGH SCORES</button>'+
     '<button class="menuitem" type="button">HOW TO PLAY</button>'+
-    '<small class="tip">← → or the stick to move · SPACE fire · P pause · hold to autofire</small>',
+    soundItem(),
     [{go:newGame},{go:cycleLives},{go:resumeRun},
-     {go:()=>Arcade.show({onClose:showSplash})},{go:showHelp}]);
+     {go:()=>Arcade.show({onClose:showSplash})},{go:showHelp},{go:toggleSound}]);
 }
 /* Two, three, five, endless, and back to three. Endless is the fourth stop on
  * the same switch rather than a mode of its own, because it is the same
@@ -1966,10 +1970,18 @@ function cycleLives(){
   const b=el('mfight');
   if(b)b.textContent='FIGHTERS: '+(G.endless?'ENDLESS':G.startLives);
 }
+/* The one sound switch, offered as a menu item: it presses the hidden #sound
+ * button, so the menu, the button's handler and the saved setting can never
+ * disagree. */
+function soundLabel(){return 'SOUND: '+(Snd.on?'ON':'OFF');}
+function soundItem(){return '<button class="menuitem msound" type="button">'+soundLabel()+'</button>';}
+function toggleSound(){el('sound').click();}
 function showHelp(){
   ov.className='card';
   ov.innerHTML=
     '<h1>HOW TO PLAY</h1>'+
+    '<small class="tip">← → or the stick to move, or drag on the playfield. SPACE or FIRE '+
+    'to fire; hold it to autofire. P or PAUSE to pause.</small>'+
     '<div class="tally" style="text-align:left">'+
     '<div class="r"><span>Bee, in formation / diving</span><span>50 / 100</span></div>'+
     '<div class="r"><span>Butterfly, formation / diving</span><span>80 / 160</span></div>'+
@@ -2026,13 +2038,15 @@ function showPause(){
     '<button class="menuitem" type="button">FIGHTERS: '+
       (G.endless?'ENDLESS':G.lives)+'</button>'+
     '<button class="menuitem" type="button">SAVE THIS RUN</button>'+
-    '<button class="menuitem" type="button">END THIS RUN</button>',
+    '<button class="menuitem" type="button">END THIS RUN</button>'+
+    soundItem(),
     [{go:togglePause},
      {go:()=>{setEndless(!G.endless);showPause();}},
      {go:()=>Arcade.saveAs(packRun(),'STAGE '+G.stage,function(sl){
         if(sl){G.slotIni=sl.ini;flash('KEPT UNDER '+sl.ini);}
         showPause();})},
-     {go:()=>{G.state='play';gameOver();}}]);
+     {go:()=>{G.state='play';gameOver();}},
+     {go:toggleSound}]);
 }
 
 /* The title screen flies the formation behind the menu rather than a picture of
@@ -2203,6 +2217,7 @@ el('sound').addEventListener('click',()=>{
   Snd.on=!Snd.on;save('galaga.sound',Snd.on?'1':'0');
   if(!Snd.on)Music.stop();
   el('soundstate').textContent=Snd.on?'on':'off';
+  ov.querySelectorAll('.msound').forEach(b=>{b.textContent=soundLabel();});
   if(Snd.on){Snd.boot();Snd.shot();}
 });
 el('soundstate').textContent=Snd.on?'on':'off';
