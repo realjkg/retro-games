@@ -133,7 +133,9 @@
   'html.rg-side #status{grid-area:1/1/2/2!important;flex-direction:column!important;flex-wrap:wrap!important;'+
     'align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;height:auto!important;'+
     'width:auto!important;max-width:30vw;align-self:start!important;text-align:left}'+
-  'html.rg-side #status>*{margin:0!important}'+
+  /* each part on one line, so a number never breaks away from its label */
+  'html.rg-side #status>*{margin:0!important;white-space:nowrap}'+
+  'html.rg-side #status{font-size:12px!important}'+
   'html.rg-side #stage{grid-area:1/2/5/3!important;align-self:center!important;margin:0!important;order:0!important}'+
   'html.rg-side .rg-thru{display:contents!important}'+
   'html.rg-side .rg-l1{grid-area:2/1/3/2!important}html.rg-side .rg-l2{grid-area:3/1/4/2!important}'+
@@ -143,7 +145,10 @@
   /* four games pin their SOUND / EXIT row 2 px off the bottom when held
    * sideways: lifted clear of the edge, and in a column it is just an item */
   'html.rg-game .soundrow{bottom:max(8px,env(safe-area-inset-bottom))!important}'+
-  'html.rg-side .rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
+  /* (the SOUND row only: written for every item at first, it took the stick's
+   * own position:relative away, and Galaga's knob and ring were laid out
+   * against the whole screen) */
+  'html.rg-side .soundrow.rg-sd{position:static!important;transform:none!important;left:auto!important;bottom:auto!important}'+
   'html.rg-side #log,html.rg-side #roster{justify-self:stretch!important;width:auto!important}'+
   '#rg-x{margin-left:6px;padding:4px 9px;border-radius:999px;cursor:pointer;flex:none;'+
     'font-weight:700;font-size:10px;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;'+
@@ -269,7 +274,9 @@
       }
       return true;};
     var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
-    var inside=function(r){return r.left>=-1&&r.top>=-1&&r.right<=W+1&&r.bottom<=H+1;};
+    /* the picture inside the game's margin too, not merely on the screen: it
+     * ran to the very edge of an upright phone */
+    var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
     /* the whole game on the screen, nothing scrolling; failing that (a page
      * with more on it than a screen holds), every control still in reach;
      * failing even that, the picture on the screen */
