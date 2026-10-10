@@ -65,7 +65,7 @@ about fifteen keyboard commands:
   dynamite, depth, timer and score, plus a text status line above the screen for small displays.
 - The game pauses itself when the tab goes to the background, and short haptic taps (where the
   browser supports them) mark hits, blasts and the idol.
-- A full-screen mode that isolates the game and its controls, going black in both colour
+- A full-screen mode that isolates the game and its controls, going black in both color
   schemes so the mode is never in doubt. It asks for real fullscreen where the browser has it
   and falls back to the same stripped layout where it does not, which is what iPhone Safari
   needs, and it reshapes itself for a phone held sideways.
@@ -107,7 +107,7 @@ leave the effects playing.
 ## What remains approximate
 
 This is **not an emulator or an exact reproduction** of the 1982 release. Room layouts, tile
-art, enemy roster and behaviour, damage numbers, movement speeds, the scoring formula and the
+art, enemy roster and behavior, damage numbers, movement speeds, the scoring formula and the
 effect of each difficulty step are new work in the spirit of the original, not measured against
 a running Apple II, Atari or C64 copy. The sound is locally synthesized Web Audio, not the
 original machine's audio, and the music is an original composition in a period idiom rather
