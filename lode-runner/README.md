@@ -70,7 +70,7 @@ This is **not an emulator or a port**, and it is not the 1983 game's data.
   automatically instead of by eye: the tests walk each one and require that every chest can be
   reached *and* that there is a way back to the top from it, so no level can be finished only by
   dying. The generator runs the same check when you press SAVE.
-- **The guard behaviour is a reimplementation**, written from public descriptions of how the
+- **The guard behavior is a reimplementation**, written from public descriptions of how the
   original's guards act, not from a disassembly. It gives the same shape of play; it is not
   frame-for-frame the 1983 algorithm.
 - **Movement speeds, hole and dig timings, the fill delay and how long a guard flounders** were
@@ -145,7 +145,7 @@ a keyboard:
 
 - A thumb-sized D-pad and two large DIG buttons, laid out for portrait phones with safe-area
   padding, no page zoom and no scroll bounce.
-- A full-screen mode that isolates the game and its controls, going black in both colour schemes
+- A full-screen mode that isolates the game and its controls, going black in both color schemes
   so the mode is never in doubt. It asks for real fullscreen where the browser has it and falls
   back to the same stripped layout where it does not, which is what iPhone Safari needs, and it
   reshapes itself for a phone held sideways.

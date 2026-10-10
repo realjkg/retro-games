@@ -310,7 +310,7 @@ unwarned, he reads about it afterwards and it counts against him.
 **And the man in the alley is somebody.** An armed caller who walks out of his
 encounter unstopped — sent off, told to leave the territory, or gone having
 taken offence — is loose, and the next job that comes due is his. The scene then
-carries his name, his figure, his colours and his own hitboxes, and the brief
+carries his name, his figure, his colors and his own hitboxes, and the brief
 tells you what you already suspect: you have seen that coat before today. Only
 armed men go on the list, because a schoolteacher does not go through the back
 wall of a bank, and a man arrested, shot or dead is off it. Let nobody go and
@@ -386,11 +386,11 @@ a stand-off ends.
 settles into. Recoil throws the barrel above level and it comes back down inside
 a fifth of a second, and the flare sits on the end of the barrel — drawn inside
 the arm's own rotation, so it stays on the muzzle wherever the kick has put it —
-rather than washing the whole picture white. Three colours and no gradient, like
+rather than washing the whole picture white. Three colors and no gradient, like
 everything else here.
 
 **The hour.** The day runs from a cold early morning to a low red sun, and every
-colour that carries the light is mixed toward the hour before it is used: the
+color that carries the light is mixed toward the hour before it is used: the
 sky bands, the hills and their haze, the dirt, the clouds. The lamps come on
 along the row towards evening. Five of the eleven callers stand in the same
 place — most of the cast say where they are in their own lines, so they cannot
@@ -442,11 +442,11 @@ missed, plus a total. No rating titles, no percentages.
 ## How it looks
 
 A 320×200 logical picture presented in 4:3, the way the machine was, scaled with
-nearest neighbour, and framed the way the 1985 game framed it.
+nearest neighbor, and framed the way the 1985 game framed it.
 
 **A flat row of storefronts across the back**, under a dark sky with stepped
 cloud banks and a ridge of hills: five false fronts of differing heights and
-colours, upstairs windows lit or dark, awnings, doors, a boardwalk along the
+colors, upstairs windows lit or dark, awnings, doors, a boardwalk along the
 whole run and a tree standing out in front of it. Gold Gulch keeps the same
 concerns either side every day — HANLEY'S, the ASSAY OFFICE, the LIVERY, the
 TELEGRAPH — and the big board over the middle front names whichever one this
@@ -454,7 +454,7 @@ caller has come out of: Maguire's Saloon, Dr Finch Surgeon, the Gold Gulch
 Hotel, School and Jail, Belle Hollister's, the J P Morgan Bank, Morgan Express
 Co, and the Gold Gulch & Western where the westbound slows. Long names take two
 lines and every board drops a point at a time until it fits the front it is
-nailed to. In front of it the street is grey dirt with stones and ruts, and
+nailed to. In front of it the street is gray dirt with stones and ruts, and
 three people on the boardwalk who leave the moment a gun comes out.
 
 **One large thing parked in the near right**, chosen by the place: a stagecoach
@@ -468,7 +468,7 @@ sleeve billows down across the picture — shaded as cloth, light along the top 
 the arm, shadow beneath it, folds running its length — into a dark cuff, a black
 fist, and the revolver held in it: cylinder, hammer, trigger guard and a level
 barrel reaching most of the way to the man he is talking to. 44×40 cells at
-three pixels each, the largest thing on the screen, rimmed a pixel in light grey
+three pixels each, the largest thing on the screen, rimmed a pixel in light gray
 so a dark gun over a dark doorway is never just a hole. Holstered, the same hand
 holds it muzzle-down.
 
@@ -494,7 +494,7 @@ never any of.
 
 **How it is drawn.** Ordered 4×4 dithering — the same matrix a C64 artist would
 have used — wherever a flat field would otherwise show: the sky graduates
-through four colours in dithered bands, the walls carry grain under their
+through four colors in dithered bands, the walls carry grain under their
 clapboard, the street and the dirt near the boots are two greys mixed, and every
 cloud has a dithered underside. Light comes from the left, so every edge knows
 which side it is on: lit stave and shadowed stave on a barrel, a lit rim and a
@@ -503,7 +503,7 @@ frames, mullions, sills and a line of light off the glass; doors have sunken
 panels and a knob; awnings throw a dithered shadow down the wall behind them;
 wheels have rims, ten spokes and a hub. Everything is stepped a column at a time
 with integer edges, so the diagonals stair the way a bitmap's do, and the
-palette is the C64's sixteen colours with a handful of mixes between them.
+palette is the C64's sixteen colors with a handful of mixes between them.
 
 **Grain follows distance.** The town is drawn a pixel at a time, the caller two
 pixels to a cell, the sheriff's sleeve three — and the fist and revolver, which
@@ -558,7 +558,7 @@ kept, so a frame costs a few hundred horizontal runs rather than four thousand
 single pixels.
 
 The five-line matrix fills the rest, set the way the machine set it: upper case,
-one width per character, tightly stacked, the caller's line in its own colour
+one width per character, tightly stacked, the caller's line in its own color
 above four replies. Nothing a character says may be cut off or hidden behind a
 scroll, so the type steps down until all five fit, and a content check caps line
 lengths at the source. The picture itself carries no chrome — who is in front of
@@ -600,8 +600,8 @@ rather than buried in a default. At that cost an ambush still costs a slow
 player something. On a desktop keyboard the same day is generous, and the tool
 prints that line too rather than letting a green run imply otherwise.
 
-**The shooting.** Weapon box and centre mass are separate and follow the drawn
-frames. Shooting the gun out of an armed man's hand disarms and arrests; centre
+**The shooting.** Weapon box and center mass are separate and follow the drawn
+frames. Shooting the gun out of an armed man's hand disarms and arrests; center
 mass kills. An unarmed caller has nothing to shoot out of his hand, and the
 street can see that as well as the sheriff can. Draw latency and aim spread are
 read apart: a fast shot is a wide one, so rushing turns a killing shot into a
@@ -751,7 +751,7 @@ worked; no line, picture or bar of it has been copied, and none of its writing
 was taken from a walkthrough, a longplay or a ROM. Modern
 conveniences — touch controls, responsive placement, fullscreen, mute, keyboard
 support and the test suite — are kept deliberately; they do not touch the
-composition, the dialogue grammar, the encounter behaviour or the scoring.
+composition, the dialogue grammar, the encounter behavior or the scoring.
 
 ## Full screen without the browser in the way
 

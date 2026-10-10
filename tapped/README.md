@@ -204,7 +204,7 @@ For eyes, not checks:
 * **A customer who reaches the taps does not throw the bartender down the bar**,
   which is the arcade's best gag. The game stops and says what happened.
 * **The music is "Oh! Susanna"**, the arcade saloon's tune: Stephen Foster, 1848,
-  an American classic in the public domain, so no licence is needed. The
+  an American classic in the public domain, so no license is needed. The
   arrangement is this game's own and is not a transcription of the arcade's.
 * **One save slot per browser.** It lives in `localStorage`, so it does not
   follow you to another device, and a private window forgets it.

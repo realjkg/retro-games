@@ -325,7 +325,7 @@ looking (*Wo ist er?*). In a uniform the alarm goes quiet in twelve seconds
 instead of thirty. Firing, or throwing a grenade, gives it away to everyone
 in the room.
 
-**The war plans** are in a steel strongbox, grey, in a room at least half way
+**The war plans** are in a steel strongbox, gray, in a room at least half way
 from the cell. Bullets do not open it and grenades do not break it. It has to
 be picked, and it takes longer than a chest.
 

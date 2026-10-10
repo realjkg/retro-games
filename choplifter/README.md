@@ -79,7 +79,7 @@ are prevented, and that a page which is already zoomed gets put back:
 PW=$PWD/law-of-the-west/node_modules/playwright-core node tools/zoomguard.js
 ```
 
-**It says what it cannot prove, and so does this.** That harness is Chromium. The behaviour
+**It says what it cannot prove, and so does this.** That harness is Chromium. The behavior
 being defended against is WebKit's, and there is no WebKit on the machine this was built on —
 what is proved is that the page's own handlers fire and prevent the right events, not that
 iOS Safari then behaves. **That needs a real device, and nobody has run this on one.** If it
@@ -343,7 +343,7 @@ accounts disagreed with what was here, what was here got changed:
 
 The brief was a modernisation, so these are deliberate and are not the original:
 
-- **The sky.** The Apple II's was black because the machine had no colour to spare for it.
+- **The sky.** The Apple II's was black because the machine had no color to spare for it.
   This one is a dawn, with two parallax ridges behind the action.
 - **A score.** The original had no music at all; Gorlin spent the machine's one bit of sound
   on the rotor. Nothing here is transcribed from any port — it is new writing in the idiom,
@@ -370,7 +370,7 @@ The brief was a modernisation, so these are deliberate and are not the original:
   a barrack**, and **the wording of the end-of-mission grades**, which are written fresh here.
 - **Nothing has been played on a phone.** The zoom guard is proved to fire in Chromium and the
   controls are proved to respond in Chromium. Neither is a real iOS device, and the whole
-  point of the guard is WebKit behaviour.
+  point of the guard is WebKit behavior.
 - **The hostages are seven pixels wide**, and at that size the gait reads in the legs and
   barely at all in the arms. The four frames are four drawings and the two passing frames
   bring different knees through, but nobody would call the arm swing readable.

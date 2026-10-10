@@ -64,7 +64,7 @@ back the same party.
 a row per scene, asking what no state check can answer:
 
 * does the corridor have **depth** in it — more than a handful of distinct
-  colours, rather than one flat wall?
+  colors, rather than one flat wall?
 * does **turning** change the picture?
 * does **forward** do something, even if what it does is say "a wall"?
 * is the door at the Guild actually **drawn** on the wall in front of you?

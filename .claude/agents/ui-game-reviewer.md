@@ -24,8 +24,8 @@ Judge every screen against these, in order:
    while playing?
 3. **Words.** Text outside the picture (`words`). Instructions belong in
    HOW TO PLAY, not under the stick. Labels that the icon already says go.
-4. **One voice.** Font families and sizes (`type`), and colours
-   (`colours`). One family, two or three sizes, a background, a foreground
+4. **One voice.** Font families and sizes (`type`), and colors
+   (`colors`). One family, two or three sizes, a background, a foreground
    and an accent is the target. Name each extra and where it is.
 5. **Nothing to scroll.** A game screen that scrolls has failed (`scroll`).
 
@@ -74,7 +74,7 @@ where it says MISSING is the first thing in your report.
 For each game, worst first:
 
 - one line: what the screen is mostly made of now, with the numbers
-  (picture %, chrome, words, type, colours) on the screen that matters most;
+  (picture %, chrome, words, type, colors) on the screen that matters most;
 - the changes, ranked by how much picture or calm they give back. Each is
   one sentence naming the element and the change ("move SOUND from the
   status bar into the pause menu"), then what it gives back ("the status

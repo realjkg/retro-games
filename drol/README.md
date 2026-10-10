@@ -133,7 +133,7 @@ code as it was.
 
 - The shape of it: a maze of four storeys with gaps cut in the floors, seen from the side,
   scrolling sideways and taller than one screen of the machines it ran on.
-- A flying robot with a rocket backpack who shoots multi-coloured balls out of his chest,
+- A flying robot with a rocket backpack who shoots multi-colored balls out of his chest,
   and who dies on contact with anything the curse sent.
 - The Defender-style **radar scope along the top**, which is how you find a child who is two
   floors away and moving.
@@ -175,7 +175,7 @@ behind. They line up with each other — the red band across his middle is the n
 three — so the game swaps between them without him jumping, and which one is on is the
 difference between the jetpack and his feet. The photograph is a 320×240 screen at double size, so
 each native pixel is a 2×2 block; the blocks under the character were averaged, matched to the
-nearest of the four colours on screen, mirrored (he faces left in the photograph and right in
+nearest of the four colors on screen, mirrored (he faces left in the photograph and right in
 the sprite sheet), and written out as the twenty-by-nineteen character map that is `HERO_PIX`.
 That is where the shape comes from: the blue dome, the white eye with its blue pupil, the red
 band across his middle, the white vent the balls come out of, the red collar, the white of him
@@ -188,7 +188,7 @@ rather than copied out of it.
 What the photograph settled:
 
 - **The screen is black**, and the floors are bright bands with a white edge along the top —
-  not shaded stone. Four colours and a black background is what the machine had.
+  not shaded stone. Four colors and a black background is what the machine had.
 - **The hero is a blue dome with a white eye and a red band**, a white vent below it and the
   pack on his back — a bot shaped like a cartoon creature, and now transcribed rather than
   imagined.
@@ -215,10 +215,10 @@ What the photograph settled:
 
 What is *not* transcribed is what no photograph here shows: the zombie, the witch doctor, the
 vacuum cleaner, the magnet, the children, their mother and the toys. Those are drawn in the
-idiom of the machine — four colours, black background — and marked as guesses, not copies.
+idiom of the machine — four colors, black background — and marked as guesses, not copies.
 
 **There is only one picture of the hero.** He lives in `index.html` as `HERO_PIX`, a
-twelve-by-sixteen character map with `HERO_PAL` for the colours, and everything that shows
+twelve-by-sixteen character map with `HERO_PAL` for the colors, and everything that shows
 him reads it: the game draws it at 1×, the title card at 4×, and `tools/render-art.js` reads
 it back out of the page to write `icon-180/192/512.png` and the inline SVG tile on the
 collection page. Edit those sixteen rows, run the tool, and the game, the title, the app icon
@@ -243,7 +243,7 @@ What that means on screen:
 - **The floors** are blue bands with a **dashed** white edge along the top — on for two tiles
   of every three, which reads as a rail rather than a line — and a bright lip either side of
   every hole. There is nothing behind them: the background is black, which is what makes four
-  colours look like more.
+  colors look like more.
 - **Pillars stand in the maze**, not only on the title card: a classical column every dozen
   tiles or so, holding each storey apart, drawn in greys because they are behind everything
   that moves. Nothing collides with them.
@@ -320,7 +320,7 @@ joystick game:
   scroll moves; the drawing surface takes the shape of the box it sits in rather than a fixed
   rectangle, so full screen shows more maze instead of black bars.
 - The game pauses itself when the tab goes to the background.
-- A full-screen mode that isolates the game and its controls, going black in both colour
+- A full-screen mode that isolates the game and its controls, going black in both color
   schemes so the mode is never in doubt. It asks for real fullscreen where the browser has it
   and falls back to the same stripped layout where it does not, which is what iPhone Safari
   needs, and it reshapes itself for a phone held sideways.
@@ -507,7 +507,7 @@ What is **not** fixed, and is left written down here rather than for a player to
   at the lower right of the third level.
 - [Sega Does on the SG-1000 version](https://segadoes.com/2014/08/15/drol/) — "you control a
   generic-looking robot across a four story map layout. The robot levitates and is able to
-  shoot multi-coloured balls out of his chest."
+  shoot multi-colored balls out of his chest."
 - **Photographs of the original running, of its title screen, and of the Commodore 64
   version**, supplied by the owner of this repository, which are where the palette, the panel across the top, the coiled serpents,
   the swords, the urns, the shape of the hero, his three poses, the **Drol** wordmark, the
