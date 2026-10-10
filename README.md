@@ -76,7 +76,7 @@ It works from `tools/uireview.js`, which photographs every game. It covers a
 phone held upright and sideways and a computer, the page and full-screen game
 mode, and the title and in play. For each screen it measures how much is
 picture, how many non-game controls and words sit round it, how many type
-sizes and colours, and whether it scrolls. It also checks that the joystick
+sizes and colors, and whether it scrolls. It also checks that the joystick
 controls are there, a thumb wide, and wholly on the screen. It writes a
 contact sheet to look at alongside the numbers.
 
