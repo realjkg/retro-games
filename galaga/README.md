@@ -22,10 +22,10 @@ picture in the file is the picture on the screen.
 four curved entry paths, mirrored left and right. Nothing is ever placed in the
 formation: it comes on from off the edge of the screen, flies a loop, and then
 curves into its slot on a bezier that leaves its current heading and arrives
-pointing down. A sprite faces the direction it is actually travelling, computed
+pointing down. A sprite faces the direction it is actually traveling, computed
 from the step it just took — which is why they are upside down on the way up.
 
-**The formation is alive.** It sways nine pixels either side of centre and
+**The formation is alive.** It sways nine pixels either side of center and
 breathes about five per cent in and out of its column spacing, on two clocks
 that every enemy standing in it reads. Wings beat at about eight frames a
 second.
@@ -207,7 +207,7 @@ four of those checks fail on the build they replaced.
 * **The double-tap zoom fix is unverified on the device it is for.** The
   controls now carry their own `touch-action`, which is what the shared guard
   always assumed they did, and `tools/zoomguard.js` proves it in Chromium.
-  The behaviour being defended against is WebKit's and there is no WebKit here.
+  The behavior being defended against is WebKit's and there is no WebKit here.
 * **There is no attract-mode demo.** The title screen flies the formation and
   that is all; the arcade plays itself.
 * **The music is not the arcade's music.** It is a fanfare written to sit where
