@@ -2968,11 +2968,17 @@ if(q.left<m||q.top<m||q.right>W-m||q.bottom>H-m)return false;
 if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
 }
 return true;};
+var uncovered=function(r){
+for(var i=0;i<keep.length;i++){
+var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
+if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
+}
+return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
 var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
-var alone=function(w){return inside(at(w));};
+var alone=function(w){var r=at(w);return inside(r)&&uncovered(r);};
 var widest=function(){
 var level=all(160)?3:reach(160)?2:1,ok=[alone,reach,all][level-1],lo=160,hi=W;
 while(hi-lo>2){var m=(lo+hi)>>1;if(ok(m))lo=m;else hi=m;}

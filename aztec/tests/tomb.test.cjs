@@ -26,7 +26,11 @@ function runtime(diff=3,seed=7){
   const cls=new Set(),docEvents=[];
   const body={classList:{toggle(n,on){on?cls.add(n):cls.delete(n);},add(n){cls.add(n)},
     remove(n){cls.delete(n)},contains:n=>cls.has(n)}};
-  const box={console,setTimeout(){},
+  const store=new Map();
+  const localStorage={getItem:k=>store.has(k)?store.get(k):null,
+    setItem:(k,v)=>{store.set(k,String(v));},removeItem:k=>{store.delete(k);},
+    clear:()=>store.clear()};
+  const box={console,setTimeout(){},localStorage,
     document:{hidden:false,body,documentElement:{},getElementById:el,querySelectorAll(){return[]},
       addEventListener(type){docEvents.push(type)}},
     window:{AudioContext},performance:{now:()=>0},devicePixelRatio:1,
@@ -104,7 +108,9 @@ test('Dynamite blows dirt open, kills what is beside it and wounds a careless th
   r.run(`G.L.map[21][bandFloor(2)-1]=DIRT;G.L.map[21][bandFloor(2)-2]=DIRT;
    G.L.enemies=[mkFoe("spider",21*TS,bandFloor(2)*TS-10,2,1)];
    G.hero.weapon="dynamite";G.hero.dynamite=3;G.hero.hp=100;G.hero.inv=0;attack();`);
-  assert.equal(r.run('G.hero.dynamite'),2);
+  assert.equal(r.run('G.hero.dynamite'),3,'the charge is still in hand during the windup');
+  step(r,12);
+  assert.equal(r.run('G.hero.dynamite'),2,'and leaves it once the arm comes round');
   step(r,140);
   assert.equal(r.run('G.L.map[21][bandFloor(2)-1]'),0);
   assert.equal(r.run('G.L.enemies[0].dead'),true);
@@ -115,14 +121,14 @@ test('A standing machete swing passes over a serpent; a crawling stab reaches it
   const r=runtime(2,3);clearRoom(r);
   const put=()=>r.run(`G.L.enemies=[mkFoe("snake",G.hero.x+G.hero.w+2,bandFloor(2)*TS-6,2,-1)];
     G.hero.machete=true;G.hero.weapon="machete";G.hero.face=1;G.hero.cool=0;`);
-  put();r.run('attack();meleeStep();');
+  put();r.run('attack();meleeStep(SWING.machete);');
   assert.equal(r.run('G.L.enemies[0].hp'),r.run('mkFoe("snake",0,0,2,1).hp'));
   r.run('keys.D=true;');step(r,10);r.run('keys.D=false;');
-  put();r.run('setStance(G.hero,true);attack();meleeStep();');
+  put();r.run('setStance(G.hero,true);attack();meleeStep(SWING.machete);');
   assert.ok(r.run('G.L.enemies[0].hp')<r.run('mkFoe("snake",0,0,2,1).hp'),'a low stab connects');
   // The same standing swing does reach a jaguar.
   r.run(`setStance(G.hero,false);G.hero.cool=0;
-   G.L.enemies=[mkFoe("jaguar",G.hero.x+G.hero.w+2,bandFloor(2)*TS-12,2,-1)];attack();meleeStep();`);
+   G.L.enemies=[mkFoe("jaguar",G.hero.x+G.hero.w+2,bandFloor(2)*TS-12,2,-1)];attack();meleeStep(SWING.machete);`);
   assert.ok(r.run('G.L.enemies[0].hp')<r.run('mkFoe("jaguar",0,0,2,1).hp'));
 });
 
@@ -130,7 +136,9 @@ test('The pistol spends bullets, stops at rock and refuses to fire when empty',(
   const r=runtime(2,3);clearRoom(r);
   r.run(`G.hero.weapon="pistol";G.hero.bullets=2;G.hero.face=1;G.hero.cool=0;
    G.L.enemies=[mkFoe("spider",G.hero.x+60,bandFloor(2)*TS-10,2,-1)];attack();`);
-  assert.equal(r.run('G.hero.bullets'),1);
+  assert.equal(r.run('G.hero.bullets'),2,'the round is still in the cylinder mid-draw');
+  step(r,6);
+  assert.equal(r.run('G.hero.bullets'),1,'and gone once the shot breaks');
   step(r,40);
   assert.ok(r.run('G.L.enemies[0].hp')<r.run('mkFoe("spider",0,0,2,1).hp'));
   r.run(`G.hero.cool=0;G.L.enemies=[];
@@ -326,4 +334,90 @@ test('Deeper levels press the tempo',()=>{
   assert.ok(r.run('SONGS.delve.bpm')>top,'one level down beats faster');
   r.run('newGame(3,21);');
   assert.equal(r.run('SONGS.delve.bpm'),top,'and a new tomb starts from the top again');
+});
+
+/* ---- the committed swing, the whip, the loot and the scenarios ---- */
+
+test('A swing cannot be taken back: windup, a single live window, then recovery',()=>{
+  const r=runtime(2,3);clearRoom(r);
+  r.run(`G.hero.machete=true;G.hero.weapon="machete";G.hero.face=1;G.hero.cool=0;attack();`);
+  const S=r.run('SWING.machete');
+  assert.ok(r.run('!!G.hero.strike'),'the strike exists from the keypress');
+  assert.equal(r.run('G.hero.swing'),0,'but nothing is live during the windup');
+  // pressing again mid-swing is ignored: the hand is committed
+  const id=r.run('G.hero.strike.t');
+  r.run('attack();');
+  assert.equal(r.run('G.hero.strike.t'),id,'a second press during the swing does nothing');
+  const frames=n=>{let live=0;for(let i=0;i<n;i++){r.run('tickStrike(0.02);');
+    if(r.run('G.hero.swing'))live++;}return live;};
+  const live=frames(40);
+  assert.ok(live>=2&&live<=6,'the live window is brief, got '+live+' frames');
+  assert.equal(r.run('G.hero.strike'),null,'and the strike ends on its own');
+});
+
+test('The whip reaches further than the machete and is useless against a shield',()=>{
+  const r=runtime(2,3);clearRoom(r);
+  const reach=w=>r.run(`swingBox({x:0,y:0,w:10,h:22,face:1,crawl:false},SWING.${w}.reach).w`);
+  assert.ok(reach('whip')>reach('machete')*2,'the lash carries');
+  const hp=k=>{
+    r.run(`G.L.enemies=[mkFoe("${k}",G.hero.x+G.hero.w+20,bandFloor(2)*TS-20,2,-1)];
+      G.hero.face=1;`);
+    const full=r.run(`mkFoe("${k}",0,0,2,1).hp`);
+    r.run('meleeStep(SWING.whip);');
+    return full-r.run('G.L.enemies[0].hp');
+  };
+  const onSpider=hp('spider'), onGuard=hp('warrior');
+  assert.ok(onSpider>0,'the whip reaches a spider at 20px');
+  assert.ok(onGuard<onSpider,'and barely troubles a guard ('+onGuard+' vs '+onSpider+')');
+});
+
+test('The whip drags a chest open from across the room',()=>{
+  const r=runtime(2,3);clearRoom(r);
+  r.run(`G.L.chests=[{x:G.hero.x+G.hero.w+22,y:bandFloor(2)*TS-12,w:14,h:12,
+    open:false,item:"potion",kind:"chest"}];G.hero.face=1;G.hero.hp=50;`);
+  assert.equal(r.run('G.L.chests[0].open'),false);
+  r.run('meleeStep(SWING.machete);');
+  assert.equal(r.run('G.L.chests[0].open'),false,'the machete cannot reach it');
+  r.run('meleeStep(SWING.whip);');
+  assert.equal(r.run('G.L.chests[0].open'),true,'the whip can');
+});
+
+test('Nearly half of what you open is worth nothing',()=>{
+  const r=runtime(2,3);
+  const n=40000;
+  const duds=r.run(`(()=>{const rand=rngFrom(99);let d=0;
+    for(let i=0;i<${n};i++){const k=rollLoot(rand);if(k==="nothing"||k==="bones")d++;}
+    return d;})()`);
+  const pct=duds/n;
+  assert.ok(pct>0.42&&pct<0.54,'dud rate should sit near half, got '+(pct*100).toFixed(1)+'%');
+});
+
+test('No two games are dealt the same: a played signature is never repeated',()=>{
+  const r=runtime(2,3);
+  const sigs=r.run(`(()=>{const out=[];
+    for(let i=0;i<400;i++){const f=freshSignature();remember(f.sig);out.push(f.sig);}
+    return out;})()`);
+  assert.equal(new Set(sigs).size,sigs.length,'every signature dealt was new');
+  const ledger=r.run(`playedList().length`);
+  assert.ok(ledger>=400,'and every one was written down, got '+ledger);
+  // a signature already in the ledger is skipped
+  const taken=sigs[10];
+  const again=r.run(`(()=>{for(let i=0;i<200;i++){const f=freshSignature();
+    if(f.sig==="${taken}")return true;}return false;})()`);
+  assert.equal(again,false,'a signature already played is not dealt again');
+});
+
+test('Scenarios change the kind of tomb, not just its layout',()=>{
+  const r=runtime(2,3);
+  assert.ok(r.run('SCENARIOS.length')>=6,'several kinds of tomb');
+  const shape=id=>r.run(`(()=>{G.scenario=SCENARIOS.find(s=>s.id==="${id}");
+    const rand=rngFrom(4242);let water=0,crush=0,chest=0;
+    for(let d=0;d<4;d++){const L=genLevel(d,5,rand,false);
+      crush+=L.crushers.length;chest+=L.chests.length;
+      if(hasWater(L))water++;}
+    return [water,crush,chest];})()`);
+  const flooded=shape('flooded'), collapsing=shape('collapsing'), plundered=shape('plundered');
+  assert.ok(flooded[0]>=collapsing[0],'the flooded galleries flood more often');
+  assert.ok(collapsing[1]>flooded[1],'the collapsing vault has more compacting walls');
+  assert.ok(plundered[2]>collapsing[2],'the plundered tomb has more to search');
 });
