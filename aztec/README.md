@@ -149,3 +149,57 @@ current viewport resizes with them — the game jumping mid-move. Two things kee
   Screen**; on Android or desktop Chrome, the browser's own install offer. A launch from the
   icon opens straight into the full-screen layout, and `sw.js` — a small network-first service
   worker — keeps the game playable with no signal while still picking up new deploys.
+
+## The committed swing, the whip, and what a scenario is
+
+Three changes to how the tomb plays, made because the previous build felt
+unlike the original even where it had the right pieces.
+
+**A swing is a decision.** Pressing attack used to apply damage on the same
+frame and leave a cooldown behind it. Every strike now runs windup, then a
+single brief live window, then recovery, and nothing the player presses during
+any of it is heard — the hand is committed. The machete's live window is about
+three frames out of ten; the pistol fires 80 ms after the trigger and the
+dynamite leaves the hand 180 ms after the throw begins. This is the whole
+difference between a machete and a damage button, and it is why a serpent at
+arm's length is now frightening.
+
+**The whip** is a new addition, not something the 1982 game had. The explorer
+starts with it, alongside the pistol and three sticks of dynamite; the machete
+is still found, not issued. It reaches roughly three times the machete's
+distance and costs no ammunition, but it is slow at both ends and close to
+useless against a guard's shield, so the machete keeps its reason to exist. It
+also drags an unopened chest open from across a room, and taken to a fall it
+catches something overhead — one grab per drop.
+
+**A scenario** sits on top of the seed. The seed decides where everything
+lands; the scenario decides what kind of tomb it is, shifting how much water,
+how many compacting walls, how thick the rubble, how much there is to search
+and who lives down there. Six kinds are defined. A game's signature is its seed
+and its scenario together, and every signature dealt is written to a ledger in
+local storage and never dealt again, so no two games you play are the same
+tomb. The space is 2^32 seeds times six scenarios; the ledger holds the last
+four thousand and rolls.
+
+Searching was also made able to disappoint. Just under half of what you open
+now holds nothing worth carrying — dust, or the remains of Professor Von
+Forster. A container that always pays turns searching into a chore.
+
+## What this change did not verify
+
+Per the repository's standing rule, gameplay changes are supposed to be watched
+in a real browser before anyone calls them fixed. That did not happen here:
+the work was done in a container with no browser available, so everything above
+is verified only by `aztec/tests/tomb.test.cjs` — which reads state, and state
+was never the thing that caught a visual defect in this repository.
+
+Specifically unverified, and worth putting eyes on before this is trusted:
+
+- whether the windup *reads* on screen as a wind-up, or just as lag. The arm
+  pose during windup is unchanged from the old single-frame swing, so the
+  timing is right and the drawing may not be.
+- the whip is drawn as a brown bar of its own reach, reusing the machete's
+  sweep rendering. It has no lash, no curve and no animation.
+- whether the fall-catch feels like catching something or like a stutter.
+- the six scenarios are verified to shift their counts, not to produce tombs
+  that feel distinct to play.

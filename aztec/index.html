@@ -608,6 +608,46 @@ const bandTop=f=>f*FLOORH, bandFloor=f=>f*FLOORH+FLOORH-1;
 const solidT=t=>t===ROCK||t===DIRT;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 // Deterministic generator: one seed reproduces a whole tomb, which the tests rely on.
+/* ---- scenarios ----
+ * The seed decides where everything lands. The scenario decides what kind of
+ * tomb it is, which shifts the mix rather than the layout: how much water,
+ * how many compacting walls, how thick the rubble, who lives down there and
+ * how deep the idol is buried. Seed x scenario is what makes two games
+ * different in kind as well as in detail. */
+const SCENARIOS=[
+ {id:"flooded",   name:"the flooded galleries", water:1.8, crush:.5, dirt:.8, chest:1.0, foes:1.0, deep:0},
+ {id:"collapsing",name:"the collapsing vault",  water:.3,  crush:2.2,dirt:1.4, chest:.9, foes:.9, deep:0},
+ {id:"infested",  name:"the infested warren",   water:.8,  crush:.6, dirt:.9, chest:1.0, foes:1.6, deep:0},
+ {id:"plundered", name:"the plundered tomb",    water:.7,  crush:.8, dirt:1.0, chest:1.7, foes:1.1, deep:0},
+ {id:"guarded",   name:"the guarded sanctum",   water:.6,  crush:1.0,dirt:1.1, chest:.8, foes:1.3, deep:1},
+ {id:"sealed",    name:"the sealed approach",   water:.5,  crush:1.2,dirt:2.0, chest:1.1, foes:.8, deep:1}
+];
+/* No two games the same: a signature is seed + scenario, and a signature that
+ * has been played is never dealt again. The ledger is capped and rolls. */
+const PLAYED_KEY="aztec.played";
+function playedList(){
+ try{const v=JSON.parse(localStorage.getItem(PLAYED_KEY)||"[]");return Array.isArray(v)?v:[];}
+ catch(e){return [];}
+}
+function remember(sig){
+ try{const l=playedList();l.push(sig);
+  while(l.length>4000)l.shift();
+  localStorage.setItem(PLAYED_KEY,JSON.stringify(l));}catch(e){}
+}
+/* Draw a signature nobody has played. The space is 2^32 seeds x 6 scenarios,
+ * so a free one is found on the first or second try for any real ledger; the
+ * bound only stops an infinite loop if storage is somehow saturated. */
+function freshSignature(){
+ const seen=new Set(playedList());
+ for(let i=0;i<64;i++){
+  const seed=((Date.now()^Math.floor(Math.random()*4294967296)^(i*2654435761))>>>0);
+  const sc=SCENARIOS[seed%SCENARIOS.length];
+  const sig=seed+":"+sc.id;
+  if(!seen.has(sig))return {seed,sc,sig};
+ }
+ const seed=(Math.random()*4294967296)>>>0, sc=SCENARIOS[seed%SCENARIOS.length];
+ return {seed,sc,sig:seed+":"+sc.id};
+}
 function rngFrom(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=Math.imul(s^s>>>15,1|s);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
@@ -621,15 +661,31 @@ const FOE={
  dino   :{n:"tomb saurian", hp:46,sp:50, dmg:24, w:28,h:22,pts:500,ai:"chase"}
 };
 // Chests and debris piles hold what the 1982 game hid in them.
-const LOOT=[["bullets",26],["dynamite",15],["potion",16],["machete",8],["pistol",8],["bones",6],["nothing",21]];
+/* Nearly half of what you open holds nothing worth carrying. The miss rate is
+   the mechanic: a container that always pays turns searching into a chore. */
+const LOOT=[["bullets",18],["dynamite",11],["potion",11],["machete",7],["pistol",5],["bones",14],["nothing",34]];
 const ITEM_NAME={bullets:"a handful of bullets",dynamite:"two sticks of dynamite",potion:"a healing potion",
  machete:"a machete",pistol:"a pistol",bones:"the remains of Professor Von Forster",idol:"THE JADE IDOL",
  nothing:"nothing but dust"};
+/* ---- the committed swing ----
+ * Seconds. Once begun a strike cannot be cancelled or re-aimed: windup is the
+ * tell, active is the only window that touches anything, recover is the debt.
+ * This is the whole difference between a machete and a damage button. */
+const SWING={
+ fists:   {windup:.10, active:.08, recover:.20, dmg:4,  reach:13},
+ machete: {windup:.13, active:.07, recover:.16, dmg:11, reach:13},
+ whip:    {windup:.26, active:.09, recover:.30, dmg:6,  reach:34, armour:.3, pull:true},
+ pistol:  {windup:.08, active:0,   recover:.26},
+ dynamite:{windup:.18, active:0,   recover:.40}
+};
+const ARMOURED={warrior:1};
 function rollLoot(rand){let r=rand()*LOOT.reduce((a,b)=>a+b[1],0);
  for(const [k,w] of LOOT){if((r-=w)<0)return k;} return "nothing";}
 
 function genLevel(depth,diff,rand,last){
  const ri=n=>Math.floor(rand()*n);
+ const SC=(typeof G==="object"&&G&&G.scenario)||SCENARIOS[0];
+ const scale=(n,k)=>Math.max(0,Math.round(n*k));
  const map=[...Array(MAPW)].map(()=>new Array(MAPH).fill(ROCK));
  for(let f=0;f<FLOORS;f++)for(let x=1;x<MAPW-1;x++)
    for(let y=bandTop(f)+1;y<bandFloor(f);y++)map[x][y]=AIR;
@@ -645,7 +701,7 @@ function genLevel(depth,diff,rand,last){
  // You always land on safe ground: no traps within three tiles of a level's own stairs.
  const safe=(f,x)=>(f===0&&Math.abs(x-upX)<=3)||(f===FLOORS-1&&dnX>=0&&Math.abs(x-dnX)<=3);
  // Dirt walls: dig through them, blow them up, or crawl under when the gap is there.
- for(let i=0,n=3+Math.floor(diff/2);i<n;i++){
+ for(let i=0,n=scale(3+Math.floor(diff/2),SC.dirt);i<n;i++){
    const f=ri(FLOORS), x=4+ri(MAPW-8);
    if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
    for(let y=bandTop(f)+1;y<bandFloor(f);y++)map[x][y]=DIRT;
@@ -655,7 +711,7 @@ function genLevel(depth,diff,rand,last){
    const f=ri(FLOORS), x=5+ri(MAPW-10), w=1+ri(2);
    for(let k=0;k<w;k++)if(map[x+k]&&map[x+k][bandFloor(f)-1]===AIR&&!safe(f,x+k))map[x+k][bandFloor(f)]=SPIKE;
  }
- if(depth>0&&rand()<.85){                             // a flooded room on the lowest floor
+ if(depth>0&&rand()<Math.min(.98,.85*SC.water)){      // a flooded room on the lowest floor
    const f=FLOORS-1, x0=6+ri(MAPW-22), len=6+ri(9), deep=depth>=2&&rand()<.7;
    for(let x=x0;x<x0+len&&x<MAPW-1;x++){
      if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
@@ -663,12 +719,12 @@ function genLevel(depth,diff,rand,last){
      if(deep){map[x][bandFloor(f)]=WATER;map[x][bandFloor(f)-2]=WATER;}
    }
  }
- for(let i=0,n=Math.floor(diff/3);i<n;i++){           // compacting walls
+ for(let i=0,n=scale(Math.floor(diff/3)+1,SC.crush);i<n;i++){ // compacting walls
    const f=ri(FLOORS), x=6+ri(MAPW-12);
    if(map[x][bandFloor(f)-1]!==AIR||safe(f,x))continue;
    L.crushers.push({x:x*TS,top:(bandTop(f)+1)*TS,drop:(FLOORH-2)*TS,t:rand()*3,period:3.2});
  }
- for(let i=0,n=5+ri(3)+Math.floor(diff/2);i<n;i++){
+ for(let i=0,n=scale(5+ri(3)+Math.floor(diff/2),SC.chest);i<n;i++){
    const f=ri(FLOORS), x=3+ri(MAPW-6);
    if(map[x][bandFloor(f)-1]!==AIR||!solidT(map[x][bandFloor(f)]))continue;
    L.chests.push({x:x*TS+1,y:bandFloor(f)*TS-12,w:14,h:12,open:false,
@@ -676,7 +732,7 @@ function genLevel(depth,diff,rand,last){
  }
  const pool=depth===0?["spider","snake"]:depth===1?["spider","snake","jaguar"]:
    depth===2?["snake","jaguar","warrior"]:["jaguar","warrior","spider"];
- for(let i=0,n=4+depth+Math.round(diff*1.3);i<n;i++)
+ for(let i=0,n=scale(4+depth+Math.round(diff*1.3),SC.foes);i<n;i++)
    spawnFoe(L,pool[ri(pool.length)],rand,diff);
  if(hasWater(L))for(let i=0,n=1+Math.floor(diff/3);i<n;i++)spawnFoe(L,"gator",rand,diff);
  if(last){                                            // the idol, and what guards it
@@ -827,16 +883,18 @@ const statusEl=document.getElementById("status"), ov=document.getElementById("ov
 
 function newGame(diff,seed){
  G.diff=clamp(diff|0,1,8);
- G.seed=seed===undefined?(Date.now()^Math.floor(Math.random()*1e9))>>>0:seed>>>0;
+ if(seed===undefined){const f=freshSignature();G.seed=f.seed;G.scenario=f.sc;remember(f.sig);}
+ else{G.seed=seed>>>0;G.scenario=SCENARIOS[G.seed%SCENARIOS.length];}
  const rand=rngFrom(G.seed), count=3+Math.ceil(G.diff/2);
  G.levels=[];
  for(let d=0;d<count;d++)G.levels.push(genLevel(d,G.diff,rand,d===count-1));
  G.depth=0;G.L=G.levels[0];G.time=0;G.score=0;G.dig=null;G.shake=0;G.flash=0;
  G.hero={x:G.L.up.x,y:bandFloor(0)*TS-22,w:10,h:22,vx:0,vy:0,face:1,onGround:true,crawl:false,
   climb:false,running:false,hp:100,maxhp:100,bullets:6,dynamite:3,machete:false,pistol:true,
-  idol:false,weapon:"pistol",cool:0,swing:0,inv:0,hurtT:0,hazT:0,anim:0};
+  whip:true,idol:false,weapon:"whip",cool:0,swing:0,strike:null,grabbed:false,
+  inv:0,hurtT:0,hazT:0,anim:0};
  G.phase="play";SONGS.delve.bpm=76;
- say("The Tomb of Quetzalcoatl. Find the jade idol and climb back out.");
+ say("The Tomb of Quetzalcoatl — "+G.scenario.name+". Find the jade idol and climb back out.");
  hideOverlay();
  return G;
 }
@@ -901,35 +959,65 @@ function die(src){
   Arcade.submit(G.score,"DEPTH "+(G.depth+1),row=>Arcade.show({mark:row&&row.at}));
 }
 function weapons(){const h=G.hero,l=[];
- if(h.machete)l.push("machete"); if(h.pistol)l.push("pistol"); if(h.dynamite>0)l.push("dynamite");
+ if(h.whip)l.push("whip"); if(h.machete)l.push("machete");
+ if(h.pistol)l.push("pistol"); if(h.dynamite>0)l.push("dynamite");
  return l.length?l:["fists"];}
 function cycleWeapon(){
  const w=weapons(), i=w.indexOf(G.hero.weapon);
  G.hero.weapon=w[(i+1)%w.length];say("Ready: "+G.hero.weapon);
 }
 function attack(){
- const h=G.hero; if(h.cool>0)return;
- if(h.weapon==="pistol"&&h.pistol){
-  if(h.bullets<=0){say("Out of bullets.");h.cool=.3;return;}
-  h.bullets--;h.cool=.42;shotSound();
+ const h=G.hero;
+ if(h.strike||h.cool>0)return;                 // a swing in progress owns the hand
+ /* the whip taken to a fall catches something overhead: one grab per drop */
+ if(h.weapon==="whip"&&!h.onGround&&h.vy>0&&!h.grabbed&&!h.climb){
+  h.grabbed=true;h.vy=-18;h.cool=.22;swingSound();say("The lash catches.");return;
+ }
+ if(h.weapon==="pistol"&&h.pistol&&h.bullets<=0){say("Out of bullets.");h.cool=.3;return;}
+ if(h.weapon==="dynamite"&&h.dynamite<=0)return;
+ const w=SWING[h.weapon]?h.weapon:(h.machete?"machete":"fists");
+ h.strike={w,t:0,fired:false};
+}
+/* windup -> active -> recover. Only the active window touches anything, and
+ * nothing the player presses during any of it is heard. */
+function tickStrike(dt){
+ const h=G.hero, st=h.strike; if(!st)return;
+ const S=SWING[st.w]||SWING.fists;
+ st.t+=dt;
+ if(!st.fired&&st.t>=S.windup){st.fired=true;release(st.w);}
+ const inActive=st.t>=S.windup&&st.t<S.windup+S.active;
+ h.swing=inActive?1:0;
+ if(inActive&&S.dmg)meleeStep(S);
+ if(st.t>=S.windup+S.active+S.recover){h.strike=null;h.swing=0;}
+}
+function release(w){
+ const h=G.hero;
+ if(w==="pistol"){
+  h.bullets--;shotSound();
   G.L.shots.push({x:h.x+(h.face>0?h.w:-4),y:h.y+(h.crawl?3:13),w:4,h:2,vx:250*h.face,dmg:14,foe:false});
- }else if(h.weapon==="dynamite"&&h.dynamite>0){
-  h.dynamite--;h.cool=.6;
+ }else if(w==="dynamite"){
+  h.dynamite--;
   G.L.bombs.push({x:h.x+h.face*6,y:h.y+h.h-6,w:6,h:6,vy:0,fuse:2.2});
   say("Fuse lit — get clear!");
   if(!h.dynamite&&weapons().indexOf("dynamite")<0)h.weapon=weapons()[0];
- }else{
-  h.cool=h.machete?.34:.45;h.swing=.18;swingSound();
- }
+ }else swingSound();
 }
 // The machete reaches where the explorer is pointing it: a standing swing passes
 // clean over a serpent, which is why the original taught you to stab at the ground.
-function swingBox(h){
- return{x:h.face>0?h.x+h.w:h.x-13,y:h.crawl?h.y+1:h.y+5,w:13,h:h.crawl?9:11};
+function swingBox(h,reach){
+ const r=reach||13;
+ return{x:h.face>0?h.x+h.w:h.x-r,y:h.crawl?h.y+1:h.y+5,w:r,h:h.crawl?9:11};
 }
-function meleeStep(){
- const h=G.hero, box=swingBox(h), dmg=h.machete?11:4;
- for(const e of G.L.enemies)if(!e.dead&&overlap(box,e)){damageFoe(e,dmg);e.vx=90*h.face;}
+function meleeStep(S){
+ const h=G.hero, spec=S||SWING.fists, box=swingBox(h,spec.reach);
+ for(const e of G.L.enemies)if(!e.dead&&overlap(box,e)){
+  /* leather against a guard's shield is close to useless */
+  const soft=(spec.armour&&ARMOURED[e.k])?spec.armour:1;
+  damageFoe(e,Math.max(1,Math.round(spec.dmg*soft)));
+  e.vx=90*h.face*(soft<1?.4:1);
+ }
+ /* the lash drags a chest open from across the room */
+ if(spec.pull)for(const c of G.L.chests)if(!c.open&&overlap(box,c))openChest(c);
 }
 function damageFoe(e,d){
  e.hp-=d;hitSound();
@@ -1057,7 +1145,8 @@ function stepGame(dt){
  h.inv=Math.max(0,h.inv-dt);h.cool=Math.max(0,h.cool-dt);h.hurtT=Math.max(0,h.hurtT-dt);
  h.hazT=Math.max(0,h.hazT-dt);
  h.anim+=dt*(Math.abs(h.vx)>1||h.climb&&h.vy!==0?(h.running?1.5:1):0);
- if(h.swing>0){meleeStep();h.swing-=dt;}
+ tickStrike(dt);
+ if(h.onGround)h.grabbed=false;
 
  // stance, ladders, walking
  setStance(h,!!keys.D&&!onStair(h));
@@ -1440,9 +1529,9 @@ function drawHero(){
    c.fillStyle="#e0d0a0";c.fillRect(15,6,1,3);}
  }
  c.restore();
- if(h.swing>0){                                           // the machete sweep itself
-  const b=swingBox(h);
-  c.fillStyle=h.machete?"#eef2f8":"#e7bd8a";
+ if(h.swing>0){                                           // the sweep itself
+  const st=h.strike, b=swingBox(h,(st&&SWING[st.w]&&SWING[st.w].reach)||13);
+  c.fillStyle=st&&st.w==="whip"?"#9a6b3a":(h.machete?"#eef2f8":"#e7bd8a");
   c.fillRect(px(b.x-G.cam.x),px(b.y-G.cam.y+b.h/2-1),b.w,2);
   c.fillRect(px(b.x-G.cam.x)+(h.face>0?b.w-3:0),px(b.y-G.cam.y+1),3,b.h-2);
  }
@@ -1944,11 +2033,17 @@ if(q.left<m||q.top<m||q.right>W-m||q.bottom>H-m)return false;
 if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
 }
 return true;};
+var uncovered=function(r){
+for(var i=0;i<keep.length;i++){
+var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
+if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
+}
+return true;};
 var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
 var inside=function(r){return r.left>=4&&r.top>=-1&&r.right<=W-4&&r.bottom<=H-1;};
 var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
 var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
-var alone=function(w){return inside(at(w));};
+var alone=function(w){var r=at(w);return inside(r)&&uncovered(r);};
 var widest=function(){
 var level=all(160)?3:reach(160)?2:1,ok=[alone,reach,all][level-1],lo=160,hi=W;
 while(hi-lo>2){var m=(lo+hi)>>1;if(ok(m))lo=m;else hi=m;}

@@ -273,6 +273,15 @@
         if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
       }
       return true;};
+    /* the same overlap test without the on-the-screen half: used by the last
+     * resort below, where a control may be pushed off a short screen but must
+     * never end up underneath the picture */
+    var uncovered=function(r){
+      for(var i=0;i<keep.length;i++){
+        var q=keep[i].getBoundingClientRect();if(q.width<2||q.height<2)continue;
+        if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)return false;
+      }
+      return true;};
     var at=function(w){root.style.setProperty('--rg-sw',w+'px');return st.getBoundingClientRect();};
     /* the picture inside the game's margin too, not merely on the screen: it
      * ran to the very edge of an upright phone */
@@ -282,12 +291,18 @@
      * failing even that, the picture on the screen */
     var all=function(w){var r=at(w);return inside(r)&&clear(r)&&se.scrollHeight<=H+1&&se.scrollWidth<=W+1;};
     var reach=function(w){var r=at(w);return inside(r)&&clear(r);};
-    var alone=function(w){return inside(at(w));};
+    /* Last resort. It used to be "the picture on the screen" and nothing else,
+     * which on a short screen — a half-height window, a phone with the browser
+     * chrome up — grew the stage straight over the pad and left the game
+     * looking finished and unplayable. The picture now still yields to the
+     * controls even when it cannot keep them all in view. */
+    var alone=function(w){var r=at(w);return inside(r)&&uncovered(r);};
     /* the widest stage that fits, in whichever arrangement is on now */
     /* (and how well it fits: 3 all of it, 2 every control, 1 the picture.
      * An arrangement that keeps the controls beats a bigger one that does not:
      * Galaga's pads under its picture only "fitted" with the stick off the
-     * screen) */
+     * screen. Level 1 no longer means "cover whatever is in the way": it means
+     * the picture is on the screen and sitting on top of nothing) */
     var widest=function(){
       var level=all(160)?3:reach(160)?2:1,ok=[alone,reach,all][level-1],lo=160,hi=W;
       while(hi-lo>2){var m=(lo+hi)>>1;if(ok(m))lo=m;else hi=m;}
